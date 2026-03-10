@@ -1,6 +1,8 @@
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 
+export const runtime = "nodejs";
+
 async function getSession(headers: Headers) {
   return auth.api.getSession({
     headers,

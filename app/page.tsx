@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { authClient } from "@/lib/auth-client";
+import { huaweiRegions, type HuaweiRegionKey } from "@/lib/huawei-regions";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
@@ -116,35 +117,6 @@ const services = [
   { name: "Web Application Firewall", code: "WAF", icon: "https://res-static.hc-cdn.cn/cloudbu-site/public/product-banner-icon/SecurityCompliance/WAF.png" },
 ] as const;
 
-const regionLabels = {
-  "la-sao-paulo1": { short: "LA-Sao Paulo1", full: "Sao Paulo, Brazil (1)" },
-  "la-santiago": { short: "LA-Santiago", full: "Santiago, Chile" },
-  "cn-hong-kong": { short: "CN-Hong Kong", full: "Hong Kong, China" },
-  "ap-bangkok": { short: "AP-Bangkok", full: "Bangkok, Thailand" },
-  "ap-singapore": { short: "AP-Singapore", full: "Singapore" },
-  "ap-jakarta": { short: "AP-Jakarta", full: "Jakarta, Indonesia" },
-  "ap-manila": { short: "AP-Manila", full: "Manila, Philippines" },
-  "ap-kuala-lumpur-op6": { short: "AP-Kuala Lumpur-OP6", full: "Kuala Lumpur, Malaysia (OP6)" },
-  "cn-north-beijing4": { short: "CN North-Beijing4", full: "Beijing, China (North-Beijing4)" },
-  "cn-north3": { short: "CN North3", full: "China North 3" },
-  "cn-east-shanghai1": { short: "CN East-Shanghai1", full: "Shanghai, China (East-Shanghai1)" },
-  "cn-east-qingdao": { short: "CN East-Qingdao", full: "Qingdao, China" },
-  "cn-east2": { short: "CN East2", full: "China East 2" },
-  "cn-south-guangzhou": { short: "CN South-Guangzhou", full: "Guangzhou, China" },
-  "cn-southwest-guiyang1": { short: "CN Southwest-Guiyang1", full: "Guiyang, China (Southwest-Guiyang1)" },
-  "me-riyadh": { short: "ME-Riyadh", full: "Riyadh, Saudi Arabia" },
-  "af-johannesburg": { short: "AF-Johannesburg", full: "Johannesburg, South Africa" },
-  "af-cairo": { short: "AF-Cairo", full: "Cairo, Egypt" },
-  "eu-paris": { short: "EU-Paris", full: "Paris, France" },
-  "eu-dublin": { short: "EU-Dublin", full: "Dublin, Ireland" },
-  "tr-istanbul": { short: "TR-Istanbul", full: "Istanbul, Turkiye" },
-  "tr-ankara-pur": { short: "TR-Ankara-PUR", full: "Ankara, Turkiye (PUR)" },
-  "la-mexico-city1": { short: "LA-Mexico City1", full: "Mexico City, Mexico (1)" },
-  "la-mexico-city2": { short: "LA-Mexico City2", full: "Mexico City, Mexico (2)" },
-  "la-lima1": { short: "LA-Lima1", full: "Lima, Peru (1)" },
-  "la-buenos-aires1": { short: "LA-Buenos Aires1", full: "Buenos Aires, Argentina (1)" },
-} as const;
-
 const options = {
   billing: ["Yearly/Monthly", "Pay-per-use", "RI"],
 };
@@ -176,20 +148,73 @@ const priceListEntries = [
   { service: "Analytics", sku: "Data Lake Query", billing: "Pay-per-use", unit: "per query", price: "USD 0.009" },
 ];
 
-const flavorOptions = [
-  { name: "c7.large.2", vcpu: "2", ram: "4", family: "General compute", price: "USD 28.40", priceValue: 28.4 },
-  { name: "c7.xlarge.4", vcpu: "4", ram: "8", family: "General compute", price: "USD 54.80", priceValue: 54.8 },
-  { name: "c7.2xlarge.8", vcpu: "8", ram: "16", family: "General compute", price: "USD 108.20", priceValue: 108.2 },
-  { name: "m7.large.2", vcpu: "2", ram: "8", family: "Memory optimized", price: "USD 39.90", priceValue: 39.9 },
-  { name: "m7.xlarge.4", vcpu: "4", ram: "16", family: "Memory optimized", price: "USD 76.30", priceValue: 76.3 },
-  { name: "m7.2xlarge.8", vcpu: "8", ram: "32", family: "Memory optimized", price: "USD 148.60", priceValue: 148.6 },
-  { name: "g6.large.2", vcpu: "2", ram: "8", family: "Burstable", price: "USD 24.10", priceValue: 24.1 },
-  { name: "g6.xlarge.4", vcpu: "4", ram: "16", family: "Burstable", price: "USD 46.70", priceValue: 46.7 },
-  { name: "c6.3xlarge.12", vcpu: "12", ram: "24", family: "Compute intensive", price: "USD 156.90", priceValue: 156.9 },
-  { name: "c6.4xlarge.16", vcpu: "16", ram: "32", family: "Compute intensive", price: "USD 205.40", priceValue: 205.4 },
-  { name: "s7.2xlarge.8", vcpu: "8", ram: "64", family: "Storage optimized", price: "USD 189.20", priceValue: 189.2 },
-  { name: "kc1.2xlarge.8", vcpu: "8", ram: "32", family: "Kunpeng compute", price: "USD 132.50", priceValue: 132.5 },
-] as const;
+const flavorSortLabels = {
+  "price-asc": "Price: Lowest first",
+  "price-desc": "Price: Highest first",
+  "name-asc": "Name: A to Z",
+  "vcpu-asc": "vCPU: Lowest first",
+} as const;
+
+type FlavorBillingMode = "ONDEMAND" | "MONTHLY" | "YEARLY" | "RI";
+
+type CatalogFlavor = {
+  resourceSpecCode: string;
+  family: string | null;
+  architecture: string | null;
+  series: string | null;
+  description: string | null;
+  cpu: number;
+  ramGiB: number;
+  prices: Partial<Record<FlavorBillingMode, number>>;
+  currency: string;
+  updatedAt: string;
+};
+
+type FlavorCard = {
+  name: string;
+  vcpu: string;
+  ram: string;
+  family: string;
+  price: string;
+  priceValue: number;
+  priceModeLabel: string;
+  description: string | null;
+};
+
+const flavorPricePriority: Array<{ mode: FlavorBillingMode; label: string; suffix: string }> = [
+  { mode: "ONDEMAND", label: "Pay-per-use", suffix: "/h" },
+  { mode: "MONTHLY", label: "Monthly", suffix: "/mo" },
+  { mode: "YEARLY", label: "Yearly", suffix: "/yr" },
+  { mode: "RI", label: "RI", suffix: "" },
+];
+
+function formatFlavorAmount(currency: string, amount: number, suffix: string) {
+  return `${currency} ${amount.toFixed(amount < 1 ? 4 : 2)}${suffix}`;
+}
+
+function toFlavorCard(flavor: CatalogFlavor): FlavorCard {
+  const preferredPrice =
+    flavorPricePriority
+      .map((entry) => ({
+        label: entry.label,
+        suffix: entry.suffix,
+        amount: flavor.prices[entry.mode],
+      }))
+      .find((entry) => typeof entry.amount === "number" && Number.isFinite(entry.amount)) ?? null;
+
+  const familyParts = [flavor.family, flavor.architecture].filter(Boolean);
+
+  return {
+    name: flavor.resourceSpecCode,
+    vcpu: String(flavor.cpu),
+    ram: String(Number.isInteger(flavor.ramGiB) ? flavor.ramGiB : Number(flavor.ramGiB.toFixed(1))),
+    family: familyParts.join(" · ") || flavor.series || "ECS",
+    price: preferredPrice ? formatFlavorAmount(flavor.currency, preferredPrice.amount as number, preferredPrice.suffix) : "Price unavailable",
+    priceValue: preferredPrice?.amount ?? Number.POSITIVE_INFINITY,
+    priceModeLabel: preferredPrice?.label ?? "Unavailable",
+    description: flavor.description,
+  };
+}
 
 type AppList = {
   id: string;
@@ -237,7 +262,7 @@ export default function Home() {
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [cookieValue, setCookieValue] = useState(initialCookieValue);
   const [cookieDraft, setCookieDraft] = useState(initialCookieValue);
-  const [regionValue, setRegionValue] = useState<keyof typeof regionLabels>("la-sao-paulo1");
+  const [regionValue, setRegionValue] = useState<HuaweiRegionKey>("la-sao-paulo1");
   const [vcpuValue, setVcpuValue] = useState("2");
   const [ramValue, setRamValue] = useState("8");
   const [instanceCount, setInstanceCount] = useState("1");
@@ -246,7 +271,11 @@ export default function Home() {
   const [flavorQuery, setFlavorQuery] = useState("");
   const [flavorPage, setFlavorPage] = useState(1);
   const [flavorSort, setFlavorSort] = useState("price-asc");
-  const [selectedFlavor, setSelectedFlavor] = useState("c7.large.2");
+  const [selectedFlavor, setSelectedFlavor] = useState("");
+  const [catalogFlavors, setCatalogFlavors] = useState<FlavorCard[]>([]);
+  const [catalogFlavorsLoading, setCatalogFlavorsLoading] = useState(false);
+  const [catalogFlavorsError, setCatalogFlavorsError] = useState("");
+  const [catalogFlavorsLastCompletedAt, setCatalogFlavorsLastCompletedAt] = useState<string | null>(null);
   const [projects, setProjects] = useState<AppProject[]>([]);
   const [projectsLoading, setProjectsLoading] = useState(false);
   const [projectsError, setProjectsError] = useState("");
@@ -274,7 +303,7 @@ export default function Home() {
   const hasSuggestions = isSearchOpen && suggestions.length > 0;
   const activeDescendant = hasSuggestions ? `${listboxId}-${activeSuggestionIndex}` : undefined;
   const totalProjectLists = projects.reduce((sum, project) => sum + project.lists.length, 0);
-  const filteredFlavors = flavorOptions.filter((flavor) => {
+  const filteredFlavors = catalogFlavors.filter((flavor) => {
     const q = flavorQuery.trim().toLowerCase();
     if (!q) return true;
     return (
@@ -292,6 +321,68 @@ export default function Home() {
   const totalFlavorPages = Math.max(1, Math.ceil(sortedFlavors.length / 5));
   const currentFlavorPage = Math.min(flavorPage, totalFlavorPages);
   const visibleFlavors = sortedFlavors.slice((currentFlavorPage - 1) * 5, currentFlavorPage * 5);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadCatalogFlavors() {
+      setCatalogFlavorsLoading(true);
+      setCatalogFlavorsError("");
+
+      try {
+        const response = await fetch(`/api/catalog/ecs-flavors?region=${encodeURIComponent(regionValue)}`, {
+          cache: "no-store",
+        });
+        const payload = (await response.json()) as {
+          flavors?: CatalogFlavor[];
+          error?: string;
+          lastCompletedAt?: string | null;
+        };
+
+        if (!response.ok) {
+          throw new Error(payload.error ?? "Failed to load ECS flavors");
+        }
+
+        if (cancelled) return;
+
+        const nextFlavors = (payload.flavors ?? []).map(toFlavorCard);
+        setCatalogFlavors(nextFlavors);
+        setCatalogFlavorsLastCompletedAt(payload.lastCompletedAt ?? null);
+        setFlavorPage(1);
+        setCatalogFlavorsError(payload.error ?? "");
+      } catch (error) {
+        if (cancelled) return;
+        setCatalogFlavors([]);
+        setCatalogFlavorsError(error instanceof Error ? error.message : "Failed to load ECS flavors");
+      } finally {
+        if (!cancelled) {
+          setCatalogFlavorsLoading(false);
+        }
+      }
+    }
+
+    void loadCatalogFlavors();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [regionValue]);
+
+  useEffect(() => {
+    if (!catalogFlavors.length) {
+      return;
+    }
+
+    const activeFlavor = catalogFlavors.find((flavor) => flavor.name === selectedFlavor);
+    if (activeFlavor) {
+      return;
+    }
+
+    const nextFlavor = catalogFlavors[0];
+    setSelectedFlavor(nextFlavor.name);
+    setVcpuValue(nextFlavor.vcpu);
+    setRamValue(nextFlavor.ram);
+  }, [catalogFlavors, selectedFlavor]);
 
   useEffect(() => {
     const handlePointerDown = (event: MouseEvent) => {
@@ -892,12 +983,12 @@ export default function Home() {
 
                     <section className="space-y-3">
                       <p className="text-sm font-medium">Region</p>
-                      <Select value={regionValue} onValueChange={(value) => setRegionValue(value as keyof typeof regionLabels)}>
+                      <Select value={regionValue} onValueChange={(value) => setRegionValue(value as HuaweiRegionKey)}>
                         <SelectTrigger className="max-w-sm bg-white lg:max-w-none">
-                          <SelectValue>{regionLabels[regionValue].full}</SelectValue>
+                          <SelectValue>{huaweiRegions[regionValue].full}</SelectValue>
                         </SelectTrigger>
                         <SelectContent>
-                          {Object.entries(regionLabels).map(([value, labels]) => (
+                          {Object.entries(huaweiRegions).map(([value, labels]) => (
                             <SelectItem key={value} value={value}>
                               {labels.short}
                             </SelectItem>
@@ -960,20 +1051,30 @@ export default function Home() {
                           }}
                         >
                           <SelectTrigger className="w-full bg-white sm:w-52">
-                            <SelectValue />
+                            <SelectValue>{flavorSortLabels[flavorSort as keyof typeof flavorSortLabels]}</SelectValue>
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="price-asc">Price: Lowest first</SelectItem>
-                            <SelectItem value="price-desc">Price: Highest first</SelectItem>
-                            <SelectItem value="name-asc">Name: A to Z</SelectItem>
-                            <SelectItem value="vcpu-asc">vCPU: Lowest first</SelectItem>
+                            <SelectItem value="price-asc">{flavorSortLabels["price-asc"]}</SelectItem>
+                            <SelectItem value="price-desc">{flavorSortLabels["price-desc"]}</SelectItem>
+                            <SelectItem value="name-asc">{flavorSortLabels["name-asc"]}</SelectItem>
+                            <SelectItem value="vcpu-asc">{flavorSortLabels["vcpu-asc"]}</SelectItem>
                           </SelectContent>
                         </Select>
                       </div>
                     </div>
 
                     <div className="rounded-xl border bg-zinc-50 p-3">
+                      {catalogFlavorsError ? <p className="mb-3 text-sm text-red-600">{catalogFlavorsError}</p> : null}
+                      {catalogFlavorsLastCompletedAt ? (
+                        <p className="mb-3 text-xs text-zinc-500">Last synced: {new Date(catalogFlavorsLastCompletedAt).toLocaleString()}</p>
+                      ) : null}
                       <div className="space-y-2">
+                        {catalogFlavorsLoading ? (
+                          <div className="rounded-lg border border-dashed bg-white px-3 py-6 text-center text-sm text-zinc-500">
+                            Loading ECS flavors...
+                          </div>
+                        ) : null}
+
                         {visibleFlavors.map((flavor) => {
                           const isSelected = selectedFlavor === flavor.name;
 
@@ -993,6 +1094,7 @@ export default function Home() {
                               <div>
                                 <p className="font-medium text-zinc-950">{flavor.name}</p>
                                 <p className="text-sm text-zinc-500">{flavor.family}</p>
+                                <p className="text-xs text-zinc-400">{flavor.priceModeLabel}</p>
                               </div>
                               <div className="text-right text-sm">
                                 <p className="font-medium text-zinc-950">{flavor.price}</p>
@@ -1004,7 +1106,7 @@ export default function Home() {
                           );
                         })}
 
-                        {visibleFlavors.length === 0 ? (
+                        {!catalogFlavorsLoading && visibleFlavors.length === 0 ? (
                           <div className="rounded-lg border border-dashed bg-white px-3 py-6 text-center text-sm text-zinc-500">
                             No flavors matched your search.
                           </div>
@@ -1154,12 +1256,12 @@ export default function Home() {
                 <CardContent className="space-y-6 py-5">
                   <div className="space-y-2">
                     <p className="text-sm font-medium">Region</p>
-                    <Select value={regionValue} onValueChange={(value) => setRegionValue(value as keyof typeof regionLabels)}>
+                    <Select value={regionValue} onValueChange={(value) => setRegionValue(value as HuaweiRegionKey)}>
                       <SelectTrigger className="max-w-sm bg-white">
-                        <SelectValue>{regionLabels[regionValue].full}</SelectValue>
+                        <SelectValue>{huaweiRegions[regionValue].full}</SelectValue>
                       </SelectTrigger>
                       <SelectContent>
-                        {Object.entries(regionLabels).map(([value, labels]) => (
+                        {Object.entries(huaweiRegions).map(([value, labels]) => (
                           <SelectItem key={value} value={value}>
                             {labels.short}
                           </SelectItem>
