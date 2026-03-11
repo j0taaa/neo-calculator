@@ -34,6 +34,22 @@ async function main() {
     }
   }
 
+  if (regionId === "sa-brazil-1") {
+    const unavailableFlavor = flavors.find((flavor) => flavor.resourceSpecCode.toLowerCase().startsWith("t7."));
+    if (unavailableFlavor) {
+      throw new Error(`Unavailable Sao Paulo flavor was stored: ${unavailableFlavor.resourceSpecCode}`);
+    }
+
+    const riReferenceFlavor = flavors.find((flavor) => flavor.resourceSpecCode === "t6.small.1.linux");
+    if (!riReferenceFlavor) {
+      throw new Error("Expected Sao Paulo RI reference flavor t6.small.1.linux to be present");
+    }
+
+    if (riReferenceFlavor.prices.RI !== 87.6) {
+      throw new Error(`Unexpected RI price for t6.small.1.linux: ${riReferenceFlavor.prices.RI ?? "missing"}`);
+    }
+  }
+
   console.log(
     JSON.stringify(
       {
@@ -52,4 +68,3 @@ main().catch((error) => {
   console.error(error);
   process.exit(1);
 });
-

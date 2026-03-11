@@ -118,8 +118,10 @@ const services = [
 ] as const;
 
 const options = {
-  billing: ["Yearly/Monthly", "Pay-per-use", "RI"],
-};
+  billing: ["Pay-per-use", "RI", "Yearly/Monthly"],
+} as const;
+
+type BillingOption = (typeof options.billing)[number];
 
 const systemDiskOptions = [
   "High I/O",
@@ -128,6 +130,8 @@ const systemDiskOptions = [
   "General Purpose SSD",
   "General Purpose SSD V2",
 ] as const;
+
+type SystemDiskOption = (typeof systemDiskOptions)[number];
 
 const priceListEntries = [
   { service: "Elastic Cloud Server", sku: "c7.large.2", billing: "Pay-per-use", unit: "per hour", price: "USD 0.122" },
@@ -178,7 +182,13 @@ type FlavorCard = {
   price: string;
   priceValue: number;
   priceModeLabel: string;
+  flavorPrice: string | null;
   description: string | null;
+};
+
+type DiskPricing = {
+  currency: string;
+  prices: Record<SystemDiskOption, Partial<Record<FlavorBillingMode, number>>>;
 };
 
 const flavorPricePriority: Array<{ mode: FlavorBillingMode; label: string; suffix: string }> = [
@@ -188,30 +198,144 @@ const flavorPricePriority: Array<{ mode: FlavorBillingMode; label: string; suffi
   { mode: "RI", label: "RI", suffix: "" },
 ];
 
+const billingOptionConfig: Record<
+  BillingOption,
+  {
+    modes: FlavorBillingMode[];
+    label: string;
+    suffix: string;
+  }
+> = {
+  "Yearly/Monthly": {
+    modes: ["MONTHLY", "YEARLY"],
+    label: "Monthly",
+    suffix: "/mo",
+  },
+  "Pay-per-use": {
+    modes: ["ONDEMAND"],
+    label: "Pay-per-use",
+    suffix: "/h",
+  },
+  RI: {
+    modes: ["RI"],
+    label: "RI",
+    suffix: "",
+  },
+};
+
 function formatFlavorAmount(currency: string, amount: number, suffix: string) {
   return `${currency} ${amount.toFixed(amount < 1 ? 4 : 2)}${suffix}`;
 }
 
-function toFlavorCard(flavor: CatalogFlavor): FlavorCard {
-  const preferredPrice =
-    flavorPricePriority
-      .map((entry) => ({
-        label: entry.label,
-        suffix: entry.suffix,
-        amount: flavor.prices[entry.mode],
-      }))
-      .find((entry) => typeof entry.amount === "number" && Number.isFinite(entry.amount)) ?? null;
+function getUsageSuffix(hours: number) {
+  return `/${hours}h`;
+}
+
+function getDiskPriceForBillingOption(
+  diskPricing: DiskPricing | null,
+  systemDiskType: SystemDiskOption,
+  systemDiskSizeGiB: number,
+  billingOption: BillingOption,
+  usageHours: number,
+) {
+  if (!diskPricing || systemDiskSizeGiB <= 0) {
+    return null;
+  }
+
+  const rates = diskPricing.prices[systemDiskType];
+  if (!rates) {
+    return null;
+  }
+
+  if (billingOption === "Pay-per-use") {
+    const rate = rates.ONDEMAND;
+    if (typeof rate !== "number" || !Number.isFinite(rate)) {
+      return null;
+    }
+
+    return {
+      currency: diskPricing.currency,
+      amount: rate * systemDiskSizeGiB * usageHours,
+      label: "Disk",
+      suffix: getUsageSuffix(usageHours),
+    };
+  }
+
+  if (billingOption === "Yearly/Monthly") {
+    const monthlyRate = rates.MONTHLY;
+    if (typeof monthlyRate === "number" && Number.isFinite(monthlyRate)) {
+      return {
+        currency: diskPricing.currency,
+        amount: monthlyRate * systemDiskSizeGiB,
+        label: "Disk",
+        suffix: "/mo",
+      };
+    }
+
+    const yearlyRate = rates.YEARLY;
+    if (typeof yearlyRate === "number" && Number.isFinite(yearlyRate)) {
+      return {
+        currency: diskPricing.currency,
+        amount: yearlyRate * systemDiskSizeGiB,
+        label: "Disk",
+        suffix: "/yr",
+      };
+    }
+
+    return null;
+  }
+
+  const onDemandRate = rates.ONDEMAND;
+  if (typeof onDemandRate !== "number" || !Number.isFinite(onDemandRate)) {
+    return null;
+  }
+
+  return {
+    currency: diskPricing.currency,
+    amount: onDemandRate * systemDiskSizeGiB * 24 * 365,
+    label: "Disk (annualized)",
+    suffix: "",
+  };
+}
+
+function getFlavorPriceForBillingOption(flavor: CatalogFlavor, billingOption: BillingOption, usageHours: number) {
+  const config = billingOptionConfig[billingOption];
+
+  for (const mode of config.modes) {
+    const amount = flavor.prices[mode];
+    if (typeof amount === "number" && Number.isFinite(amount)) {
+      const modeDetails = flavorPricePriority.find((entry) => entry.mode === mode);
+      return {
+        amount: billingOption === "Pay-per-use" ? amount * usageHours : amount,
+        label: modeDetails?.label ?? config.label,
+        suffix: billingOption === "Pay-per-use" ? getUsageSuffix(usageHours) : modeDetails?.suffix ?? config.suffix,
+      };
+    }
+  }
+
+  return null;
+}
+
+function toFlavorCard(
+  flavor: CatalogFlavor,
+  billingOption: BillingOption,
+  usageHours: number,
+  diskPrice: ReturnType<typeof getDiskPriceForBillingOption>,
+): FlavorCard {
+  const preferredPrice = getFlavorPriceForBillingOption(flavor, billingOption, usageHours);
 
   const familyParts = [flavor.family, flavor.architecture].filter(Boolean);
+  const totalAmount = preferredPrice ? preferredPrice.amount + (diskPrice?.amount ?? 0) : Number.POSITIVE_INFINITY;
 
   return {
     name: flavor.resourceSpecCode,
     vcpu: String(flavor.cpu),
     ram: String(Number.isInteger(flavor.ramGiB) ? flavor.ramGiB : Number(flavor.ramGiB.toFixed(1))),
     family: familyParts.join(" · ") || flavor.series || "ECS",
-    price: preferredPrice ? formatFlavorAmount(flavor.currency, preferredPrice.amount as number, preferredPrice.suffix) : "Price unavailable",
-    priceValue: preferredPrice?.amount ?? Number.POSITIVE_INFINITY,
+    price: preferredPrice ? formatFlavorAmount(flavor.currency, totalAmount, preferredPrice.suffix) : "Price unavailable",
+    priceValue: totalAmount,
     priceModeLabel: preferredPrice?.label ?? "Unavailable",
+    flavorPrice: preferredPrice ? formatFlavorAmount(flavor.currency, preferredPrice.amount, preferredPrice.suffix) : null,
     description: flavor.description,
   };
 }
@@ -220,6 +344,21 @@ type AppList = {
   id: string;
   name: string;
   createdAt: string;
+  updatedAt: string;
+  productCount: number;
+  products: AppProduct[];
+};
+
+type AppProduct = {
+  id: string;
+  serviceCode: string;
+  serviceName: string;
+  productType: string;
+  title: string;
+  quantity: number;
+  config: unknown;
+  pricing: unknown;
+  createdAt?: string;
   updatedAt: string;
 };
 
@@ -232,11 +371,108 @@ type AppProject = {
   lists: AppList[];
 };
 
-function OptionGrid({ items }: { items: string[] }) {
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
+
+function getProductPriceSummary(product: AppProduct): string {
+  if (isRecord(product.pricing) && typeof product.pricing.total === "string" && product.pricing.total.trim()) {
+    return product.pricing.total.trim();
+  }
+
+  return "Price unavailable";
+}
+
+function splitProductPriceSummary(product: AppProduct) {
+  const summary = getProductPriceSummary(product);
+  const slashIndex = summary.indexOf("/");
+
+  if (slashIndex === -1) {
+    return {
+      amount: summary,
+      timeframe: null,
+    };
+  }
+
+  return {
+    amount: summary.slice(0, slashIndex),
+    timeframe: summary.slice(slashIndex + 1),
+  };
+}
+
+function splitPriceDisplay(summary: string) {
+  const slashIndex = summary.indexOf("/");
+
+  if (slashIndex === -1) {
+    return {
+      amount: summary,
+      timeframe: null,
+    };
+  }
+
+  return {
+    amount: summary.slice(0, slashIndex),
+    timeframe: summary.slice(slashIndex + 1),
+  };
+}
+
+function getProductConfigSummary(product: AppProduct): string {
+  if (!isRecord(product.config)) {
+    return product.serviceName;
+  }
+
+  if (product.productType === "ecs") {
+    const parts = [
+      typeof product.config.region === "string" ? product.config.region : null,
+      typeof product.config.flavor === "string" ? product.config.flavor : null,
+      typeof product.config.billingMode === "string" ? product.config.billingMode : null,
+      typeof product.config.usageHours === "number" && product.config.billingMode === "Pay-per-use"
+        ? `${product.config.usageHours}h`
+        : null,
+    ].filter(Boolean);
+
+    return parts.join(" · ") || product.serviceName;
+  }
+
+  return product.serviceName;
+}
+
+function getServiceMeta(serviceCode: string, serviceName: string) {
+  return (
+    services.find((service) => service.code === serviceCode)
+    ?? services.find((service) => service.name === serviceName)
+    ?? null
+  );
+}
+
+function isBillingOption(value: unknown): value is BillingOption {
+  return typeof value === "string" && (options.billing as readonly string[]).includes(value);
+}
+
+function isSystemDiskOption(value: unknown): value is SystemDiskOption {
+  return typeof value === "string" && (systemDiskOptions as readonly string[]).includes(value);
+}
+
+function OptionGrid({
+  items,
+  value,
+  onChange,
+}: {
+  items: BillingOption[];
+  value: BillingOption;
+  onChange: (value: BillingOption) => void;
+}) {
   return (
     <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-2 2xl:grid-cols-3">
-      {items.map((item, i) => (
-        <Button key={item} variant={i === 0 ? "default" : "secondary"} className="justify-start rounded-md">
+      {items.map((item) => (
+        <Button
+          key={item}
+          type="button"
+          variant={item === value ? "default" : "secondary"}
+          className="justify-start rounded-md"
+          aria-pressed={item === value}
+          onClick={() => onChange(item)}
+        >
           {item}
         </Button>
       ))}
@@ -263,16 +499,19 @@ export default function Home() {
   const [cookieValue, setCookieValue] = useState(initialCookieValue);
   const [cookieDraft, setCookieDraft] = useState(initialCookieValue);
   const [regionValue, setRegionValue] = useState<HuaweiRegionKey>("la-sao-paulo1");
+  const [billingMode, setBillingMode] = useState<BillingOption>("Pay-per-use");
+  const [usageHours, setUsageHours] = useState("744");
   const [vcpuValue, setVcpuValue] = useState("2");
   const [ramValue, setRamValue] = useState("8");
   const [instanceCount, setInstanceCount] = useState("1");
-  const [systemDiskType, setSystemDiskType] = useState<(typeof systemDiskOptions)[number]>("High I/O");
+  const [systemDiskType, setSystemDiskType] = useState<SystemDiskOption>("High I/O");
   const [systemDiskSize, setSystemDiskSize] = useState("40");
   const [flavorQuery, setFlavorQuery] = useState("");
   const [flavorPage, setFlavorPage] = useState(1);
   const [flavorSort, setFlavorSort] = useState("price-asc");
   const [selectedFlavor, setSelectedFlavor] = useState("");
-  const [catalogFlavors, setCatalogFlavors] = useState<FlavorCard[]>([]);
+  const [catalogFlavors, setCatalogFlavors] = useState<CatalogFlavor[]>([]);
+  const [diskPricing, setDiskPricing] = useState<DiskPricing | null>(null);
   const [catalogFlavorsLoading, setCatalogFlavorsLoading] = useState(false);
   const [catalogFlavorsError, setCatalogFlavorsError] = useState("");
   const [catalogFlavorsLastCompletedAt, setCatalogFlavorsLastCompletedAt] = useState<string | null>(null);
@@ -283,6 +522,13 @@ export default function Home() {
   const [newProjectPending, setNewProjectPending] = useState(false);
   const [listDrafts, setListDrafts] = useState<Record<string, string>>({});
   const [listPendingProjectId, setListPendingProjectId] = useState<string | null>(null);
+  const [selectedListId, setSelectedListId] = useState("");
+  const [editingProductId, setEditingProductId] = useState<string | null>(null);
+  const [editingProductListId, setEditingProductListId] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState("calculator");
+  const [addToListPending, setAddToListPending] = useState(false);
+  const [addToListMessage, setAddToListMessage] = useState("");
+  const [deletingProductId, setDeletingProductId] = useState<string | null>(null);
   const [expandedProjects, setExpandedProjects] = useState<Record<string, boolean>>({});
   const searchAreaRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
@@ -299,11 +545,36 @@ export default function Home() {
     : [];
   const selectedServiceMeta = services.find((service) => service.name === selectedService) ?? services[0];
   const selectedPrices = priceListEntries.filter((entry) => entry.service === selectedService);
-  const selectedEstimate = selectedPrices.find((entry) => entry.unit === "per month")?.price ?? selectedPrices[0]?.price ?? "USD 0.00";
   const hasSuggestions = isSearchOpen && suggestions.length > 0;
   const activeDescendant = hasSuggestions ? `${listboxId}-${activeSuggestionIndex}` : undefined;
   const totalProjectLists = projects.reduce((sum, project) => sum + project.lists.length, 0);
-  const filteredFlavors = catalogFlavors.filter((flavor) => {
+  const totalProjectProducts = projects.reduce(
+    (sum, project) => sum + project.lists.reduce((listSum, list) => listSum + list.productCount, 0),
+    0,
+  );
+  const selectedProject = projects.find((project) => project.lists.some((list) => list.id === selectedListId)) ?? null;
+  const selectedList = selectedProject?.lists.find((list) => list.id === selectedListId) ?? null;
+  const selectedCartProducts = selectedList?.products ?? [];
+  const usageHoursValue = Number.isFinite(Number(usageHours)) ? Math.max(1, Number(usageHours)) : 744;
+  const minVcpuFilter = Number.isFinite(Number(vcpuValue)) ? Math.max(0, Number(vcpuValue)) : 0;
+  const minRamFilter = Number.isFinite(Number(ramValue)) ? Math.max(0, Number(ramValue)) : 0;
+  const systemDiskSizeValue = Number.isFinite(Number(systemDiskSize)) ? Math.max(0, Number(systemDiskSize)) : 0;
+  const selectedDiskPrice = getDiskPriceForBillingOption(diskPricing, systemDiskType, systemDiskSizeValue, billingMode, usageHoursValue);
+  const billableFlavors = catalogFlavors
+    .filter((flavor) => getFlavorPriceForBillingOption(flavor, billingMode, usageHoursValue))
+    .map((flavor) => toFlavorCard(flavor, billingMode, usageHoursValue, selectedDiskPrice));
+  const selectedFlavorCard = billableFlavors.find((flavor) => flavor.name === selectedFlavor) ?? null;
+  const selectedEstimate =
+    selectedFlavorCard?.price
+    ?? selectedPrices.find((entry) => entry.unit === "per month")?.price
+    ?? selectedPrices[0]?.price
+    ?? "USD 0.00";
+  const selectedEstimateParts = splitPriceDisplay(selectedEstimate);
+  const filteredFlavors = billableFlavors.filter((flavor) => {
+    if (Number(flavor.vcpu) < minVcpuFilter || Number(flavor.ram) < minRamFilter) {
+      return false;
+    }
+
     const q = flavorQuery.trim().toLowerCase();
     if (!q) return true;
     return (
@@ -335,6 +606,7 @@ export default function Home() {
         });
         const payload = (await response.json()) as {
           flavors?: CatalogFlavor[];
+          diskPricing?: DiskPricing;
           error?: string;
           lastCompletedAt?: string | null;
         };
@@ -345,14 +617,16 @@ export default function Home() {
 
         if (cancelled) return;
 
-        const nextFlavors = (payload.flavors ?? []).map(toFlavorCard);
+        const nextFlavors = payload.flavors ?? [];
         setCatalogFlavors(nextFlavors);
+        setDiskPricing(payload.diskPricing ?? null);
         setCatalogFlavorsLastCompletedAt(payload.lastCompletedAt ?? null);
         setFlavorPage(1);
         setCatalogFlavorsError(payload.error ?? "");
       } catch (error) {
         if (cancelled) return;
         setCatalogFlavors([]);
+        setDiskPricing(null);
         setCatalogFlavorsError(error instanceof Error ? error.message : "Failed to load ECS flavors");
       } finally {
         if (!cancelled) {
@@ -369,20 +643,21 @@ export default function Home() {
   }, [regionValue]);
 
   useEffect(() => {
-    if (!catalogFlavors.length) {
+    if (!sortedFlavors.length) {
+      setSelectedFlavor("");
       return;
     }
 
-    const activeFlavor = catalogFlavors.find((flavor) => flavor.name === selectedFlavor);
+    const activeFlavor = sortedFlavors.find((flavor) => flavor.name === selectedFlavor);
     if (activeFlavor) {
       return;
     }
 
-    const nextFlavor = catalogFlavors[0];
+    const nextFlavor = sortedFlavors[0];
     setSelectedFlavor(nextFlavor.name);
     setVcpuValue(nextFlavor.vcpu);
     setRamValue(nextFlavor.ram);
-  }, [catalogFlavors, selectedFlavor]);
+  }, [selectedFlavor, sortedFlavors]);
 
   useEffect(() => {
     const handlePointerDown = (event: MouseEvent) => {
@@ -437,6 +712,13 @@ export default function Home() {
 
         const payload = (await response.json()) as AppProject[];
         setProjects(payload);
+        setSelectedListId((current) => {
+          if (current && payload.some((project) => project.lists.some((list) => list.id === current))) {
+            return current;
+          }
+
+          return payload[0]?.lists[0]?.id ?? "";
+        });
         setExpandedProjects((current) => {
           const nextState: Record<string, boolean> = {};
           payload.forEach((project, index) => {
@@ -552,18 +834,22 @@ export default function Home() {
         throw new Error(payload?.error ?? "Unable to create list");
       }
 
-      const list = (await response.json()) as AppList & { projectId: string };
+      const list = (await response.json()) as { id: string; projectId: string; name: string; createdAt: string; updatedAt: string };
       setProjects((current) =>
         current.map((project) =>
           project.id === projectId
             ? {
                 ...project,
                 updatedAt: list.updatedAt,
-                lists: [...project.lists, { id: list.id, name: list.name, createdAt: list.createdAt, updatedAt: list.updatedAt }],
+                lists: [
+                  ...project.lists,
+                  { id: list.id, name: list.name, createdAt: list.createdAt, updatedAt: list.updatedAt, productCount: 0, products: [] },
+                ],
               }
             : project,
         ),
       );
+      setSelectedListId((current) => current || list.id);
       setListDrafts((current) => ({ ...current, [projectId]: "" }));
       setExpandedProjects((current) => ({ ...current, [projectId]: true }));
     } catch (error) {
@@ -602,6 +888,206 @@ export default function Home() {
     if (Number.isNaN(parsed)) return;
     const bounded = Math.min(999, Math.max(1, parsed));
     setInstanceCount(String(bounded));
+  };
+
+  const updateUsageHours = (nextValue: string) => {
+    if (nextValue === "") {
+      setUsageHours("");
+      return;
+    }
+
+    const parsed = Number(nextValue);
+    if (Number.isNaN(parsed)) return;
+    const bounded = Math.min(87600, Math.max(1, parsed));
+    setUsageHours(String(bounded));
+  };
+
+  const handleEditProduct = (product: AppProduct) => {
+    if (!isRecord(product.config)) {
+      setAddToListMessage("This product cannot be edited from the calculator.");
+      return;
+    }
+
+    const nextRegion = typeof product.config.region === "string" && product.config.region in huaweiRegions
+      ? (product.config.region as HuaweiRegionKey)
+      : regionValue;
+    const nextBillingMode = isBillingOption(product.config.billingMode) ? product.config.billingMode : "Pay-per-use";
+    const nextSystemDisk = isRecord(product.config.systemDisk) ? product.config.systemDisk : null;
+
+    setSelectedService(product.serviceName);
+    setQuery(product.serviceName);
+    setRegionValue(nextRegion);
+    setBillingMode(nextBillingMode);
+    setUsageHours(
+      typeof product.config.usageHours === "number" && Number.isFinite(product.config.usageHours)
+        ? String(Math.max(1, Math.floor(product.config.usageHours)))
+        : "744",
+    );
+    setSelectedFlavor(typeof product.config.flavor === "string" ? product.config.flavor : "");
+    setVcpuValue(typeof product.config.vcpu === "number" ? String(product.config.vcpu) : vcpuValue);
+    setRamValue(typeof product.config.ramGiB === "number" ? String(product.config.ramGiB) : ramValue);
+    setSystemDiskType(isSystemDiskOption(nextSystemDisk?.type) ? nextSystemDisk.type : "High I/O");
+    setSystemDiskSize(
+      typeof nextSystemDisk?.sizeGiB === "number" && Number.isFinite(nextSystemDisk.sizeGiB)
+        ? String(Math.max(40, Math.floor(nextSystemDisk.sizeGiB)))
+        : "40",
+    );
+    setInstanceCount(String(Math.max(1, product.quantity)));
+    setEditingProductId(product.id);
+    setEditingProductListId(selectedListId);
+    setActiveTab("calculator");
+    setAddToListMessage("Editing item. Save changes when ready.");
+  };
+
+  const handleCancelEdit = () => {
+    setEditingProductId(null);
+    setEditingProductListId(null);
+    setAddToListMessage("");
+  };
+
+  const handleDeleteProduct = async (product: AppProduct) => {
+    if (!selectedListId) {
+      return;
+    }
+
+    setDeletingProductId(product.id);
+    setAddToListMessage("");
+
+    try {
+      const response = await fetch(`/api/lists/${selectedListId}/products/${product.id}`, {
+        method: "DELETE",
+      });
+      const payload = (await response.json().catch(() => null)) as
+        | { id: string; listId: string; projectId: string; deleted: true; updatedAt: string }
+        | { error?: string }
+        | null;
+
+      if (!response.ok || !payload || "error" in payload) {
+        throw new Error(payload?.error ?? "Unable to delete product");
+      }
+
+      setProjects((current) =>
+        current.map((project) =>
+          project.id === payload.projectId
+            ? {
+                ...project,
+                updatedAt: payload.updatedAt,
+                lists: project.lists.map((list) =>
+                  list.id === payload.listId
+                    ? {
+                        ...list,
+                        updatedAt: payload.updatedAt,
+                        productCount: Math.max(0, list.productCount - 1),
+                        products: list.products.filter((item) => item.id !== payload.id),
+                      }
+                    : list,
+                ),
+              }
+            : project,
+        ),
+      );
+
+      if (editingProductId === payload.id) {
+        handleCancelEdit();
+      }
+
+      setAddToListMessage("Product deleted.");
+    } catch (error) {
+      setAddToListMessage(error instanceof Error ? error.message : "Unable to delete product");
+    } finally {
+      setDeletingProductId(null);
+    }
+  };
+
+  const handleAddToList = async () => {
+    if (!selectedListId) {
+      setAddToListMessage("Create a list first.");
+      return;
+    }
+
+    if (!selectedFlavorCard) {
+      setAddToListMessage("Select a flavor first.");
+      return;
+    }
+
+    setAddToListPending(true);
+    setAddToListMessage("");
+
+    try {
+      const quantity = Math.max(1, Number(instanceCount || "1"));
+      const requestMethod = editingProductId ? "PATCH" : "POST";
+      const requestUrl =
+        editingProductId && editingProductListId
+          ? `/api/lists/${editingProductListId}/products/${editingProductId}`
+          : `/api/lists/${selectedListId}/products`;
+      const response = await fetch(requestUrl, {
+        method: requestMethod,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          serviceCode: selectedServiceMeta.code,
+          serviceName: selectedService,
+          productType: "ecs",
+          title: `${selectedService} ${selectedFlavor}`,
+          quantity,
+          config: {
+            region: regionValue,
+            billingMode,
+            usageHours: billingMode === "Pay-per-use" ? usageHoursValue : null,
+            flavor: selectedFlavor,
+            vcpu: Number(vcpuValue || "0"),
+            ramGiB: Number(ramValue || "0"),
+            systemDisk: {
+              type: systemDiskType,
+              sizeGiB: systemDiskSizeValue,
+            },
+          },
+          pricing: {
+            total: selectedEstimate,
+            flavor: selectedFlavorCard.flavorPrice,
+            disk: selectedDiskPrice ? formatFlavorAmount(selectedDiskPrice.currency, selectedDiskPrice.amount, selectedDiskPrice.suffix) : null,
+          },
+        }),
+      });
+
+      const payload = (await response.json().catch(() => null)) as
+        | (AppProduct & { listId: string; projectId: string; error?: never })
+        | { error?: string }
+        | null;
+
+      if (!response.ok || !payload || "error" in payload) {
+        throw new Error(payload?.error ?? "Unable to add product to list");
+      }
+
+      setProjects((current) =>
+        current.map((project) =>
+          project.id === payload.projectId
+            ? {
+                ...project,
+                updatedAt: payload.updatedAt,
+                lists: project.lists.map((list) =>
+                  list.id === payload.listId
+                    ? {
+                        ...list,
+                        updatedAt: payload.updatedAt,
+                        productCount: editingProductId ? list.productCount : list.productCount + 1,
+                        products: editingProductId
+                          ? list.products.map((item) => (item.id === payload.id ? { ...item, ...payload } : item))
+                          : [payload, ...list.products],
+                      }
+                    : list,
+                ),
+              }
+            : project,
+        ),
+      );
+      setEditingProductId(null);
+      setEditingProductListId(null);
+      setAddToListMessage(editingProductId ? "Product updated." : "Product added to list.");
+    } catch (error) {
+      setAddToListMessage(error instanceof Error ? error.message : "Unable to add product to list");
+    } finally {
+      setAddToListPending(false);
+    }
   };
 
   return (
@@ -898,7 +1384,8 @@ export default function Home() {
                           <div className="min-w-0">
                             <p className="font-medium">{project.name}</p>
                             <p className="text-sm text-zinc-500">
-                              {project.lists.length} lists · {new Date(project.updatedAt).toLocaleDateString()}
+                              {project.lists.length} lists · {project.lists.reduce((sum, list) => sum + list.productCount, 0)} products ·{" "}
+                              {new Date(project.updatedAt).toLocaleDateString()}
                             </p>
                           </div>
                           <div className="flex items-center gap-2">
@@ -926,14 +1413,24 @@ export default function Home() {
                                 </Button>
                               </div>
                               {project.lists.map((item) => (
-                                <div key={item.id} className="rounded-lg border bg-zinc-50 p-3">
+                                <button
+                                  key={item.id}
+                                  type="button"
+                                  onClick={() => setSelectedListId(item.id)}
+                                  className={`block w-full rounded-lg border p-3 text-left ${
+                                    selectedListId === item.id ? "border-zinc-950 bg-white" : "border-zinc-200 bg-zinc-50"
+                                  }`}
+                                >
                                   <div className="flex items-start justify-between gap-3">
                                     <div>
                                       <p className="font-medium">{item.name}</p>
-                                      <p className="text-sm text-zinc-500">Created {new Date(item.createdAt).toLocaleDateString()}</p>
+                                      <p className="text-sm text-zinc-500">
+                                        {item.productCount} products · Created {new Date(item.createdAt).toLocaleDateString()}
+                                      </p>
                                     </div>
+                                    <Badge variant="outline">{item.productCount}</Badge>
                                   </div>
-                                </div>
+                                </button>
                               ))}
                               {project.lists.length === 0 ? (
                                 <div className="rounded-lg border border-dashed bg-zinc-50 p-4 text-sm text-zinc-500">
@@ -947,7 +1444,7 @@ export default function Home() {
                     );
                   })}
                   <div className="rounded-lg border border-dashed bg-zinc-50 p-4 text-sm text-zinc-500">
-                    {projects.length} projects containing {totalProjectLists} lists.
+                    {projects.length} projects containing {totalProjectLists} lists and {totalProjectProducts} products.
                   </div>
                 </div>
               </ScrollArea>
@@ -955,7 +1452,7 @@ export default function Home() {
           </Card>
 
           <Card className="overflow-hidden">
-            <Tabs defaultValue="calculator">
+            <Tabs value={activeTab} onValueChange={setActiveTab}>
               <CardHeader className="space-y-4">
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                   <div className="flex items-center gap-3">
@@ -998,28 +1495,77 @@ export default function Home() {
                     </section>
                   </div>
 
-                  <section className="space-y-3">
-                    <p className="text-sm font-medium">Billing Mode</p>
-                    <OptionGrid items={options.billing} />
+                  <section className={`grid gap-4 ${billingMode === "Pay-per-use" ? "xl:grid-cols-[minmax(0,1fr)_340px]" : ""}`}>
+                    <div className="space-y-3">
+                      <p className="text-sm font-medium">Billing Mode</p>
+                      <OptionGrid
+                        items={[...options.billing]}
+                        value={billingMode}
+                        onChange={(value) => {
+                          setBillingMode(value);
+                          setFlavorPage(1);
+                        }}
+                      />
+                    </div>
+                    {billingMode === "Pay-per-use" ? (
+                      <div className="space-y-3">
+                        <p className="text-sm font-medium">Usage Hours</p>
+                        <div className="flex items-center gap-3">
+                          <div className="flex items-center overflow-hidden rounded-lg border border-zinc-200 bg-white">
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              className="h-11 rounded-none px-3"
+                              onClick={() => updateUsageHours(String(Number(usageHours || "744") - 24))}
+                            >
+                              -
+                            </Button>
+                            <Input
+                              value={usageHours}
+                              onChange={(event) => {
+                                const digitsOnly = event.target.value.replace(/\D/g, "");
+                                if (digitsOnly === "") {
+                                  setUsageHours("");
+                                  return;
+                                }
+                                updateUsageHours(digitsOnly);
+                              }}
+                              onBlur={() => updateUsageHours(usageHours || "744")}
+                              inputMode="numeric"
+                              className="h-11 w-24 rounded-none border-0 text-center shadow-none focus-visible:ring-0"
+                            />
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              className="h-11 rounded-none px-3"
+                              onClick={() => updateUsageHours(String(Number(usageHours || "744") + 24))}
+                            >
+                              +
+                            </Button>
+                          </div>
+                          <span className="text-sm font-medium text-zinc-500">hours</span>
+                        </div>
+                      </div>
+                    ) : null}
                   </section>
                   <section className="space-y-3">
                     <div className="grid gap-4 md:grid-cols-2">
                       <div className="space-y-2">
-                        <p className="text-sm font-medium">vCPUs</p>
+                        <p className="text-sm font-medium">Minimum vCPUs</p>
                         <Input
                           value={vcpuValue}
                           onChange={(event) => setVcpuValue(event.target.value)}
                           inputMode="numeric"
-                          placeholder="Enter vCPU count"
+                          placeholder="Show flavors with at least this many vCPUs"
                         />
                       </div>
                       <div className="space-y-2">
-                        <p className="text-sm font-medium">Memory (GiB)</p>
+                        <p className="text-sm font-medium">Minimum Memory (GiB)</p>
                         <Input
                           value={ramValue}
                           onChange={(event) => setRamValue(event.target.value)}
                           inputMode="numeric"
-                          placeholder="Enter RAM in GiB"
+                          placeholder="Show flavors with at least this much RAM"
                         />
                       </div>
                     </div>
@@ -1029,7 +1575,7 @@ export default function Home() {
                     <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                       <div>
                         <p className="text-sm font-medium">Flavor</p>
-                        <p className="text-sm text-zinc-500">Choose from matching flavors or search within the catalog.</p>
+                        <p className="text-sm text-zinc-500">Only flavors meeting the minimum vCPU and RAM filters appear here.</p>
                       </div>
                       <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
                         <div className="w-full sm:w-44">
@@ -1204,50 +1750,70 @@ export default function Home() {
 
                   <div className="rounded-lg border bg-zinc-50 p-3 text-sm text-zinc-600">
                     Selected specifications: {selectedFlavor} | {vcpuValue || "-"} vCPUs | {ramValue || "-"} GiB | {systemDiskType} {systemDiskSize || "40"} GiB
+                    {selectedDiskPrice ? ` | Disk ${formatFlavorAmount(selectedDiskPrice.currency, selectedDiskPrice.amount, selectedDiskPrice.suffix)}` : ""}
+                    {selectedFlavorCard?.flavorPrice && selectedDiskPrice ? (
+                      <p className="mt-2 text-xs text-zinc-500">
+                        Flavor {selectedFlavorCard.flavorPrice} + Disk {formatFlavorAmount(selectedDiskPrice.currency, selectedDiskPrice.amount, selectedDiskPrice.suffix)}
+                      </p>
+                    ) : null}
                   </div>
                 </CardContent>
                 <Separator />
-                <div className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
-                  <p className="text-sm text-zinc-600">
-                    Estimated Price <span className="ml-2 text-4xl font-semibold text-zinc-950">{selectedEstimate}</span>
-                  </p>
-                  <div className="flex items-center gap-3 self-end sm:self-auto">
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm font-medium text-zinc-600">Instances</span>
-                      <div className="flex items-center overflow-hidden rounded-lg border border-zinc-200 bg-white">
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          className="h-10 rounded-none px-3"
-                          onClick={() => updateInstanceCount(String(Number(instanceCount || "1") - 1))}
-                        >
-                          -
-                        </Button>
-                        <Input
-                          value={instanceCount}
-                          onChange={(event) => {
-                            const digitsOnly = event.target.value.replace(/\D/g, "");
-                            if (digitsOnly === "") {
-                              setInstanceCount("");
-                              return;
-                            }
-                            updateInstanceCount(digitsOnly);
-                          }}
-                          onBlur={() => updateInstanceCount(instanceCount || "1")}
-                          inputMode="numeric"
-                          className="h-10 w-16 rounded-none border-0 text-center shadow-none focus-visible:ring-0"
-                        />
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          className="h-10 rounded-none px-3"
-                          onClick={() => updateInstanceCount(String(Number(instanceCount || "1") + 1))}
-                        >
-                          +
-                        </Button>
+                <div className="grid gap-4 p-4 xl:grid-cols-[minmax(0,1fr)_auto] xl:items-end">
+                  <div className="min-w-0">
+                    <p className="text-sm text-zinc-600">Estimated Price</p>
+                    <p className="mt-1 text-4xl font-semibold tracking-tight text-zinc-950">{selectedEstimateParts.amount}</p>
+                    {selectedEstimateParts.timeframe ? (
+                      <p className="mt-1 text-sm font-medium text-zinc-500">{selectedEstimateParts.timeframe}</p>
+                    ) : null}
+                  </div>
+                  <div className="flex flex-col gap-2 xl:items-end">
+                    {addToListMessage ? <p className="text-sm text-zinc-500">{addToListMessage}</p> : null}
+                    <div className="flex flex-wrap items-center gap-3 xl:justify-end">
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-medium text-zinc-600">Instances</span>
+                        <div className="flex items-center overflow-hidden rounded-lg border border-zinc-200 bg-white">
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            className="h-10 rounded-none px-3"
+                            onClick={() => updateInstanceCount(String(Number(instanceCount || "1") - 1))}
+                          >
+                            -
+                          </Button>
+                          <Input
+                            value={instanceCount}
+                            onChange={(event) => {
+                              const digitsOnly = event.target.value.replace(/\D/g, "");
+                              if (digitsOnly === "") {
+                                setInstanceCount("");
+                                return;
+                              }
+                              updateInstanceCount(digitsOnly);
+                            }}
+                            onBlur={() => updateInstanceCount(instanceCount || "1")}
+                            inputMode="numeric"
+                            className="h-10 w-16 rounded-none border-0 text-center shadow-none focus-visible:ring-0"
+                          />
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            className="h-10 rounded-none px-3"
+                            onClick={() => updateInstanceCount(String(Number(instanceCount || "1") + 1))}
+                          >
+                            +
+                          </Button>
+                        </div>
                       </div>
+                        {editingProductId ? (
+                          <Button type="button" variant="outline" onClick={handleCancelEdit} disabled={addToListPending}>
+                            Cancel
+                          </Button>
+                        ) : null}
+                        <Button onClick={handleAddToList} disabled={addToListPending || !selectedListId}>
+                          {addToListPending ? (editingProductId ? "Saving..." : "Adding...") : editingProductId ? "Save Changes" : "Add to List"}
+                        </Button>
                     </div>
-                    <Button>Add to List</Button>
                   </div>
                 </div>
               </TabsContent>
@@ -1325,30 +1891,116 @@ export default function Home() {
             <CardHeader className="pb-3">
               <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                 <div>
-                  <CardTitle>Price List</CardTitle>
-                  <p className="mt-1 text-sm text-zinc-500">Catalog pricing for {selectedService}.</p>
+                  <CardTitle>Cart Contents</CardTitle>
+                  <p className="mt-1 text-sm text-zinc-500">
+                    {selectedList && selectedProject ? `${selectedProject.name} / ${selectedList.name}` : "Select a list to see its saved products."}
+                  </p>
                 </div>
-                <Badge variant="outline">{selectedPrices.length} items</Badge>
+                <Badge variant="outline">{selectedCartProducts.length} items</Badge>
               </div>
             </CardHeader>
             <Separator />
             <CardContent className="px-0">
               <ScrollArea className="h-[620px] px-4">
                 <div className="space-y-3 py-3">
-                  {selectedPrices.map((item) => (
-                    <div key={`${item.service}-${item.sku}`} className="rounded-lg border bg-white p-4">
-                      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                        <div>
-                          <p className="font-medium">{item.sku}</p>
-                          <p className="mt-1 text-sm text-zinc-500">{item.billing}</p>
-                        </div>
-                        <div className="text-left sm:text-right">
-                          <p className="text-lg font-semibold text-zinc-950">{item.price}</p>
-                          <p className="text-sm text-zinc-500">{item.unit}</p>
+                  {!selectedList ? (
+                    <div className="rounded-lg border border-dashed bg-zinc-50 p-4 text-sm text-zinc-500">
+                      Create a list and select it to use it as the active cart.
+                    </div>
+                  ) : null}
+
+                  {selectedList && selectedCartProducts.length === 0 ? (
+                    <div className="rounded-lg border border-dashed bg-zinc-50 p-4 text-sm text-zinc-500">
+                      This cart is empty.
+                    </div>
+                  ) : null}
+
+                  {selectedCartProducts.map((product) => {
+                    const serviceMeta = getServiceMeta(product.serviceCode, product.serviceName);
+                    const priceSummary = splitProductPriceSummary(product);
+                    const isEditingProduct = editingProductId === product.id;
+
+                    return (
+                      <div
+                        key={product.id}
+                        className={`rounded-lg border p-4 ${
+                          isEditingProduct ? "border-zinc-950 bg-zinc-50" : "border-zinc-200 bg-white"
+                        }`}
+                      >
+                        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                          <div className="min-w-0">
+                            <div className="flex items-start gap-3">
+                              {serviceMeta ? (
+                                <Image
+                                  src={serviceMeta.icon}
+                                  alt=""
+                                  width={28}
+                                  height={28}
+                                  className="mt-0.5 size-7 rounded-md object-contain"
+                                />
+                              ) : null}
+                              <div className="min-w-0">
+                                <div className="flex flex-wrap items-center gap-2">
+                                  <p className="truncate font-medium">{product.title}</p>
+                                  {isEditingProduct ? <Badge>Editing</Badge> : null}
+                                </div>
+                                <p className="mt-1 text-sm text-zinc-500">{getProductConfigSummary(product)}</p>
+                                <p className="mt-1 text-xs text-zinc-400">
+                                  {product.serviceCode} · {product.productType.toUpperCase()} · Qty {product.quantity}
+                                </p>
+                              </div>
+                            </div>
+                          </div>
+                          <div className="text-left sm:text-right">
+                            <p className="text-lg font-semibold text-zinc-950">{priceSummary.amount}</p>
+                            <p className="text-sm text-zinc-500">{priceSummary.timeframe ?? "Saved item"}</p>
+                            <div className="mt-3 flex flex-wrap gap-2 sm:justify-end">
+                              {isEditingProduct ? (
+                                <>
+                                  <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={handleCancelEdit}
+                                    disabled={addToListPending || deletingProductId === product.id}
+                                  >
+                                    Cancel
+                                  </Button>
+                                  <Button
+                                    type="button"
+                                    size="sm"
+                                    onClick={handleAddToList}
+                                    disabled={addToListPending || !selectedListId || deletingProductId === product.id}
+                                  >
+                                    {addToListPending ? "Saving..." : "Save Changes"}
+                                  </Button>
+                                </>
+                              ) : (
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => handleEditProduct(product)}
+                                  disabled={deletingProductId === product.id}
+                                >
+                                  Edit
+                                </Button>
+                              )}
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleDeleteProduct(product)}
+                                disabled={deletingProductId === product.id}
+                              >
+                                {deletingProductId === product.id ? "Deleting..." : "Delete"}
+                              </Button>
+                            </div>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </ScrollArea>
             </CardContent>

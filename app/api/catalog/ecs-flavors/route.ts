@@ -1,4 +1,5 @@
 import { ensureRegionCatalogAvailable, getEcsCatalogLastCompletedAt, isEcsCatalogSyncRunning, listStoredEcsFlavors } from "@/lib/ecs-flavor-catalog";
+import { fetchRegionSystemDiskPricing } from "@/lib/evs-disk-pricing";
 import { getCatalogRegionId, huaweiRegions, type HuaweiRegionKey } from "@/lib/huawei-regions";
 
 export const runtime = "nodejs";
@@ -21,6 +22,7 @@ export async function GET(request: Request) {
   }
 
   await ensureRegionCatalogAvailable(catalogRegionId);
+  const diskPricing = await fetchRegionSystemDiskPricing(catalogRegionId);
 
   return Response.json({
     region: regionKey,
@@ -28,5 +30,6 @@ export async function GET(request: Request) {
     lastCompletedAt: getEcsCatalogLastCompletedAt(),
     syncing: isEcsCatalogSyncRunning(),
     flavors: listStoredEcsFlavors(catalogRegionId),
+    diskPricing,
   });
 }

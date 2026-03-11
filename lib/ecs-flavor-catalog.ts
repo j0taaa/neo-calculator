@@ -1,4 +1,9 @@
 import { db } from "@/lib/db";
+import {
+  type EcsVisibilityConfig,
+  fetchEcsVisibilityConfig,
+  isEcsFlavorVisible,
+} from "@/lib/ecs-visibility-config";
 
 export type BillingMode = "ONDEMAND" | "MONTHLY" | "YEARLY" | "RI";
 
@@ -21,6 +26,8 @@ type RawFlavor = {
   instanceArch?: string;
   performType?: string;
   series?: string;
+  generation?: string;
+  type?: string;
   productSpecDesc?: string;
   productSpecSysDesc?: string;
   planList?: CatalogPlan[];
@@ -81,6 +88,7 @@ export type SyncOptions = {
 
 const BILLING_MODES: BillingMode[] = ["ONDEMAND", "MONTHLY", "YEARLY", "RI"];
 const ONE_DAY_MS = 24 * 60 * 60 * 1000;
+const ONE_YEAR_RI_TERM_MONTHS = 12;
 const DEFAULT_CURRENCY = "USD";
 const REGION_DISCOVERY_URL =
   "https://sa-brazil-1-console.huaweicloud.com/apiexplorer/new/v6/regions?product_short=ECS&api_name=ListFlavors";
@@ -243,6 +251,41 @@ function pickLowestAmount(plans: CatalogPlan[]): number | null {
   return Math.min(...amounts);
 }
 
+function pickHighestAmount(plans: CatalogPlan[]): number | null {
+  const amounts = plans
+    .map((plan) => (typeof plan.amount === "number" && Number.isFinite(plan.amount) ? plan.amount : Number.NaN))
+    .filter(Number.isFinite);
+
+  if (!amounts.length) {
+    return null;
+  }
+
+  return Math.max(...amounts);
+}
+
+function isRiPurchasePricePlan(plan: CatalogPlan): boolean {
+  const originType = typeof plan.originType === "string" ? plan.originType : "";
+  const amountType = typeof plan.amountType === "string" ? plan.amountType : "";
+  return originType === "perPrice" || amountType === "nodeData.perPrice";
+}
+
+function getPreferredRiMonthlyPrice(plans: CatalogPlan[]): number | null {
+  const preferred = plans.filter(isRiPurchasePricePlan);
+  const preferredAmount = pickLowestAmount(preferred);
+  if (preferredAmount !== null) {
+    return preferredAmount;
+  }
+
+  const upfrontPlans = plans.filter((plan) => {
+    const originType = typeof plan.originType === "string" ? plan.originType : "";
+    const amountType = typeof plan.amountType === "string" ? plan.amountType : "";
+    const amount = typeof plan.amount === "number" && Number.isFinite(plan.amount) ? plan.amount : 0;
+    return (originType === "price" || amountType === "nodeData.price") && amount > 0;
+  });
+
+  return pickLowestAmount(upfrontPlans);
+}
+
 function getFlavorPriceForMode(flavor: RawFlavor, billingMode: BillingMode): number | null {
   const plans = getAllPlans(flavor).filter(
     (plan) => plan.billingMode === billingMode && typeof plan.amount === "number" && Number.isFinite(plan.amount),
@@ -253,13 +296,28 @@ function getFlavorPriceForMode(flavor: RawFlavor, billingMode: BillingMode): num
   }
 
   if (billingMode === "RI") {
-    const preferred = plans.filter((plan) => {
-      const originType = typeof plan.originType === "string" ? plan.originType : "";
-      const amountType = typeof plan.amountType === "string" ? plan.amountType : "";
-      return originType === "perPrice" || amountType.includes("perPrice");
-    });
-    const oneYear = preferred.filter((plan) => (plan.periodNum ?? 1) === 1);
-    return pickLowestAmount(oneYear) ?? pickLowestAmount(preferred) ?? pickLowestAmount(plans);
+    const oneYearPlans = plans.filter((plan) => plan.periodNum === 1);
+    const oneYearMonthlyPrice = getPreferredRiMonthlyPrice(oneYearPlans);
+    if (oneYearMonthlyPrice !== null) {
+      return oneYearMonthlyPrice * ONE_YEAR_RI_TERM_MONTHS;
+    }
+
+    const nativeUntypedPurchasePlans = plans.filter(
+      (plan) => (plan.periodNum === undefined || plan.periodNum === null) && isRiPurchasePricePlan(plan),
+    );
+    if (nativeUntypedPurchasePlans.length >= 2) {
+      const inferredOneYearMonthlyPrice = pickHighestAmount(nativeUntypedPurchasePlans);
+      if (inferredOneYearMonthlyPrice !== null) {
+        return inferredOneYearMonthlyPrice * ONE_YEAR_RI_TERM_MONTHS;
+      }
+    }
+
+    const singlePurchaseMonthlyPrice = getPreferredRiMonthlyPrice(nativeUntypedPurchasePlans);
+    if (singlePurchaseMonthlyPrice !== null) {
+      return singlePurchaseMonthlyPrice * ONE_YEAR_RI_TERM_MONTHS;
+    }
+
+    return null;
   }
 
   const periodOnePlans = plans.filter((plan) => (plan.periodNum ?? 1) === 1);
@@ -502,9 +560,15 @@ function getStoredFlavorCount(regionId: string): number {
   return row?.count ?? 0;
 }
 
-async function syncSingleRegion(regionId: string, regionName: string, includeOnDemandBackfill: boolean, onDemandBackfillLimit: number) {
+async function syncSingleRegion(
+  regionId: string,
+  regionName: string,
+  visibilityConfig: EcsVisibilityConfig | null,
+  includeOnDemandBackfill: boolean,
+  onDemandBackfillLimit: number,
+) {
   const updatedAt = new Date().toISOString();
-  const flavors = await fetchRegionCatalog(regionId);
+  const flavors = (await fetchRegionCatalog(regionId)).filter((flavor) => isEcsFlavorVisible(flavor, visibilityConfig));
   replaceRegionCatalog(regionId, regionName, flavors, updatedAt);
 
   if (!includeOnDemandBackfill) {
@@ -559,6 +623,7 @@ export async function syncEcsFlavorCatalog(options: SyncOptions = {}) {
 
     const includeOnDemandBackfill = options.includeOnDemandBackfill ?? true;
     const onDemandBackfillLimit = Math.max(0, options.onDemandBackfillLimit ?? Number.POSITIVE_INFINITY);
+    const visibilityConfig = await fetchEcsVisibilityConfig();
 
     const discoveredRegions = await discoverCatalogRegions();
     const regions =
@@ -573,7 +638,7 @@ export async function syncEcsFlavorCatalog(options: SyncOptions = {}) {
         : discoveredRegions;
 
     for (const region of regions) {
-      await syncSingleRegion(region.id, region.name, includeOnDemandBackfill, onDemandBackfillLimit);
+      await syncSingleRegion(region.id, region.name, visibilityConfig, includeOnDemandBackfill, onDemandBackfillLimit);
     }
 
     const completedAt = new Date().toISOString();
@@ -694,4 +759,3 @@ export function listStoredEcsFlavors(regionId: string): StoredEcsFlavor[] {
     };
   });
 }
-

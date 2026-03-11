@@ -36,6 +36,25 @@ db.exec(`
     FOREIGN KEY (user_id) REFERENCES user(id) ON DELETE CASCADE
   );
 
+  CREATE TABLE IF NOT EXISTS list_product (
+    id TEXT PRIMARY KEY,
+    list_id TEXT NOT NULL,
+    project_id TEXT NOT NULL,
+    user_id TEXT NOT NULL,
+    service_code TEXT NOT NULL,
+    service_name TEXT NOT NULL,
+    product_type TEXT NOT NULL,
+    title TEXT NOT NULL,
+    quantity INTEGER NOT NULL,
+    config_json TEXT NOT NULL,
+    pricing_json TEXT,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    FOREIGN KEY (list_id) REFERENCES project_list(id) ON DELETE CASCADE,
+    FOREIGN KEY (project_id) REFERENCES project(id) ON DELETE CASCADE,
+    FOREIGN KEY (user_id) REFERENCES user(id) ON DELETE CASCADE
+  );
+
   CREATE TABLE IF NOT EXISTS ecs_catalog_meta (
     key TEXT PRIMARY KEY,
     value TEXT NOT NULL

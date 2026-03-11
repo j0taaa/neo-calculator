@@ -19,6 +19,20 @@ type ListRow = {
   updated_at: string;
 };
 
+type ProductRow = {
+  id: string;
+  list_id: string;
+  service_code: string;
+  service_name: string;
+  product_type: string;
+  title: string;
+  quantity: number;
+  config_json: string;
+  pricing_json: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
 async function getSession(headers: Headers) {
   return auth.api.getSession({
     headers,
@@ -54,6 +68,17 @@ export async function GET(request: Request) {
     )
     .all(session.user.id) as ListRow[];
 
+  const products = db
+    .query(
+      `
+        SELECT id, list_id, service_code, service_name, product_type, title, quantity, config_json, pricing_json, created_at, updated_at
+        FROM list_product
+        WHERE user_id = ?
+        ORDER BY updated_at DESC
+      `,
+    )
+    .all(session.user.id) as ProductRow[];
+
   const payload = projects.map((project) => ({
     id: project.id,
     name: project.name,
@@ -67,6 +92,21 @@ export async function GET(request: Request) {
         name: list.name,
         createdAt: list.created_at,
         updatedAt: list.updated_at,
+        productCount: products.filter((product) => product.list_id === list.id).length,
+        products: products
+          .filter((product) => product.list_id === list.id)
+          .map((product) => ({
+            id: product.id,
+            serviceCode: product.service_code,
+            serviceName: product.service_name,
+            productType: product.product_type,
+            title: product.title,
+            quantity: product.quantity,
+            config: JSON.parse(product.config_json) as unknown,
+            pricing: product.pricing_json ? (JSON.parse(product.pricing_json) as unknown) : null,
+            createdAt: product.created_at,
+            updatedAt: product.updated_at,
+          })),
       })),
   }));
 
