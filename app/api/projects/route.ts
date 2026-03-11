@@ -15,6 +15,11 @@ type ListRow = {
   id: string;
   project_id: string;
   name: string;
+  huawei_cart_key: string | null;
+  huawei_cart_name: string | null;
+  huawei_last_synced_at: string | null;
+  huawei_last_error: string | null;
+  huawei_last_remote_updated_at: number | null;
   created_at: string;
   updated_at: string;
 };
@@ -61,6 +66,7 @@ export async function GET(request: Request) {
     .query(
       `
         SELECT id, project_id, name, created_at, updated_at
+             , huawei_cart_key, huawei_cart_name, huawei_last_synced_at, huawei_last_error, huawei_last_remote_updated_at
         FROM project_list
         WHERE user_id = ?
         ORDER BY updated_at DESC
@@ -90,6 +96,11 @@ export async function GET(request: Request) {
       .map((list) => ({
         id: list.id,
         name: list.name,
+        huaweiCartKey: list.huawei_cart_key,
+        huaweiCartName: list.huawei_cart_name,
+        huaweiLastSyncedAt: list.huawei_last_synced_at,
+        huaweiLastError: list.huawei_last_error,
+        huaweiLastRemoteUpdatedAt: list.huawei_last_remote_updated_at,
         createdAt: list.created_at,
         updatedAt: list.updated_at,
         productCount: products.filter((product) => product.list_id === list.id).length,

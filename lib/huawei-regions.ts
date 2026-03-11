@@ -137,3 +137,9 @@ export function getCatalogRegionId(regionKey: HuaweiRegionKey): string | null {
   return huaweiRegions[regionKey].catalogRegionId;
 }
 
+export function getRegionKeyFromCatalogRegionId(regionId: string): HuaweiRegionKey | null {
+  const entry = (Object.entries(huaweiRegions) as Array<[HuaweiRegionKey, (typeof huaweiRegions)[HuaweiRegionKey]]>)
+    .find(([, labels]) => labels.catalogRegionId === regionId);
+
+  return entry?.[0] ?? null;
+}

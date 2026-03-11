@@ -14,6 +14,19 @@ db.exec("PRAGMA foreign_keys = ON;");
 db.exec("PRAGMA journal_mode = WAL;");
 db.exec("PRAGMA busy_timeout = 10000;");
 
+function hasColumn(tableName: string, columnName: string) {
+  const columns = db.query<{ name: string }, []>(`PRAGMA table_info(${tableName})`).all();
+  return columns.some((column) => column.name === columnName);
+}
+
+function ensureColumn(tableName: string, columnName: string, definition: string) {
+  if (hasColumn(tableName, columnName)) {
+    return;
+  }
+
+  db.exec(`ALTER TABLE ${tableName} ADD COLUMN ${columnName} ${definition}`);
+}
+
 db.exec(`
   CREATE TABLE IF NOT EXISTS project (
     id TEXT PRIMARY KEY,
@@ -30,6 +43,11 @@ db.exec(`
     project_id TEXT NOT NULL,
     user_id TEXT NOT NULL,
     name TEXT NOT NULL,
+    huawei_cart_key TEXT,
+    huawei_cart_name TEXT,
+    huawei_last_synced_at TEXT,
+    huawei_last_error TEXT,
+    huawei_last_remote_updated_at INTEGER,
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL,
     FOREIGN KEY (project_id) REFERENCES project(id) ON DELETE CASCADE,
@@ -92,4 +110,16 @@ db.exec(`
     PRIMARY KEY (region_id, resource_spec_code, billing_mode),
     FOREIGN KEY (region_id, resource_spec_code) REFERENCES ecs_flavor(region_id, resource_spec_code) ON DELETE CASCADE
   );
+`);
+
+ensureColumn("project_list", "huawei_cart_key", "TEXT");
+ensureColumn("project_list", "huawei_cart_name", "TEXT");
+ensureColumn("project_list", "huawei_last_synced_at", "TEXT");
+ensureColumn("project_list", "huawei_last_error", "TEXT");
+ensureColumn("project_list", "huawei_last_remote_updated_at", "INTEGER");
+
+db.exec(`
+  CREATE UNIQUE INDEX IF NOT EXISTS project_list_user_huawei_cart_key_unique
+  ON project_list (user_id, huawei_cart_key)
+  WHERE huawei_cart_key IS NOT NULL;
 `);

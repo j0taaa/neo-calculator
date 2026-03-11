@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { useEffect, useId, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useRef, useState } from "react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -13,7 +13,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ChevronDown, ChevronRight, Search, UserCircle2 } from "lucide-react";
+import { ChevronDown, ChevronRight, Link2, RefreshCw, Search, UserCircle2 } from "lucide-react";
 
 const services = [
   { name: "Bare Metal Server", code: "BMS", icon: "https://res-static.hc-cdn.cn/cloudbu-site/public/product-banner-icon/Compute/BMS.png" },
@@ -343,6 +343,11 @@ function toFlavorCard(
 type AppList = {
   id: string;
   name: string;
+  huaweiCartKey: string | null;
+  huaweiCartName: string | null;
+  huaweiLastSyncedAt: string | null;
+  huaweiLastError: string | null;
+  huaweiLastRemoteUpdatedAt: number | null;
   createdAt: string;
   updatedAt: string;
   productCount: number;
@@ -371,8 +376,22 @@ type AppProject = {
   lists: AppList[];
 };
 
+type HuaweiCartSummary = {
+  key: string;
+  name: string;
+  updateTime: number;
+  billingMode: string | null;
+  totalAmount: number | null;
+  originalAmount: number | null;
+  associatedListId: string | null;
+};
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
+}
+
+function getResponseError(payload: unknown, fallback: string) {
+  return isRecord(payload) && typeof payload.error === "string" ? payload.error : fallback;
 }
 
 function getProductPriceSummary(product: AppProduct): string {
@@ -429,6 +448,16 @@ function getProductConfigSummary(product: AppProduct): string {
       typeof product.config.usageHours === "number" && product.config.billingMode === "Pay-per-use"
         ? `${product.config.usageHours}h`
         : null,
+    ].filter(Boolean);
+
+    return parts.join(" · ") || product.serviceName;
+  }
+
+  if (product.productType === "huawei-raw") {
+    const parts = [
+      typeof product.config.region === "string" ? product.config.region : null,
+      typeof product.config.resourceCode === "string" ? product.config.resourceCode : null,
+      typeof product.config.pricingMode === "string" ? product.config.pricingMode : null,
     ].filter(Boolean);
 
     return parts.join(" · ") || product.serviceName;
@@ -521,8 +550,10 @@ export default function Home() {
   const [newProjectName, setNewProjectName] = useState("");
   const [newProjectPending, setNewProjectPending] = useState(false);
   const [listDrafts, setListDrafts] = useState<Record<string, string>>({});
+  const [listBaseDrafts, setListBaseDrafts] = useState<Record<string, string>>({});
   const [listPendingProjectId, setListPendingProjectId] = useState<string | null>(null);
   const [selectedListId, setSelectedListId] = useState("");
+  const [selectedHuaweiCartKey, setSelectedHuaweiCartKey] = useState("");
   const [editingProductId, setEditingProductId] = useState<string | null>(null);
   const [editingProductListId, setEditingProductListId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState("calculator");
@@ -530,6 +561,13 @@ export default function Home() {
   const [addToListMessage, setAddToListMessage] = useState("");
   const [deletingProductId, setDeletingProductId] = useState<string | null>(null);
   const [expandedProjects, setExpandedProjects] = useState<Record<string, boolean>>({});
+  const [huaweiCarts, setHuaweiCarts] = useState<HuaweiCartSummary[]>([]);
+  const [huaweiCartsLoading, setHuaweiCartsLoading] = useState(false);
+  const [huaweiCartsError, setHuaweiCartsError] = useState("");
+  const [huaweiCartsSyncedAt, setHuaweiCartsSyncedAt] = useState<string | null>(null);
+  const [linkingHuaweiListId, setLinkingHuaweiListId] = useState<string | null>(null);
+  const [syncingHuaweiListId, setSyncingHuaweiListId] = useState<string | null>(null);
+  const [huaweiActionMessage, setHuaweiActionMessage] = useState("");
   const searchAreaRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const profileAreaRef = useRef<HTMLDivElement>(null);
@@ -555,6 +593,7 @@ export default function Home() {
   const selectedProject = projects.find((project) => project.lists.some((list) => list.id === selectedListId)) ?? null;
   const selectedList = selectedProject?.lists.find((list) => list.id === selectedListId) ?? null;
   const selectedCartProducts = selectedList?.products ?? [];
+  const selectedHuaweiCart = huaweiCarts.find((cart) => cart.key === selectedHuaweiCartKey) ?? null;
   const usageHoursValue = Number.isFinite(Number(usageHours)) ? Math.max(1, Number(usageHours)) : 744;
   const minVcpuFilter = Number.isFinite(Number(vcpuValue)) ? Math.max(0, Number(vcpuValue)) : 0;
   const minRamFilter = Number.isFinite(Number(ramValue)) ? Math.max(0, Number(ramValue)) : 0;
@@ -707,7 +746,7 @@ export default function Home() {
         const response = await fetch("/api/projects", { cache: "no-store" });
         if (!response.ok) {
           const payload = (await response.json().catch(() => null)) as { error?: string } | null;
-          throw new Error(payload?.error ?? "Failed to load projects");
+          throw new Error(getResponseError(payload, "Failed to load projects"));
         }
 
         const payload = (await response.json()) as AppProject[];
@@ -735,6 +774,57 @@ export default function Home() {
 
     void loadProjects();
   }, [session?.user.id]);
+
+  const loadHuaweiCarts = useCallback(async () => {
+    if (!session?.user.id) {
+      setHuaweiCarts([]);
+      setHuaweiCartsError("");
+      setHuaweiCartsSyncedAt(null);
+      return;
+    }
+
+    if (!cookieValue.trim()) {
+      setHuaweiCarts([]);
+      setHuaweiCartsError("");
+      setHuaweiCartsSyncedAt(null);
+      return;
+    }
+
+    setHuaweiCartsLoading(true);
+    setHuaweiCartsError("");
+
+    try {
+      const response = await fetch("/api/huawei/carts", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ cookie: cookieValue }),
+      });
+      const payload = (await response.json().catch(() => null)) as
+        | { carts?: HuaweiCartSummary[]; syncedAt?: string; error?: string }
+        | null;
+
+      if (!response.ok) {
+        throw new Error(getResponseError(payload, "Unable to load Huawei carts"));
+      }
+
+      setHuaweiCarts(payload?.carts ?? []);
+      setHuaweiCartsSyncedAt(payload?.syncedAt ?? new Date().toISOString());
+    } catch (error) {
+      setHuaweiCarts([]);
+      setHuaweiCartsSyncedAt(null);
+      setHuaweiCartsError(error instanceof Error ? error.message : "Unable to load Huawei carts");
+    } finally {
+      setHuaweiCartsLoading(false);
+    }
+  }, [cookieValue, session?.user.id]);
+
+  useEffect(() => {
+    void loadHuaweiCarts();
+  }, [loadHuaweiCarts]);
+
+  useEffect(() => {
+    setSelectedHuaweiCartKey(selectedList?.huaweiCartKey ?? "");
+  }, [selectedList?.huaweiCartKey, selectedList?.id]);
 
   const handleSelectService = (service: string) => {
     setSelectedService(service);
@@ -783,6 +873,7 @@ export default function Home() {
     window.localStorage.setItem("neoCalculator.huaweiCookie", cookieDraft);
     setCookieValue(cookieDraft);
     setIsProfileOpen(false);
+    setHuaweiActionMessage("");
   };
 
   const handleCreateProject = async () => {
@@ -801,7 +892,7 @@ export default function Home() {
 
       if (!response.ok) {
         const payload = (await response.json().catch(() => null)) as { error?: string } | null;
-        throw new Error(payload?.error ?? "Unable to create project");
+        throw new Error(getResponseError(payload, "Unable to create project"));
       }
 
       const project = (await response.json()) as Omit<AppProject, "lists">;
@@ -817,7 +908,13 @@ export default function Home() {
 
   const handleCreateList = async (projectId: string) => {
     const name = listDrafts[projectId]?.trim();
-    if (!name) return;
+    const baseCartKey = listBaseDrafts[projectId] ?? "";
+    const usingHuaweiBase = Boolean(baseCartKey);
+    if (!name && !usingHuaweiBase) return;
+    if (usingHuaweiBase && !cookieValue.trim()) {
+      setProjectsError("Save a Huawei Cloud cookie before importing a Huawei cart.");
+      return;
+    }
 
     setListPendingProjectId(projectId);
     setProjectsError("");
@@ -826,36 +923,181 @@ export default function Home() {
       const response = await fetch(`/api/projects/${projectId}/lists`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name }),
+        body: JSON.stringify({
+          name,
+          huaweiCartKey: baseCartKey || null,
+          cookie: baseCartKey ? cookieValue : undefined,
+        }),
       });
 
       if (!response.ok) {
         const payload = (await response.json().catch(() => null)) as { error?: string } | null;
-        throw new Error(payload?.error ?? "Unable to create list");
+        throw new Error(getResponseError(payload, "Unable to create list"));
       }
 
-      const list = (await response.json()) as { id: string; projectId: string; name: string; createdAt: string; updatedAt: string };
+      const list = (await response.json()) as AppList & { projectId: string };
       setProjects((current) =>
         current.map((project) =>
           project.id === projectId
             ? {
                 ...project,
                 updatedAt: list.updatedAt,
-                lists: [
-                  ...project.lists,
-                  { id: list.id, name: list.name, createdAt: list.createdAt, updatedAt: list.updatedAt, productCount: 0, products: [] },
-                ],
+                lists: [...project.lists, list],
               }
             : project,
         ),
       );
       setSelectedListId((current) => current || list.id);
       setListDrafts((current) => ({ ...current, [projectId]: "" }));
+      setListBaseDrafts((current) => ({ ...current, [projectId]: "" }));
       setExpandedProjects((current) => ({ ...current, [projectId]: true }));
+      setHuaweiActionMessage(baseCartKey ? `Imported ${list.name} from Huawei Cloud Calculator.` : "");
+      if (baseCartKey) {
+        await loadHuaweiCarts();
+      }
     } catch (error) {
       setProjectsError(error instanceof Error ? error.message : "Unable to create list");
     } finally {
       setListPendingProjectId(null);
+    }
+  };
+
+  const handleLinkSelectedList = async () => {
+    if (!selectedListId || !selectedHuaweiCartKey) {
+      return;
+    }
+
+    const targetCart = huaweiCarts.find((cart) => cart.key === selectedHuaweiCartKey);
+    if (!targetCart) {
+      setHuaweiActionMessage("Choose a Huawei cart first.");
+      return;
+    }
+
+    setLinkingHuaweiListId(selectedListId);
+    setHuaweiActionMessage("");
+
+    try {
+      const response = await fetch(`/api/lists/${selectedListId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          huaweiCartKey: targetCart.key,
+          huaweiCartName: targetCart.name,
+        }),
+      });
+      const payload = (await response.json().catch(() => null)) as
+        | {
+            id: string;
+            projectId: string;
+            huaweiCartKey: string | null;
+            huaweiCartName: string | null;
+            huaweiLastError: string | null;
+            updatedAt: string;
+            error?: never;
+          }
+        | { error?: string }
+        | null;
+
+      if (!response.ok || !payload || !("projectId" in payload)) {
+        throw new Error(getResponseError(payload, "Unable to link Huawei cart"));
+      }
+
+      setProjects((current) =>
+        current.map((project) =>
+          project.id === payload.projectId
+            ? {
+                ...project,
+                updatedAt: payload.updatedAt,
+                lists: project.lists.map((list) =>
+                  list.id === payload.id
+                    ? {
+                        ...list,
+                        updatedAt: payload.updatedAt,
+                        huaweiCartKey: payload.huaweiCartKey,
+                        huaweiCartName: payload.huaweiCartName,
+                        huaweiLastError: payload.huaweiLastError,
+                      }
+                    : list,
+                ),
+              }
+            : project,
+        ),
+      );
+      setHuaweiActionMessage(`Linked ${targetCart.name} to this Neo cart.`);
+      await loadHuaweiCarts();
+    } catch (error) {
+      setHuaweiActionMessage(error instanceof Error ? error.message : "Unable to link Huawei cart");
+    } finally {
+      setLinkingHuaweiListId(null);
+    }
+  };
+
+  const handleSyncSelectedList = async () => {
+    if (!selectedListId) {
+      return;
+    }
+
+    if (!cookieValue.trim()) {
+      setHuaweiActionMessage("Save a Huawei Cloud cookie before syncing.");
+      return;
+    }
+
+    setSyncingHuaweiListId(selectedListId);
+    setHuaweiActionMessage("");
+
+    try {
+      const response = await fetch(`/api/lists/${selectedListId}/huawei-sync`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ cookie: cookieValue }),
+      });
+      const payload = (await response.json().catch(() => null)) as
+        | {
+            listId: string;
+            projectId: string;
+            huaweiCartKey: string;
+            huaweiCartName: string;
+            huaweiLastSyncedAt: string;
+            huaweiLastError: string | null;
+            updatedAt: string;
+            error?: never;
+          }
+        | { error?: string }
+        | null;
+
+      if (!response.ok || !payload || !("projectId" in payload)) {
+        throw new Error(getResponseError(payload, "Unable to sync with Huawei Cloud Calculator"));
+      }
+
+      setProjects((current) =>
+        current.map((project) =>
+          project.id === payload.projectId
+            ? {
+                ...project,
+                updatedAt: payload.updatedAt,
+                lists: project.lists.map((list) =>
+                  list.id === payload.listId
+                    ? {
+                        ...list,
+                        updatedAt: payload.updatedAt,
+                        huaweiCartKey: payload.huaweiCartKey,
+                        huaweiCartName: payload.huaweiCartName,
+                        huaweiLastSyncedAt: payload.huaweiLastSyncedAt,
+                        huaweiLastError: payload.huaweiLastError,
+                      }
+                    : list,
+                ),
+              }
+            : project,
+        ),
+      );
+      setSelectedHuaweiCartKey(payload.huaweiCartKey);
+      setHuaweiActionMessage(`Synced ${selectedList?.name ?? "cart"} to Huawei Cloud Calculator.`);
+      await loadHuaweiCarts();
+    } catch (error) {
+      setHuaweiActionMessage(error instanceof Error ? error.message : "Unable to sync with Huawei Cloud Calculator");
+    } finally {
+      setSyncingHuaweiListId(null);
     }
   };
 
@@ -903,6 +1145,11 @@ export default function Home() {
   };
 
   const handleEditProduct = (product: AppProduct) => {
+    if (product.productType !== "ecs") {
+      setAddToListMessage("This product cannot be edited from the calculator.");
+      return;
+    }
+
     if (!isRecord(product.config)) {
       setAddToListMessage("This product cannot be edited from the calculator.");
       return;
@@ -962,8 +1209,8 @@ export default function Home() {
         | { error?: string }
         | null;
 
-      if (!response.ok || !payload || "error" in payload) {
-        throw new Error(payload?.error ?? "Unable to delete product");
+      if (!response.ok || !payload || !("projectId" in payload)) {
+        throw new Error(getResponseError(payload, "Unable to delete product"));
       }
 
       setProjects((current) =>
@@ -1054,8 +1301,8 @@ export default function Home() {
         | { error?: string }
         | null;
 
-      if (!response.ok || !payload || "error" in payload) {
-        throw new Error(payload?.error ?? "Unable to add product to list");
+      if (!response.ok || !payload || !("projectId" in payload)) {
+        throw new Error(getResponseError(payload, "Unable to add product to list"));
       }
 
       setProjects((current) =>
@@ -1102,6 +1349,17 @@ export default function Home() {
                   <p className="text-sm font-medium text-zinc-900">{session.user.name || session.user.email}</p>
                   <p className="text-xs text-zinc-500">{session.user.email}</p>
                 </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="icon"
+                  className="size-10"
+                  aria-label="Reload Huawei carts"
+                  onClick={() => void loadHuaweiCarts()}
+                  disabled={huaweiCartsLoading || !cookieValue.trim()}
+                >
+                  <RefreshCw className={`size-4 ${huaweiCartsLoading ? "animate-spin" : ""}`} />
+                </Button>
                 <Button type="button" variant="outline" onClick={() => authClient.signOut()}>
                   Sign Out
                 </Button>
@@ -1346,6 +1604,10 @@ export default function Home() {
                 <div>
                   <CardTitle>My Projects</CardTitle>
                   <p className="mt-1 text-sm text-zinc-500">Projects and lists are scoped to your account.</p>
+                  {huaweiCartsSyncedAt ? (
+                    <p className="mt-1 text-xs text-zinc-400">Huawei carts synced {new Date(huaweiCartsSyncedAt).toLocaleString()}</p>
+                  ) : null}
+                  {huaweiCartsError ? <p className="mt-1 text-xs text-red-600">{huaweiCartsError}</p> : null}
                 </div>
                 <Badge variant="secondary">{projects.length}</Badge>
               </div>
@@ -1412,6 +1674,34 @@ export default function Home() {
                                   {listPendingProjectId === project.id ? "Adding..." : "Add List"}
                                 </Button>
                               </div>
+                              <Select
+                                value={listBaseDrafts[project.id] || "__blank"}
+                                onValueChange={(value) => {
+                                  const nextValue = value && value !== "__blank" ? value : "";
+                                  setListBaseDrafts((current) => ({
+                                    ...current,
+                                    [project.id]: nextValue,
+                                  }));
+                                }}
+                              >
+                                <SelectTrigger className="bg-white">
+                                  <SelectValue>
+                                    {listBaseDrafts[project.id]
+                                      ? `Base: ${huaweiCarts.find((cart) => cart.key === listBaseDrafts[project.id])?.name ?? "Huawei cart"}`
+                                      : "Base: Blank Neo cart"}
+                                  </SelectValue>
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="__blank">Blank Neo cart</SelectItem>
+                                  {huaweiCarts.map((cart) => {
+                                    return (
+                                      <SelectItem key={cart.key} value={cart.key} disabled={Boolean(cart.associatedListId)}>
+                                        {cart.name}
+                                      </SelectItem>
+                                    );
+                                  })}
+                                </SelectContent>
+                              </Select>
                               {project.lists.map((item) => (
                                 <button
                                   key={item.id}
@@ -1423,10 +1713,14 @@ export default function Home() {
                                 >
                                   <div className="flex items-start justify-between gap-3">
                                     <div>
-                                      <p className="font-medium">{item.name}</p>
+                                      <div className="flex flex-wrap items-center gap-2">
+                                        <p className="font-medium">{item.name}</p>
+                                        {item.huaweiCartKey ? <Badge variant="secondary">Huawei linked</Badge> : null}
+                                      </div>
                                       <p className="text-sm text-zinc-500">
                                         {item.productCount} products · Created {new Date(item.createdAt).toLocaleDateString()}
                                       </p>
+                                      {item.huaweiCartName ? <p className="text-xs text-zinc-400">{item.huaweiCartName}</p> : null}
                                     </div>
                                     <Badge variant="outline">{item.productCount}</Badge>
                                   </div>
@@ -1895,9 +2189,80 @@ export default function Home() {
                   <p className="mt-1 text-sm text-zinc-500">
                     {selectedList && selectedProject ? `${selectedProject.name} / ${selectedList.name}` : "Select a list to see its saved products."}
                   </p>
+                  {selectedList?.huaweiCartKey ? (
+                    <p className="mt-1 text-xs text-zinc-400">
+                      Linked to Huawei cart {selectedList.huaweiCartName || selectedList.huaweiCartKey}
+                    </p>
+                  ) : null}
+                  {selectedList?.huaweiLastSyncedAt ? (
+                    <p className="mt-1 text-xs text-zinc-400">Last Huawei sync: {new Date(selectedList.huaweiLastSyncedAt).toLocaleString()}</p>
+                  ) : null}
+                  {selectedList?.huaweiLastError ? <p className="mt-1 text-xs text-red-600">{selectedList.huaweiLastError}</p> : null}
+                  {huaweiActionMessage && selectedList ? <p className="mt-1 text-xs text-zinc-500">{huaweiActionMessage}</p> : null}
                 </div>
-                <Badge variant="outline">{selectedCartProducts.length} items</Badge>
+                <div className="flex flex-wrap items-center gap-2">
+                  <Badge variant="outline">{selectedCartProducts.length} items</Badge>
+                  {selectedList?.huaweiCartKey ? <Badge variant="secondary">Huawei linked</Badge> : null}
+                  {selectedList ? (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={handleSyncSelectedList}
+                      disabled={syncingHuaweiListId === selectedList.id}
+                    >
+                      {syncingHuaweiListId === selectedList.id
+                        ? "Syncing..."
+                        : selectedList.huaweiCartKey
+                          ? "Sync Huawei"
+                          : "Create Huawei Cart"}
+                    </Button>
+                  ) : null}
+                </div>
               </div>
+              {selectedList ? (
+                <div className="flex flex-col gap-2 sm:flex-row">
+                  <div className="min-w-0 flex-1">
+                    <Select
+                      value={selectedHuaweiCartKey || "__unlinked"}
+                      onValueChange={(value) => setSelectedHuaweiCartKey(value && value !== "__unlinked" ? value : "")}
+                    >
+                      <SelectTrigger className="bg-white">
+                        <SelectValue>
+                          {selectedHuaweiCartKey
+                            ? `Huawei: ${selectedHuaweiCart?.name ?? selectedList.huaweiCartName ?? selectedHuaweiCartKey}`
+                            : "Choose Huawei cart to link"}
+                        </SelectValue>
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="__unlinked">No Huawei link selected</SelectItem>
+                        {selectedList.huaweiCartKey && !huaweiCarts.some((cart) => cart.key === selectedList.huaweiCartKey) ? (
+                          <SelectItem value={selectedList.huaweiCartKey}>
+                            {selectedList.huaweiCartName ?? selectedList.huaweiCartKey}
+                          </SelectItem>
+                        ) : null}
+                        {huaweiCarts.map((cart) => {
+                          const linkedElsewhere = Boolean(cart.associatedListId && cart.associatedListId !== selectedList.id);
+                          return (
+                            <SelectItem key={cart.key} value={cart.key} disabled={linkedElsewhere}>
+                              {cart.name}
+                            </SelectItem>
+                          );
+                        })}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={handleLinkSelectedList}
+                    disabled={!selectedHuaweiCartKey || linkingHuaweiListId === selectedList.id}
+                  >
+                    <Link2 className="mr-2 size-4" />
+                    {linkingHuaweiListId === selectedList.id ? "Linking..." : "Link Huawei Cart"}
+                  </Button>
+                </div>
+              ) : null}
             </CardHeader>
             <Separator />
             <CardContent className="px-0">

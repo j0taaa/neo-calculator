@@ -8,7 +8,8 @@
     "start": "bunx --bun next start",
     "lint": "eslint",
     "db:migrate": "bunx --bun @better-auth/cli migrate --config ./lib/auth.ts --yes",
-    "test:ecs-sync": "bun run scripts/test-ecs-flavor-sync.ts"
+    "test:ecs-sync": "bun run scripts/test-ecs-flavor-sync.ts",
+    "test:huawei-sync": "bun run scripts/test-huawei-cart-sync.ts"
   },
   "dependencies": {
     "@base-ui/react": "^1.2.0",
