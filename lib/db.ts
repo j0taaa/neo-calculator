@@ -28,6 +28,54 @@ function ensureColumn(tableName: string, columnName: string, definition: string)
 }
 
 db.exec(`
+  CREATE TABLE IF NOT EXISTS user (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    email TEXT NOT NULL UNIQUE,
+    emailVerified INTEGER NOT NULL,
+    image TEXT,
+    createdAt DATE NOT NULL,
+    updatedAt DATE NOT NULL
+  );
+
+  CREATE TABLE IF NOT EXISTS session (
+    id TEXT PRIMARY KEY,
+    expiresAt DATE NOT NULL,
+    token TEXT NOT NULL UNIQUE,
+    createdAt DATE NOT NULL,
+    updatedAt DATE NOT NULL,
+    ipAddress TEXT,
+    userAgent TEXT,
+    userId TEXT NOT NULL,
+    FOREIGN KEY (userId) REFERENCES user(id) ON DELETE CASCADE
+  );
+
+  CREATE TABLE IF NOT EXISTS account (
+    id TEXT PRIMARY KEY,
+    accountId TEXT NOT NULL,
+    providerId TEXT NOT NULL,
+    userId TEXT NOT NULL,
+    accessToken TEXT,
+    refreshToken TEXT,
+    idToken TEXT,
+    accessTokenExpiresAt DATE,
+    refreshTokenExpiresAt DATE,
+    scope TEXT,
+    password TEXT,
+    createdAt DATE NOT NULL,
+    updatedAt DATE NOT NULL,
+    FOREIGN KEY (userId) REFERENCES user(id) ON DELETE CASCADE
+  );
+
+  CREATE TABLE IF NOT EXISTS verification (
+    id TEXT PRIMARY KEY,
+    identifier TEXT NOT NULL,
+    value TEXT NOT NULL,
+    expiresAt DATE NOT NULL,
+    createdAt DATE NOT NULL,
+    updatedAt DATE NOT NULL
+  );
+
   CREATE TABLE IF NOT EXISTS project (
     id TEXT PRIMARY KEY,
     user_id TEXT NOT NULL,
@@ -110,6 +158,12 @@ db.exec(`
     PRIMARY KEY (region_id, resource_spec_code, billing_mode),
     FOREIGN KEY (region_id, resource_spec_code) REFERENCES ecs_flavor(region_id, resource_spec_code) ON DELETE CASCADE
   );
+`);
+
+db.exec(`
+  CREATE INDEX IF NOT EXISTS session_userId_idx ON session (userId);
+  CREATE INDEX IF NOT EXISTS account_userId_idx ON account (userId);
+  CREATE INDEX IF NOT EXISTS verification_identifier_idx ON verification (identifier);
 `);
 
 ensureColumn("project_list", "huawei_cart_key", "TEXT");

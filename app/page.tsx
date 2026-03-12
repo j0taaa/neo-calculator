@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import Link from "next/link";
 import { useCallback, useEffect, useId, useRef, useState } from "react";
 
 import { Badge } from "@/components/ui/badge";
@@ -13,7 +14,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ChevronDown, ChevronRight, Link2, RefreshCw, Search, UserCircle2 } from "lucide-react";
+import { Check, ChevronDown, ChevronRight, Link2, Pencil, RefreshCw, Search, Trash2, UserCircle2, X } from "lucide-react";
 
 const services = [
   { name: "Bare Metal Server", code: "BMS", icon: "https://res-static.hc-cdn.cn/cloudbu-site/public/product-banner-icon/Compute/BMS.png" },
@@ -160,6 +161,7 @@ const flavorSortLabels = {
 } as const;
 
 type FlavorBillingMode = "ONDEMAND" | "MONTHLY" | "YEARLY" | "RI";
+type FlavorPriceSource = "catalog_plan" | "rate_inquiry";
 
 type CatalogFlavor = {
   resourceSpecCode: string;
@@ -170,6 +172,7 @@ type CatalogFlavor = {
   cpu: number;
   ramGiB: number;
   prices: Partial<Record<FlavorBillingMode, number>>;
+  priceSources?: Partial<Record<FlavorBillingMode, FlavorPriceSource>>;
   currency: string;
   updatedAt: string;
 };
@@ -302,6 +305,10 @@ function getFlavorPriceForBillingOption(flavor: CatalogFlavor, billingOption: Bi
   const config = billingOptionConfig[billingOption];
 
   for (const mode of config.modes) {
+    if (mode === "ONDEMAND" && flavor.priceSources?.ONDEMAND && flavor.priceSources.ONDEMAND !== "catalog_plan") {
+      continue;
+    }
+
     const amount = flavor.prices[mode];
     if (typeof amount === "number" && Number.isFinite(amount)) {
       const modeDetails = flavorPricePriority.find((entry) => entry.mode === mode);
@@ -385,6 +392,27 @@ type HuaweiCartSummary = {
   originalAmount: number | null;
   associatedListId: string | null;
 };
+
+function getFirstListId(projects: AppProject[]) {
+  return projects[0]?.lists[0]?.id ?? "";
+}
+
+function getProjectCloneDefaultName(
+  projectName: string,
+  targetRegion: HuaweiRegionKey | "",
+  targetBillingMode: BillingOption | "",
+) {
+  const base = projectName.trim() || "NeoCalculator project";
+  const suffixParts: string[] = [];
+  if (targetRegion) {
+    suffixParts.push(huaweiRegions[targetRegion].short);
+  }
+  if (targetBillingMode) {
+    suffixParts.push(targetBillingMode);
+  }
+
+  return suffixParts.length ? `${base} ${suffixParts.join(" ")}` : `${base} (Copy)`;
+}
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
@@ -549,11 +577,16 @@ export default function Home() {
   const [projectsError, setProjectsError] = useState("");
   const [newProjectName, setNewProjectName] = useState("");
   const [newProjectPending, setNewProjectPending] = useState(false);
+  const [editingProjectId, setEditingProjectId] = useState<string | null>(null);
+  const [projectNameDrafts, setProjectNameDrafts] = useState<Record<string, string>>({});
+  const [renamingProjectId, setRenamingProjectId] = useState<string | null>(null);
+  const [deletingProjectId, setDeletingProjectId] = useState<string | null>(null);
   const [listDrafts, setListDrafts] = useState<Record<string, string>>({});
   const [listBaseDrafts, setListBaseDrafts] = useState<Record<string, string>>({});
   const [listPendingProjectId, setListPendingProjectId] = useState<string | null>(null);
   const [selectedListId, setSelectedListId] = useState("");
   const [selectedHuaweiCartKey, setSelectedHuaweiCartKey] = useState("");
+  const [deletingListId, setDeletingListId] = useState<string | null>(null);
   const [editingProductId, setEditingProductId] = useState<string | null>(null);
   const [editingProductListId, setEditingProductListId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState("calculator");
@@ -568,6 +601,18 @@ export default function Home() {
   const [linkingHuaweiListId, setLinkingHuaweiListId] = useState<string | null>(null);
   const [syncingHuaweiListId, setSyncingHuaweiListId] = useState<string | null>(null);
   const [huaweiActionMessage, setHuaweiActionMessage] = useState("");
+  const [cloneNameDraft, setCloneNameDraft] = useState("");
+  const [cloneTargetRegion, setCloneTargetRegion] = useState<HuaweiRegionKey | "">("");
+  const [cloneTargetBillingMode, setCloneTargetBillingMode] = useState<BillingOption | "">("");
+  const [cloningListId, setCloningListId] = useState<string | null>(null);
+  const [cloneActionMessage, setCloneActionMessage] = useState("");
+  const [cloneActionIsError, setCloneActionIsError] = useState(false);
+  const [projectCloneNameDrafts, setProjectCloneNameDrafts] = useState<Record<string, string>>({});
+  const [projectCloneTargetRegions, setProjectCloneTargetRegions] = useState<Record<string, HuaweiRegionKey | "">>({});
+  const [projectCloneTargetBillingModes, setProjectCloneTargetBillingModes] = useState<Record<string, BillingOption | "">>({});
+  const [cloningProjectId, setCloningProjectId] = useState<string | null>(null);
+  const [projectCloneMessages, setProjectCloneMessages] = useState<Record<string, string>>({});
+  const [projectCloneMessageErrors, setProjectCloneMessageErrors] = useState<Record<string, boolean>>({});
   const searchAreaRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const profileAreaRef = useRef<HTMLDivElement>(null);
@@ -594,6 +639,8 @@ export default function Home() {
   const selectedList = selectedProject?.lists.find((list) => list.id === selectedListId) ?? null;
   const selectedCartProducts = selectedList?.products ?? [];
   const selectedHuaweiCart = huaweiCarts.find((cart) => cart.key === selectedHuaweiCartKey) ?? null;
+  const cloneableRegions = (Object.entries(huaweiRegions) as Array<[HuaweiRegionKey, (typeof huaweiRegions)[HuaweiRegionKey]]>)
+    .filter(([, labels]) => Boolean(labels.catalogRegionId));
   const usageHoursValue = Number.isFinite(Number(usageHours)) ? Math.max(1, Number(usageHours)) : 744;
   const minVcpuFilter = Number.isFinite(Number(vcpuValue)) ? Math.max(0, Number(vcpuValue)) : 0;
   const minRamFilter = Number.isFinite(Number(ramValue)) ? Math.max(0, Number(ramValue)) : 0;
@@ -756,7 +803,7 @@ export default function Home() {
             return current;
           }
 
-          return payload[0]?.lists[0]?.id ?? "";
+          return getFirstListId(payload);
         });
         setExpandedProjects((current) => {
           const nextState: Record<string, boolean> = {};
@@ -825,6 +872,12 @@ export default function Home() {
   useEffect(() => {
     setSelectedHuaweiCartKey(selectedList?.huaweiCartKey ?? "");
   }, [selectedList?.huaweiCartKey, selectedList?.id]);
+
+  useEffect(() => {
+    setCloneNameDraft("");
+    setCloneTargetRegion("");
+    setCloneTargetBillingMode("");
+  }, [selectedList?.id]);
 
   const handleSelectService = (service: string) => {
     setSelectedService(service);
@@ -898,6 +951,7 @@ export default function Home() {
       const project = (await response.json()) as Omit<AppProject, "lists">;
       setProjects((current) => [{ ...project, lists: [] }, ...current]);
       setExpandedProjects((current) => ({ ...current, [project.id]: true }));
+      setProjectNameDrafts((current) => ({ ...current, [project.id]: project.name }));
       setNewProjectName("");
     } catch (error) {
       setProjectsError(error instanceof Error ? error.message : "Unable to create project");
@@ -1101,11 +1155,327 @@ export default function Home() {
     }
   };
 
+  const handleCloneSelectedList = async () => {
+    if (!selectedListId || !selectedProject || !selectedList) {
+      return;
+    }
+
+    setCloningListId(selectedListId);
+    setCloneActionMessage("");
+    setCloneActionIsError(false);
+
+    try {
+      const response = await fetch(`/api/lists/${selectedListId}/clone`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: cloneNameDraft.trim() || undefined,
+          targetRegion: cloneTargetRegion || undefined,
+          targetBillingMode: cloneTargetBillingMode || undefined,
+        }),
+      });
+      const payload = (await response.json().catch(() => null)) as
+        | (AppList & {
+            projectId: string;
+            cloneSummary?: {
+              totalProducts: number;
+              convertedEcsCount: number;
+              copiedUnchangedCount: number;
+              copiedUnsupportedCount: number;
+            };
+            error?: never;
+          })
+        | { error?: string }
+        | null;
+
+      if (!response.ok || !payload || !("projectId" in payload)) {
+        throw new Error(getResponseError(payload, "Unable to clone cart"));
+      }
+
+      setProjects((current) =>
+        current.map((project) =>
+          project.id === payload.projectId
+            ? {
+                ...project,
+                updatedAt: payload.updatedAt,
+                lists: [...project.lists, payload],
+              }
+            : project,
+        ),
+      );
+      setSelectedListId(payload.id);
+      setCloneNameDraft("");
+      setCloneTargetRegion("");
+      setCloneTargetBillingMode("");
+      setCloneActionMessage(
+        `Cloned ${selectedList.name} into ${payload.name}. Converted ${payload.cloneSummary?.convertedEcsCount ?? 0} ECS item(s).`,
+      );
+    } catch (error) {
+      setCloneActionIsError(true);
+      setCloneActionMessage(error instanceof Error ? error.message : "Unable to clone cart");
+    } finally {
+      setCloningListId(null);
+    }
+  };
+
+  const handleCloneProject = async (project: AppProject) => {
+    setCloningProjectId(project.id);
+    setProjectCloneMessages((current) => ({ ...current, [project.id]: "" }));
+    setProjectCloneMessageErrors((current) => ({ ...current, [project.id]: false }));
+
+    try {
+      const response = await fetch(`/api/projects/${project.id}/clone`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: projectCloneNameDrafts[project.id]?.trim() || undefined,
+          targetRegion: projectCloneTargetRegions[project.id] || undefined,
+          targetBillingMode: projectCloneTargetBillingModes[project.id] || undefined,
+        }),
+      });
+      const payload = (await response.json().catch(() => null)) as
+        | (AppProject & {
+            cloneSummary?: {
+              totalLists: number;
+              totalProducts: number;
+              convertedEcsCount: number;
+              copiedUnchangedCount: number;
+              copiedUnsupportedCount: number;
+            };
+            error?: never;
+          })
+        | { error?: string }
+        | null;
+
+      if (!response.ok || !payload || !("lists" in payload)) {
+        throw new Error(getResponseError(payload, "Unable to clone project"));
+      }
+
+      setProjects((current) => [payload, ...current]);
+      setExpandedProjects((current) => ({ ...current, [payload.id]: true }));
+      setSelectedListId(payload.lists[0]?.id ?? "");
+      setProjectCloneNameDrafts((current) => ({ ...current, [project.id]: "" }));
+      setProjectCloneTargetRegions((current) => ({ ...current, [project.id]: "" }));
+      setProjectCloneTargetBillingModes((current) => ({ ...current, [project.id]: "" }));
+      setProjectCloneMessages((current) => ({
+        ...current,
+        [project.id]: `Cloned ${project.name} into ${payload.name}. Converted ${payload.cloneSummary?.convertedEcsCount ?? 0} ECS item(s).`,
+      }));
+      setProjectCloneMessageErrors((current) => ({ ...current, [project.id]: false }));
+    } catch (error) {
+      setProjectCloneMessages((current) => ({
+        ...current,
+        [project.id]: error instanceof Error ? error.message : "Unable to clone project",
+      }));
+      setProjectCloneMessageErrors((current) => ({ ...current, [project.id]: true }));
+    } finally {
+      setCloningProjectId(null);
+    }
+  };
+
   const toggleProject = (projectName: string) => {
     setExpandedProjects((current) => ({
       ...current,
       [projectName]: !current[projectName],
     }));
+  };
+
+  const handleStartProjectRename = (project: AppProject) => {
+    setEditingProjectId(project.id);
+    setProjectNameDrafts((current) => ({
+      ...current,
+      [project.id]: current[project.id] ?? project.name,
+    }));
+    setProjectsError("");
+  };
+
+  const handleCancelProjectRename = (project: AppProject) => {
+    setEditingProjectId((current) => (current === project.id ? null : current));
+    setProjectNameDrafts((current) => ({
+      ...current,
+      [project.id]: project.name,
+    }));
+  };
+
+  const handleRenameProject = async (project: AppProject) => {
+    const name = (projectNameDrafts[project.id] ?? project.name).trim();
+    if (!name) {
+      setProjectsError("Project name is required.");
+      return;
+    }
+
+    if (name === project.name) {
+      setEditingProjectId(null);
+      return;
+    }
+
+    setRenamingProjectId(project.id);
+    setProjectsError("");
+
+    try {
+      const response = await fetch(`/api/projects/${project.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name }),
+      });
+      const payload = (await response.json().catch(() => null)) as
+        | { id: string; name: string; description: string | null; updatedAt: string }
+        | { error?: string }
+        | null;
+
+      if (!response.ok || !payload || !("updatedAt" in payload)) {
+        throw new Error(getResponseError(payload, "Unable to rename project"));
+      }
+
+      setProjects((current) =>
+        current.map((item) =>
+          item.id === payload.id
+            ? {
+                ...item,
+                name: payload.name,
+                description: payload.description,
+                updatedAt: payload.updatedAt,
+              }
+            : item,
+        ),
+      );
+      setProjectNameDrafts((current) => ({ ...current, [project.id]: payload.name }));
+      setEditingProjectId(null);
+    } catch (error) {
+      setProjectsError(error instanceof Error ? error.message : "Unable to rename project");
+    } finally {
+      setRenamingProjectId(null);
+    }
+  };
+
+  const handleDeleteProject = async (project: AppProject) => {
+    const confirmed = window.confirm(`Delete "${project.name}" and all of its lists and products?`);
+    if (!confirmed) {
+      return;
+    }
+
+    setDeletingProjectId(project.id);
+    setProjectsError("");
+
+    try {
+      const response = await fetch(`/api/projects/${project.id}`, {
+        method: "DELETE",
+      });
+      const payload = (await response.json().catch(() => null)) as
+        | { id: string; deleted: true }
+        | { error?: string }
+        | null;
+
+      if (!response.ok || !payload || !("deleted" in payload)) {
+        throw new Error(getResponseError(payload, "Unable to delete project"));
+      }
+
+      setProjects((current) => {
+        const nextProjects = current.filter((item) => item.id !== payload.id);
+        setSelectedListId((currentListId) => {
+          if (!project.lists.some((list) => list.id === currentListId)) {
+            return currentListId;
+          }
+
+          return getFirstListId(nextProjects);
+        });
+        return nextProjects;
+      });
+      setExpandedProjects((current) => {
+        const nextState = { ...current };
+        delete nextState[project.id];
+        return nextState;
+      });
+      setProjectNameDrafts((current) => {
+        const nextDrafts = { ...current };
+        delete nextDrafts[project.id];
+        return nextDrafts;
+      });
+      setProjectCloneNameDrafts((current) => {
+        const nextDrafts = { ...current };
+        delete nextDrafts[project.id];
+        return nextDrafts;
+      });
+      setProjectCloneTargetRegions((current) => {
+        const nextDrafts = { ...current };
+        delete nextDrafts[project.id];
+        return nextDrafts;
+      });
+      setProjectCloneTargetBillingModes((current) => {
+        const nextDrafts = { ...current };
+        delete nextDrafts[project.id];
+        return nextDrafts;
+      });
+      setProjectCloneMessages((current) => {
+        const nextMessages = { ...current };
+        delete nextMessages[project.id];
+        return nextMessages;
+      });
+      setProjectCloneMessageErrors((current) => {
+        const nextFlags = { ...current };
+        delete nextFlags[project.id];
+        return nextFlags;
+      });
+      setEditingProjectId((current) => (current === project.id ? null : current));
+      await loadHuaweiCarts();
+    } catch (error) {
+      setProjectsError(error instanceof Error ? error.message : "Unable to delete project");
+    } finally {
+      setDeletingProjectId(null);
+    }
+  };
+
+  const handleDeleteList = async (list: AppList, projectId: string) => {
+    const confirmed = window.confirm(`Delete "${list.name}" and all of its products?`);
+    if (!confirmed) {
+      return;
+    }
+
+    setDeletingListId(list.id);
+    setHuaweiActionMessage("");
+
+    try {
+      const response = await fetch(`/api/lists/${list.id}`, {
+        method: "DELETE",
+      });
+      const payload = (await response.json().catch(() => null)) as
+        | { id: string; projectId: string; deleted: true; updatedAt: string }
+        | { error?: string }
+        | null;
+
+      if (!response.ok || !payload || !("deleted" in payload)) {
+        throw new Error(getResponseError(payload, "Unable to delete cart"));
+      }
+
+      setProjects((current) => {
+        const nextProjects = current.map((project) =>
+          project.id === projectId
+            ? {
+                ...project,
+                updatedAt: payload.updatedAt,
+                lists: project.lists.filter((item) => item.id !== payload.id),
+              }
+            : project,
+        );
+        setSelectedListId((currentListId) => {
+          if (currentListId !== payload.id) {
+            return currentListId;
+          }
+
+          return getFirstListId(nextProjects);
+        });
+        return nextProjects;
+      });
+      if (editingProductListId === payload.id) {
+        handleCancelEdit();
+      }
+      setHuaweiActionMessage(`Deleted ${list.name}.`);
+      await loadHuaweiCarts();
+    } catch (error) {
+      setHuaweiActionMessage(error instanceof Error ? error.message : "Unable to delete cart");
+    } finally {
+      setDeletingListId(null);
+    }
   };
 
   const updateSystemDiskSize = (nextValue: string) => {
@@ -1280,6 +1650,7 @@ export default function Home() {
             region: regionValue,
             billingMode,
             usageHours: billingMode === "Pay-per-use" ? usageHoursValue : null,
+            description: selectedFlavorCard.description ?? selectedService,
             flavor: selectedFlavor,
             vcpu: Number(vcpuValue || "0"),
             ramGiB: Number(ramValue || "0"),
@@ -1609,7 +1980,12 @@ export default function Home() {
                   ) : null}
                   {huaweiCartsError ? <p className="mt-1 text-xs text-red-600">{huaweiCartsError}</p> : null}
                 </div>
-                <Badge variant="secondary">{projects.length}</Badge>
+                <div className="flex items-center gap-2">
+                  <Link href="/projects" className="text-xs text-zinc-500 underline-offset-4 hover:underline">
+                    Open full page
+                  </Link>
+                  <Badge variant="secondary">{projects.length}</Badge>
+                </div>
               </div>
               <div className="flex flex-col gap-2">
                 <div className="flex gap-2">
@@ -1634,27 +2010,110 @@ export default function Home() {
                   ) : null}
                   {projects.map((project) => {
                     const isExpanded = expandedProjects[project.id] ?? false;
+                    const isEditingProject = editingProjectId === project.id;
+                    const isRenamingProject = renamingProjectId === project.id;
+                    const isDeletingProject = deletingProjectId === project.id;
+                    const isCloningProject = cloningProjectId === project.id;
+                    const projectCloneMessage = projectCloneMessages[project.id] ?? "";
+                    const projectCloneIsError = projectCloneMessageErrors[project.id] ?? false;
 
                     return (
                       <div key={project.id} className="rounded-lg border bg-white">
-                        <button
-                          type="button"
-                          className="flex w-full items-start justify-between gap-3 p-4 text-left"
-                          onClick={() => toggleProject(project.id)}
-                          aria-expanded={isExpanded}
-                        >
-                          <div className="min-w-0">
-                            <p className="font-medium">{project.name}</p>
-                            <p className="text-sm text-zinc-500">
-                              {project.lists.length} lists · {project.lists.reduce((sum, list) => sum + list.productCount, 0)} products ·{" "}
-                              {new Date(project.updatedAt).toLocaleDateString()}
-                            </p>
+                        <div className="flex items-start gap-3 p-4">
+                          <div className="min-w-0 flex-1">
+                            {isEditingProject ? (
+                              <div className="space-y-2 pr-2">
+                                <Input
+                                  value={projectNameDrafts[project.id] ?? project.name}
+                                  onChange={(event) =>
+                                    setProjectNameDrafts((current) => ({
+                                      ...current,
+                                      [project.id]: event.target.value,
+                                    }))}
+                                  onKeyDown={(event) => {
+                                    if (event.key === "Enter") {
+                                      event.preventDefault();
+                                      void handleRenameProject(project);
+                                    }
+
+                                    if (event.key === "Escape") {
+                                      event.preventDefault();
+                                      handleCancelProjectRename(project);
+                                    }
+                                  }}
+                                  autoFocus
+                                  placeholder="Project name"
+                                />
+                                <p className="text-xs text-zinc-500">Press Enter to save or Escape to cancel.</p>
+                              </div>
+                            ) : (
+                              <button
+                                type="button"
+                                className="min-w-0 text-left"
+                                onClick={() => toggleProject(project.id)}
+                                aria-expanded={isExpanded}
+                              >
+                                <p className="font-medium">{project.name}</p>
+                                <p className="text-sm text-zinc-500">
+                                  {project.lists.length} lists · {project.lists.reduce((sum, list) => sum + list.productCount, 0)} products ·{" "}
+                                  {new Date(project.updatedAt).toLocaleDateString()}
+                                </p>
+                              </button>
+                            )}
                           </div>
-                          <div className="flex items-center gap-2">
-                            <Badge variant="outline">{project.lists.length}</Badge>
-                            {isExpanded ? <ChevronDown className="size-4 text-zinc-500" /> : <ChevronRight className="size-4 text-zinc-500" />}
+                          <div className="flex shrink-0 items-center gap-1">
+                            {isEditingProject ? (
+                              <>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => void handleRenameProject(project)}
+                                  disabled={isRenamingProject}
+                                  aria-label="Save project name"
+                                >
+                                  <Check className="size-4" />
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => handleCancelProjectRename(project)}
+                                  disabled={isRenamingProject}
+                                  aria-label="Cancel project rename"
+                                >
+                                  <X className="size-4" />
+                                </Button>
+                              </>
+                            ) : (
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => handleStartProjectRename(project)}
+                                disabled={isDeletingProject}
+                                aria-label="Rename project"
+                              >
+                                <Pencil className="size-4" />
+                              </Button>
+                            )}
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => toggleProject(project.id)}
+                              aria-label={isExpanded ? "Collapse project" : "Expand project"}
+                              aria-expanded={isExpanded}
+                            >
+                              {isExpanded ? <ChevronDown className="size-4" /> : <ChevronRight className="size-4" />}
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => void handleDeleteProject(project)}
+                              disabled={isDeletingProject || isRenamingProject}
+                              aria-label="Delete project"
+                            >
+                              <Trash2 className="size-4" />
+                            </Button>
                           </div>
-                        </button>
+                        </div>
 
                         {isExpanded ? (
                           <div className="border-t border-zinc-100 px-3 py-3">
@@ -1702,29 +2161,128 @@ export default function Home() {
                                   })}
                                 </SelectContent>
                               </Select>
+                              <div className="rounded-lg border bg-zinc-50 p-3">
+                                <div className="space-y-1">
+                                  <p className="text-sm font-medium text-zinc-900">Clone Project</p>
+                                  <p className="text-xs text-zinc-500">
+                                    Clone every cart in this project into a new project, with optional region and billing conversion.
+                                  </p>
+                                </div>
+                                <div className="mt-3 grid gap-2">
+                                  <Input
+                                    value={projectCloneNameDrafts[project.id] ?? ""}
+                                    onChange={(event) =>
+                                      setProjectCloneNameDrafts((current) => ({
+                                        ...current,
+                                        [project.id]: event.target.value,
+                                      }))}
+                                    placeholder={getProjectCloneDefaultName(
+                                      project.name,
+                                      projectCloneTargetRegions[project.id] ?? "",
+                                      projectCloneTargetBillingModes[project.id] ?? "",
+                                    )}
+                                  />
+                                  <div className="grid gap-2">
+                                    <Select
+                                      value={projectCloneTargetRegions[project.id] || "__keep"}
+                                      onValueChange={(value) =>
+                                        setProjectCloneTargetRegions((current) => ({
+                                          ...current,
+                                          [project.id]: value && value !== "__keep" ? (value as HuaweiRegionKey) : "",
+                                        }))}
+                                    >
+                                      <SelectTrigger className="bg-white">
+                                        <SelectValue>
+                                          {projectCloneTargetRegions[project.id]
+                                            ? `Region: ${huaweiRegions[projectCloneTargetRegions[project.id]].short}`
+                                            : "Keep current region"}
+                                        </SelectValue>
+                                      </SelectTrigger>
+                                      <SelectContent>
+                                        <SelectItem value="__keep">Keep current region</SelectItem>
+                                        {cloneableRegions.map(([value, labels]) => (
+                                          <SelectItem key={value} value={value}>
+                                            {labels.short}
+                                          </SelectItem>
+                                        ))}
+                                      </SelectContent>
+                                    </Select>
+                                    <Select
+                                      value={projectCloneTargetBillingModes[project.id] || "__keep"}
+                                      onValueChange={(value) =>
+                                        setProjectCloneTargetBillingModes((current) => ({
+                                          ...current,
+                                          [project.id]: value && value !== "__keep" ? (value as BillingOption) : "",
+                                        }))}
+                                    >
+                                      <SelectTrigger className="bg-white">
+                                        <SelectValue>
+                                          {projectCloneTargetBillingModes[project.id]
+                                            ? `Billing: ${projectCloneTargetBillingModes[project.id]}`
+                                            : "Keep current billing"}
+                                        </SelectValue>
+                                      </SelectTrigger>
+                                      <SelectContent>
+                                        <SelectItem value="__keep">Keep current billing</SelectItem>
+                                        {options.billing.map((option) => (
+                                          <SelectItem key={option} value={option}>
+                                            {option}
+                                          </SelectItem>
+                                        ))}
+                                      </SelectContent>
+                                    </Select>
+                                  </div>
+                                  <div className="flex flex-col gap-2">
+                                    {projectCloneMessage ? (
+                                      <p className={`text-xs ${projectCloneIsError ? "text-red-600" : "text-zinc-500"}`}>{projectCloneMessage}</p>
+                                    ) : (
+                                      <p className="text-xs text-zinc-400">Huawei links are not copied to the new project.</p>
+                                    )}
+                                    <Button
+                                      type="button"
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={() => void handleCloneProject(project)}
+                                      disabled={isCloningProject}
+                                    >
+                                      {isCloningProject ? "Cloning Project..." : "Clone Project"}
+                                    </Button>
+                                  </div>
+                                </div>
+                              </div>
                               {project.lists.map((item) => (
-                                <button
+                                <div
                                   key={item.id}
-                                  type="button"
-                                  onClick={() => setSelectedListId(item.id)}
-                                  className={`block w-full rounded-lg border p-3 text-left ${
+                                  className={`flex items-start gap-2 rounded-lg border p-3 ${
                                     selectedListId === item.id ? "border-zinc-950 bg-white" : "border-zinc-200 bg-zinc-50"
                                   }`}
                                 >
-                                  <div className="flex items-start justify-between gap-3">
-                                    <div>
-                                      <div className="flex flex-wrap items-center gap-2">
-                                        <p className="font-medium">{item.name}</p>
-                                        {item.huaweiCartKey ? <Badge variant="secondary">Huawei linked</Badge> : null}
+                                  <button type="button" onClick={() => setSelectedListId(item.id)} className="min-w-0 flex-1 text-left">
+                                    <div className="flex items-start justify-between gap-3">
+                                      <div>
+                                        <div className="flex flex-wrap items-center gap-2">
+                                          <p className="font-medium">{item.name}</p>
+                                          {item.huaweiCartKey ? <Badge variant="secondary">Huawei linked</Badge> : null}
+                                        </div>
+                                        <p className="text-sm text-zinc-500">
+                                          {item.productCount} products · Created {new Date(item.createdAt).toLocaleDateString()}
+                                        </p>
+                                        {item.huaweiCartName ? <p className="text-xs text-zinc-400">{item.huaweiCartName}</p> : null}
                                       </div>
-                                      <p className="text-sm text-zinc-500">
-                                        {item.productCount} products · Created {new Date(item.createdAt).toLocaleDateString()}
-                                      </p>
-                                      {item.huaweiCartName ? <p className="text-xs text-zinc-400">{item.huaweiCartName}</p> : null}
+                                      <Badge variant="outline">{item.productCount}</Badge>
                                     </div>
-                                    <Badge variant="outline">{item.productCount}</Badge>
-                                  </div>
-                                </button>
+                                  </button>
+                                  <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={() => void handleDeleteList(item, project.id)}
+                                    disabled={deletingListId === item.id}
+                                    aria-label={`Delete ${item.name}`}
+                                  >
+                                    <Trash2 className="size-4" />
+                                  </Button>
+                                </div>
                               ))}
                               {project.lists.length === 0 ? (
                                 <div className="rounded-lg border border-dashed bg-zinc-50 p-4 text-sm text-zinc-500">
@@ -2183,10 +2741,10 @@ export default function Home() {
 
           <Card className="overflow-hidden">
             <CardHeader className="pb-3">
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                <div>
+              <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-start">
+                <div className="min-w-0">
                   <CardTitle>Cart Contents</CardTitle>
-                  <p className="mt-1 text-sm text-zinc-500">
+                  <p className="mt-1 truncate text-sm text-zinc-500">
                     {selectedList && selectedProject ? `${selectedProject.name} / ${selectedList.name}` : "Select a list to see its saved products."}
                   </p>
                   {selectedList?.huaweiCartKey ? (
@@ -2200,7 +2758,7 @@ export default function Home() {
                   {selectedList?.huaweiLastError ? <p className="mt-1 text-xs text-red-600">{selectedList.huaweiLastError}</p> : null}
                   {huaweiActionMessage && selectedList ? <p className="mt-1 text-xs text-zinc-500">{huaweiActionMessage}</p> : null}
                 </div>
-                <div className="flex flex-wrap items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2 lg:justify-end">
                   <Badge variant="outline">{selectedCartProducts.length} items</Badge>
                   {selectedList?.huaweiCartKey ? <Badge variant="secondary">Huawei linked</Badge> : null}
                   {selectedList ? (
@@ -2220,9 +2778,9 @@ export default function Home() {
                   ) : null}
                 </div>
               </div>
-              {selectedList ? (
-                <div className="flex flex-col gap-2 sm:flex-row">
-                  <div className="min-w-0 flex-1">
+              {selectedList && selectedProject ? (
+                <div className="space-y-2">
+                  <div className="min-w-0">
                     <Select
                       value={selectedHuaweiCartKey || "__unlinked"}
                       onValueChange={(value) => setSelectedHuaweiCartKey(value && value !== "__unlinked" ? value : "")}
@@ -2252,15 +2810,99 @@ export default function Home() {
                       </SelectContent>
                     </Select>
                   </div>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={handleLinkSelectedList}
-                    disabled={!selectedHuaweiCartKey || linkingHuaweiListId === selectedList.id}
-                  >
-                    <Link2 className="mr-2 size-4" />
-                    {linkingHuaweiListId === selectedList.id ? "Linking..." : "Link Huawei Cart"}
-                  </Button>
+                  <div className="flex flex-wrap gap-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={handleLinkSelectedList}
+                      disabled={!selectedHuaweiCartKey || linkingHuaweiListId === selectedList.id}
+                    >
+                      <Link2 className="mr-2 size-4" />
+                      {linkingHuaweiListId === selectedList.id ? "Linking..." : "Link Huawei Cart"}
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="destructive"
+                      size="sm"
+                      onClick={() => void handleDeleteList(selectedList, selectedProject.id)}
+                      disabled={deletingListId === selectedList.id}
+                    >
+                      <Trash2 className="mr-2 size-4" />
+                      {deletingListId === selectedList.id ? "Deleting..." : "Delete Cart"}
+                    </Button>
+                  </div>
+                </div>
+              ) : null}
+              {selectedList ? (
+                <div className="rounded-lg border bg-zinc-50 p-3">
+                  <div className="space-y-1">
+                    <p className="text-sm font-medium text-zinc-900">Clone Cart</p>
+                    <p className="text-xs text-zinc-500">
+                      ECS items are reselected by cheapest available flavor that meets or exceeds the current vCPU and RAM.
+                    </p>
+                  </div>
+                  <div className="mt-3 grid gap-2">
+                    <Input
+                      value={cloneNameDraft}
+                      onChange={(event) => setCloneNameDraft(event.target.value)}
+                      placeholder={`${selectedList.name} (Copy)`}
+                    />
+                    <div className="grid gap-2 sm:grid-cols-2">
+                      <Select
+                        value={cloneTargetRegion || "__keep"}
+                        onValueChange={(value) => setCloneTargetRegion(value && value !== "__keep" ? (value as HuaweiRegionKey) : "")}
+                      >
+                        <SelectTrigger className="bg-white">
+                          <SelectValue>
+                            {cloneTargetRegion ? `Region: ${huaweiRegions[cloneTargetRegion].short}` : "Keep current region"}
+                          </SelectValue>
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="__keep">Keep current region</SelectItem>
+                          {cloneableRegions.map(([value, labels]) => (
+                            <SelectItem key={value} value={value}>
+                              {labels.short}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <Select
+                        value={cloneTargetBillingMode || "__keep"}
+                        onValueChange={(value) => setCloneTargetBillingMode(value && value !== "__keep" ? (value as BillingOption) : "")}
+                      >
+                        <SelectTrigger className="bg-white">
+                          <SelectValue>
+                            {cloneTargetBillingMode ? `Billing: ${cloneTargetBillingMode}` : "Keep current billing"}
+                          </SelectValue>
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="__keep">Keep current billing</SelectItem>
+                          {options.billing.map((option) => (
+                            <SelectItem key={option} value={option}>
+                              {option}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                      {cloneActionMessage ? (
+                        <p className={`text-xs ${cloneActionIsError ? "text-red-600" : "text-zinc-500"}`}>{cloneActionMessage}</p>
+                      ) : (
+                        <p className="text-xs text-zinc-400">Non-ECS items are copied unchanged.</p>
+                      )}
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={handleCloneSelectedList}
+                        disabled={cloningListId === selectedList.id}
+                      >
+                        {cloningListId === selectedList.id ? "Cloning..." : "Clone Cart"}
+                      </Button>
+                    </div>
+                  </div>
                 </div>
               ) : null}
             </CardHeader>

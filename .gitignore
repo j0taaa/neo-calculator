@@ -2,4 +2,6 @@
 .DS_Store
 .next/
 data/
+data.db
 node_modules/
+tsconfig.tsbuildinfo

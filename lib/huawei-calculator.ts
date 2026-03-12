@@ -250,6 +250,7 @@ type LocalEcsConfig = {
   region?: unknown;
   billingMode?: unknown;
   usageHours?: unknown;
+  description?: unknown;
   flavor?: unknown;
   vcpu?: unknown;
   ramGiB?: unknown;
@@ -518,6 +519,26 @@ function pickPresentString(...values: unknown[]) {
   }
 
   return "";
+}
+
+function extractLocalEcsDescription(product: LocalProductInput, flavorDescription = "") {
+  if (isRecord(product.config)) {
+    const config = product.config as LocalEcsConfig & { huaweiPayload?: unknown };
+    const description = pickPresentString(
+      config.description,
+      isRecord(config.huaweiPayload) && isRecord(config.huaweiPayload.selectedProduct)
+        ? config.huaweiPayload.selectedProduct.description
+        : "",
+      isRecord(config.huaweiPayload) && isRecord(config.huaweiPayload.rewriteValue)
+        ? config.huaweiPayload.rewriteValue.global_DESCRIPTION
+        : "",
+    );
+    if (description) {
+      return description;
+    }
+  }
+
+  return pickPresentString(flavorDescription, product.serviceName, DEFAULT_ECS_SERVICE_NAME);
 }
 
 function roundMoney(value: number) {
@@ -1735,6 +1756,7 @@ function buildImportedEcsProduct(remoteItem: RemoteCartItem): LocalProductInput 
       region: localRegion,
       billingMode: mapRemotePricingModeToLocal(remoteItem.pricingMode),
       usageHours: remoteItem.pricingMode === "ONDEMAND" ? remoteItem.hours : null,
+      description: remoteItem.description,
       flavor: remoteItem.resourceCode,
       vcpu: remoteItem.vcpus,
       ramGiB: remoteItem.ramGb,
@@ -1893,7 +1915,7 @@ async function buildHuaweiPayloadFromLocalProduct(product: LocalProductInput) {
     diskType: diskTypeCode,
     diskSize,
     title: product.title,
-    description: product.serviceName || DEFAULT_ECS_SERVICE_NAME,
+    description: extractLocalEcsDescription(product, pickPresentString(flavor.productSpecDesc, flavor.productSpecSysDesc)),
   });
 }
 

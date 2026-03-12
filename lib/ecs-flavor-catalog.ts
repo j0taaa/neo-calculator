@@ -6,6 +6,7 @@ import {
 } from "@/lib/ecs-visibility-config";
 
 export type BillingMode = "ONDEMAND" | "MONTHLY" | "YEARLY" | "RI";
+export type FlavorPriceSource = "catalog_plan" | "rate_inquiry";
 
 type CatalogPlan = {
   billingMode?: string;
@@ -53,6 +54,7 @@ type FlavorPriceRow = {
   billing_mode: BillingMode;
   amount: number;
   currency: string;
+  source: FlavorPriceSource;
 };
 
 type RegionRow = {
@@ -75,6 +77,7 @@ export type StoredEcsFlavor = {
   cpu: number;
   ramGiB: number;
   prices: Partial<Record<BillingMode, number>>;
+  priceSources: Partial<Record<BillingMode, FlavorPriceSource>>;
   currency: string;
   updatedAt: string;
 };
@@ -430,6 +433,14 @@ async function fetchOnDemandFlavorPrice(regionId: string, flavorCode: string): P
   return typeof amount === "number" && Number.isFinite(amount) ? amount : null;
 }
 
+function describeError(error: unknown): string {
+  if (error instanceof Error && error.message.trim()) {
+    return error.message;
+  }
+
+  return "Unknown error";
+}
+
 function getMeta(key: string): string | null {
   const row = db.query<{ value: string }, [string]>("SELECT value FROM ecs_catalog_meta WHERE key = ?").get(key);
   return row?.value ?? null;
@@ -575,22 +586,35 @@ async function syncSingleRegion(
     return;
   }
 
-  let backfilled = 0;
+  let backfillAttempts = 0;
+  let backfillFailures = 0;
   for (const flavor of flavors) {
     const code = typeof flavor.resourceSpecCode === "string" ? flavor.resourceSpecCode.trim() : "";
     if (!code || getFlavorPriceForMode(flavor, "ONDEMAND") !== null) {
       continue;
     }
 
-    if (backfilled >= onDemandBackfillLimit) {
+    if (backfillAttempts >= onDemandBackfillLimit) {
       break;
     }
 
-    const amount = await fetchOnDemandFlavorPrice(regionId, code);
-    if (amount !== null) {
-      upsertOnDemandPrice(regionId, code, amount, new Date().toISOString());
+    backfillAttempts += 1;
+
+    try {
+      const amount = await fetchOnDemandFlavorPrice(regionId, code);
+      if (amount !== null) {
+        upsertOnDemandPrice(regionId, code, amount, new Date().toISOString());
+      }
+    } catch (error) {
+      backfillFailures += 1;
+      console.warn(`Skipping ECS on-demand price backfill for ${regionId}/${code}: ${describeError(error)}`);
     }
-    backfilled += 1;
+  }
+
+  if (backfillFailures > 0) {
+    console.warn(
+      `ECS on-demand price backfill finished with ${backfillFailures} failed request(s) in ${regionId}.`,
+    );
   }
 }
 
@@ -724,20 +748,29 @@ export function listStoredEcsFlavors(regionId: string): StoredEcsFlavor[] {
   const prices = db
     .query<FlavorPriceRow, [string]>(
       `
-        SELECT resource_spec_code, billing_mode, amount, currency
+        SELECT resource_spec_code, billing_mode, amount, currency, source
         FROM ecs_flavor_price
         WHERE region_id = ?
       `,
     )
     .all(regionId);
 
-  const priceMap = new Map<string, { prices: Partial<Record<BillingMode, number>>; currency: string }>();
+  const priceMap = new Map<
+    string,
+    {
+      prices: Partial<Record<BillingMode, number>>;
+      priceSources: Partial<Record<BillingMode, FlavorPriceSource>>;
+      currency: string;
+    }
+  >();
   for (const price of prices) {
     const current = priceMap.get(price.resource_spec_code) ?? {
       prices: {},
+      priceSources: {},
       currency: price.currency,
     };
     current.prices[price.billing_mode] = price.amount;
+    current.priceSources[price.billing_mode] = price.source;
     current.currency = price.currency;
     priceMap.set(price.resource_spec_code, current);
   }
@@ -754,6 +787,7 @@ export function listStoredEcsFlavors(regionId: string): StoredEcsFlavor[] {
       cpu: flavor.cpu,
       ramGiB: flavor.ram_gib,
       prices: priceInfo?.prices ?? {},
+      priceSources: priceInfo?.priceSources ?? {},
       currency: priceInfo?.currency ?? DEFAULT_CURRENCY,
       updatedAt: flavor.updated_at,
     };
