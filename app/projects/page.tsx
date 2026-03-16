@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { type ReactNode, useCallback, useEffect, useMemo, useState } from "react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -10,8 +10,9 @@ import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
+import { authClient } from "@/lib/auth-client";
 import { huaweiRegions, type HuaweiRegionKey } from "@/lib/huawei-regions";
-import { Check, ChevronDown, ChevronRight, Link2, Pencil, Trash2, X } from "lucide-react";
+import { ArrowRightLeft, Check, ChevronDown, ChevronRight, Copy, Link2, MoreHorizontal, Pencil, RefreshCw, Share2, Trash2, X } from "lucide-react";
 
 type BillingOption = "Pay-per-use" | "RI" | "Yearly/Monthly";
 
@@ -22,12 +23,18 @@ type AppProduct = {
   productType: string;
   title: string;
   quantity: number;
+  config: unknown;
+  pricing: unknown;
+  createdAt?: string;
   updatedAt: string;
 };
 
 type AppList = {
   id: string;
   name: string;
+  ownerUserId: string;
+  accessLevel: "owner" | "project_collaborator" | "list_collaborator";
+  canShare: boolean;
   huaweiCartKey: string | null;
   huaweiCartName: string | null;
   huaweiLastSyncedAt: string | null;
@@ -41,6 +48,9 @@ type AppList = {
 type AppProject = {
   id: string;
   name: string;
+  ownerUserId: string;
+  accessLevel: "owner" | "project_collaborator" | "list_collaborator";
+  canShare: boolean;
   description: string | null;
   createdAt: string;
   updatedAt: string;
@@ -53,7 +63,85 @@ type HuaweiCartSummary = {
   associatedListId: string | null;
 };
 
+type ActionMenuItem = {
+  label: string;
+  icon: ReactNode;
+  onSelect: () => void;
+  disabled?: boolean;
+};
+
+type ActiveModal =
+  | { kind: "project-huawei"; projectId: string }
+  | { kind: "project-clone"; projectId: string }
+  | { kind: "project-share"; projectId: string }
+  | { kind: "list-move"; listId: string }
+  | { kind: "list-link"; listId: string }
+  | { kind: "list-clone"; listId: string }
+  | { kind: "list-share"; listId: string }
+  | null;
+
 const billingOptions: BillingOption[] = ["Pay-per-use", "RI", "Yearly/Monthly"];
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
+
+function getProductSpecsSummary(product: AppProduct) {
+  if (!isRecord(product.config)) {
+    return null;
+  }
+
+  const vcpu = typeof product.config.vcpu === "number" ? product.config.vcpu : Number(product.config.vcpu ?? 0);
+  const ramGiB = typeof product.config.ramGiB === "number" ? product.config.ramGiB : Number(product.config.ramGiB ?? 0);
+  const systemDisk = isRecord(product.config.systemDisk) ? product.config.systemDisk : null;
+  const diskType = typeof product.config.diskType === "string"
+    ? product.config.diskType
+    : systemDisk && typeof systemDisk.type === "string"
+      ? systemDisk.type
+      : null;
+  const diskSizeGiB = typeof product.config.diskSizeGiB === "number"
+    ? product.config.diskSizeGiB
+    : systemDisk && typeof systemDisk.sizeGiB === "number"
+      ? systemDisk.sizeGiB
+      : null;
+  const diskIops = typeof product.config.iops === "number"
+    ? product.config.iops
+    : systemDisk && typeof systemDisk.iops === "number"
+      ? systemDisk.iops
+      : null;
+  const diskThroughput = typeof product.config.throughput === "number"
+    ? product.config.throughput
+    : systemDisk && typeof systemDisk.throughput === "number"
+      ? systemDisk.throughput
+      : null;
+  const parts: string[] = [];
+
+  if (Number.isFinite(vcpu) && vcpu > 0) {
+    parts.push(`${vcpu} vCPUs`);
+  }
+
+  if (Number.isFinite(ramGiB) && ramGiB > 0) {
+    parts.push(`${ramGiB} GiB RAM`);
+  }
+
+  if (diskType) {
+    parts.push(diskType);
+  }
+
+  if (typeof diskSizeGiB === "number" && Number.isFinite(diskSizeGiB) && diskSizeGiB > 0) {
+    parts.push(`${diskSizeGiB} GiB`);
+  }
+
+  if (typeof diskIops === "number" && Number.isFinite(diskIops) && diskIops > 0) {
+    parts.push(`${diskIops} IOPS`);
+  }
+
+  if (typeof diskThroughput === "number" && Number.isFinite(diskThroughput) && diskThroughput > 0) {
+    parts.push(`${diskThroughput} MB/s`);
+  }
+
+  return parts.length ? parts.join(" · ") : null;
+}
 
 function getResponseError(payload: unknown, fallback: string) {
   if (payload && typeof payload === "object" && "error" in payload && typeof payload.error === "string") {
@@ -61,6 +149,33 @@ function getResponseError(payload: unknown, fallback: string) {
   }
 
   return fallback;
+}
+
+async function copyText(text: string) {
+  if (typeof navigator !== "undefined" && navigator.clipboard?.writeText) {
+    await navigator.clipboard.writeText(text);
+    return true;
+  }
+
+  if (typeof document === "undefined") {
+    return false;
+  }
+
+  const textarea = document.createElement("textarea");
+  textarea.value = text;
+  textarea.setAttribute("readonly", "");
+  textarea.style.position = "fixed";
+  textarea.style.opacity = "0";
+  textarea.style.pointerEvents = "none";
+  document.body.appendChild(textarea);
+  textarea.focus();
+  textarea.select();
+
+  try {
+    return document.execCommand("copy");
+  } finally {
+    document.body.removeChild(textarea);
+  }
 }
 
 function getProjectCloneDefaultName(
@@ -97,7 +212,94 @@ function getCartCloneDefaultName(
   return suffixParts.length ? `${base} (${suffixParts.join(" · ")})` : `${base} (Copy)`;
 }
 
+function ActionMenu({
+  open,
+  onOpenChange,
+  label,
+  items,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  label: string;
+  items: ActionMenuItem[];
+}) {
+  return (
+    <div data-action-menu-root className="relative">
+      <Button
+        type="button"
+        variant="ghost"
+        size="icon"
+        aria-haspopup="menu"
+        aria-expanded={open}
+        aria-label={label}
+        onClick={() => onOpenChange(!open)}
+      >
+        <MoreHorizontal className="size-4" />
+      </Button>
+      {open ? (
+        <div
+          role="menu"
+          className="absolute top-full right-0 z-30 mt-2 w-52 rounded-xl border border-zinc-200 bg-white p-1 shadow-[0_24px_70px_-32px_rgba(15,23,42,0.45)]"
+        >
+          {items.map((item) => (
+            <button
+              key={item.label}
+              type="button"
+              role="menuitem"
+              disabled={item.disabled}
+              className="flex w-full cursor-pointer items-center gap-2 rounded-lg px-3 py-2 text-left text-sm text-zinc-700 transition hover:bg-zinc-100 disabled:cursor-not-allowed disabled:opacity-50"
+              onClick={() => {
+                onOpenChange(false);
+                item.onSelect();
+              }}
+            >
+              <span className="text-zinc-500">{item.icon}</span>
+              <span>{item.label}</span>
+            </button>
+          ))}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+function ActionModal({
+  title,
+  description,
+  onClose,
+  children,
+}: {
+  title: string;
+  description: string;
+  onClose: () => void;
+  children: ReactNode;
+}) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-zinc-950/40 p-4" onClick={onClose}>
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-label={title}
+        className="w-full max-w-lg rounded-2xl border border-zinc-200 bg-white shadow-[0_32px_100px_-40px_rgba(15,23,42,0.55)]"
+        onClick={(event) => event.stopPropagation()}
+      >
+        <div className="flex items-start justify-between gap-4 border-b border-zinc-100 px-5 py-4">
+          <div>
+            <h2 className="text-lg font-semibold text-zinc-950">{title}</h2>
+            <p className="mt-1 text-sm text-zinc-500">{description}</p>
+          </div>
+          <Button type="button" variant="ghost" size="icon" aria-label={`Close ${title}`} onClick={onClose}>
+            <X className="size-4" />
+          </Button>
+        </div>
+        <div className="space-y-4 px-5 py-5">{children}</div>
+      </div>
+    </div>
+  );
+}
+
 export default function ProjectsPage() {
+  const { data: session, isPending: isSessionPending } = authClient.useSession();
   const [projects, setProjects] = useState<AppProject[]>([]);
   const [projectsLoading, setProjectsLoading] = useState(false);
   const [projectsError, setProjectsError] = useState("");
@@ -141,6 +343,13 @@ export default function ProjectsPage() {
   const [cloningListId, setCloningListId] = useState<string | null>(null);
   const [listCloneMessages, setListCloneMessages] = useState<Record<string, string>>({});
   const [listCloneMessageErrors, setListCloneMessageErrors] = useState<Record<string, boolean>>({});
+  const [sharingProjectKey, setSharingProjectKey] = useState<string | null>(null);
+  const [sharingListKey, setSharingListKey] = useState<string | null>(null);
+  const [projectShareMessages, setProjectShareMessages] = useState<Record<string, string>>({});
+  const [listShareMessages, setListShareMessages] = useState<Record<string, string>>({});
+  const [openProjectMenuId, setOpenProjectMenuId] = useState<string | null>(null);
+  const [openListMenuId, setOpenListMenuId] = useState<string | null>(null);
+  const [activeModal, setActiveModal] = useState<ActiveModal>(null);
 
   const cloneableRegions = (Object.entries(huaweiRegions) as Array<[HuaweiRegionKey, (typeof huaweiRegions)[HuaweiRegionKey]]>)
     .filter(([, labels]) => Boolean(labels.catalogRegionId));
@@ -158,7 +367,35 @@ export default function ProjectsPage() {
     };
   }, [projects]);
 
+  const projectsById = useMemo(() => new Map(projects.map((project) => [project.id, project] as const)), [projects]);
+
+  const listsById = useMemo(
+    () =>
+      new Map(
+        projects.flatMap((project) =>
+          project.lists.map((list) => [list.id, { list, project }] as const),
+        ),
+      ),
+    [projects],
+  );
+
+  const activeProject =
+    activeModal == null
+      ? null
+      : "projectId" in activeModal
+        ? projectsById.get(activeModal.projectId) ?? null
+        : listsById.get(activeModal.listId)?.project ?? null;
+
+  const activeList = activeModal != null && "listId" in activeModal ? listsById.get(activeModal.listId)?.list ?? null : null;
+
   const loadProjects = useCallback(async () => {
+    if (!session?.user.id) {
+      setProjects([]);
+      setProjectsError("");
+      setProjectsLoading(false);
+      return;
+    }
+
     setProjectsLoading(true);
     setProjectsError("");
 
@@ -194,7 +431,7 @@ export default function ProjectsPage() {
     } finally {
       setProjectsLoading(false);
     }
-  }, []);
+  }, [session?.user.id]);
 
   const loadHuaweiCarts = useCallback(async () => {
     if (!cookieValue.trim()) {
@@ -242,7 +479,66 @@ export default function ProjectsPage() {
     void loadHuaweiCarts();
   }, [loadHuaweiCarts]);
 
+  useEffect(() => {
+    if (!openProjectMenuId && !openListMenuId) {
+      return;
+    }
+
+    const handlePointerDown = (event: MouseEvent) => {
+      if (event.target instanceof Element && event.target.closest("[data-action-menu-root]")) {
+        return;
+      }
+
+      setOpenProjectMenuId(null);
+      setOpenListMenuId(null);
+    };
+
+    document.addEventListener("mousedown", handlePointerDown);
+    return () => document.removeEventListener("mousedown", handlePointerDown);
+  }, [openProjectMenuId, openListMenuId]);
+
+  useEffect(() => {
+    if (!activeModal) {
+      return;
+    }
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setActiveModal(null);
+      }
+    };
+
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    window.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [activeModal]);
+
+  useEffect(() => {
+    if (!activeModal) {
+      return;
+    }
+
+    if ("projectId" in activeModal && !projectsById.has(activeModal.projectId)) {
+      setActiveModal(null);
+      return;
+    }
+
+    if ("listId" in activeModal && !listsById.has(activeModal.listId)) {
+      setActiveModal(null);
+    }
+  }, [activeModal, listsById, projectsById]);
+
   const handleCreateProject = async () => {
+    if (!session) {
+      setProjectsError("Sign in to save and share projects.");
+      return;
+    }
+
     const name = newProjectName.trim();
     if (!name) {
       return;
@@ -271,6 +567,45 @@ export default function ProjectsPage() {
       setProjectsError(error instanceof Error ? error.message : "Unable to create project");
     } finally {
       setNewProjectPending(false);
+    }
+  };
+
+  const handleCreateShare = async (resourceType: "project" | "list", resourceId: string, mode: "copy" | "collaborate") => {
+    const setPending = resourceType === "project" ? setSharingProjectKey : setSharingListKey;
+    const setMessages = resourceType === "project" ? setProjectShareMessages : setListShareMessages;
+
+    setPending(`${resourceType}:${resourceId}:${mode}`);
+    setMessages((current) => ({ ...current, [resourceId]: "" }));
+
+    try {
+      const response = await fetch("/api/share", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ resourceType, resourceId, mode }),
+      });
+      const payload = (await response.json().catch(() => null)) as { shareUrl?: string; error?: string } | null;
+
+      if (!response.ok || !payload?.shareUrl) {
+        throw new Error(getResponseError(payload, "Unable to create share link"));
+      }
+
+      const shareUrl = new URL(payload.shareUrl, window.location.origin).toString();
+      const copied = await copyText(shareUrl);
+      setMessages((current) => ({
+        ...current,
+        [resourceId]: copied
+          ? mode === "copy"
+            ? "Copy link copied."
+            : "Collaborative link copied."
+          : `${mode === "copy" ? "Copy" : "Collaborative"} link: ${shareUrl}`,
+      }));
+    } catch (error) {
+      setMessages((current) => ({
+        ...current,
+        [resourceId]: error instanceof Error ? error.message : "Unable to create share link",
+      }));
+    } finally {
+      setPending(null);
     }
   };
 
@@ -1122,6 +1457,12 @@ export default function ProjectsPage() {
     }
   };
 
+  const openActionModal = (modal: Exclude<ActiveModal, null>) => {
+    setOpenProjectMenuId(null);
+    setOpenListMenuId(null);
+    setActiveModal(modal);
+  };
+
   const toggleProject = (projectId: string) => {
     setExpandedProjects((current) => ({
       ...current,
@@ -1136,9 +1477,52 @@ export default function ProjectsPage() {
     }));
   };
 
+  const activeProjectCloneTargetRegion = activeProject ? projectCloneTargetRegions[activeProject.id] ?? "" : "";
+  const activeProjectCloneTargetBillingMode = activeProject ? projectCloneTargetBillingModes[activeProject.id] ?? "" : "";
+  const activeProjectCloneMessage = activeProject ? projectCloneMessages[activeProject.id] ?? "" : "";
+  const activeProjectCloneMessageIsError = activeProject ? projectCloneMessageErrors[activeProject.id] ?? false : false;
+  const activeProjectHuaweiMessage = activeProject ? projectHuaweiMessages[activeProject.id] ?? "" : "";
+  const activeProjectHuaweiMessageIsError = activeProject ? projectHuaweiMessageErrors[activeProject.id] ?? false : false;
+  const activeProjectShareMessage = activeProject ? projectShareMessages[activeProject.id] ?? "" : "";
+  const isActiveProjectCloning = activeProject ? cloningProjectId === activeProject.id : false;
+  const isActiveProjectSyncing = activeProject ? syncingHuaweiProjectId === activeProject.id : false;
+  const activeListParentProjectId =
+    activeList && activeProject && "listId" in (activeModal ?? {}) ? activeProject.id : "";
+  const activeListTargetProjectId = activeList && activeProject ? listProjectDrafts[activeList.id] ?? activeProject.id : "";
+  const activeSelectedHuaweiCartKey = activeList ? listHuaweiCartDrafts[activeList.id] ?? activeList.huaweiCartKey ?? "" : "";
+  const activeSelectedHuaweiCart = huaweiCarts.find((cart) => cart.key === activeSelectedHuaweiCartKey) ?? null;
+  const activeListCloneTargetRegion = activeList ? listCloneTargetRegions[activeList.id] ?? "" : "";
+  const activeListCloneTargetBillingMode = activeList ? listCloneTargetBillingModes[activeList.id] ?? "" : "";
+  const activeListCloneMessage = activeList ? listCloneMessages[activeList.id] ?? "" : "";
+  const activeListCloneMessageIsError = activeList ? listCloneMessageErrors[activeList.id] ?? false : false;
+  const activeListHuaweiMessage = activeList ? listHuaweiMessages[activeList.id] ?? "" : "";
+  const activeListHuaweiMessageIsError = activeList ? listHuaweiMessageErrors[activeList.id] ?? false : false;
+  const activeListShareMessage = activeList ? listShareMessages[activeList.id] ?? "" : "";
+  const isActiveListMoving = activeList ? movingListId === activeList.id : false;
+  const isActiveListLinking = activeList ? linkingHuaweiListId === activeList.id : false;
+  const isActiveListCloning = activeList ? cloningListId === activeList.id : false;
+
   return (
     <main className="min-h-screen bg-zinc-100 px-4 py-8 sm:px-6 lg:px-8">
       <div className="mx-auto max-w-6xl space-y-6">
+        {isSessionPending ? (
+          <Card>
+            <CardContent className="py-12 text-center text-zinc-500">Checking session...</CardContent>
+          </Card>
+        ) : null}
+        {!isSessionPending && !session ? (
+          <Card className="mx-auto max-w-xl">
+            <CardHeader>
+              <CardTitle>Sign In To Save And Share</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4 text-sm text-zinc-500">
+              <p>The calculator is available without an account, but saved carts, saved projects, and share links require sign-in.</p>
+              <Link href="/" className="inline-flex">
+                <Button type="button">Open Calculator</Button>
+              </Link>
+            </CardContent>
+          </Card>
+        ) : null}
         <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
           <div>
             <p className="text-xs font-medium tracking-[0.22em] text-zinc-500 uppercase">Projects</p>
@@ -1151,11 +1535,9 @@ export default function ProjectsPage() {
             ) : null}
             {huaweiCartsError ? <p className="mt-1 text-xs text-red-600">{huaweiCartsError}</p> : null}
           </div>
-          <Link href="/" className="text-sm text-zinc-500 underline-offset-4 hover:underline">
-            Back to dashboard
-          </Link>
         </div>
 
+        {session ? (
         <Card className="overflow-hidden">
           <CardHeader className="pb-3">
             <div className="flex items-center justify-between gap-3">
@@ -1193,13 +1575,32 @@ export default function ProjectsPage() {
                   const isEditingProject = editingProjectId === project.id;
                   const isRenamingProject = renamingProjectId === project.id;
                   const isDeletingProject = deletingProjectId === project.id;
-                  const isCloningProject = cloningProjectId === project.id;
-                  const isSyncingHuaweiProject = syncingHuaweiProjectId === project.id;
-                  const projectCloneTargetRegion = projectCloneTargetRegions[project.id] ?? "";
                   const projectHuaweiMessage = projectHuaweiMessages[project.id] ?? "";
                   const projectHuaweiMessageIsError = projectHuaweiMessageErrors[project.id] ?? false;
                   const cloneMessage = projectCloneMessages[project.id] ?? "";
                   const cloneMessageIsError = projectCloneMessageErrors[project.id] ?? false;
+                  const projectShareMessage = projectShareMessages[project.id] ?? "";
+                  const projectMenuItems: ActionMenuItem[] = [
+                    {
+                      label: "Create Huawei Carts",
+                      icon: <RefreshCw className="size-4" />,
+                      onSelect: () => openActionModal({ kind: "project-huawei", projectId: project.id }),
+                    },
+                    {
+                      label: "Clone Project",
+                      icon: <Copy className="size-4" />,
+                      onSelect: () => openActionModal({ kind: "project-clone", projectId: project.id }),
+                    },
+                    ...(project.canShare
+                      ? [
+                          {
+                            label: "Share Project",
+                            icon: <Share2 className="size-4" />,
+                            onSelect: () => openActionModal({ kind: "project-share", projectId: project.id }),
+                          },
+                        ]
+                      : []),
+                  ];
 
                   return (
                     <div key={project.id} className="rounded-2xl border bg-white">
@@ -1251,9 +1652,27 @@ export default function ProjectsPage() {
                               </Button>
                             </>
                           ) : (
-                            <Button variant="ghost" size="icon" onClick={() => handleStartProjectRename(project)} disabled={isDeletingProject}>
-                              <Pencil className="size-4" />
-                            </Button>
+                            <>
+                              {project.canShare ? (
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  aria-label={`Share ${project.name}`}
+                                  onClick={() => openActionModal({ kind: "project-share", projectId: project.id })}
+                                >
+                                  <Share2 className="size-4" />
+                                </Button>
+                              ) : null}
+                              <ActionMenu
+                                open={openProjectMenuId === project.id}
+                                onOpenChange={(open) => setOpenProjectMenuId(open ? project.id : null)}
+                                label={`Open actions for ${project.name}`}
+                                items={projectMenuItems}
+                              />
+                              <Button variant="ghost" size="icon" onClick={() => handleStartProjectRename(project)} disabled={isDeletingProject}>
+                                <Pencil className="size-4" />
+                              </Button>
+                            </>
                           )}
                           <Button variant="ghost" size="icon" onClick={() => toggleProject(project.id)} aria-expanded={isExpanded}>
                             {isExpanded ? <ChevronDown className="size-4" /> : <ChevronRight className="size-4" />}
@@ -1314,119 +1733,19 @@ export default function ProjectsPage() {
                                 ))}
                               </SelectContent>
                             </Select>
-
-                            <div className="rounded-xl border bg-zinc-50 p-4">
-                              <div className="space-y-1">
-                                <p className="text-sm font-medium text-zinc-900">Huawei Cloud Calculator</p>
-                                <p className="text-xs text-zinc-500">
-                                  Create or update one Huawei cart for every NeoCalculator cart in this project.
-                                </p>
-                              </div>
-                              <div className="mt-3 grid gap-2">
-                                {projectHuaweiMessage ? (
-                                  <p className={`text-xs ${projectHuaweiMessageIsError ? "text-red-600" : "text-zinc-500"}`}>
-                                    {projectHuaweiMessage}
-                                  </p>
-                                ) : !cookieValue.trim() ? (
-                                  <p className="text-xs text-zinc-400">Save a Huawei Cloud cookie on the dashboard to enable project sync.</p>
-                                ) : (
-                                  <p className="text-xs text-zinc-400">
-                                    Existing Huawei-linked carts are updated; unlinked carts will create new Huawei carts.
-                                  </p>
-                                )}
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={() => void handleSyncProjectHuawei(project)}
-                                  disabled={isSyncingHuaweiProject || project.lists.length === 0 || !cookieValue.trim()}
-                                >
-                                  {isSyncingHuaweiProject ? "Creating Huawei Carts..." : "Create Huawei Carts"}
-                                </Button>
-                              </div>
-                            </div>
-
-                            <div className="rounded-xl border bg-zinc-50 p-4">
-                              <div className="space-y-1">
-                                <p className="text-sm font-medium text-zinc-900">Clone Project</p>
-                                <p className="text-xs text-zinc-500">
-                                  Clone every cart in this project into a new project, with optional region and billing conversion.
-                                </p>
-                              </div>
-                              <div className="mt-3 grid gap-2">
-                                <Input
-                                  value={projectCloneNameDrafts[project.id] ?? ""}
-                                  onChange={(event) =>
-                                    setProjectCloneNameDrafts((current) => ({
-                                      ...current,
-                                      [project.id]: event.target.value,
-                                    }))}
-                                  placeholder={getProjectCloneDefaultName(
-                                    project.name,
-                                    projectCloneTargetRegions[project.id] ?? "",
-                                    projectCloneTargetBillingModes[project.id] ?? "",
-                                  )}
-                                />
-                                <div className="grid gap-2 md:grid-cols-2">
-                                  <Select
-                                    value={projectCloneTargetRegions[project.id] || "__keep"}
-                                    onValueChange={(value) =>
-                                      setProjectCloneTargetRegions((current) => ({
-                                        ...current,
-                                        [project.id]: value && value !== "__keep" ? (value as HuaweiRegionKey) : "",
-                                      }))}
-                                  >
-                                    <SelectTrigger className="bg-white">
-                                      <SelectValue>
-                                        {projectCloneTargetRegion
-                                          ? `Region: ${huaweiRegions[projectCloneTargetRegion].short}`
-                                          : "Keep current region"}
-                                      </SelectValue>
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                      <SelectItem value="__keep">Keep current region</SelectItem>
-                                      {cloneableRegions.map(([value, labels]) => (
-                                        <SelectItem key={value} value={value}>
-                                          {labels.short}
-                                        </SelectItem>
-                                      ))}
-                                    </SelectContent>
-                                  </Select>
-                                  <Select
-                                    value={projectCloneTargetBillingModes[project.id] || "__keep"}
-                                    onValueChange={(value) =>
-                                      setProjectCloneTargetBillingModes((current) => ({
-                                        ...current,
-                                        [project.id]: value && value !== "__keep" ? (value as BillingOption) : "",
-                                      }))}
-                                  >
-                                    <SelectTrigger className="bg-white">
-                                      <SelectValue>
-                                        {projectCloneTargetBillingModes[project.id]
-                                          ? `Billing: ${projectCloneTargetBillingModes[project.id]}`
-                                          : "Keep current billing"}
-                                      </SelectValue>
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                      <SelectItem value="__keep">Keep current billing</SelectItem>
-                                      {billingOptions.map((option) => (
-                                        <SelectItem key={option} value={option}>
-                                          {option}
-                                        </SelectItem>
-                                      ))}
-                                    </SelectContent>
-                                  </Select>
+                            {projectHuaweiMessage || cloneMessage || projectShareMessage ? (
+                              <div className="rounded-xl border bg-zinc-50 p-3">
+                                <div className="space-y-1 text-xs">
+                                  {projectHuaweiMessage ? (
+                                    <p className={projectHuaweiMessageIsError ? "text-red-600" : "text-zinc-600"}>{projectHuaweiMessage}</p>
+                                  ) : null}
+                                  {cloneMessage ? (
+                                    <p className={cloneMessageIsError ? "text-red-600" : "text-zinc-600"}>{cloneMessage}</p>
+                                  ) : null}
+                                  {projectShareMessage ? <p className="text-zinc-600">{projectShareMessage}</p> : null}
                                 </div>
-                                {cloneMessage ? (
-                                  <p className={`text-xs ${cloneMessageIsError ? "text-red-600" : "text-zinc-500"}`}>{cloneMessage}</p>
-                                ) : (
-                                  <p className="text-xs text-zinc-400">Huawei links are not copied to the cloned project.</p>
-                                )}
-                                <Button variant="outline" size="sm" onClick={() => void handleCloneProject(project)} disabled={isCloningProject}>
-                                  {isCloningProject ? "Cloning Project..." : "Clone Project"}
-                                </Button>
                               </div>
-                            </div>
-
+                            ) : null}
                             <div className="space-y-3">
                               {project.lists.length === 0 ? (
                                 <div className="rounded-lg border border-dashed bg-zinc-50 p-4 text-sm text-zinc-500">
@@ -1438,15 +1757,37 @@ export default function ProjectsPage() {
                                 const isListExpanded = expandedLists[list.id] ?? false;
                                 const isEditingList = editingListId === list.id;
                                 const isRenamingList = renamingListId === list.id;
-                                const selectedProjectId = listProjectDrafts[list.id] ?? project.id;
-                                const selectedHuaweiCartKey = listHuaweiCartDrafts[list.id] ?? list.huaweiCartKey ?? "";
-                                const selectedHuaweiCart = huaweiCarts.find((cart) => cart.key === selectedHuaweiCartKey) ?? null;
                                 const listHuaweiMessage = listHuaweiMessages[list.id] ?? "";
                                 const listHuaweiMessageIsError = listHuaweiMessageErrors[list.id] ?? false;
-                                const listCloneTargetRegion = listCloneTargetRegions[list.id] ?? "";
-                                const isCloningList = cloningListId === list.id;
                                 const listCloneMessage = listCloneMessages[list.id] ?? "";
                                 const listCloneMessageIsError = listCloneMessageErrors[list.id] ?? false;
+                                const listShareMessage = listShareMessages[list.id] ?? "";
+                                const listMenuItems: ActionMenuItem[] = [
+                                  {
+                                    label: "Move Cart",
+                                    icon: <ArrowRightLeft className="size-4" />,
+                                    onSelect: () => openActionModal({ kind: "list-move", listId: list.id }),
+                                  },
+                                  {
+                                    label: "Link Huawei Cart",
+                                    icon: <Link2 className="size-4" />,
+                                    onSelect: () => openActionModal({ kind: "list-link", listId: list.id }),
+                                  },
+                                  {
+                                    label: "Clone Cart",
+                                    icon: <Copy className="size-4" />,
+                                    onSelect: () => openActionModal({ kind: "list-clone", listId: list.id }),
+                                  },
+                                  ...(list.canShare
+                                    ? [
+                                        {
+                                          label: "Share Cart",
+                                          icon: <Share2 className="size-4" />,
+                                          onSelect: () => openActionModal({ kind: "list-share", listId: list.id }),
+                                        },
+                                      ]
+                                    : []),
+                                ];
 
                                 return (
                                   <div key={list.id} className="rounded-xl border bg-zinc-50">
@@ -1510,9 +1851,27 @@ export default function ProjectsPage() {
                                           </Button>
                                         </>
                                       ) : (
-                                        <Button variant="ghost" size="icon" onClick={() => handleStartListRename(list)} disabled={deletingListId === list.id}>
-                                          <Pencil className="size-4" />
-                                        </Button>
+                                        <>
+                                          {list.canShare ? (
+                                            <Button
+                                              variant="ghost"
+                                              size="icon"
+                                              aria-label={`Share ${list.name}`}
+                                              onClick={() => openActionModal({ kind: "list-share", listId: list.id })}
+                                            >
+                                              <Share2 className="size-4" />
+                                            </Button>
+                                          ) : null}
+                                          <ActionMenu
+                                            open={openListMenuId === list.id}
+                                            onOpenChange={(open) => setOpenListMenuId(open ? list.id : null)}
+                                            label={`Open actions for ${list.name}`}
+                                            items={listMenuItems}
+                                          />
+                                          <Button variant="ghost" size="icon" onClick={() => handleStartListRename(list)} disabled={deletingListId === list.id}>
+                                            <Pencil className="size-4" />
+                                          </Button>
+                                        </>
                                       )}
                                       <Button variant="ghost" size="icon" onClick={() => toggleList(list.id)} aria-expanded={isListExpanded}>
                                         {isListExpanded ? <ChevronDown className="size-4" /> : <ChevronRight className="size-4" />}
@@ -1530,216 +1889,54 @@ export default function ProjectsPage() {
                                     {isListExpanded ? (
                                       <div className="border-t border-zinc-200 px-4 py-3">
                                         <div className="space-y-3">
-                                          <div className="rounded-lg border bg-white p-3">
-                                            <div className="space-y-1">
-                                              <p className="text-sm font-medium text-zinc-900">Move Cart</p>
-                                              <p className="text-xs text-zinc-500">Reassign this cart to a different project without cloning it.</p>
-                                            </div>
-                                            <div className="mt-3 grid gap-2">
-                                              <Select
-                                                value={selectedProjectId}
-                                                onValueChange={(value) =>
-                                                  setListProjectDrafts((current) => ({
-                                                    ...current,
-                                                    [list.id]: value || project.id,
-                                                  }))}
-                                              >
-                                                <SelectTrigger className="bg-white">
-                                                  <SelectValue />
-                                                </SelectTrigger>
-                                                <SelectContent>
-                                                  {projects.map((candidateProject) => (
-                                                    <SelectItem key={candidateProject.id} value={candidateProject.id}>
-                                                      {candidateProject.name}
-                                                    </SelectItem>
-                                                  ))}
-                                                </SelectContent>
-                                              </Select>
-                                              <Button
-                                                variant="outline"
-                                                size="sm"
-                                                onClick={() => void handleMoveList(list, project.id)}
-                                                disabled={selectedProjectId === project.id || movingListId === list.id || projects.length < 2}
-                                              >
-                                                {movingListId === list.id ? "Moving Cart..." : "Move to Project"}
-                                              </Button>
-                                            </div>
-                                          </div>
-
-                                          <div className="rounded-lg border bg-white p-3">
-                                            <div className="space-y-1">
-                                              <div className="flex flex-wrap items-center gap-2">
-                                                <p className="text-sm font-medium text-zinc-900">Huawei Cloud Calculator</p>
-                                                {list.huaweiCartKey ? <Badge variant="secondary">Linked</Badge> : null}
+                                          {list.huaweiCartKey || list.huaweiLastSyncedAt || list.huaweiLastError || listHuaweiMessage || listCloneMessage || listShareMessage ? (
+                                            <div className="rounded-lg border bg-white p-3 text-xs">
+                                              <div className="space-y-1">
+                                                {list.huaweiCartKey ? (
+                                                  <p className="text-zinc-600">Linked Huawei cart: {list.huaweiCartName || list.huaweiCartKey}</p>
+                                                ) : null}
+                                                {list.huaweiLastSyncedAt ? (
+                                                  <p className="text-zinc-500">
+                                                    Last Huawei sync: {new Date(list.huaweiLastSyncedAt).toLocaleString()}
+                                                  </p>
+                                                ) : null}
+                                                {list.huaweiLastError ? <p className="text-red-600">{list.huaweiLastError}</p> : null}
+                                                {listHuaweiMessage ? (
+                                                  <p className={listHuaweiMessageIsError ? "text-red-600" : "text-zinc-600"}>{listHuaweiMessage}</p>
+                                                ) : null}
+                                                {listCloneMessage ? (
+                                                  <p className={listCloneMessageIsError ? "text-red-600" : "text-zinc-600"}>{listCloneMessage}</p>
+                                                ) : null}
+                                                {listShareMessage ? <p className="text-zinc-600">{listShareMessage}</p> : null}
                                               </div>
-                                              <p className="text-xs text-zinc-500">
-                                                Link this cart to an existing Huawei calculator cart using the saved Huawei Cloud cookie.
-                                              </p>
                                             </div>
-                                            {list.huaweiCartKey ? (
-                                              <p className="mt-3 text-xs text-zinc-500">Linked to {list.huaweiCartName || list.huaweiCartKey}</p>
-                                            ) : null}
-                                            {list.huaweiLastSyncedAt ? (
-                                              <p className="mt-1 text-xs text-zinc-400">
-                                                Last Huawei sync: {new Date(list.huaweiLastSyncedAt).toLocaleString()}
-                                              </p>
-                                            ) : null}
-                                            {list.huaweiLastError ? <p className="mt-1 text-xs text-red-600">{list.huaweiLastError}</p> : null}
-                                            {listHuaweiMessage ? (
-                                              <p className={`mt-1 text-xs ${listHuaweiMessageIsError ? "text-red-600" : "text-zinc-500"}`}>
-                                                {listHuaweiMessage}
-                                              </p>
-                                            ) : !cookieValue.trim() ? (
-                                              <p className="mt-1 text-xs text-zinc-400">
-                                                Save a Huawei Cloud cookie on the dashboard to load linkable carts here.
-                                              </p>
-                                            ) : null}
-                                            <div className="mt-3 grid gap-2">
-                                              <Select
-                                                value={selectedHuaweiCartKey || "__unlinked"}
-                                                onValueChange={(value) =>
-                                                  setListHuaweiCartDrafts((current) => ({
-                                                    ...current,
-                                                    [list.id]: value && value !== "__unlinked" ? value : "",
-                                                  }))}
-                                              >
-                                                <SelectTrigger className="bg-white">
-                                                  <SelectValue>
-                                                    {selectedHuaweiCartKey
-                                                      ? `Huawei: ${selectedHuaweiCart?.name ?? list.huaweiCartName ?? selectedHuaweiCartKey}`
-                                                      : "Choose Huawei cart to link"}
-                                                  </SelectValue>
-                                                </SelectTrigger>
-                                                <SelectContent>
-                                                  <SelectItem value="__unlinked">No Huawei link selected</SelectItem>
-                                                  {list.huaweiCartKey && !huaweiCarts.some((cart) => cart.key === list.huaweiCartKey) ? (
-                                                    <SelectItem value={list.huaweiCartKey}>
-                                                      {list.huaweiCartName ?? list.huaweiCartKey}
-                                                    </SelectItem>
-                                                  ) : null}
-                                                  {huaweiCarts.map((cart) => {
-                                                    const linkedElsewhere = Boolean(cart.associatedListId && cart.associatedListId !== list.id);
-                                                    return (
-                                                      <SelectItem key={cart.key} value={cart.key} disabled={linkedElsewhere}>
-                                                        {cart.name}
-                                                      </SelectItem>
-                                                    );
-                                                  })}
-                                                </SelectContent>
-                                              </Select>
-                                              <Button
-                                                variant="outline"
-                                                size="sm"
-                                                onClick={() => void handleLinkList(list, project.id)}
-                                                disabled={!selectedHuaweiCartKey || linkingHuaweiListId === list.id || !cookieValue.trim()}
-                                              >
-                                                <Link2 className="mr-2 size-4" />
-                                                {linkingHuaweiListId === list.id ? "Linking..." : "Link Huawei Cart"}
-                                              </Button>
-                                            </div>
-                                          </div>
-
-                                          <div className="rounded-lg border bg-white p-3">
-                                            <div className="space-y-1">
-                                              <p className="text-sm font-medium text-zinc-900">Clone Cart</p>
-                                              <p className="text-xs text-zinc-500">
-                                                Clone this cart with optional region and billing conversion.
-                                              </p>
-                                            </div>
-                                            <div className="mt-3 grid gap-2">
-                                              <Input
-                                                value={listCloneNameDrafts[list.id] ?? ""}
-                                                onChange={(event) =>
-                                                  setListCloneNameDrafts((current) => ({
-                                                    ...current,
-                                                    [list.id]: event.target.value,
-                                                  }))}
-                                                placeholder={getCartCloneDefaultName(
-                                                  list.name,
-                                                  listCloneTargetRegions[list.id] ?? "",
-                                                  listCloneTargetBillingModes[list.id] ?? "",
-                                                )}
-                                              />
-                                              <div className="grid gap-2 md:grid-cols-2">
-                                                <Select
-                                                  value={listCloneTargetRegions[list.id] || "__keep"}
-                                                  onValueChange={(value) =>
-                                                    setListCloneTargetRegions((current) => ({
-                                                      ...current,
-                                                      [list.id]: value && value !== "__keep" ? (value as HuaweiRegionKey) : "",
-                                                    }))}
-                                                >
-                                                  <SelectTrigger className="bg-white">
-                                                    <SelectValue>
-                                                      {listCloneTargetRegion
-                                                        ? `Region: ${huaweiRegions[listCloneTargetRegion].short}`
-                                                        : "Keep current region"}
-                                                    </SelectValue>
-                                                  </SelectTrigger>
-                                                  <SelectContent>
-                                                    <SelectItem value="__keep">Keep current region</SelectItem>
-                                                    {cloneableRegions.map(([value, labels]) => (
-                                                      <SelectItem key={value} value={value}>
-                                                        {labels.short}
-                                                      </SelectItem>
-                                                    ))}
-                                                  </SelectContent>
-                                                </Select>
-                                                <Select
-                                                  value={listCloneTargetBillingModes[list.id] || "__keep"}
-                                                  onValueChange={(value) =>
-                                                    setListCloneTargetBillingModes((current) => ({
-                                                      ...current,
-                                                      [list.id]: value && value !== "__keep" ? (value as BillingOption) : "",
-                                                    }))}
-                                                >
-                                                  <SelectTrigger className="bg-white">
-                                                    <SelectValue>
-                                                      {listCloneTargetBillingModes[list.id]
-                                                        ? `Billing: ${listCloneTargetBillingModes[list.id]}`
-                                                        : "Keep current billing"}
-                                                    </SelectValue>
-                                                  </SelectTrigger>
-                                                  <SelectContent>
-                                                    <SelectItem value="__keep">Keep current billing</SelectItem>
-                                                    {billingOptions.map((option) => (
-                                                      <SelectItem key={option} value={option}>
-                                                        {option}
-                                                      </SelectItem>
-                                                    ))}
-                                                  </SelectContent>
-                                                </Select>
-                                              </div>
-                                              {listCloneMessage ? (
-                                                <p className={`text-xs ${listCloneMessageIsError ? "text-red-600" : "text-zinc-500"}`}>{listCloneMessage}</p>
-                                              ) : (
-                                                <p className="text-xs text-zinc-400">Huawei links are not copied to cloned carts.</p>
-                                              )}
-                                              <Button variant="outline" size="sm" onClick={() => void handleCloneList(list, project.id)} disabled={isCloningList}>
-                                                {isCloningList ? "Cloning Cart..." : "Clone Cart"}
-                                              </Button>
-                                            </div>
-                                          </div>
-
+                                          ) : null}
                                           {list.products.length === 0 ? (
                                             <div className="rounded-lg border border-dashed bg-white p-4 text-sm text-zinc-500">
                                               This cart does not have products yet.
                                             </div>
                                           ) : (
                                             <div className="space-y-2">
-                                              {list.products.map((product) => (
-                                                <div key={product.id} className="rounded-lg border bg-white p-3">
-                                                  <div className="flex items-start justify-between gap-3">
-                                                    <div className="min-w-0">
-                                                      <p className="font-medium text-zinc-950">{product.title}</p>
-                                                      <p className="mt-1 text-sm text-zinc-500">
-                                                        {product.serviceName} · Qty {product.quantity}
-                                                      </p>
+                                              {list.products.map((product) => {
+                                                const specsSummary = getProductSpecsSummary(product);
+
+                                                return (
+                                                  <div key={product.id} className="rounded-lg border bg-white p-3">
+                                                    <div className="flex items-start justify-between gap-3">
+                                                      <div className="min-w-0">
+                                                        <p className="font-medium text-zinc-950">{product.title}</p>
+                                                        <p className="mt-1 text-sm text-zinc-500">
+                                                          {product.serviceName} · Qty {product.quantity}
+                                                        </p>
+                                                        {specsSummary ? (
+                                                          <p className="mt-1 text-xs text-zinc-400">{specsSummary}</p>
+                                                        ) : null}
+                                                      </div>
+                                                      <Badge variant="outline">{product.quantity}</Badge>
                                                     </div>
-                                                    <Badge variant="outline">{product.quantity}</Badge>
                                                   </div>
-                                                </div>
-                                              ))}
+                                                );
+                                              })}
                                             </div>
                                           )}
                                         </div>
@@ -1759,7 +1956,366 @@ export default function ProjectsPage() {
             </ScrollArea>
           </CardContent>
         </Card>
+        ) : null}
       </div>
+      {activeModal && activeProject ? (
+        <ActionModal
+          title={
+            activeModal.kind === "project-huawei"
+              ? "Create Huawei Carts"
+              : activeModal.kind === "project-clone"
+                ? "Clone Project"
+                : activeModal.kind === "project-share"
+                  ? "Share Project"
+                  : activeModal.kind === "list-move"
+                    ? "Move Cart"
+                    : activeModal.kind === "list-link"
+                      ? "Link Huawei Cart"
+                      : activeModal.kind === "list-clone"
+                        ? "Clone Cart"
+                        : "Share Cart"
+          }
+          description={
+            activeModal.kind === "project-huawei"
+              ? "Create or update one Huawei cart for every NeoCalculator cart in this project."
+              : activeModal.kind === "project-clone"
+                ? "Clone every cart in this project into a new project, with optional region and billing conversion."
+                : activeModal.kind === "project-share"
+                  ? "Choose whether recipients should import a detached copy or join a collaborative project."
+                  : activeModal.kind === "list-move"
+                    ? "Reassign this cart to a different project without cloning it."
+                    : activeModal.kind === "list-link"
+                      ? "Link this cart to an existing Huawei calculator cart using the saved Huawei Cloud cookie."
+                      : activeModal.kind === "list-clone"
+                        ? "Clone this cart with optional region and billing conversion."
+                        : "Create a detached copy link or a collaborative cart link for this cart only."
+          }
+          onClose={() => setActiveModal(null)}
+        >
+          {activeModal.kind === "project-huawei" ? (
+            <>
+              {activeProjectHuaweiMessage ? (
+                <p className={`text-sm ${activeProjectHuaweiMessageIsError ? "text-red-600" : "text-zinc-600"}`}>
+                  {activeProjectHuaweiMessage}
+                </p>
+              ) : !cookieValue.trim() ? (
+                <p className="text-sm text-zinc-500">Save a Huawei Cloud cookie on the dashboard to enable project sync.</p>
+              ) : (
+                <p className="text-sm text-zinc-500">
+                  Existing Huawei-linked carts are updated; unlinked carts will create new Huawei carts.
+                </p>
+              )}
+              <div className="flex justify-end">
+                <Button
+                  variant="outline"
+                  onClick={() => void handleSyncProjectHuawei(activeProject)}
+                  disabled={isActiveProjectSyncing || activeProject.lists.length === 0 || !cookieValue.trim()}
+                >
+                  {isActiveProjectSyncing ? "Creating Huawei Carts..." : "Create Huawei Carts"}
+                </Button>
+              </div>
+            </>
+          ) : null}
+
+          {activeModal.kind === "project-clone" ? (
+            <>
+              <Input
+                value={projectCloneNameDrafts[activeProject.id] ?? ""}
+                onChange={(event) =>
+                  setProjectCloneNameDrafts((current) => ({
+                    ...current,
+                    [activeProject.id]: event.target.value,
+                  }))}
+                placeholder={getProjectCloneDefaultName(
+                  activeProject.name,
+                  activeProjectCloneTargetRegion,
+                  activeProjectCloneTargetBillingMode,
+                )}
+              />
+              <div className="grid gap-2 md:grid-cols-2">
+                <Select
+                  value={activeProjectCloneTargetRegion || "__keep"}
+                  onValueChange={(value) =>
+                    setProjectCloneTargetRegions((current) => ({
+                      ...current,
+                      [activeProject.id]: value && value !== "__keep" ? (value as HuaweiRegionKey) : "",
+                    }))}
+                >
+                  <SelectTrigger className="bg-white">
+                    <SelectValue>
+                      {activeProjectCloneTargetRegion
+                        ? `Region: ${huaweiRegions[activeProjectCloneTargetRegion].short}`
+                        : "Keep current region"}
+                    </SelectValue>
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__keep">Keep current region</SelectItem>
+                    {cloneableRegions.map(([value, labels]) => (
+                      <SelectItem key={value} value={value}>
+                        {labels.short}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Select
+                  value={activeProjectCloneTargetBillingMode || "__keep"}
+                  onValueChange={(value) =>
+                    setProjectCloneTargetBillingModes((current) => ({
+                      ...current,
+                      [activeProject.id]: value && value !== "__keep" ? (value as BillingOption) : "",
+                    }))}
+                >
+                  <SelectTrigger className="bg-white">
+                    <SelectValue>
+                      {activeProjectCloneTargetBillingMode
+                        ? `Billing: ${activeProjectCloneTargetBillingMode}`
+                        : "Keep current billing"}
+                    </SelectValue>
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__keep">Keep current billing</SelectItem>
+                    {billingOptions.map((option) => (
+                      <SelectItem key={option} value={option}>
+                        {option}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              {activeProjectCloneMessage ? (
+                <p className={`text-sm ${activeProjectCloneMessageIsError ? "text-red-600" : "text-zinc-600"}`}>
+                  {activeProjectCloneMessage}
+                </p>
+              ) : (
+                <p className="text-sm text-zinc-500">Huawei links are not copied to the cloned project.</p>
+              )}
+              <div className="flex justify-end">
+                <Button variant="outline" onClick={() => void handleCloneProject(activeProject)} disabled={isActiveProjectCloning}>
+                  {isActiveProjectCloning ? "Cloning Project..." : "Clone Project"}
+                </Button>
+              </div>
+            </>
+          ) : null}
+
+          {activeModal.kind === "project-share" ? (
+            <>
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  variant="outline"
+                  onClick={() => void handleCreateShare("project", activeProject.id, "copy")}
+                  disabled={sharingProjectKey === `project:${activeProject.id}:copy`}
+                >
+                  {sharingProjectKey === `project:${activeProject.id}:copy` ? "Sharing..." : "Copy Link"}
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => void handleCreateShare("project", activeProject.id, "collaborate")}
+                  disabled={sharingProjectKey === `project:${activeProject.id}:collaborate`}
+                >
+                  {sharingProjectKey === `project:${activeProject.id}:collaborate` ? "Sharing..." : "Collaborative Link"}
+                </Button>
+              </div>
+              {activeProjectShareMessage ? <p className="text-sm text-zinc-600">{activeProjectShareMessage}</p> : null}
+            </>
+          ) : null}
+
+          {activeList && activeModal.kind === "list-move" ? (
+            <>
+              <Select
+                value={activeListTargetProjectId}
+                onValueChange={(value) =>
+                  setListProjectDrafts((current) => ({
+                    ...current,
+                    [activeList.id]: value || activeProject.id,
+                  }))}
+              >
+                <SelectTrigger className="bg-white">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {projects.map((candidateProject) => (
+                    <SelectItem key={candidateProject.id} value={candidateProject.id}>
+                      {candidateProject.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <div className="flex justify-end">
+                <Button
+                  variant="outline"
+                  onClick={() => void handleMoveList(activeList, activeListParentProjectId)}
+                  disabled={activeListTargetProjectId === activeListParentProjectId || isActiveListMoving || projects.length < 2}
+                >
+                  {isActiveListMoving ? "Moving Cart..." : "Move to Project"}
+                </Button>
+              </div>
+            </>
+          ) : null}
+
+          {activeList && activeModal.kind === "list-link" ? (
+            <>
+              {activeList.huaweiCartKey ? (
+                <p className="text-sm text-zinc-600">Linked to {activeList.huaweiCartName || activeList.huaweiCartKey}</p>
+              ) : null}
+              {activeList.huaweiLastSyncedAt ? (
+                <p className="text-sm text-zinc-500">Last Huawei sync: {new Date(activeList.huaweiLastSyncedAt).toLocaleString()}</p>
+              ) : null}
+              {activeList.huaweiLastError ? <p className="text-sm text-red-600">{activeList.huaweiLastError}</p> : null}
+              {activeListHuaweiMessage ? (
+                <p className={`text-sm ${activeListHuaweiMessageIsError ? "text-red-600" : "text-zinc-600"}`}>
+                  {activeListHuaweiMessage}
+                </p>
+              ) : !cookieValue.trim() ? (
+                <p className="text-sm text-zinc-500">Save a Huawei Cloud cookie on the dashboard to load linkable carts here.</p>
+              ) : null}
+              <Select
+                value={activeSelectedHuaweiCartKey || "__unlinked"}
+                onValueChange={(value) =>
+                  setListHuaweiCartDrafts((current) => ({
+                    ...current,
+                    [activeList.id]: value && value !== "__unlinked" ? value : "",
+                  }))}
+              >
+                <SelectTrigger className="bg-white">
+                  <SelectValue>
+                    {activeSelectedHuaweiCartKey
+                      ? `Huawei: ${activeSelectedHuaweiCart?.name ?? activeList.huaweiCartName ?? activeSelectedHuaweiCartKey}`
+                      : "Choose Huawei cart to link"}
+                  </SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__unlinked">No Huawei link selected</SelectItem>
+                  {activeList.huaweiCartKey && !huaweiCarts.some((cart) => cart.key === activeList.huaweiCartKey) ? (
+                    <SelectItem value={activeList.huaweiCartKey}>
+                      {activeList.huaweiCartName ?? activeList.huaweiCartKey}
+                    </SelectItem>
+                  ) : null}
+                  {huaweiCarts.map((cart) => {
+                    const linkedElsewhere = Boolean(cart.associatedListId && cart.associatedListId !== activeList.id);
+                    return (
+                      <SelectItem key={cart.key} value={cart.key} disabled={linkedElsewhere}>
+                        {cart.name}
+                      </SelectItem>
+                    );
+                  })}
+                </SelectContent>
+              </Select>
+              <div className="flex justify-end">
+                <Button
+                  variant="outline"
+                  onClick={() => void handleLinkList(activeList, activeListParentProjectId)}
+                  disabled={!activeSelectedHuaweiCartKey || isActiveListLinking || !cookieValue.trim()}
+                >
+                  <Link2 className="mr-2 size-4" />
+                  {isActiveListLinking ? "Linking..." : "Link Huawei Cart"}
+                </Button>
+              </div>
+            </>
+          ) : null}
+
+          {activeList && activeModal.kind === "list-clone" ? (
+            <>
+              <Input
+                value={listCloneNameDrafts[activeList.id] ?? ""}
+                onChange={(event) =>
+                  setListCloneNameDrafts((current) => ({
+                    ...current,
+                    [activeList.id]: event.target.value,
+                  }))}
+                placeholder={getCartCloneDefaultName(
+                  activeList.name,
+                  activeListCloneTargetRegion,
+                  activeListCloneTargetBillingMode,
+                )}
+              />
+              <div className="grid gap-2 md:grid-cols-2">
+                <Select
+                  value={activeListCloneTargetRegion || "__keep"}
+                  onValueChange={(value) =>
+                    setListCloneTargetRegions((current) => ({
+                      ...current,
+                      [activeList.id]: value && value !== "__keep" ? (value as HuaweiRegionKey) : "",
+                    }))}
+                >
+                  <SelectTrigger className="bg-white">
+                    <SelectValue>
+                      {activeListCloneTargetRegion
+                        ? `Region: ${huaweiRegions[activeListCloneTargetRegion].short}`
+                        : "Keep current region"}
+                    </SelectValue>
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__keep">Keep current region</SelectItem>
+                    {cloneableRegions.map(([value, labels]) => (
+                      <SelectItem key={value} value={value}>
+                        {labels.short}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Select
+                  value={activeListCloneTargetBillingMode || "__keep"}
+                  onValueChange={(value) =>
+                    setListCloneTargetBillingModes((current) => ({
+                      ...current,
+                      [activeList.id]: value && value !== "__keep" ? (value as BillingOption) : "",
+                    }))}
+                >
+                  <SelectTrigger className="bg-white">
+                    <SelectValue>
+                      {activeListCloneTargetBillingMode
+                        ? `Billing: ${activeListCloneTargetBillingMode}`
+                        : "Keep current billing"}
+                    </SelectValue>
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__keep">Keep current billing</SelectItem>
+                    {billingOptions.map((option) => (
+                      <SelectItem key={option} value={option}>
+                        {option}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              {activeListCloneMessage ? (
+                <p className={`text-sm ${activeListCloneMessageIsError ? "text-red-600" : "text-zinc-600"}`}>
+                  {activeListCloneMessage}
+                </p>
+              ) : (
+                <p className="text-sm text-zinc-500">Huawei links are not copied to cloned carts.</p>
+              )}
+              <div className="flex justify-end">
+                <Button variant="outline" onClick={() => void handleCloneList(activeList, activeListParentProjectId)} disabled={isActiveListCloning}>
+                  {isActiveListCloning ? "Cloning Cart..." : "Clone Cart"}
+                </Button>
+              </div>
+            </>
+          ) : null}
+
+          {activeList && activeModal.kind === "list-share" ? (
+            <>
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  variant="outline"
+                  onClick={() => void handleCreateShare("list", activeList.id, "copy")}
+                  disabled={sharingListKey === `list:${activeList.id}:copy`}
+                >
+                  {sharingListKey === `list:${activeList.id}:copy` ? "Sharing..." : "Copy Link"}
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => void handleCreateShare("list", activeList.id, "collaborate")}
+                  disabled={sharingListKey === `list:${activeList.id}:collaborate`}
+                >
+                  {sharingListKey === `list:${activeList.id}:collaborate` ? "Sharing..." : "Collaborative Link"}
+                </Button>
+              </div>
+              {activeListShareMessage ? <p className="text-sm text-zinc-600">{activeListShareMessage}</p> : null}
+            </>
+          ) : null}
+        </ActionModal>
+      ) : null}
     </main>
   );
 }

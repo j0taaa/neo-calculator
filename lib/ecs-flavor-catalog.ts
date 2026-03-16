@@ -4,6 +4,7 @@ import {
   fetchEcsVisibilityConfig,
   isEcsFlavorVisible,
 } from "@/lib/ecs-visibility-config";
+import { sendHttpRequest } from "@/lib/huawei-http";
 
 export type BillingMode = "ONDEMAND" | "MONTHLY" | "YEARLY" | "RI";
 export type FlavorPriceSource = "catalog_plan" | "rate_inquiry";
@@ -337,17 +338,39 @@ function buildProductInfoUrl(regionId: string): string {
   return url.toString();
 }
 
-async function fetchJson(url: string, init?: RequestInit): Promise<unknown> {
-  const response = await fetch(url, {
-    ...init,
-    signal: AbortSignal.timeout(30_000),
-  });
-
-  if (!response.ok) {
-    throw new Error(`${response.status} ${response.statusText}`);
+function summarizeResponseBody(bodyText: string): string {
+  const normalized = bodyText.replace(/\s+/g, " ").trim();
+  if (!normalized) {
+    return "empty response body";
   }
 
-  return response.json();
+  return normalized.length > 160 ? `${normalized.slice(0, 157)}...` : normalized;
+}
+
+async function fetchJson(url: string, init?: RequestInit): Promise<unknown> {
+  const response = await sendHttpRequest({
+    method: init?.method ?? "GET",
+    url,
+    headers: init?.headers as Record<string, string> | undefined,
+    body: typeof init?.body === "string" ? init.body : null,
+    timeoutMs: 30_000,
+  });
+  const bodyText = response.bodyText;
+
+  if (!response.ok) {
+    throw new Error(`${response.status} ${response.statusText}: ${summarizeResponseBody(bodyText)}`);
+  }
+
+  if (!bodyText.trim()) {
+    throw new Error(`Empty JSON response from ${url}`);
+  }
+
+  try {
+    return JSON.parse(bodyText) as unknown;
+  } catch {
+    const contentType = response.contentType || "unknown content-type";
+    throw new Error(`Invalid JSON from ${url} (${contentType}): ${summarizeResponseBody(bodyText)}`);
+  }
 }
 
 async function discoverCatalogRegions(): Promise<DiscoveredRegion[]> {
@@ -411,23 +434,37 @@ function buildOnDemandPriceRequest(regionId: string, flavorCode: string): string
 }
 
 async function fetchOnDemandFlavorPrice(regionId: string, flavorCode: string): Promise<number | null> {
-  const response = await fetch(PRICE_URL, {
+  const response = await sendHttpRequest({
     method: "POST",
+    url: PRICE_URL,
     headers: {
       accept: "application/json",
       "content-type": "application/json",
     },
     body: buildOnDemandPriceRequest(regionId, flavorCode),
-    signal: AbortSignal.timeout(30_000),
+    timeoutMs: 30_000,
   });
+  const bodyText = response.bodyText;
 
   if (!response.ok) {
-    throw new Error(`${response.status} ${response.statusText}`);
+    throw new Error(`${response.status} ${response.statusText}: ${summarizeResponseBody(bodyText)}`);
   }
 
-  const body = (await response.json()) as {
+  if (!bodyText.trim()) {
+    throw new Error(`Empty JSON response from ${PRICE_URL}`);
+  }
+
+  let body: {
     productRatingResult?: Array<{ amount?: number }>;
   };
+  try {
+    body = JSON.parse(bodyText) as {
+      productRatingResult?: Array<{ amount?: number }>;
+    };
+  } catch {
+    const contentType = response.contentType || "unknown content-type";
+    throw new Error(`Invalid JSON from ${PRICE_URL} (${contentType}): ${summarizeResponseBody(bodyText)}`);
+  }
 
   const amount = body.productRatingResult?.[0]?.amount;
   return typeof amount === "number" && Number.isFinite(amount) ? amount : null;

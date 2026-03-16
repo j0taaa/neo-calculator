@@ -2,17 +2,20 @@ import { cloneListProducts, type CloneableProduct, type NeoBillingOption, NEO_BI
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { huaweiRegions, type HuaweiRegionKey } from "@/lib/huawei-regions";
+import { getProjectAccessForUser } from "@/lib/resource-access";
 
 export const runtime = "nodejs";
 
 type SourceProjectRow = {
   id: string;
+  user_id: string;
   name: string;
   description: string | null;
 };
 
 type SourceListRow = {
   id: string;
+  user_id: string;
   name: string;
   created_at: string;
   updated_at: string;
@@ -21,6 +24,7 @@ type SourceListRow = {
 type SourceProductRow = {
   id: string;
   list_id: string;
+  user_id: string;
   service_code: string;
   service_name: string;
   product_type: string;
@@ -104,38 +108,39 @@ export async function POST(
   const sourceProject = db
     .query(
       `
-        SELECT id, name, description
+        SELECT id, user_id, name, description
         FROM project
-        WHERE id = ? AND user_id = ?
+        WHERE id = ?
       `,
     )
-    .get(projectId, session.user.id) as SourceProjectRow | null;
+    .get(projectId) as SourceProjectRow | null;
 
-  if (!sourceProject) {
+  const access = getProjectAccessForUser(session.user.id, projectId);
+  if (!sourceProject || !access) {
     return Response.json({ error: "Project not found" }, { status: 404 });
   }
 
   const sourceLists = db
     .query(
       `
-        SELECT id, name, created_at, updated_at
+        SELECT id, user_id, name, created_at, updated_at
         FROM project_list
-        WHERE project_id = ? AND user_id = ?
+        WHERE project_id = ?
         ORDER BY created_at ASC
       `,
     )
-    .all(projectId, session.user.id) as SourceListRow[];
+    .all(projectId) as SourceListRow[];
 
   const sourceProducts = db
     .query(
       `
-        SELECT id, list_id, service_code, service_name, product_type, title, quantity, config_json, pricing_json, created_at, updated_at
+        SELECT id, list_id, user_id, service_code, service_name, product_type, title, quantity, config_json, pricing_json, created_at, updated_at
         FROM list_product
-        WHERE project_id = ? AND user_id = ?
+        WHERE project_id = ?
         ORDER BY created_at ASC
       `,
     )
-    .all(projectId, session.user.id) as SourceProductRow[];
+    .all(projectId) as SourceProductRow[];
 
   const nextProjectName = buildClonedProjectName(sourceProject.name, {
     name: body?.name ?? null,

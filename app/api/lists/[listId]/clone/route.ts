@@ -2,17 +2,20 @@ import { auth } from "@/lib/auth";
 import { cloneListProducts, type CloneableProduct, type NeoBillingOption, NEO_BILLING_OPTIONS } from "@/lib/cart-clone";
 import { db } from "@/lib/db";
 import { huaweiRegions, type HuaweiRegionKey } from "@/lib/huawei-regions";
+import { getListAccessForUser } from "@/lib/resource-access";
 
 export const runtime = "nodejs";
 
 type SourceListRow = {
   id: string;
   project_id: string;
+  user_id: string;
   name: string;
 };
 
 type SourceProductRow = {
   id: string;
+  user_id: string;
   service_code: string;
   service_name: string;
   product_type: string;
@@ -72,30 +75,31 @@ export async function POST(
     ? requestedTargetBillingMode
     : null;
 
+  const access = getListAccessForUser(session.user.id, listId);
   const sourceList = db
     .query(
       `
-        SELECT id, project_id, name
+        SELECT id, project_id, user_id, name
         FROM project_list
-        WHERE id = ? AND user_id = ?
+        WHERE id = ?
       `,
     )
-    .get(listId, session.user.id) as SourceListRow | null;
+    .get(listId) as SourceListRow | null;
 
-  if (!sourceList) {
+  if (!sourceList || !access) {
     return Response.json({ error: "List not found" }, { status: 404 });
   }
 
   const sourceProducts = db
     .query(
       `
-        SELECT id, service_code, service_name, product_type, title, quantity, config_json, pricing_json, created_at, updated_at
+        SELECT id, user_id, service_code, service_name, product_type, title, quantity, config_json, pricing_json, created_at, updated_at
         FROM list_product
-        WHERE list_id = ? AND user_id = ?
+        WHERE list_id = ?
         ORDER BY created_at ASC
       `,
     )
-    .all(listId, session.user.id) as SourceProductRow[];
+    .all(listId) as SourceProductRow[];
 
   const cloneInputProducts: CloneableProduct[] = sourceProducts.map((product) => ({
     serviceCode: product.service_code,

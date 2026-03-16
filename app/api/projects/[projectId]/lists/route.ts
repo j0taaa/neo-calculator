@@ -1,6 +1,7 @@
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { buildLocalProductsFromHuaweiCart, HuaweiSessionError } from "@/lib/huawei-calculator";
+import { getProjectAccessForUser } from "@/lib/resource-access";
 
 export const runtime = "nodejs";
 
@@ -60,12 +61,12 @@ export async function POST(
     return Response.json({ error: "List name is required" }, { status: 400 });
   }
 
-  const existingProject = db
-    .query("SELECT id FROM project WHERE id = ? AND user_id = ?")
-    .get(projectId, session.user.id) as { id: string } | null;
-
+  const existingProject = getProjectAccessForUser(session.user.id, projectId);
   if (!existingProject) {
     return Response.json({ error: "Project not found" }, { status: 404 });
+  }
+  if (!existingProject.canCreateLists) {
+    return Response.json({ error: "You do not have permission to create carts in this project" }, { status: 403 });
   }
 
   const now = new Date().toISOString();
@@ -150,6 +151,9 @@ export async function POST(
       id,
       projectId,
       name,
+      ownerUserId: session.user.id,
+      accessLevel: "owner",
+      canShare: true,
       huaweiCartKey: remoteCartKey || null,
       huaweiCartName: remoteCartName,
       huaweiLastSyncedAt: remoteCartKey ? now : null,

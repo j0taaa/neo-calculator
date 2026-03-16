@@ -1,5 +1,6 @@
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { getListAccessForUser } from "@/lib/resource-access";
 
 export const runtime = "nodejs";
 
@@ -31,6 +32,7 @@ export async function PATCH(
 
   const { listId, productId } = await context.params;
   const body = (await request.json()) as UpdateListProductBody;
+  const listAccess = getListAccessForUser(session.user.id, listId);
 
   const serviceCode = body.serviceCode?.trim();
   const serviceName = body.serviceName?.trim();
@@ -41,16 +43,22 @@ export async function PATCH(
   if (!serviceCode || !serviceName || !productType || !title) {
     return Response.json({ error: "serviceCode, serviceName, productType, and title are required" }, { status: 400 });
   }
+  if (!listAccess) {
+    return Response.json({ error: "List not found" }, { status: 404 });
+  }
+  if (!listAccess.canEditProducts) {
+    return Response.json({ error: "You do not have permission to edit this cart" }, { status: 403 });
+  }
 
   const product = db
     .query(
       `
         SELECT list_id, project_id
         FROM list_product
-        WHERE id = ? AND list_id = ? AND user_id = ?
+        WHERE id = ? AND list_id = ?
       `,
     )
-    .get(productId, listId, session.user.id) as { list_id: string; project_id: string } | null;
+    .get(productId, listId) as { list_id: string; project_id: string } | null;
 
   if (!product) {
     return Response.json({ error: "Product not found" }, { status: 404 });
@@ -73,7 +81,7 @@ export async function PATCH(
           config_json = ?,
           pricing_json = ?,
           updated_at = ?
-        WHERE id = ? AND list_id = ? AND user_id = ?
+        WHERE id = ? AND list_id = ?
       `,
     ).run(
       serviceCode,
@@ -86,7 +94,6 @@ export async function PATCH(
       now,
       productId,
       listId,
-      session.user.id,
     );
 
     db.query("UPDATE project_list SET updated_at = ? WHERE id = ?").run(now, listId);
@@ -119,15 +126,22 @@ export async function DELETE(
   }
 
   const { listId, productId } = await context.params;
+  const listAccess = getListAccessForUser(session.user.id, listId);
+  if (!listAccess) {
+    return Response.json({ error: "List not found" }, { status: 404 });
+  }
+  if (!listAccess.canEditProducts) {
+    return Response.json({ error: "You do not have permission to edit this cart" }, { status: 403 });
+  }
   const product = db
     .query(
       `
         SELECT id, project_id
         FROM list_product
-        WHERE id = ? AND list_id = ? AND user_id = ?
+        WHERE id = ? AND list_id = ?
       `,
     )
-    .get(productId, listId, session.user.id) as { id: string; project_id: string } | null;
+    .get(productId, listId) as { id: string; project_id: string } | null;
 
   if (!product) {
     return Response.json({ error: "Product not found" }, { status: 404 });
@@ -136,7 +150,7 @@ export async function DELETE(
   const now = new Date().toISOString();
 
   db.transaction(() => {
-    db.query("DELETE FROM list_product WHERE id = ? AND list_id = ? AND user_id = ?").run(productId, listId, session.user.id);
+    db.query("DELETE FROM list_product WHERE id = ? AND list_id = ?").run(productId, listId);
     db.query("UPDATE project_list SET updated_at = ? WHERE id = ?").run(now, listId);
     db.query("UPDATE project SET updated_at = ? WHERE id = ?").run(now, product.project_id);
   })();

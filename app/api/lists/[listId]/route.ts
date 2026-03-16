@@ -1,5 +1,6 @@
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { getListAccessForUser, getProjectAccessForUser } from "@/lib/resource-access";
 
 export const runtime = "nodejs";
 
@@ -29,9 +30,10 @@ export async function PATCH(
       }
     | null;
 
+  const listAccess = getListAccessForUser(session.user.id, listId);
   const list = db
-    .query("SELECT id, project_id, name, huawei_cart_key, huawei_cart_name FROM project_list WHERE id = ? AND user_id = ?")
-    .get(listId, session.user.id) as {
+    .query("SELECT id, project_id, name, huawei_cart_key, huawei_cart_name FROM project_list WHERE id = ?")
+    .get(listId) as {
       id: string;
       project_id: string;
       name: string;
@@ -39,8 +41,11 @@ export async function PATCH(
       huawei_cart_name: string | null;
     } | null;
 
-  if (!list) {
+  if (!list || !listAccess) {
     return Response.json({ error: "List not found" }, { status: 404 });
+  }
+  if (!listAccess.canRename) {
+    return Response.json({ error: "You do not have permission to edit this cart" }, { status: 403 });
   }
 
   const nextListName = body?.name?.trim() || list.name;
@@ -50,11 +55,13 @@ export async function PATCH(
   const now = new Date().toISOString();
 
   if (nextProjectId !== list.project_id) {
-    const targetProject = db
-      .query("SELECT id FROM project WHERE id = ? AND user_id = ?")
-      .get(nextProjectId, session.user.id) as { id: string } | null;
+    if (!listAccess.canMove) {
+      return Response.json({ error: "Only the cart owner can move this cart" }, { status: 403 });
+    }
 
-    if (!targetProject) {
+    const targetProject = getProjectAccessForUser(session.user.id, nextProjectId);
+
+    if (!targetProject || !targetProject.canCreateLists) {
       return Response.json({ error: "Target project not found" }, { status: 404 });
     }
   }
@@ -71,22 +78,21 @@ export async function PATCH(
             huawei_cart_name = ?,
             huawei_last_error = NULL,
             updated_at = ?
-          WHERE id = ? AND user_id = ?
+          WHERE id = ?
         `,
-      ).run(nextProjectId, nextListName, nextKey, nextHuaweiName, now, listId, session.user.id);
+      ).run(nextProjectId, nextListName, nextKey, nextHuaweiName, now, listId);
 
       if (nextProjectId !== list.project_id) {
-        db.query("UPDATE list_product SET project_id = ?, updated_at = ? WHERE list_id = ? AND user_id = ?").run(
+        db.query("UPDATE list_product SET project_id = ?, updated_at = ? WHERE list_id = ?").run(
           nextProjectId,
           now,
           listId,
-          session.user.id,
         );
       }
 
-      db.query("UPDATE project SET updated_at = ? WHERE id = ? AND user_id = ?").run(now, list.project_id, session.user.id);
+      db.query("UPDATE project SET updated_at = ? WHERE id = ?").run(now, list.project_id);
       if (nextProjectId !== list.project_id) {
-        db.query("UPDATE project SET updated_at = ? WHERE id = ? AND user_id = ?").run(now, nextProjectId, session.user.id);
+        db.query("UPDATE project SET updated_at = ? WHERE id = ?").run(now, nextProjectId);
       }
     })();
   } catch (error) {
@@ -120,19 +126,23 @@ export async function DELETE(
   }
 
   const { listId } = await context.params;
+  const listAccess = getListAccessForUser(session.user.id, listId);
   const list = db
-    .query("SELECT id, project_id FROM project_list WHERE id = ? AND user_id = ?")
-    .get(listId, session.user.id) as { id: string; project_id: string } | null;
+    .query("SELECT id, project_id FROM project_list WHERE id = ?")
+    .get(listId) as { id: string; project_id: string } | null;
 
-  if (!list) {
+  if (!list || !listAccess) {
     return Response.json({ error: "List not found" }, { status: 404 });
+  }
+  if (!listAccess.canDelete) {
+    return Response.json({ error: "Only the cart owner can delete this cart" }, { status: 403 });
   }
 
   const now = new Date().toISOString();
 
   db.transaction(() => {
-    db.query("DELETE FROM project_list WHERE id = ? AND user_id = ?").run(listId, session.user.id);
-    db.query("UPDATE project SET updated_at = ? WHERE id = ? AND user_id = ?").run(now, list.project_id, session.user.id);
+    db.query("DELETE FROM project_list WHERE id = ?").run(listId);
+    db.query("UPDATE project SET updated_at = ? WHERE id = ?").run(now, list.project_id);
   })();
 
   return Response.json({

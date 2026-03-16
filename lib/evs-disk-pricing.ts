@@ -1,3 +1,5 @@
+import { sendHttpRequest } from "@/lib/huawei-http";
+
 export type DiskBillingMode = "ONDEMAND" | "MONTHLY" | "YEARLY";
 
 export const systemDiskCodeMap = {
@@ -56,20 +58,35 @@ function pickRate(disk: RawDisk, billingMode: DiskBillingMode): number | null {
 }
 
 export async function fetchRegionSystemDiskPricing(regionId: string): Promise<DiskPricingResponse> {
-  const response = await fetch(buildProductInfoUrl(regionId), {
+  const response = await sendHttpRequest({
+    method: "GET",
+    url: buildProductInfoUrl(regionId),
     headers: { accept: "application/json" },
-    signal: AbortSignal.timeout(30_000),
+    timeoutMs: 30_000,
   });
 
   if (!response.ok) {
     throw new Error(`EVS product info request failed: ${response.status} ${response.statusText}`);
   }
 
-  const body = (await response.json()) as {
+  if (!response.bodyText.trim()) {
+    throw new Error("EVS product info response was empty");
+  }
+
+  let body: {
     product?: {
       ebs_volume?: RawDisk[];
     };
   };
+  try {
+    body = JSON.parse(response.bodyText) as {
+      product?: {
+        ebs_volume?: RawDisk[];
+      };
+    };
+  } catch {
+    throw new Error(`EVS product info response was not valid JSON (${response.contentType || "unknown content-type"})`);
+  }
 
   const disks = Array.isArray(body.product?.ebs_volume) ? body.product.ebs_volume : [];
   const prices = Object.fromEntries(

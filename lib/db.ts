@@ -158,12 +158,49 @@ db.exec(`
     PRIMARY KEY (region_id, resource_spec_code, billing_mode),
     FOREIGN KEY (region_id, resource_spec_code) REFERENCES ecs_flavor(region_id, resource_spec_code) ON DELETE CASCADE
   );
+
+  CREATE TABLE IF NOT EXISTS share_link (
+    id TEXT PRIMARY KEY,
+    owner_user_id TEXT NOT NULL,
+    resource_type TEXT NOT NULL,
+    resource_id TEXT NOT NULL,
+    mode TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    FOREIGN KEY (owner_user_id) REFERENCES user(id) ON DELETE CASCADE
+  );
+
+  CREATE TABLE IF NOT EXISTS project_collaborator (
+    project_id TEXT NOT NULL,
+    user_id TEXT NOT NULL,
+    granted_by_user_id TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    PRIMARY KEY (project_id, user_id),
+    FOREIGN KEY (project_id) REFERENCES project(id) ON DELETE CASCADE,
+    FOREIGN KEY (user_id) REFERENCES user(id) ON DELETE CASCADE,
+    FOREIGN KEY (granted_by_user_id) REFERENCES user(id) ON DELETE CASCADE
+  );
+
+  CREATE TABLE IF NOT EXISTS project_list_collaborator (
+    list_id TEXT NOT NULL,
+    user_id TEXT NOT NULL,
+    granted_by_user_id TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    PRIMARY KEY (list_id, user_id),
+    FOREIGN KEY (list_id) REFERENCES project_list(id) ON DELETE CASCADE,
+    FOREIGN KEY (user_id) REFERENCES user(id) ON DELETE CASCADE,
+    FOREIGN KEY (granted_by_user_id) REFERENCES user(id) ON DELETE CASCADE
+  );
 `);
 
 db.exec(`
   CREATE INDEX IF NOT EXISTS session_userId_idx ON session (userId);
   CREATE INDEX IF NOT EXISTS account_userId_idx ON account (userId);
   CREATE INDEX IF NOT EXISTS verification_identifier_idx ON verification (identifier);
+  CREATE INDEX IF NOT EXISTS share_link_owner_idx ON share_link (owner_user_id);
+  CREATE INDEX IF NOT EXISTS share_link_resource_idx ON share_link (resource_type, resource_id);
+  CREATE INDEX IF NOT EXISTS project_collaborator_user_idx ON project_collaborator (user_id);
+  CREATE INDEX IF NOT EXISTS project_list_collaborator_user_idx ON project_list_collaborator (user_id);
 `);
 
 ensureColumn("project_list", "huawei_cart_key", "TEXT");
@@ -176,4 +213,9 @@ db.exec(`
   CREATE UNIQUE INDEX IF NOT EXISTS project_list_user_huawei_cart_key_unique
   ON project_list (user_id, huawei_cart_key)
   WHERE huawei_cart_key IS NOT NULL;
+`);
+
+db.exec(`
+  CREATE UNIQUE INDEX IF NOT EXISTS share_link_owner_resource_mode_unique
+  ON share_link (owner_user_id, resource_type, resource_id, mode);
 `);

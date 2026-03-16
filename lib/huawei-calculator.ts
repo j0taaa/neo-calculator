@@ -2,6 +2,7 @@ import { db } from "@/lib/db";
 import { systemDiskCodeMap, type SystemDiskOption } from "@/lib/evs-disk-pricing";
 import { ensureRegionCatalogAvailable } from "@/lib/ecs-flavor-catalog";
 import { sampleEcsCartItem } from "@/lib/huawei-calculator-template";
+import { sendHttpRequest } from "@/lib/huawei-http";
 import { getCatalogRegionId, getRegionKeyFromCatalogRegionId, huaweiRegions, type HuaweiRegionKey } from "@/lib/huawei-regions";
 
 const HUAWEI_REFERER = "https://www.huaweicloud.com/intl/en-us/pricing/calculator.html?tempShareList=true";
@@ -428,19 +429,27 @@ function detectHuaweiAuthIssue(status: number, body: unknown) {
   };
 }
 
-async function readResponseBody(response: Response) {
-  const contentType = response.headers.get("content-type") ?? "";
-  const text = await response.text();
+function summarizeResponseBody(bodyText: string): string {
+  const normalized = bodyText.replace(/\s+/g, " ").trim();
+  if (!normalized) {
+    return "empty response body";
+  }
 
-  if (contentType.includes("application/json") || text.trim().startsWith("{") || text.trim().startsWith("[")) {
+  return normalized.length > 160 ? `${normalized.slice(0, 157)}...` : normalized;
+}
+
+function parseHuaweiResponseBody(bodyText: string, contentType: string) {
+  const trimmed = bodyText.trim();
+
+  if (contentType.includes("application/json") || trimmed.startsWith("{") || trimmed.startsWith("[")) {
     try {
-      return JSON.parse(text) as unknown;
+      return JSON.parse(bodyText) as unknown;
     } catch {
-      return text;
+      return bodyText;
     }
   }
 
-  return text;
+  return bodyText;
 }
 
 function buildHuaweiHeaders(auth: { cookie: string; csrf?: string }, json = false): Record<string, string> {
@@ -463,16 +472,18 @@ function buildHuaweiHeaders(auth: { cookie: string; csrf?: string }, json = fals
 }
 
 async function huaweiJsonRequest(url: string, init: RequestInit, auth: { cookie: string; csrf?: string }) {
-  const response = await fetch(url, {
-    ...init,
+  const response = await sendHttpRequest({
+    method: init.method ?? "GET",
+    url,
     headers: {
       ...buildHuaweiHeaders(auth, init.method === "POST"),
       ...(init.headers as Record<string, string> | undefined),
     },
-    signal: AbortSignal.timeout(30_000),
+    body: typeof init.body === "string" ? init.body : null,
+    timeoutMs: 30_000,
   });
 
-  const body = await readResponseBody(response);
+  const body = parseHuaweiResponseBody(response.bodyText, response.contentType);
   const authIssue = detectHuaweiAuthIssue(response.status, body);
   if (authIssue) {
     throw new HuaweiSessionError("Huawei session expired. Save a fresh Huawei Cloud cookie and try again.", {
@@ -482,7 +493,7 @@ async function huaweiJsonRequest(url: string, init: RequestInit, auth: { cookie:
   }
 
   if (!response.ok) {
-    throw new Error(`Huawei calculator request failed: ${response.status} ${response.statusText}`);
+    throw new Error(`Huawei calculator request failed: ${response.status} ${response.statusText}: ${summarizeResponseBody(response.bodyText)}`);
   }
 
   return body;
@@ -1573,18 +1584,26 @@ async function fetchEcsCatalogBody(regionId: string) {
     return cached.body;
   }
 
-  const response = await fetch(buildEcsProductInfoUrl(regionId), {
+  const response = await sendHttpRequest({
+    method: "GET",
+    url: buildEcsProductInfoUrl(regionId),
     headers: {
       accept: "application/json",
     },
-    signal: AbortSignal.timeout(30_000),
+    timeoutMs: 30_000,
   });
 
   if (!response.ok) {
-    throw new Error(`Huawei ECS product info request failed: ${response.status} ${response.statusText}`);
+    throw new Error(
+      `Huawei ECS product info request failed: ${response.status} ${response.statusText}: ${summarizeResponseBody(response.bodyText)}`,
+    );
   }
 
-  const body = await response.json();
+  if (!response.bodyText.trim()) {
+    throw new Error("Huawei ECS product info response was empty");
+  }
+
+  const body = parseHuaweiResponseBody(response.bodyText, response.contentType);
   catalogBodyCache.set(regionId, { expiresAt: Date.now() + 10 * 60_000, body });
   return body;
 }

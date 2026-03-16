@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { TopNavbar } from "@/components/top-navbar";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -13,7 +14,10 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className="antialiased">{children}</body>
+      <body className="antialiased">
+        <TopNavbar />
+        {children}
+      </body>
     </html>
   );
 }

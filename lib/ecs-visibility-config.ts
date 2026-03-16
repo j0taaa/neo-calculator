@@ -1,3 +1,5 @@
+import { sendHttpRequest } from "@/lib/huawei-http";
+
 export const ECS_CONFIG_URL =
   "https://portal-intl.huaweicloud.com/api/calculator/rest/cbc/portalcalculatornodeservice/v4/api/config?urlPath=ecs&tag=general.online.portal&tab=detail&sign=common";
 
@@ -38,16 +40,18 @@ export function extractEcsVisibilityConfig(scriptText: string): EcsVisibilityCon
 }
 
 export async function fetchEcsVisibilityConfig(): Promise<EcsVisibilityConfig> {
-  const response = await fetch(ECS_CONFIG_URL, {
+  const response = await sendHttpRequest({
+    method: "GET",
+    url: ECS_CONFIG_URL,
     headers: { "X-Language": "en-us" },
-    signal: AbortSignal.timeout(30_000),
+    timeoutMs: 30_000,
   });
 
   if (!response.ok) {
     throw new Error(`ECS config request failed: ${response.status} ${response.statusText}`);
   }
 
-  return extractEcsVisibilityConfig(await response.text());
+  return extractEcsVisibilityConfig(response.bodyText);
 }
 
 export function getFlavorGeneration(flavor: FlavorLike): string {
@@ -82,4 +86,3 @@ export function isEcsFlavorVisible(flavor: FlavorLike, visibilityConfig?: EcsVis
 
   return true;
 }
-

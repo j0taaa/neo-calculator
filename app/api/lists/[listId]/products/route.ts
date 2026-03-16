@@ -1,5 +1,6 @@
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { getListAccessForUser } from "@/lib/resource-access";
 
 export const runtime = "nodejs";
 
@@ -30,9 +31,7 @@ export async function GET(
   }
 
   const { listId } = await context.params;
-  const list = db
-    .query("SELECT id FROM project_list WHERE id = ? AND user_id = ?")
-    .get(listId, session.user.id) as { id: string } | null;
+  const list = getListAccessForUser(session.user.id, listId);
 
   if (!list) {
     return Response.json({ error: "List not found" }, { status: 404 });
@@ -43,11 +42,11 @@ export async function GET(
       `
         SELECT id, service_code, service_name, product_type, title, quantity, config_json, pricing_json, created_at, updated_at
         FROM list_product
-        WHERE list_id = ? AND user_id = ?
+        WHERE list_id = ?
         ORDER BY updated_at DESC
       `,
     )
-    .all(listId, session.user.id) as Array<{
+    .all(listId) as Array<{
       id: string;
       service_code: string;
       service_name: string;
@@ -99,12 +98,13 @@ export async function POST(
     return Response.json({ error: "serviceCode, serviceName, productType, and title are required" }, { status: 400 });
   }
 
-  const list = db
-    .query("SELECT id, project_id FROM project_list WHERE id = ? AND user_id = ?")
-    .get(listId, session.user.id) as { id: string; project_id: string } | null;
+  const list = getListAccessForUser(session.user.id, listId);
 
   if (!list) {
     return Response.json({ error: "List not found" }, { status: 404 });
+  }
+  if (!list.canEditProducts) {
+    return Response.json({ error: "You do not have permission to edit this cart" }, { status: 403 });
   }
 
   const now = new Date().toISOString();
@@ -135,7 +135,7 @@ export async function POST(
     ).run(
       id,
       listId,
-      list.project_id,
+      list.projectId,
       session.user.id,
       serviceCode,
       serviceName,
@@ -149,14 +149,14 @@ export async function POST(
     );
 
     db.query("UPDATE project_list SET updated_at = ? WHERE id = ?").run(now, listId);
-    db.query("UPDATE project SET updated_at = ? WHERE id = ?").run(now, list.project_id);
+    db.query("UPDATE project SET updated_at = ? WHERE id = ?").run(now, list.projectId);
   })();
 
   return Response.json(
     {
       id,
       listId,
-      projectId: list.project_id,
+      projectId: list.projectId,
       serviceCode,
       serviceName,
       productType,

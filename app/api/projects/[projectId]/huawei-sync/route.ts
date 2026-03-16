@@ -1,6 +1,7 @@
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { HuaweiSessionError, listHuaweiCarts, pushLocalProductsToHuaweiCart } from "@/lib/huawei-calculator";
+import { getProjectAccessForUser } from "@/lib/resource-access";
 
 export const runtime = "nodejs";
 
@@ -13,6 +14,7 @@ async function getSession(headers: Headers) {
 type ListRow = {
   id: string;
   project_id: string;
+  user_id: string;
   name: string;
   huawei_cart_key: string | null;
   huawei_cart_name: string | null;
@@ -22,6 +24,7 @@ type ListRow = {
 type ProductRow = {
   id: string;
   list_id: string;
+  user_id: string;
   service_code: string;
   service_name: string;
   product_type: string;
@@ -49,11 +52,12 @@ export async function POST(
     return Response.json({ error: "Huawei Cloud cookie is required" }, { status: 400 });
   }
 
+  const access = getProjectAccessForUser(session.user.id, projectId);
   const project = db
-    .query("SELECT id, name FROM project WHERE id = ? AND user_id = ?")
-    .get(projectId, session.user.id) as { id: string; name: string } | null;
+    .query("SELECT id, name FROM project WHERE id = ?")
+    .get(projectId) as { id: string; name: string } | null;
 
-  if (!project) {
+  if (!project || !access) {
     return Response.json({ error: "Project not found" }, { status: 404 });
   }
 
@@ -61,13 +65,13 @@ export async function POST(
     .query(
       `
         SELECT id, project_id, name, huawei_cart_key
-             , huawei_cart_name, huawei_last_synced_at
+             , user_id, huawei_cart_name, huawei_last_synced_at
         FROM project_list
-        WHERE project_id = ? AND user_id = ?
+        WHERE project_id = ?
         ORDER BY updated_at DESC
       `,
     )
-    .all(projectId, session.user.id) as ListRow[];
+    .all(projectId) as ListRow[];
 
   if (lists.length === 0) {
     return Response.json({ error: "This project does not have carts to sync." }, { status: 400 });
@@ -89,13 +93,13 @@ export async function POST(
   const productRows = db
     .query(
       `
-        SELECT id, list_id, service_code, service_name, product_type, title, quantity, config_json, pricing_json
+        SELECT id, list_id, user_id, service_code, service_name, product_type, title, quantity, config_json, pricing_json
         FROM list_product
-        WHERE project_id = ? AND user_id = ?
+        WHERE project_id = ?
         ORDER BY updated_at DESC
       `,
     )
-    .all(projectId, session.user.id) as ProductRow[];
+    .all(projectId) as ProductRow[];
 
   const productsByListId = new Map<string, ProductRow[]>();
   for (const row of productRows) {
@@ -146,9 +150,9 @@ export async function POST(
             huawei_last_synced_at = ?,
             huawei_last_error = NULL,
             updated_at = ?
-          WHERE id = ? AND user_id = ?
+          WHERE id = ?
         `,
-      ).run(syncedCart.key, syncedCart.name, now, now, list.id, session.user.id);
+      ).run(syncedCart.key, syncedCart.name, now, now, list.id);
 
       results.push({
         id: list.id,
@@ -166,9 +170,9 @@ export async function POST(
         `
           UPDATE project_list
           SET huawei_last_error = ?, updated_at = ?
-          WHERE id = ? AND user_id = ?
+          WHERE id = ?
         `,
-      ).run(message, now, list.id, session.user.id);
+      ).run(message, now, list.id);
 
       results.push({
         id: list.id,
@@ -182,7 +186,7 @@ export async function POST(
     }
   }
 
-  db.query("UPDATE project SET updated_at = ? WHERE id = ? AND user_id = ?").run(touchedAt, projectId, session.user.id);
+  db.query("UPDATE project SET updated_at = ? WHERE id = ?").run(touchedAt, projectId);
 
   return Response.json({
     projectId,

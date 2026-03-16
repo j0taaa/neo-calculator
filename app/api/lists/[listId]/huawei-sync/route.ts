@@ -1,6 +1,7 @@
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { HuaweiSessionError, pushLocalProductsToHuaweiCart } from "@/lib/huawei-calculator";
+import { getListAccessForUser } from "@/lib/resource-access";
 
 export const runtime = "nodejs";
 
@@ -12,6 +13,7 @@ async function getSession(headers: Headers) {
 
 type ProductRow = {
   id: string;
+  user_id: string;
   service_code: string;
   service_name: string;
   product_type: string;
@@ -39,32 +41,33 @@ export async function POST(
     return Response.json({ error: "Huawei Cloud cookie is required" }, { status: 400 });
   }
 
+  const access = getListAccessForUser(session.user.id, listId);
   const list = db
     .query(
       `
         SELECT id, project_id, name, huawei_cart_key
         FROM project_list
-        WHERE id = ? AND user_id = ?
+        WHERE id = ?
       `,
     )
-    .get(listId, session.user.id) as
+    .get(listId) as
     | { id: string; project_id: string; name: string; huawei_cart_key: string | null }
     | null;
 
-  if (!list) {
+  if (!list || !access) {
     return Response.json({ error: "List not found" }, { status: 404 });
   }
 
   const productRows = db
     .query(
       `
-        SELECT id, service_code, service_name, product_type, title, quantity, config_json, pricing_json
+        SELECT id, user_id, service_code, service_name, product_type, title, quantity, config_json, pricing_json
         FROM list_product
-        WHERE list_id = ? AND user_id = ?
+        WHERE list_id = ?
         ORDER BY updated_at DESC
       `,
     )
-    .all(listId, session.user.id) as ProductRow[];
+    .all(listId) as ProductRow[];
 
   const products = productRows.map((product) => ({
     id: product.id,
@@ -97,9 +100,9 @@ export async function POST(
             huawei_last_synced_at = ?,
             huawei_last_error = NULL,
             updated_at = ?
-          WHERE id = ? AND user_id = ?
+          WHERE id = ?
         `,
-      ).run(syncedCart.key, syncedCart.name, now, now, listId, session.user.id);
+      ).run(syncedCart.key, syncedCart.name, now, now, listId);
 
       db.query("UPDATE project SET updated_at = ? WHERE id = ?").run(now, list.project_id);
     })();
@@ -119,9 +122,9 @@ export async function POST(
       `
         UPDATE project_list
         SET huawei_last_error = ?, updated_at = ?
-        WHERE id = ? AND user_id = ?
+        WHERE id = ?
       `,
-    ).run(message, now, listId, session.user.id);
+    ).run(message, now, listId);
 
     if (error instanceof HuaweiSessionError) {
       return Response.json({ error: message }, { status: 401 });

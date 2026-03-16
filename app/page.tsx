@@ -2,8 +2,12 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useCallback, useEffect, useId, useRef, useState } from "react";
+import { type ReactNode, useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 
+import { EcsCalculatorPanel } from "@/components/calculators/ecs-calculator-panel";
+import { EvsCalculatorPanel } from "@/components/calculators/evs-calculator-panel";
+import { ServiceBatchAddPanel } from "@/components/calculators/service-batch-add-panel";
+import { UnsupportedServicePanel } from "@/components/calculators/unsupported-service-panel";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -14,7 +18,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Check, ChevronDown, ChevronRight, Link2, Pencil, RefreshCw, Search, Trash2, UserCircle2, X } from "lucide-react";
+import { Check, ChevronDown, ChevronRight, Copy, Link2, MoreHorizontal, Pencil, RefreshCw, Search, Share2, Trash2, UserCircle2, X } from "lucide-react";
 
 const services = [
   { name: "Bare Metal Server", code: "BMS", icon: "https://res-static.hc-cdn.cn/cloudbu-site/public/product-banner-icon/Compute/BMS.png" },
@@ -160,6 +164,17 @@ const flavorSortLabels = {
   "vcpu-asc": "vCPU: Lowest first",
 } as const;
 
+const supportedCalculatorServiceCodes = ["ECS", "EVS"] as const;
+const supportedBatchAddServiceCodes = ["ECS", "EVS"] as const;
+const evsBillingOptions: BillingOption[] = ["Pay-per-use", "Yearly/Monthly"];
+const flavorPageSizeOptions = [1, 3, 5, 10, 20] as const;
+const flavorPageSizeStorageKey = "neoCalculator.flavorPageSize";
+const ecsDiskSizeBounds = { min: 40, max: 1024 } as const;
+const evsDiskSizeBounds = { min: 1, max: 1_000_000 } as const;
+const evsSingleDiskMaxGiB = 32_768;
+const gpSsd2IopsBounds = { min: 3_000, max: 128_000 } as const;
+const gpSsd2ThroughputBounds = { min: 125, max: 1_000 } as const;
+
 type FlavorBillingMode = "ONDEMAND" | "MONTHLY" | "YEARLY" | "RI";
 type FlavorPriceSource = "catalog_plan" | "rate_inquiry";
 
@@ -184,6 +199,8 @@ type FlavorCard = {
   family: string;
   price: string;
   priceValue: number;
+  priceCurrency: string;
+  priceSuffix: string;
   priceModeLabel: string;
   flavorPrice: string | null;
   description: string | null;
@@ -341,6 +358,8 @@ function toFlavorCard(
     family: familyParts.join(" · ") || flavor.series || "ECS",
     price: preferredPrice ? formatFlavorAmount(flavor.currency, totalAmount, preferredPrice.suffix) : "Price unavailable",
     priceValue: totalAmount,
+    priceCurrency: flavor.currency,
+    priceSuffix: preferredPrice?.suffix ?? "",
     priceModeLabel: preferredPrice?.label ?? "Unavailable",
     flavorPrice: preferredPrice ? formatFlavorAmount(flavor.currency, preferredPrice.amount, preferredPrice.suffix) : null,
     description: flavor.description,
@@ -350,6 +369,9 @@ function toFlavorCard(
 type AppList = {
   id: string;
   name: string;
+  ownerUserId: string;
+  accessLevel: "owner" | "project_collaborator" | "list_collaborator";
+  canShare: boolean;
   huaweiCartKey: string | null;
   huaweiCartName: string | null;
   huaweiLastSyncedAt: string | null;
@@ -377,6 +399,9 @@ type AppProduct = {
 type AppProject = {
   id: string;
   name: string;
+  ownerUserId: string;
+  accessLevel: "owner" | "project_collaborator" | "list_collaborator";
+  canShare: boolean;
   description: string | null;
   createdAt: string;
   updatedAt: string;
@@ -392,6 +417,38 @@ type HuaweiCartSummary = {
   originalAmount: number | null;
   associatedListId: string | null;
 };
+
+type ActionMenuItem = {
+  label: string;
+  icon: ReactNode;
+  onSelect: () => void;
+  disabled?: boolean;
+};
+
+type BatchEcsSelection = {
+  flavor: CatalogFlavor;
+  flavorCard: FlavorCard;
+  diskPrice: NonNullable<ReturnType<typeof getDiskPriceForBillingOption>>;
+};
+
+type ProductMutationBody = {
+  serviceCode: string;
+  serviceName: string;
+  productType: string;
+  title: string;
+  quantity: number;
+  config: unknown;
+  pricing: unknown;
+};
+
+type ActiveModal =
+  | { kind: "project-huawei"; projectId: string }
+  | { kind: "project-clone"; projectId: string }
+  | { kind: "project-share"; projectId: string }
+  | { kind: "list-link"; listId: string }
+  | { kind: "list-clone"; listId: string }
+  | { kind: "list-share"; listId: string }
+  | null;
 
 function getFirstListId(projects: AppProject[]) {
   return projects[0]?.lists[0]?.id ?? "";
@@ -412,6 +469,157 @@ function getProjectCloneDefaultName(
   }
 
   return suffixParts.length ? `${base} ${suffixParts.join(" ")}` : `${base} (Copy)`;
+}
+
+function getCartCloneDefaultName(
+  listName: string,
+  targetRegion: HuaweiRegionKey | "",
+  targetBillingMode: BillingOption | "",
+) {
+  const base = listName.trim() || "NeoCalculator cart";
+  const suffixParts: string[] = [];
+  if (targetRegion) {
+    suffixParts.push(huaweiRegions[targetRegion].short);
+  }
+  if (targetBillingMode) {
+    suffixParts.push(targetBillingMode);
+  }
+
+  return suffixParts.length ? `${base} (${suffixParts.join(" · ")})` : `${base} (Copy)`;
+}
+
+async function copyText(text: string) {
+  if (typeof navigator !== "undefined" && navigator.clipboard?.writeText) {
+    await navigator.clipboard.writeText(text);
+    return true;
+  }
+
+  if (typeof document === "undefined") {
+    return false;
+  }
+
+  const textarea = document.createElement("textarea");
+  textarea.value = text;
+  textarea.setAttribute("readonly", "");
+  textarea.style.position = "fixed";
+  textarea.style.opacity = "0";
+  textarea.style.pointerEvents = "none";
+  document.body.appendChild(textarea);
+  textarea.focus();
+  textarea.select();
+
+  try {
+    return document.execCommand("copy");
+  } finally {
+    document.body.removeChild(textarea);
+  }
+}
+
+function ActionMenu({
+  open,
+  onOpenChange,
+  label,
+  items,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  label: string;
+  items: ActionMenuItem[];
+}) {
+  return (
+    <div data-action-menu-root className="relative">
+      <Button
+        type="button"
+        variant="ghost"
+        size="icon"
+        aria-haspopup="menu"
+        aria-expanded={open}
+        aria-label={label}
+        onClick={() => onOpenChange(!open)}
+      >
+        <MoreHorizontal className="size-4" />
+      </Button>
+      {open ? (
+        <div
+          role="menu"
+          className="absolute top-full right-0 z-30 mt-2 w-52 rounded-xl border border-zinc-200 bg-white p-1 shadow-[0_24px_70px_-32px_rgba(15,23,42,0.45)]"
+        >
+          {items.map((item) => (
+            <button
+              key={item.label}
+              type="button"
+              role="menuitem"
+              disabled={item.disabled}
+              className="flex w-full cursor-pointer items-center gap-2 rounded-lg px-3 py-2 text-left text-sm text-zinc-700 transition hover:bg-zinc-100 disabled:cursor-not-allowed disabled:opacity-50"
+              onClick={() => {
+                onOpenChange(false);
+                item.onSelect();
+              }}
+            >
+              <span className="text-zinc-500">{item.icon}</span>
+              <span>{item.label}</span>
+            </button>
+          ))}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+function ActionModal({
+  title,
+  description,
+  onClose,
+  children,
+}: {
+  title: string;
+  description: string;
+  onClose: () => void;
+  children: ReactNode;
+}) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-zinc-950/40 p-4" onClick={onClose}>
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-label={title}
+        className="w-full max-w-lg rounded-2xl border border-zinc-200 bg-white shadow-[0_32px_100px_-40px_rgba(15,23,42,0.55)]"
+        onClick={(event) => event.stopPropagation()}
+      >
+        <div className="flex items-start justify-between gap-4 border-b border-zinc-100 px-5 py-4">
+          <div>
+            <h2 className="text-lg font-semibold text-zinc-950">{title}</h2>
+            <p className="mt-1 text-sm text-zinc-500">{description}</p>
+          </div>
+          <Button type="button" variant="ghost" size="icon" aria-label={`Close ${title}`} onClick={onClose}>
+            <X className="size-4" />
+          </Button>
+        </div>
+        <div className="space-y-4 px-5 py-5">{children}</div>
+      </div>
+    </div>
+  );
+}
+
+function HomeNavLink({
+  href,
+  active,
+  children,
+}: {
+  href: string;
+  active: boolean;
+  children: ReactNode;
+}) {
+  return (
+    <Link
+      href={href}
+      className={`rounded-full px-4 py-2 text-sm font-medium transition ${
+        active ? "bg-zinc-950 text-white" : "text-zinc-600 hover:bg-zinc-100 hover:text-zinc-950"
+      }`}
+    >
+      {children}
+    </Link>
+  );
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -463,15 +671,111 @@ function splitPriceDisplay(summary: string) {
   };
 }
 
+function scalePriceDisplay(summary: string, multiplier: number) {
+  const normalizedMultiplier = Number.isFinite(multiplier) ? Math.max(1, multiplier) : 1;
+  if (normalizedMultiplier === 1) {
+    return summary;
+  }
+
+  const match = summary.match(/^([A-Z]{3})\s+([0-9]+(?:\.[0-9]+)?)(.*)$/);
+  if (!match) {
+    return summary;
+  }
+
+  const [, currency, rawAmount, suffix] = match;
+  const amount = Number(rawAmount);
+  if (!Number.isFinite(amount)) {
+    return summary;
+  }
+
+  return formatFlavorAmount(currency, amount * normalizedMultiplier, suffix);
+}
+
+function buildFlavorAutoSelectKey({
+  minVcpuValue,
+  minRamValue,
+  flavorQuery,
+  flavorSort,
+  regionValue,
+  billingMode,
+  usageHoursValue,
+  systemDiskType,
+  systemDiskSizeValue,
+}: {
+  minVcpuValue: string;
+  minRamValue: string;
+  flavorQuery: string;
+  flavorSort: string;
+  regionValue: HuaweiRegionKey;
+  billingMode: BillingOption;
+  usageHoursValue: number;
+  systemDiskType: SystemDiskOption;
+  systemDiskSizeValue: number;
+}) {
+  return [
+    minVcpuValue,
+    minRamValue,
+    flavorQuery.trim().toLowerCase(),
+    flavorSort,
+    regionValue,
+    billingMode,
+    String(usageHoursValue),
+    systemDiskType,
+    String(systemDiskSizeValue),
+  ].join("|");
+}
+
 function getProductConfigSummary(product: AppProduct): string {
   if (!isRecord(product.config)) {
     return product.serviceName;
   }
 
   if (product.productType === "ecs") {
+    const systemDisk = isRecord(product.config.systemDisk) ? product.config.systemDisk : null;
+    const diskIops = systemDisk && typeof systemDisk.iops === "number" ? systemDisk.iops : null;
+    const diskThroughput = systemDisk && typeof systemDisk.throughput === "number" ? systemDisk.throughput : null;
     const parts = [
       typeof product.config.region === "string" ? product.config.region : null,
       typeof product.config.flavor === "string" ? product.config.flavor : null,
+      systemDisk && typeof systemDisk.type === "string" ? systemDisk.type : null,
+      systemDisk && typeof systemDisk.sizeGiB === "number" ? `${systemDisk.sizeGiB} GiB` : null,
+      diskIops ? `${diskIops} IOPS` : null,
+      diskThroughput ? `${diskThroughput} MB/s` : null,
+      typeof product.config.billingMode === "string" ? product.config.billingMode : null,
+      typeof product.config.usageHours === "number" && product.config.billingMode === "Pay-per-use"
+        ? `${product.config.usageHours}h`
+        : null,
+    ].filter(Boolean);
+
+    return parts.join(" · ") || product.serviceName;
+  }
+
+  if (product.productType === "evs") {
+    const diskType = typeof product.config.diskType === "string"
+      ? product.config.diskType
+      : isRecord(product.config.systemDisk) && typeof product.config.systemDisk.type === "string"
+        ? product.config.systemDisk.type
+        : null;
+    const diskSizeGiB = typeof product.config.diskSizeGiB === "number"
+      ? product.config.diskSizeGiB
+      : isRecord(product.config.systemDisk) && typeof product.config.systemDisk.sizeGiB === "number"
+        ? product.config.systemDisk.sizeGiB
+        : null;
+    const diskIops = typeof product.config.iops === "number"
+      ? product.config.iops
+      : isRecord(product.config.systemDisk) && typeof product.config.systemDisk.iops === "number"
+        ? product.config.systemDisk.iops
+        : null;
+    const diskThroughput = typeof product.config.throughput === "number"
+      ? product.config.throughput
+      : isRecord(product.config.systemDisk) && typeof product.config.systemDisk.throughput === "number"
+        ? product.config.systemDisk.throughput
+        : null;
+    const parts = [
+      typeof product.config.region === "string" ? product.config.region : null,
+      diskType && diskSizeGiB ? `${diskType} ${diskSizeGiB} GiB` : diskType ?? (diskSizeGiB ? `${diskSizeGiB} GiB` : null),
+      diskIops ? `${diskIops} IOPS` : null,
+      diskThroughput ? `${diskThroughput} MB/s` : null,
       typeof product.config.billingMode === "string" ? product.config.billingMode : null,
       typeof product.config.usageHours === "number" && product.config.billingMode === "Pay-per-use"
         ? `${product.config.usageHours}h`
@@ -510,6 +814,258 @@ function isSystemDiskOption(value: unknown): value is SystemDiskOption {
   return typeof value === "string" && (systemDiskOptions as readonly string[]).includes(value);
 }
 
+function getCalculatorBillingOptions(serviceCode: string): BillingOption[] {
+  if (serviceCode === "EVS") {
+    return evsBillingOptions;
+  }
+
+  return [...options.billing];
+}
+
+function parsePositiveNumber(value: unknown) {
+  if (typeof value === "number" && Number.isFinite(value) && value > 0) {
+    return value;
+  }
+
+  if (typeof value === "string" && value.trim()) {
+    const parsed = Number(value);
+    if (Number.isFinite(parsed) && parsed > 0) {
+      return parsed;
+    }
+  }
+
+  return null;
+}
+
+function parseBatchQuantity(value: unknown) {
+  const parsed = parsePositiveNumber(value);
+  if (parsed == null) {
+    return 1;
+  }
+
+  return Math.max(1, Math.floor(parsed));
+}
+
+function getNestedRecord(value: unknown, key: string) {
+  return isRecord(value) && isRecord(value[key]) ? value[key] : null;
+}
+
+function getBatchDiskType(
+  value: unknown,
+  fallback: SystemDiskOption,
+) {
+  const evs = getNestedRecord(value, "evs");
+  const candidates = [
+    isRecord(value) ? value.type : undefined,
+    isRecord(value) ? value.diskType : undefined,
+    isRecord(value) ? value.systemDiskType : undefined,
+    evs?.type,
+    evs?.diskType,
+  ];
+
+  for (const candidate of candidates) {
+    if (isSystemDiskOption(candidate)) {
+      return candidate;
+    }
+  }
+
+  return fallback;
+}
+
+function getBatchDiskSize(
+  value: unknown,
+  fallback: number,
+  bounds: { min: number; max: number },
+) {
+  const evs = getNestedRecord(value, "evs");
+  const candidates = [
+    isRecord(value) ? value.size : undefined,
+    isRecord(value) ? value.sizeGiB : undefined,
+    isRecord(value) ? value.diskSizeGiB : undefined,
+    isRecord(value) ? value.systemDiskSizeGiB : undefined,
+    evs?.size,
+    evs?.sizeGiB,
+    evs?.diskSizeGiB,
+  ];
+
+  for (const candidate of candidates) {
+    const parsed = parsePositiveNumber(candidate);
+    if (parsed != null) {
+      return Math.min(bounds.max, Math.max(bounds.min, Math.floor(parsed)));
+    }
+  }
+
+  return fallback;
+}
+
+function getBatchDescription(value: unknown, fallback: string) {
+  if (isRecord(value) && typeof value.description === "string" && value.description.trim()) {
+    return value.description.trim();
+  }
+
+  return fallback;
+}
+
+function getGpSsd2IopsBounds(sizeGiB: number) {
+  const max = Math.max(1, Math.min(gpSsd2IopsBounds.max, Math.floor(sizeGiB * 500)));
+  return {
+    min: Math.min(gpSsd2IopsBounds.min, max),
+    max,
+  };
+}
+
+function normalizeGpSsd2Iops(value: unknown, sizeGiB: number) {
+  const bounds = getGpSsd2IopsBounds(sizeGiB);
+  const parsed = parsePositiveNumber(value);
+  if (parsed == null) {
+    return bounds.min;
+  }
+
+  return Math.min(bounds.max, Math.max(bounds.min, Math.floor(parsed)));
+}
+
+function getGpSsd2ThroughputBounds(iops: number) {
+  const max = Math.max(1, Math.min(gpSsd2ThroughputBounds.max, Math.floor(iops / 4)));
+  return {
+    min: Math.min(gpSsd2ThroughputBounds.min, max),
+    max,
+  };
+}
+
+function normalizeGpSsd2Throughput(value: unknown, iops: number) {
+  const bounds = getGpSsd2ThroughputBounds(iops);
+  const parsed = parsePositiveNumber(value);
+  if (parsed == null) {
+    return bounds.min;
+  }
+
+  return Math.min(bounds.max, Math.max(bounds.min, Math.floor(parsed)));
+}
+
+function getGpSsd2RequestedIops(value: unknown, fallbackSizeGiB: number) {
+  const evs = getNestedRecord(value, "evs");
+  const systemDisk = getNestedRecord(value, "systemDisk");
+  const candidates = [
+    isRecord(value) ? value.iops : undefined,
+    isRecord(value) ? value.diskIops : undefined,
+    evs?.iops,
+    evs?.diskIops,
+    systemDisk?.iops,
+    systemDisk?.diskIops,
+  ];
+
+  for (const candidate of candidates) {
+    if (parsePositiveNumber(candidate) != null) {
+      return normalizeGpSsd2Iops(candidate, fallbackSizeGiB);
+    }
+  }
+
+  return normalizeGpSsd2Iops(undefined, fallbackSizeGiB);
+}
+
+function getGpSsd2RequestedThroughput(value: unknown, fallbackIops: number) {
+  const evs = getNestedRecord(value, "evs");
+  const systemDisk = getNestedRecord(value, "systemDisk");
+  const candidates = [
+    isRecord(value) ? value.throughput : undefined,
+    isRecord(value) ? value.diskThroughput : undefined,
+    evs?.throughput,
+    evs?.diskThroughput,
+    systemDisk?.throughput,
+    systemDisk?.diskThroughput,
+  ];
+
+  for (const candidate of candidates) {
+    if (parsePositiveNumber(candidate) != null) {
+      return normalizeGpSsd2Throughput(candidate, fallbackIops);
+    }
+  }
+
+  return normalizeGpSsd2Throughput(undefined, fallbackIops);
+}
+
+function splitEvsDiskSizes(totalGiB: number) {
+  const normalizedTotal = Math.max(1, Math.floor(totalGiB));
+  const chunks: number[] = [];
+  let remaining = normalizedTotal;
+
+  while (remaining > evsSingleDiskMaxGiB) {
+    chunks.push(evsSingleDiskMaxGiB);
+    remaining -= evsSingleDiskMaxGiB;
+  }
+
+  chunks.push(remaining);
+  return chunks;
+}
+
+function buildEvsSplitNotice(totalGiB: number) {
+  if (totalGiB <= evsSingleDiskMaxGiB) {
+    return null;
+  }
+
+  const chunks = splitEvsDiskSizes(totalGiB);
+  return `Totals above ${evsSingleDiskMaxGiB} GiB are saved as multiple disks: ${chunks.join(" GiB + ")} GiB.`;
+}
+
+function findBestBatchEcsSelection(
+  flavors: CatalogFlavor[],
+  diskPricing: DiskPricing | null,
+  billingOption: BillingOption,
+  usageHours: number,
+  vcpu: number,
+  ramGiB: number,
+  diskType: SystemDiskOption,
+  diskSizeGiB: number,
+  fallbackDescription: string,
+): BatchEcsSelection | null {
+  const candidates = flavors
+    .filter((flavor) => flavor.cpu >= vcpu && flavor.ramGiB >= ramGiB)
+    .map((flavor) => {
+      const diskPrice = getDiskPriceForBillingOption(
+        diskPricing,
+        diskType,
+        diskSizeGiB,
+        billingOption,
+        usageHours,
+      );
+      const flavorCard = toFlavorCard(
+        {
+          ...flavor,
+          description: flavor.description ?? fallbackDescription,
+        },
+        billingOption,
+        usageHours,
+        diskPrice,
+      );
+
+      return diskPrice
+        ? {
+            flavor,
+            flavorCard,
+            diskPrice,
+          }
+        : null;
+    })
+    .filter((candidate): candidate is BatchEcsSelection => candidate != null)
+    .sort((left, right) => {
+      if (left.flavorCard.priceValue !== right.flavorCard.priceValue) {
+        return left.flavorCard.priceValue - right.flavorCard.priceValue;
+      }
+
+      if (left.flavor.cpu !== right.flavor.cpu) {
+        return left.flavor.cpu - right.flavor.cpu;
+      }
+
+      if (left.flavor.ramGiB !== right.flavor.ramGiB) {
+        return left.flavor.ramGiB - right.flavor.ramGiB;
+      }
+
+      return left.flavor.resourceSpecCode.localeCompare(right.flavor.resourceSpecCode);
+    });
+
+  return candidates[0] ?? null;
+}
+
 function OptionGrid({
   items,
   value,
@@ -539,8 +1095,6 @@ function OptionGrid({
 
 export default function Home() {
   const { data: session, isPending: isSessionPending } = authClient.useSession();
-  const initialCookieValue =
-    typeof window === "undefined" ? "" : window.localStorage.getItem("neoCalculator.huaweiCookie") ?? "";
 
   const [query, setQuery] = useState("");
   const [selectedService, setSelectedService] = useState("Elastic Cloud Server");
@@ -553,19 +1107,24 @@ export default function Home() {
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [activeSuggestionIndex, setActiveSuggestionIndex] = useState(0);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
-  const [cookieValue, setCookieValue] = useState(initialCookieValue);
-  const [cookieDraft, setCookieDraft] = useState(initialCookieValue);
+  const [cookieValue, setCookieValue] = useState("");
+  const [cookieDraft, setCookieDraft] = useState("");
   const [regionValue, setRegionValue] = useState<HuaweiRegionKey>("la-sao-paulo1");
   const [billingMode, setBillingMode] = useState<BillingOption>("Pay-per-use");
   const [usageHours, setUsageHours] = useState("744");
   const [vcpuValue, setVcpuValue] = useState("2");
   const [ramValue, setRamValue] = useState("8");
+  const [minVcpuValue, setMinVcpuValue] = useState("2");
+  const [minRamValue, setMinRamValue] = useState("8");
   const [instanceCount, setInstanceCount] = useState("1");
   const [systemDiskType, setSystemDiskType] = useState<SystemDiskOption>("High I/O");
   const [systemDiskSize, setSystemDiskSize] = useState("40");
+  const [gpSsd2Iops, setGpSsd2Iops] = useState("3000");
+  const [gpSsd2Throughput, setGpSsd2Throughput] = useState("125");
   const [flavorQuery, setFlavorQuery] = useState("");
   const [flavorPage, setFlavorPage] = useState(1);
   const [flavorSort, setFlavorSort] = useState("price-asc");
+  const [flavorPageSize, setFlavorPageSize] = useState<(typeof flavorPageSizeOptions)[number]>(3);
   const [selectedFlavor, setSelectedFlavor] = useState("");
   const [catalogFlavors, setCatalogFlavors] = useState<CatalogFlavor[]>([]);
   const [diskPricing, setDiskPricing] = useState<DiskPricing | null>(null);
@@ -592,6 +1151,9 @@ export default function Home() {
   const [activeTab, setActiveTab] = useState("calculator");
   const [addToListPending, setAddToListPending] = useState(false);
   const [addToListMessage, setAddToListMessage] = useState("");
+  const [batchInput, setBatchInput] = useState("");
+  const [batchAddPending, setBatchAddPending] = useState(false);
+  const [batchAddMessage, setBatchAddMessage] = useState("");
   const [deletingProductId, setDeletingProductId] = useState<string | null>(null);
   const [expandedProjects, setExpandedProjects] = useState<Record<string, boolean>>({});
   const [huaweiCarts, setHuaweiCarts] = useState<HuaweiCartSummary[]>([]);
@@ -613,10 +1175,21 @@ export default function Home() {
   const [cloningProjectId, setCloningProjectId] = useState<string | null>(null);
   const [projectCloneMessages, setProjectCloneMessages] = useState<Record<string, string>>({});
   const [projectCloneMessageErrors, setProjectCloneMessageErrors] = useState<Record<string, boolean>>({});
+  const [syncingHuaweiProjectId, setSyncingHuaweiProjectId] = useState<string | null>(null);
+  const [projectHuaweiMessages, setProjectHuaweiMessages] = useState<Record<string, string>>({});
+  const [projectHuaweiMessageErrors, setProjectHuaweiMessageErrors] = useState<Record<string, boolean>>({});
+  const [sharingProjectKey, setSharingProjectKey] = useState<string | null>(null);
+  const [sharingListKey, setSharingListKey] = useState<string | null>(null);
+  const [projectShareMessages, setProjectShareMessages] = useState<Record<string, string>>({});
+  const [listShareMessages, setListShareMessages] = useState<Record<string, string>>({});
+  const [openProjectMenuId, setOpenProjectMenuId] = useState<string | null>(null);
+  const [isCartMenuOpen, setIsCartMenuOpen] = useState(false);
+  const [activeModal, setActiveModal] = useState<ActiveModal>(null);
   const searchAreaRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const profileAreaRef = useRef<HTMLDivElement>(null);
   const listboxId = `${useId()}-services`;
+  const lastFlavorAutoSelectKeyRef = useRef("");
 
   const normalizedQuery = query.trim().toLowerCase();
   const suggestions = normalizedQuery
@@ -627,6 +1200,16 @@ export default function Home() {
         .slice(0, 8)
     : [];
   const selectedServiceMeta = services.find((service) => service.name === selectedService) ?? services[0];
+  const selectedServiceCode = selectedServiceMeta.code;
+  const isEcsCalculator = selectedServiceCode === "ECS";
+  const isEvsCalculator = selectedServiceCode === "EVS";
+  const calculatorBillingOptions = useMemo(() => getCalculatorBillingOptions(selectedServiceCode), [selectedServiceCode]);
+  const isSelectedServiceImplemented = supportedCalculatorServiceCodes.includes(
+    selectedServiceCode as (typeof supportedCalculatorServiceCodes)[number],
+  );
+  const isSelectedServiceBatchAddImplemented = supportedBatchAddServiceCodes.includes(
+    selectedServiceCode as (typeof supportedBatchAddServiceCodes)[number],
+  );
   const selectedPrices = priceListEntries.filter((entry) => entry.service === selectedService);
   const hasSuggestions = isSearchOpen && suggestions.length > 0;
   const activeDescendant = hasSuggestions ? `${listboxId}-${activeSuggestionIndex}` : undefined;
@@ -635,27 +1218,61 @@ export default function Home() {
     (sum, project) => sum + project.lists.reduce((listSum, list) => listSum + list.productCount, 0),
     0,
   );
+  const projectsById = useMemo(() => new Map(projects.map((project) => [project.id, project] as const)), [projects]);
+  const listsById = useMemo(
+    () => new Map(projects.flatMap((project) => project.lists.map((list) => [list.id, { list, project }] as const))),
+    [projects],
+  );
   const selectedProject = projects.find((project) => project.lists.some((list) => list.id === selectedListId)) ?? null;
   const selectedList = selectedProject?.lists.find((list) => list.id === selectedListId) ?? null;
   const selectedCartProducts = selectedList?.products ?? [];
-  const selectedHuaweiCart = huaweiCarts.find((cart) => cart.key === selectedHuaweiCartKey) ?? null;
+  const activeProject =
+    activeModal == null
+      ? null
+      : "projectId" in activeModal
+        ? projectsById.get(activeModal.projectId) ?? null
+        : listsById.get(activeModal.listId)?.project ?? null;
+  const activeList = activeModal != null && "listId" in activeModal ? listsById.get(activeModal.listId)?.list ?? null : null;
   const cloneableRegions = (Object.entries(huaweiRegions) as Array<[HuaweiRegionKey, (typeof huaweiRegions)[HuaweiRegionKey]]>)
     .filter(([, labels]) => Boolean(labels.catalogRegionId));
   const usageHoursValue = Number.isFinite(Number(usageHours)) ? Math.max(1, Number(usageHours)) : 744;
-  const minVcpuFilter = Number.isFinite(Number(vcpuValue)) ? Math.max(0, Number(vcpuValue)) : 0;
-  const minRamFilter = Number.isFinite(Number(ramValue)) ? Math.max(0, Number(ramValue)) : 0;
-  const systemDiskSizeValue = Number.isFinite(Number(systemDiskSize)) ? Math.max(0, Number(systemDiskSize)) : 0;
+  const minVcpuFilter = Number.isFinite(Number(minVcpuValue)) ? Math.max(0, Number(minVcpuValue)) : 0;
+  const minRamFilter = Number.isFinite(Number(minRamValue)) ? Math.max(0, Number(minRamValue)) : 0;
+  const activeDiskSizeBounds = isEvsCalculator ? evsDiskSizeBounds : ecsDiskSizeBounds;
+  const systemDiskSizeValue = Number.isFinite(Number(systemDiskSize))
+    ? Math.max(activeDiskSizeBounds.min, Number(systemDiskSize))
+    : activeDiskSizeBounds.min;
+  const isGpSsd2Selected = systemDiskType === "General Purpose SSD V2";
+  const gpSsd2IopsValue = isGpSsd2Selected ? normalizeGpSsd2Iops(gpSsd2Iops, systemDiskSizeValue) : null;
+  const gpSsd2IopsRange = isGpSsd2Selected ? getGpSsd2IopsBounds(systemDiskSizeValue) : null;
+  const gpSsd2ThroughputValue =
+    isGpSsd2Selected && gpSsd2IopsValue != null ? normalizeGpSsd2Throughput(gpSsd2Throughput, gpSsd2IopsValue) : null;
+  const gpSsd2ThroughputRange =
+    isGpSsd2Selected && gpSsd2IopsValue != null ? getGpSsd2ThroughputBounds(gpSsd2IopsValue) : null;
+  const instanceCountValue = Number.isFinite(Number(instanceCount)) ? Math.max(1, Number(instanceCount)) : 1;
   const selectedDiskPrice = getDiskPriceForBillingOption(diskPricing, systemDiskType, systemDiskSizeValue, billingMode, usageHoursValue);
   const billableFlavors = catalogFlavors
     .filter((flavor) => getFlavorPriceForBillingOption(flavor, billingMode, usageHoursValue))
     .map((flavor) => toFlavorCard(flavor, billingMode, usageHoursValue, selectedDiskPrice));
   const selectedFlavorCard = billableFlavors.find((flavor) => flavor.name === selectedFlavor) ?? null;
-  const selectedEstimate =
-    selectedFlavorCard?.price
+  const selectedEstimateBase =
+    (isEvsCalculator && selectedDiskPrice
+      ? formatFlavorAmount(selectedDiskPrice.currency, selectedDiskPrice.amount, selectedDiskPrice.suffix)
+      : selectedFlavorCard?.price)
     ?? selectedPrices.find((entry) => entry.unit === "per month")?.price
     ?? selectedPrices[0]?.price
     ?? "USD 0.00";
+  const selectedEstimate = isEvsCalculator && selectedDiskPrice
+    ? formatFlavorAmount(selectedDiskPrice.currency, selectedDiskPrice.amount * instanceCountValue, selectedDiskPrice.suffix)
+    : selectedFlavorCard
+    ? formatFlavorAmount(
+        selectedFlavorCard.priceCurrency,
+        selectedFlavorCard.priceValue * instanceCountValue,
+        selectedFlavorCard.priceSuffix,
+      )
+    : scalePriceDisplay(selectedEstimateBase, instanceCountValue);
   const selectedEstimateParts = splitPriceDisplay(selectedEstimate);
+  const quantityLabel = isEvsCalculator ? "Volume" : "Instance";
   const filteredFlavors = billableFlavors.filter((flavor) => {
     if (Number(flavor.vcpu) < minVcpuFilter || Number(flavor.ram) < minRamFilter) {
       return false;
@@ -675,58 +1292,141 @@ export default function Home() {
     if (flavorSort === "vcpu-asc") return Number(a.vcpu) - Number(b.vcpu);
     return a.priceValue - b.priceValue;
   });
-  const totalFlavorPages = Math.max(1, Math.ceil(sortedFlavors.length / 5));
+  const totalFlavorPages = Math.max(1, Math.ceil(sortedFlavors.length / flavorPageSize));
   const currentFlavorPage = Math.min(flavorPage, totalFlavorPages);
-  const visibleFlavors = sortedFlavors.slice((currentFlavorPage - 1) * 5, currentFlavorPage * 5);
+  const visibleFlavors = sortedFlavors.slice((currentFlavorPage - 1) * flavorPageSize, currentFlavorPage * flavorPageSize);
+  const flavorAutoSelectKey = buildFlavorAutoSelectKey({
+    minVcpuValue,
+    minRamValue,
+    flavorQuery,
+    flavorSort,
+    regionValue,
+    billingMode,
+    usageHoursValue,
+    systemDiskType,
+    systemDiskSizeValue,
+  });
+
+  const [evsPricingLoading, setEvsPricingLoading] = useState(false);
+  const [evsPricingError, setEvsPricingError] = useState("");
+
+  useEffect(() => {
+    if (!calculatorBillingOptions.includes(billingMode)) {
+      setBillingMode(calculatorBillingOptions[0]);
+    }
+  }, [billingMode, calculatorBillingOptions]);
+
+  useEffect(() => {
+    if (!isGpSsd2Selected || gpSsd2IopsValue == null || gpSsd2ThroughputValue == null) {
+      return;
+    }
+
+    const normalizedIops = String(gpSsd2IopsValue);
+    if (gpSsd2Iops !== normalizedIops) {
+      setGpSsd2Iops(normalizedIops);
+    }
+
+    const normalizedThroughput = String(gpSsd2ThroughputValue);
+    if (gpSsd2Throughput !== normalizedThroughput) {
+      setGpSsd2Throughput(normalizedThroughput);
+    }
+  }, [gpSsd2Iops, gpSsd2IopsValue, gpSsd2Throughput, gpSsd2ThroughputValue, isGpSsd2Selected]);
 
   useEffect(() => {
     let cancelled = false;
 
-    async function loadCatalogFlavors() {
-      setCatalogFlavorsLoading(true);
+    async function loadCalculatorData() {
+      if (isEcsCalculator) {
+        setCatalogFlavorsLoading(true);
+        setCatalogFlavorsError("");
+        setEvsPricingLoading(false);
+        setEvsPricingError("");
+
+        try {
+          const response = await fetch(`/api/catalog/ecs-flavors?region=${encodeURIComponent(regionValue)}`, {
+            cache: "no-store",
+          });
+          const rawBody = await response.text();
+          const payload = (rawBody ? JSON.parse(rawBody) : {}) as {
+            flavors?: CatalogFlavor[];
+            diskPricing?: DiskPricing;
+            error?: string;
+            lastCompletedAt?: string | null;
+          };
+
+          if (!response.ok) {
+            throw new Error(payload.error ?? "Failed to load ECS flavors");
+          }
+
+          if (cancelled) return;
+
+          setCatalogFlavors(payload.flavors ?? []);
+          setDiskPricing(payload.diskPricing ?? null);
+          setCatalogFlavorsLastCompletedAt(payload.lastCompletedAt ?? null);
+          setFlavorPage(1);
+          setCatalogFlavorsError(payload.error ?? "");
+        } catch (error) {
+          if (cancelled) return;
+          setCatalogFlavors([]);
+          setDiskPricing(null);
+          setCatalogFlavorsError(error instanceof Error ? error.message : "Failed to load ECS flavors");
+        } finally {
+          if (!cancelled) {
+            setCatalogFlavorsLoading(false);
+          }
+        }
+        return;
+      }
+
+      setCatalogFlavors([]);
+      setCatalogFlavorsLastCompletedAt(null);
+      setCatalogFlavorsLoading(false);
       setCatalogFlavorsError("");
 
+      if (!isEvsCalculator) {
+        setDiskPricing(null);
+        setEvsPricingLoading(false);
+        setEvsPricingError("");
+        return;
+      }
+
+      setEvsPricingLoading(true);
+      setEvsPricingError("");
+
       try {
-        const response = await fetch(`/api/catalog/ecs-flavors?region=${encodeURIComponent(regionValue)}`, {
+        const response = await fetch(`/api/catalog/evs-pricing?region=${encodeURIComponent(regionValue)}`, {
           cache: "no-store",
         });
-        const payload = (await response.json()) as {
-          flavors?: CatalogFlavor[];
-          diskPricing?: DiskPricing;
+        const rawBody = await response.text();
+        const payload = (rawBody ? JSON.parse(rawBody) : {}) as {
+          diskPricing?: DiskPricing | null;
           error?: string;
-          lastCompletedAt?: string | null;
         };
 
-        if (!response.ok) {
-          throw new Error(payload.error ?? "Failed to load ECS flavors");
+        if (!response.ok || !payload.diskPricing) {
+          throw new Error(payload.error ?? "Failed to load EVS pricing");
         }
 
         if (cancelled) return;
 
-        const nextFlavors = payload.flavors ?? [];
-        setCatalogFlavors(nextFlavors);
-        setDiskPricing(payload.diskPricing ?? null);
-        setCatalogFlavorsLastCompletedAt(payload.lastCompletedAt ?? null);
-        setFlavorPage(1);
-        setCatalogFlavorsError(payload.error ?? "");
+        setDiskPricing(payload.diskPricing);
       } catch (error) {
         if (cancelled) return;
-        setCatalogFlavors([]);
         setDiskPricing(null);
-        setCatalogFlavorsError(error instanceof Error ? error.message : "Failed to load ECS flavors");
+        setEvsPricingError(error instanceof Error ? error.message : "Failed to load EVS pricing");
       } finally {
         if (!cancelled) {
-          setCatalogFlavorsLoading(false);
+          setEvsPricingLoading(false);
         }
       }
     }
 
-    void loadCatalogFlavors();
+    void loadCalculatorData();
 
     return () => {
       cancelled = true;
     };
-  }, [regionValue]);
+  }, [isEcsCalculator, isEvsCalculator, regionValue]);
 
   useEffect(() => {
     if (!sortedFlavors.length) {
@@ -734,8 +1434,8 @@ export default function Home() {
       return;
     }
 
-    const activeFlavor = sortedFlavors.find((flavor) => flavor.name === selectedFlavor);
-    if (activeFlavor) {
+    const hasSelectedFlavor = sortedFlavors.some((flavor) => flavor.name === selectedFlavor);
+    if (lastFlavorAutoSelectKeyRef.current === flavorAutoSelectKey && hasSelectedFlavor) {
       return;
     }
 
@@ -743,7 +1443,8 @@ export default function Home() {
     setSelectedFlavor(nextFlavor.name);
     setVcpuValue(nextFlavor.vcpu);
     setRamValue(nextFlavor.ram);
-  }, [selectedFlavor, sortedFlavors]);
+    lastFlavorAutoSelectKeyRef.current = flavorAutoSelectKey;
+  }, [flavorAutoSelectKey, selectedFlavor, sortedFlavors]);
 
   useEffect(() => {
     const handlePointerDown = (event: MouseEvent) => {
@@ -779,9 +1480,65 @@ export default function Home() {
   }, []);
 
   useEffect(() => {
+    if (!openProjectMenuId && !isCartMenuOpen) {
+      return;
+    }
+
+    const handlePointerDown = (event: MouseEvent) => {
+      if (event.target instanceof Element && event.target.closest("[data-action-menu-root]")) {
+        return;
+      }
+
+      setOpenProjectMenuId(null);
+      setIsCartMenuOpen(false);
+    };
+
+    document.addEventListener("mousedown", handlePointerDown);
+    return () => document.removeEventListener("mousedown", handlePointerDown);
+  }, [isCartMenuOpen, openProjectMenuId]);
+
+  useEffect(() => {
+    if (!activeModal) {
+      return;
+    }
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setActiveModal(null);
+      }
+    };
+
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    window.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [activeModal]);
+
+  useEffect(() => {
+    if (!activeModal) {
+      return;
+    }
+
+    if ("projectId" in activeModal && !projectsById.has(activeModal.projectId)) {
+      setActiveModal(null);
+      return;
+    }
+
+    if ("listId" in activeModal && !listsById.has(activeModal.listId)) {
+      setActiveModal(null);
+    }
+  }, [activeModal, listsById, projectsById]);
+
+  useEffect(() => {
     if (!session?.user.id) {
       setProjects([]);
       setProjectsError("");
+      setProjectsLoading(false);
+      setSelectedListId("");
       return;
     }
 
@@ -822,14 +1579,20 @@ export default function Home() {
     void loadProjects();
   }, [session?.user.id]);
 
-  const loadHuaweiCarts = useCallback(async () => {
-    if (!session?.user.id) {
-      setHuaweiCarts([]);
-      setHuaweiCartsError("");
-      setHuaweiCartsSyncedAt(null);
-      return;
-    }
+  useEffect(() => {
+    const storedCookie = window.localStorage.getItem("neoCalculator.huaweiCookie") ?? "";
+    setCookieValue(storedCookie);
+    setCookieDraft(storedCookie);
+  }, []);
 
+  useEffect(() => {
+    const storedPageSize = Number(window.localStorage.getItem(flavorPageSizeStorageKey));
+    if (flavorPageSizeOptions.some((option) => option === storedPageSize)) {
+      setFlavorPageSize(storedPageSize as (typeof flavorPageSizeOptions)[number]);
+    }
+  }, []);
+
+  const loadHuaweiCarts = useCallback(async () => {
     if (!cookieValue.trim()) {
       setHuaweiCarts([]);
       setHuaweiCartsError("");
@@ -863,11 +1626,11 @@ export default function Home() {
     } finally {
       setHuaweiCartsLoading(false);
     }
-  }, [cookieValue, session?.user.id]);
+  }, [cookieValue]);
 
   useEffect(() => {
     void loadHuaweiCarts();
-  }, [loadHuaweiCarts]);
+  }, [loadHuaweiCarts, session?.user.id]);
 
   useEffect(() => {
     setSelectedHuaweiCartKey(selectedList?.huaweiCartKey ?? "");
@@ -930,6 +1693,11 @@ export default function Home() {
   };
 
   const handleCreateProject = async () => {
+    if (!session) {
+      setProjectsError("Sign in to save carts and projects.");
+      return;
+    }
+
     const name = newProjectName.trim();
     if (!name) return;
 
@@ -960,7 +1728,51 @@ export default function Home() {
     }
   };
 
+  const handleCreateShare = async (resourceType: "project" | "list", resourceId: string, mode: "copy" | "collaborate") => {
+    const setPending = resourceType === "project" ? setSharingProjectKey : setSharingListKey;
+    const setMessages = resourceType === "project" ? setProjectShareMessages : setListShareMessages;
+
+    setPending(`${resourceType}:${resourceId}:${mode}`);
+    setMessages((current) => ({ ...current, [resourceId]: "" }));
+
+    try {
+      const response = await fetch("/api/share", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ resourceType, resourceId, mode }),
+      });
+      const payload = (await response.json().catch(() => null)) as { shareUrl?: string; error?: string } | null;
+
+      if (!response.ok || !payload?.shareUrl) {
+        throw new Error(getResponseError(payload, "Unable to create share link"));
+      }
+
+      const shareUrl = new URL(payload.shareUrl, window.location.origin).toString();
+      const copied = await copyText(shareUrl);
+      setMessages((current) => ({
+        ...current,
+        [resourceId]: copied
+          ? mode === "copy"
+            ? "Copy link copied."
+            : "Collaborative link copied."
+          : `${mode === "copy" ? "Copy" : "Collaborative"} link: ${shareUrl}`,
+      }));
+    } catch (error) {
+      setMessages((current) => ({
+        ...current,
+        [resourceId]: error instanceof Error ? error.message : "Unable to create share link",
+      }));
+    } finally {
+      setPending(null);
+    }
+  };
+
   const handleCreateList = async (projectId: string) => {
+    if (!session) {
+      setProjectsError("Sign in to save carts and projects.");
+      return;
+    }
+
     const name = listDrafts[projectId]?.trim();
     const baseCartKey = listBaseDrafts[projectId] ?? "";
     const usingHuaweiBase = Boolean(baseCartKey);
@@ -1273,6 +2085,111 @@ export default function Home() {
     }
   };
 
+  const handleSyncProjectHuawei = async (project: AppProject) => {
+    if (!cookieValue.trim()) {
+      setProjectHuaweiMessages((current) => ({
+        ...current,
+        [project.id]: "Save a Huawei Cloud cookie before creating Huawei carts.",
+      }));
+      setProjectHuaweiMessageErrors((current) => ({ ...current, [project.id]: true }));
+      return;
+    }
+
+    if (project.lists.length === 0) {
+      setProjectHuaweiMessages((current) => ({
+        ...current,
+        [project.id]: "This project does not have carts to sync.",
+      }));
+      setProjectHuaweiMessageErrors((current) => ({ ...current, [project.id]: true }));
+      return;
+    }
+
+    setSyncingHuaweiProjectId(project.id);
+    setProjectHuaweiMessages((current) => ({ ...current, [project.id]: "" }));
+    setProjectHuaweiMessageErrors((current) => ({ ...current, [project.id]: false }));
+
+    try {
+      const response = await fetch(`/api/projects/${project.id}/huawei-sync`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ cookie: cookieValue }),
+      });
+      const payload = (await response.json().catch(() => null)) as
+        | {
+            projectId: string;
+            updatedAt: string;
+            syncedCount: number;
+            failedCount: number;
+            lists: Array<{
+              id: string;
+              huaweiCartKey: string | null;
+              huaweiCartName: string | null;
+              huaweiLastSyncedAt: string | null;
+              huaweiLastError: string | null;
+              updatedAt: string;
+            }>;
+            error?: never;
+          }
+        | { error?: string }
+        | null;
+
+      if (!response.ok || !payload || !("projectId" in payload)) {
+        throw new Error(getResponseError(payload, "Unable to create Huawei carts for this project"));
+      }
+
+      const listUpdates = new Map(payload.lists.map((list) => [list.id, list]));
+
+      setProjects((current) =>
+        current.map((item) =>
+          item.id === project.id
+            ? {
+                ...item,
+                updatedAt: payload.updatedAt,
+                lists: item.lists.map((list) => {
+                  const update = listUpdates.get(list.id);
+                  if (!update) {
+                    return list;
+                  }
+
+                  return {
+                    ...list,
+                    updatedAt: update.updatedAt,
+                    huaweiCartKey: update.huaweiCartKey,
+                    huaweiCartName: update.huaweiCartName,
+                    huaweiLastSyncedAt: update.huaweiLastSyncedAt,
+                    huaweiLastError: update.huaweiLastError,
+                  };
+                }),
+              }
+            : item,
+        ),
+      );
+      setProjectHuaweiMessages((current) => ({
+        ...current,
+        [project.id]:
+          payload.failedCount > 0
+            ? `Created or updated ${payload.syncedCount} Huawei cart(s). ${payload.failedCount} cart(s) failed.`
+            : `Created or updated ${payload.syncedCount} Huawei cart(s) for this project.`,
+      }));
+      setProjectHuaweiMessageErrors((current) => ({ ...current, [project.id]: payload.failedCount > 0 }));
+      await loadHuaweiCarts();
+    } catch (error) {
+      setProjectHuaweiMessages((current) => ({
+        ...current,
+        [project.id]: error instanceof Error ? error.message : "Unable to create Huawei carts for this project",
+      }));
+      setProjectHuaweiMessageErrors((current) => ({ ...current, [project.id]: true }));
+    } finally {
+      setSyncingHuaweiProjectId(null);
+    }
+  };
+
+  const openActionModal = (modal: Exclude<ActiveModal, null>) => {
+    setOpenProjectMenuId(null);
+    setIsCartMenuOpen(false);
+    setActiveModal(modal);
+  };
+
   const toggleProject = (projectName: string) => {
     setExpandedProjects((current) => ({
       ...current,
@@ -1486,7 +2403,7 @@ export default function Home() {
 
     const parsed = Number(nextValue);
     if (Number.isNaN(parsed)) return;
-    const bounded = Math.min(1024, Math.max(40, parsed));
+    const bounded = Math.min(activeDiskSizeBounds.max, Math.max(activeDiskSizeBounds.min, parsed));
     setSystemDiskSize(String(bounded));
   };
 
@@ -1515,7 +2432,7 @@ export default function Home() {
   };
 
   const handleEditProduct = (product: AppProduct) => {
-    if (product.productType !== "ecs") {
+    if (product.productType !== "ecs" && product.productType !== "evs") {
       setAddToListMessage("This product cannot be edited from the calculator.");
       return;
     }
@@ -1528,7 +2445,8 @@ export default function Home() {
     const nextRegion = typeof product.config.region === "string" && product.config.region in huaweiRegions
       ? (product.config.region as HuaweiRegionKey)
       : regionValue;
-    const nextBillingMode = isBillingOption(product.config.billingMode) ? product.config.billingMode : "Pay-per-use";
+    const rawBillingMode = isBillingOption(product.config.billingMode) ? product.config.billingMode : "Pay-per-use";
+    const nextBillingMode = product.productType === "evs" && rawBillingMode === "RI" ? "Pay-per-use" : rawBillingMode;
     const nextSystemDisk = isRecord(product.config.systemDisk) ? product.config.systemDisk : null;
 
     setSelectedService(product.serviceName);
@@ -1540,15 +2458,52 @@ export default function Home() {
         ? String(Math.max(1, Math.floor(product.config.usageHours)))
         : "744",
     );
-    setSelectedFlavor(typeof product.config.flavor === "string" ? product.config.flavor : "");
-    setVcpuValue(typeof product.config.vcpu === "number" ? String(product.config.vcpu) : vcpuValue);
-    setRamValue(typeof product.config.ramGiB === "number" ? String(product.config.ramGiB) : ramValue);
-    setSystemDiskType(isSystemDiskOption(nextSystemDisk?.type) ? nextSystemDisk.type : "High I/O");
-    setSystemDiskSize(
-      typeof nextSystemDisk?.sizeGiB === "number" && Number.isFinite(nextSystemDisk.sizeGiB)
-        ? String(Math.max(40, Math.floor(nextSystemDisk.sizeGiB)))
-        : "40",
-    );
+    const nextMinVcpuValue = typeof product.config.vcpu === "number" ? String(product.config.vcpu) : minVcpuValue;
+    const nextMinRamValue = typeof product.config.ramGiB === "number" ? String(product.config.ramGiB) : minRamValue;
+    const nextSystemDiskType = isSystemDiskOption(product.config.diskType)
+      ? product.config.diskType
+      : isSystemDiskOption(nextSystemDisk?.type)
+        ? nextSystemDisk.type
+        : "High I/O";
+    const nextSystemDiskSize =
+      typeof product.config.diskSizeGiB === "number" && Number.isFinite(product.config.diskSizeGiB)
+        ? String(Math.max(evsDiskSizeBounds.min, Math.floor(product.config.diskSizeGiB)))
+        : typeof nextSystemDisk?.sizeGiB === "number" && Number.isFinite(nextSystemDisk.sizeGiB)
+          ? String(Math.max(ecsDiskSizeBounds.min, Math.floor(nextSystemDisk.sizeGiB)))
+          : product.productType === "evs"
+            ? String(evsDiskSizeBounds.min)
+            : String(ecsDiskSizeBounds.min);
+    if (product.productType === "ecs") {
+      lastFlavorAutoSelectKeyRef.current = buildFlavorAutoSelectKey({
+        minVcpuValue: nextMinVcpuValue,
+        minRamValue: nextMinRamValue,
+        flavorQuery,
+        flavorSort,
+        regionValue: nextRegion,
+        billingMode: nextBillingMode,
+        usageHoursValue:
+          typeof product.config.usageHours === "number" && Number.isFinite(product.config.usageHours)
+            ? Math.max(1, Math.floor(product.config.usageHours))
+            : 744,
+        systemDiskType: nextSystemDiskType,
+        systemDiskSizeValue: Number(nextSystemDiskSize),
+      });
+      setSelectedFlavor(typeof product.config.flavor === "string" ? product.config.flavor : "");
+      setVcpuValue(typeof product.config.vcpu === "number" ? String(product.config.vcpu) : vcpuValue);
+      setRamValue(typeof product.config.ramGiB === "number" ? String(product.config.ramGiB) : ramValue);
+      setMinVcpuValue(nextMinVcpuValue);
+      setMinRamValue(nextMinRamValue);
+    } else {
+      setSelectedFlavor("");
+      setVcpuValue("");
+      setRamValue("");
+    }
+    const nextGpSsd2Iops = getGpSsd2RequestedIops(product.config, Number(nextSystemDiskSize));
+    const nextGpSsd2Throughput = getGpSsd2RequestedThroughput(product.config, nextGpSsd2Iops);
+    setGpSsd2Iops(String(nextGpSsd2Iops));
+    setGpSsd2Throughput(String(nextGpSsd2Throughput));
+    setSystemDiskType(nextSystemDiskType);
+    setSystemDiskSize(nextSystemDiskSize);
     setInstanceCount(String(Math.max(1, product.quantity)));
     setEditingProductId(product.id);
     setEditingProductListId(selectedListId);
@@ -1560,6 +2515,28 @@ export default function Home() {
     setEditingProductId(null);
     setEditingProductListId(null);
     setAddToListMessage("");
+  };
+
+  const updateGpSsd2Iops = (nextValue: string) => {
+    if (nextValue === "") {
+      setGpSsd2Iops("");
+      return;
+    }
+
+    const parsed = Number(nextValue);
+    if (Number.isNaN(parsed)) return;
+    setGpSsd2Iops(String(normalizeGpSsd2Iops(parsed, systemDiskSizeValue)));
+  };
+
+  const updateGpSsd2Throughput = (nextValue: string) => {
+    if (nextValue === "") {
+      setGpSsd2Throughput("");
+      return;
+    }
+
+    const parsed = Number(nextValue);
+    if (Number.isNaN(parsed)) return;
+    setGpSsd2Throughput(String(normalizeGpSsd2Throughput(parsed, gpSsd2IopsValue ?? gpSsd2IopsBounds.min)));
   };
 
   const handleDeleteProduct = async (product: AppProduct) => {
@@ -1616,55 +2593,40 @@ export default function Home() {
     }
   };
 
-  const handleAddToList = async () => {
-    if (!selectedListId) {
-      setAddToListMessage("Create a list first.");
-      return;
-    }
+  const appendProductToState = useCallback((payload: AppProduct & { listId: string; projectId: string }) => {
+    setProjects((current) =>
+      current.map((project) =>
+        project.id === payload.projectId
+          ? {
+              ...project,
+              updatedAt: payload.updatedAt,
+              lists: project.lists.map((list) =>
+                list.id === payload.listId
+                  ? {
+                      ...list,
+                      updatedAt: payload.updatedAt,
+                      productCount: list.productCount + 1,
+                      products: [payload, ...list.products],
+                    }
+                  : list,
+              ),
+            }
+          : project,
+      ),
+    );
+  }, []);
 
-    if (!selectedFlavorCard) {
-      setAddToListMessage("Select a flavor first.");
-      return;
-    }
-
-    setAddToListPending(true);
-    setAddToListMessage("");
-
-    try {
-      const quantity = Math.max(1, Number(instanceCount || "1"));
-      const requestMethod = editingProductId ? "PATCH" : "POST";
-      const requestUrl =
-        editingProductId && editingProductListId
-          ? `/api/lists/${editingProductListId}/products/${editingProductId}`
-          : `/api/lists/${selectedListId}/products`;
+  const mutateListProduct = useCallback(
+    async (
+      requestUrl: string,
+      requestMethod: "POST" | "PATCH",
+      requestBody: ProductMutationBody,
+      fallbackError: string,
+    ) => {
       const response = await fetch(requestUrl, {
         method: requestMethod,
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          serviceCode: selectedServiceMeta.code,
-          serviceName: selectedService,
-          productType: "ecs",
-          title: `${selectedService} ${selectedFlavor}`,
-          quantity,
-          config: {
-            region: regionValue,
-            billingMode,
-            usageHours: billingMode === "Pay-per-use" ? usageHoursValue : null,
-            description: selectedFlavorCard.description ?? selectedService,
-            flavor: selectedFlavor,
-            vcpu: Number(vcpuValue || "0"),
-            ramGiB: Number(ramValue || "0"),
-            systemDisk: {
-              type: systemDiskType,
-              sizeGiB: systemDiskSizeValue,
-            },
-          },
-          pricing: {
-            total: selectedEstimate,
-            flavor: selectedFlavorCard.flavorPrice,
-            disk: selectedDiskPrice ? formatFlavorAmount(selectedDiskPrice.currency, selectedDiskPrice.amount, selectedDiskPrice.suffix) : null,
-          },
-        }),
+        body: JSON.stringify(requestBody),
       });
 
       const payload = (await response.json().catch(() => null)) as
@@ -1673,34 +2635,424 @@ export default function Home() {
         | null;
 
       if (!response.ok || !payload || !("projectId" in payload)) {
-        throw new Error(getResponseError(payload, "Unable to add product to list"));
+        throw new Error(getResponseError(payload, fallbackError));
       }
 
-      setProjects((current) =>
-        current.map((project) =>
-          project.id === payload.projectId
-            ? {
-                ...project,
-                updatedAt: payload.updatedAt,
-                lists: project.lists.map((list) =>
-                  list.id === payload.listId
-                    ? {
-                        ...list,
-                        updatedAt: payload.updatedAt,
-                        productCount: editingProductId ? list.productCount : list.productCount + 1,
-                        products: editingProductId
-                          ? list.products.map((item) => (item.id === payload.id ? { ...item, ...payload } : item))
-                          : [payload, ...list.products],
-                      }
-                    : list,
-                ),
+      return payload;
+    },
+    [],
+  );
+
+  const handleBatchAdd = async () => {
+    if (!session) {
+      setBatchAddMessage("Sign in to save carts and projects.");
+      return;
+    }
+
+    if (!isSelectedServiceBatchAddImplemented) {
+      setBatchAddMessage(`${selectedService} does not support batch add yet.`);
+      return;
+    }
+
+    if (!selectedListId) {
+      setBatchAddMessage("Create a list first.");
+      return;
+    }
+
+    let parsedInput: unknown;
+    try {
+      parsedInput = JSON.parse(batchInput);
+    } catch {
+      setBatchAddMessage("Batch input must be valid JSON.");
+      return;
+    }
+
+    if (!Array.isArray(parsedInput) || parsedInput.length === 0) {
+      setBatchAddMessage("Batch input must be a non-empty JSON array.");
+      return;
+    }
+
+    if (isEcsCalculator && !catalogFlavors.length) {
+      setBatchAddMessage("ECS flavors are not loaded yet.");
+      return;
+    }
+
+    if (isEvsCalculator && !diskPricing) {
+      setBatchAddMessage("EVS pricing is not loaded yet.");
+      return;
+    }
+
+    setBatchAddPending(true);
+    setBatchAddMessage("");
+
+    let createdCount = 0;
+    let splitDiskCount = 0;
+
+    try {
+      for (let index = 0; index < parsedInput.length; index += 1) {
+        const item = parsedInput[index];
+
+        if (!isRecord(item)) {
+          throw new Error(`Item ${index + 1} must be an object.`);
+        }
+
+        const quantity = parseBatchQuantity(item.quantity);
+        const description = getBatchDescription(item, selectedService);
+        const requestBodies = isEcsCalculator
+          ? (() => {
+              const requestedVcpu = parsePositiveNumber(item.vcpu);
+              const requestedRamGiB = parsePositiveNumber(item.ram);
+              if (requestedVcpu == null || requestedRamGiB == null) {
+                throw new Error(`Item ${index + 1} must include numeric vcpu and ram values.`);
               }
-            : project,
-        ),
+
+              const diskType = getBatchDiskType(item, "High I/O");
+              const diskSizeGiB = getBatchDiskSize(item, ecsDiskSizeBounds.min, ecsDiskSizeBounds);
+              const diskIops = diskType === "General Purpose SSD V2"
+                ? getGpSsd2RequestedIops(item, diskSizeGiB)
+                : null;
+              const diskThroughput = diskType === "General Purpose SSD V2" && diskIops != null
+                ? getGpSsd2RequestedThroughput(item, diskIops)
+                : null;
+              const selection = findBestBatchEcsSelection(
+                catalogFlavors,
+                diskPricing,
+                billingMode,
+                usageHoursValue,
+                requestedVcpu,
+                requestedRamGiB,
+                diskType,
+                diskSizeGiB,
+                description,
+              );
+
+              if (!selection) {
+                throw new Error(
+                  `Item ${index + 1} could not find an ECS flavor with at least ${requestedVcpu} vCPUs and ${requestedRamGiB} GiB RAM.`,
+                );
+              }
+
+              return [{
+                serviceCode: selectedServiceMeta.code,
+                serviceName: selectedService,
+                productType: "ecs",
+                title: `${selectedService} ${selection.flavor.resourceSpecCode}`,
+                quantity,
+                config: {
+                  region: regionValue,
+                  billingMode,
+                  usageHours: billingMode === "Pay-per-use" ? usageHoursValue : null,
+                  description,
+                  flavor: selection.flavor.resourceSpecCode,
+                  vcpu: selection.flavor.cpu,
+                  ramGiB: selection.flavor.ramGiB,
+                  systemDisk: {
+                    type: diskType,
+                    sizeGiB: diskSizeGiB,
+                    ...(diskIops != null ? { iops: diskIops } : {}),
+                    ...(diskThroughput != null ? { throughput: diskThroughput } : {}),
+                  },
+                },
+                pricing: {
+                  total: formatFlavorAmount(
+                    selection.flavorCard.priceCurrency,
+                    selection.flavorCard.priceValue * quantity,
+                    selection.flavorCard.priceSuffix,
+                  ),
+                  flavor: selection.flavorCard.flavorPrice,
+                  disk: formatFlavorAmount(
+                    selection.diskPrice.currency,
+                    selection.diskPrice.amount,
+                    selection.diskPrice.suffix,
+                  ),
+                },
+              }];
+            })()
+          : (() => {
+              const diskType = getBatchDiskType(item, systemDiskType);
+              const diskSizeGiB = getBatchDiskSize(item, systemDiskSizeValue, evsDiskSizeBounds);
+              const requestedIops = diskType === "General Purpose SSD V2"
+                ? getGpSsd2RequestedIops(item, diskSizeGiB)
+                : null;
+              const requestedThroughput = diskType === "General Purpose SSD V2" && requestedIops != null
+                ? getGpSsd2RequestedThroughput(item, requestedIops)
+                : null;
+              const chunkSizes = splitEvsDiskSizes(diskSizeGiB);
+              splitDiskCount += Math.max(0, chunkSizes.length - 1);
+
+              return chunkSizes.map((chunkSizeGiB) => {
+                const price = getDiskPriceForBillingOption(diskPricing, diskType, chunkSizeGiB, billingMode, usageHoursValue);
+                const chunkIops = diskType === "General Purpose SSD V2" && requestedIops != null
+                  ? normalizeGpSsd2Iops(requestedIops, chunkSizeGiB)
+                  : null;
+                const chunkThroughput = diskType === "General Purpose SSD V2" && requestedThroughput != null && chunkIops != null
+                  ? normalizeGpSsd2Throughput(requestedThroughput, chunkIops)
+                  : null;
+
+                if (!price) {
+                  throw new Error(`Item ${index + 1} could not be priced with the selected EVS billing mode.`);
+                }
+
+                return {
+                  serviceCode: selectedServiceMeta.code,
+                  serviceName: selectedService,
+                  productType: "evs",
+                  title: `${selectedService} ${diskType} ${chunkSizeGiB} GiB`,
+                  quantity,
+                  config: {
+                    region: regionValue,
+                    billingMode,
+                    usageHours: billingMode === "Pay-per-use" ? usageHoursValue : null,
+                    description,
+                    diskType,
+                    diskSizeGiB: chunkSizeGiB,
+                    ...(chunkIops != null ? { iops: chunkIops } : {}),
+                    ...(chunkThroughput != null ? { throughput: chunkThroughput } : {}),
+                    requestedDiskSizeGiB: diskSizeGiB,
+                    splitDiskCount: chunkSizes.length,
+                  },
+                  pricing: {
+                    total: formatFlavorAmount(price.currency, price.amount * quantity, price.suffix),
+                    disk: formatFlavorAmount(price.currency, price.amount, price.suffix),
+                  },
+                } satisfies ProductMutationBody;
+              });
+            })();
+
+        for (const [chunkIndex, requestBody] of requestBodies.entries()) {
+          const payload = await mutateListProduct(
+            `/api/lists/${selectedListId}/products`,
+            "POST",
+            requestBody,
+            `Unable to add item ${index + 1}${requestBodies.length > 1 ? ` chunk ${chunkIndex + 1}` : ""} to the list`,
+          );
+
+          appendProductToState(payload);
+          createdCount += 1;
+        }
+      }
+
+      setBatchAddMessage(
+        splitDiskCount > 0
+          ? `Added ${createdCount} products to the list. ${splitDiskCount} extra EVS split disk${splitDiskCount === 1 ? "" : "s"} were created for sizes above ${evsSingleDiskMaxGiB} GiB.`
+          : createdCount === 1
+            ? "Added 1 product to the list."
+            : `Added ${createdCount} products to the list.`,
       );
+    } catch (error) {
+      setBatchAddMessage(
+        createdCount > 0
+          ? `${error instanceof Error ? error.message : "Batch add failed."} ${createdCount} item${createdCount === 1 ? "" : "s"} were added before the error.`
+          : error instanceof Error
+            ? error.message
+            : "Batch add failed.",
+      );
+    } finally {
+      setBatchAddPending(false);
+    }
+  };
+
+  const handleAddToList = async () => {
+    if (!session) {
+      setAddToListMessage("Sign in to save carts and projects.");
+      return;
+    }
+
+    if (!isSelectedServiceImplemented) {
+      setAddToListMessage(`${selectedService} is not implemented in the calculator yet.`);
+      return;
+    }
+
+    if (!selectedListId) {
+      setAddToListMessage("Create a list first.");
+      return;
+    }
+
+    if (isEcsCalculator && !selectedFlavorCard) {
+      setAddToListMessage("Select a flavor first.");
+      return;
+    }
+
+    if (isEvsCalculator && !selectedDiskPrice) {
+      setAddToListMessage("Select a volume type first.");
+      return;
+    }
+
+    setAddToListPending(true);
+    setAddToListMessage("");
+
+    try {
+      const quantity = Math.max(1, Number(instanceCount || "1"));
+      const requestBodies = isEcsCalculator
+        ? {
+            serviceCode: selectedServiceMeta.code,
+            serviceName: selectedService,
+            productType: "ecs",
+            title: `${selectedService} ${selectedFlavor}`,
+            quantity,
+            config: {
+              region: regionValue,
+              billingMode,
+              usageHours: billingMode === "Pay-per-use" ? usageHoursValue : null,
+              description: selectedFlavorCard?.description ?? selectedService,
+              flavor: selectedFlavor,
+              vcpu: Number(vcpuValue || "0"),
+              ramGiB: Number(ramValue || "0"),
+              systemDisk: {
+                type: systemDiskType,
+                sizeGiB: systemDiskSizeValue,
+                ...(isGpSsd2Selected && gpSsd2IopsValue != null ? { iops: gpSsd2IopsValue } : {}),
+                ...(isGpSsd2Selected && gpSsd2ThroughputValue != null ? { throughput: gpSsd2ThroughputValue } : {}),
+              },
+            },
+            pricing: {
+              total: selectedEstimate,
+              flavor: selectedFlavorCard?.flavorPrice ?? null,
+              disk: selectedDiskPrice ? formatFlavorAmount(selectedDiskPrice.currency, selectedDiskPrice.amount, selectedDiskPrice.suffix) : null,
+            },
+          }
+        : splitEvsDiskSizes(systemDiskSizeValue).map((chunkSizeGiB) => {
+            const chunkPrice = getDiskPriceForBillingOption(diskPricing, systemDiskType, chunkSizeGiB, billingMode, usageHoursValue);
+            const chunkIops = isGpSsd2Selected && gpSsd2IopsValue != null
+              ? normalizeGpSsd2Iops(gpSsd2IopsValue, chunkSizeGiB)
+              : null;
+            const chunkThroughput = isGpSsd2Selected && gpSsd2ThroughputValue != null && chunkIops != null
+              ? normalizeGpSsd2Throughput(gpSsd2ThroughputValue, chunkIops)
+              : null;
+            if (!chunkPrice) {
+              throw new Error("Unable to price one of the EVS split disks.");
+            }
+
+            return {
+              serviceCode: selectedServiceMeta.code,
+              serviceName: selectedService,
+              productType: "evs",
+              title: `${selectedService} ${systemDiskType} ${chunkSizeGiB} GiB`,
+              quantity,
+              config: {
+                region: regionValue,
+                billingMode,
+                usageHours: billingMode === "Pay-per-use" ? usageHoursValue : null,
+                description: selectedService,
+                diskType: systemDiskType,
+                diskSizeGiB: chunkSizeGiB,
+                ...(chunkIops != null ? { iops: chunkIops } : {}),
+                ...(chunkThroughput != null ? { throughput: chunkThroughput } : {}),
+                requestedDiskSizeGiB: systemDiskSizeValue,
+                splitDiskCount: splitEvsDiskSizes(systemDiskSizeValue).length,
+              },
+              pricing: {
+                total: formatFlavorAmount(chunkPrice.currency, chunkPrice.amount * quantity, chunkPrice.suffix),
+                disk: formatFlavorAmount(chunkPrice.currency, chunkPrice.amount, chunkPrice.suffix),
+              },
+            } satisfies ProductMutationBody;
+          });
+
+      if (editingProductId && editingProductListId) {
+        if (Array.isArray(requestBodies)) {
+          const [firstBody, ...extraBodies] = requestBodies;
+          const updatedPayload = await mutateListProduct(
+            `/api/lists/${editingProductListId}/products/${editingProductId}`,
+            "PATCH",
+            firstBody,
+            "Unable to update product",
+          );
+
+          setProjects((current) =>
+            current.map((project) =>
+              project.id === updatedPayload.projectId
+                ? {
+                    ...project,
+                    updatedAt: updatedPayload.updatedAt,
+                    lists: project.lists.map((list) =>
+                      list.id === updatedPayload.listId
+                        ? {
+                            ...list,
+                            updatedAt: updatedPayload.updatedAt,
+                            products: list.products.map((item) => (item.id === updatedPayload.id ? { ...item, ...updatedPayload } : item)),
+                          }
+                        : list,
+                    ),
+                  }
+                : project,
+            ),
+          );
+
+          for (const extraBody of extraBodies) {
+            const createdPayload = await mutateListProduct(
+              `/api/lists/${selectedListId}/products`,
+              "POST",
+              extraBody,
+              "Unable to create one of the EVS split disks",
+            );
+            appendProductToState(createdPayload);
+          }
+
+          setAddToListMessage(
+            extraBodies.length > 0
+              ? `Product updated and split into ${requestBodies.length} EVS disks because totals above ${evsSingleDiskMaxGiB} GiB are saved in chunks.`
+              : "Product updated.",
+          );
+        } else {
+          const updatedPayload = await mutateListProduct(
+            `/api/lists/${editingProductListId}/products/${editingProductId}`,
+            "PATCH",
+            requestBodies,
+            "Unable to update product",
+          );
+
+          setProjects((current) =>
+            current.map((project) =>
+              project.id === updatedPayload.projectId
+                ? {
+                    ...project,
+                    updatedAt: updatedPayload.updatedAt,
+                    lists: project.lists.map((list) =>
+                      list.id === updatedPayload.listId
+                        ? {
+                            ...list,
+                            updatedAt: updatedPayload.updatedAt,
+                            products: list.products.map((item) => (item.id === updatedPayload.id ? { ...item, ...updatedPayload } : item)),
+                          }
+                        : list,
+                    ),
+                  }
+                : project,
+            ),
+          );
+
+          setAddToListMessage("Product updated.");
+        }
+      } else if (Array.isArray(requestBodies)) {
+        for (const requestBody of requestBodies) {
+          const createdPayload = await mutateListProduct(
+            `/api/lists/${selectedListId}/products`,
+            "POST",
+            requestBody,
+            "Unable to add product to list",
+          );
+          appendProductToState(createdPayload);
+        }
+
+        setAddToListMessage(
+          requestBodies.length > 1
+            ? `Added ${requestBodies.length} EVS disks to the list because totals above ${evsSingleDiskMaxGiB} GiB are split into ${evsSingleDiskMaxGiB} GiB chunks plus a final remainder disk.`
+            : "Product added to list.",
+        );
+      } else {
+        const createdPayload = await mutateListProduct(
+          `/api/lists/${selectedListId}/products`,
+          "POST",
+          requestBodies,
+          "Unable to add product to list",
+        );
+
+        appendProductToState(createdPayload);
+        setAddToListMessage("Product added to list.");
+      }
+
       setEditingProductId(null);
       setEditingProductListId(null);
-      setAddToListMessage(editingProductId ? "Product updated." : "Product added to list.");
     } catch (error) {
       setAddToListMessage(error instanceof Error ? error.message : "Unable to add product to list");
     } finally {
@@ -1708,96 +3060,265 @@ export default function Home() {
     }
   };
 
+  const activeProjectCloneTargetRegion = activeProject ? projectCloneTargetRegions[activeProject.id] ?? "" : "";
+  const activeProjectCloneTargetBillingMode = activeProject ? projectCloneTargetBillingModes[activeProject.id] ?? "" : "";
+  const activeProjectCloneMessage = activeProject ? projectCloneMessages[activeProject.id] ?? "" : "";
+  const activeProjectCloneMessageIsError = activeProject ? projectCloneMessageErrors[activeProject.id] ?? false : false;
+  const activeProjectHuaweiMessage = activeProject ? projectHuaweiMessages[activeProject.id] ?? "" : "";
+  const activeProjectHuaweiMessageIsError = activeProject ? projectHuaweiMessageErrors[activeProject.id] ?? false : false;
+  const activeProjectShareMessage = activeProject ? projectShareMessages[activeProject.id] ?? "" : "";
+  const activeSelectedHuaweiCartKey = activeList ? selectedHuaweiCartKey || activeList.huaweiCartKey || "" : "";
+  const activeSelectedHuaweiCart = huaweiCarts.find((cart) => cart.key === activeSelectedHuaweiCartKey) ?? null;
+  const activeListCloneMessage = activeList ? cloneActionMessage : "";
+  const activeListCloneMessageIsError = activeList ? cloneActionIsError : false;
+  const activeListHuaweiMessage = activeList ? huaweiActionMessage : "";
+  const activeListShareMessage = activeList ? listShareMessages[activeList.id] ?? "" : "";
+  const isActiveProjectCloning = activeProject ? cloningProjectId === activeProject.id : false;
+  const isActiveProjectSyncing = activeProject ? syncingHuaweiProjectId === activeProject.id : false;
+  const isActiveListLinking = activeList ? linkingHuaweiListId === activeList.id : false;
+  const isActiveListCloning = activeList ? cloningListId === activeList.id : false;
+  const calculatorRegionOptions = Object.entries(huaweiRegions).map(([value, labels]) => ({
+    value,
+    label: labels.full,
+  }));
+  const flavorSortOptions = Object.entries(flavorSortLabels).map(([value, label]) => ({
+    value,
+    label,
+  }));
+  const evsSplitNotice = isEvsCalculator ? buildEvsSplitNotice(systemDiskSizeValue) : null;
+  const calculatorSelectionSummary = isEcsCalculator
+    ? `Selected specifications: ${selectedFlavor} | ${vcpuValue || "-"} vCPUs | ${ramValue || "-"} GiB | ${systemDiskType} ${systemDiskSize || String(activeDiskSizeBounds.min)} GiB${isGpSsd2Selected && gpSsd2IopsValue != null && gpSsd2ThroughputValue != null ? ` | ${gpSsd2IopsValue} IOPS | ${gpSsd2ThroughputValue} MB/s` : ""}${selectedDiskPrice ? ` | Disk ${formatFlavorAmount(selectedDiskPrice.currency, selectedDiskPrice.amount, selectedDiskPrice.suffix)}` : ""}`
+    : `Selected specifications: ${systemDiskType} | ${systemDiskSize || String(activeDiskSizeBounds.min)} GiB${isGpSsd2Selected && gpSsd2IopsValue != null && gpSsd2ThroughputValue != null ? ` | ${gpSsd2IopsValue} IOPS | ${gpSsd2ThroughputValue} MB/s` : ""}${selectedDiskPrice ? ` | Disk ${formatFlavorAmount(selectedDiskPrice.currency, selectedDiskPrice.amount, selectedDiskPrice.suffix)}` : ""}`;
+  const calculatorSelectionNotes = [
+    ...(isEcsCalculator && selectedFlavorCard?.flavorPrice && selectedDiskPrice
+      ? [`Flavor ${selectedFlavorCard.flavorPrice} + Disk ${formatFlavorAmount(selectedDiskPrice.currency, selectedDiskPrice.amount, selectedDiskPrice.suffix)}`]
+      : []),
+    ...(isEvsCalculator && evsSplitNotice ? [evsSplitNotice] : []),
+  ];
+  const calculatorDiskNotes = [
+    ...(isGpSsd2Selected
+      ? ["Current estimate reflects capacity pricing only. Additional GPSSD2 IOPS and throughput charges are not modeled yet."]
+      : []),
+    ...(isEvsCalculator
+      ? [
+          `A single EVS disk can be up to ${evsSingleDiskMaxGiB} GiB. Entering a larger total will save multiple disks: ${evsSingleDiskMaxGiB} GiB chunks plus one final remainder disk.`,
+          ...(evsSplitNotice ? [evsSplitNotice] : []),
+        ]
+      : [`Minimum ${activeDiskSizeBounds.min} GiB, maximum ${activeDiskSizeBounds.max} GiB.`]),
+  ];
+  const calculatorDiskConfigProps = {
+    mode: isEvsCalculator ? ("evs" as const) : ("ecs" as const),
+    systemDiskType,
+    systemDiskOptions,
+    onSystemDiskTypeChange: (value: string) => {
+      if (!value) {
+        return;
+      }
+      setSystemDiskType(value as (typeof systemDiskOptions)[number]);
+    },
+    systemDiskSize,
+    onSystemDiskSizeChange: (value: string) => {
+      if (value === "") {
+        setSystemDiskSize("");
+        return;
+      }
+      updateSystemDiskSize(value);
+    },
+    onSystemDiskSizeBlur: () => updateSystemDiskSize(systemDiskSize || String(activeDiskSizeBounds.min)),
+    onSystemDiskSizeStep: (delta: number) => updateSystemDiskSize(String(Number(systemDiskSize || String(activeDiskSizeBounds.min)) + delta)),
+    showGpSsd2Controls: isGpSsd2Selected,
+    gpSsd2Iops,
+    gpSsd2IopsRange,
+    onGpSsd2IopsChange: (value: string) => {
+      if (value === "") {
+        setGpSsd2Iops("");
+        return;
+      }
+      updateGpSsd2Iops(value);
+    },
+    onGpSsd2IopsBlur: () => updateGpSsd2Iops(gpSsd2Iops || String(gpSsd2IopsRange?.min ?? gpSsd2IopsBounds.min)),
+    gpSsd2Throughput,
+    gpSsd2ThroughputRange,
+    onGpSsd2ThroughputChange: (value: string) => {
+      if (value === "") {
+        setGpSsd2Throughput("");
+        return;
+      }
+      updateGpSsd2Throughput(value);
+    },
+    onGpSsd2ThroughputBlur: () =>
+      updateGpSsd2Throughput(gpSsd2Throughput || String(gpSsd2ThroughputRange?.min ?? gpSsd2ThroughputBounds.min)),
+    pricingError: evsPricingError,
+    pricingLoadingMessage: evsPricingLoading ? "Loading EVS pricing..." : null,
+    notes: calculatorDiskNotes,
+    selectionSummary: calculatorSelectionSummary,
+    selectionNotes: calculatorSelectionNotes,
+  };
+  const selectedCartMenuItems: ActionMenuItem[] =
+    selectedList && selectedProject
+      ? [
+          {
+            label: selectedList.huaweiCartKey ? "Sync Huawei Cart" : "Create Huawei Cart",
+            icon: <RefreshCw className="size-4" />,
+            onSelect: () => {
+              void handleSyncSelectedList();
+            },
+            disabled: syncingHuaweiListId === selectedList.id,
+          },
+          {
+            label: "Link Huawei Cart",
+            icon: <Link2 className="size-4" />,
+            onSelect: () => openActionModal({ kind: "list-link", listId: selectedList.id }),
+          },
+          {
+            label: "Clone Cart",
+            icon: <Copy className="size-4" />,
+            onSelect: () => openActionModal({ kind: "list-clone", listId: selectedList.id }),
+          },
+          ...(selectedList.canShare
+            ? [
+                {
+                  label: "Share Cart",
+                  icon: <Share2 className="size-4" />,
+                  onSelect: () => openActionModal({ kind: "list-share", listId: selectedList.id }),
+                },
+              ]
+            : []),
+          {
+            label: "Delete Cart",
+            icon: <Trash2 className="size-4" />,
+            onSelect: () => {
+              void handleDeleteList(selectedList, selectedProject.id);
+            },
+            disabled: deletingListId === selectedList.id,
+          },
+        ]
+      : [];
+
   return (
     <div className="min-h-screen bg-zinc-100 p-4 text-zinc-900 lg:p-6">
-      <div className="mx-auto flex max-w-[1600px] flex-col gap-4">
-        <header className="relative z-40 rounded-xl border bg-white px-5 py-4">
-          <div className="flex items-center justify-between gap-4">
-            <div className="text-2xl font-semibold tracking-tight text-zinc-950">NeoCalculator</div>
-            {session ? (
-              <div className="flex items-center gap-3">
+      <div className="mx-auto flex max-w-[1680px] flex-col gap-4">
+        <header className="sticky top-0 z-50 rounded-xl border border-zinc-200 bg-white/90 px-4 py-3 backdrop-blur lg:px-6">
+          <div className="grid grid-cols-[1fr_auto] items-center gap-4 lg:grid-cols-[1fr_auto_1fr]">
+            <div className="justify-self-start">
+              <p className="text-xs font-medium tracking-[0.22em] text-zinc-500 uppercase">NeoCalculator</p>
+              <p className="text-sm text-zinc-600">Calculator, carts, and projects.</p>
+            </div>
+            <nav className="hidden items-center gap-2 lg:flex lg:justify-self-center">
+              <HomeNavLink href="/projects" active={false}>
+                Projects
+              </HomeNavLink>
+              <HomeNavLink href="/" active>
+                Dashboard
+              </HomeNavLink>
+            </nav>
+            <div className="flex items-center justify-self-end gap-3">
+              {session ? (
                 <div className="hidden text-right sm:block">
                   <p className="text-sm font-medium text-zinc-900">{session.user.name || session.user.email}</p>
                   <p className="text-xs text-zinc-500">{session.user.email}</p>
                 </div>
+              ) : null}
+              <Button
+                type="button"
+                variant="outline"
+                size="icon"
+                className="size-10"
+                aria-label="Reload Huawei carts"
+                onClick={() => void loadHuaweiCarts()}
+                disabled={huaweiCartsLoading || !cookieValue.trim()}
+              >
+                <RefreshCw className={`size-4 ${huaweiCartsLoading ? "animate-spin" : ""}`} />
+              </Button>
+              <div ref={profileAreaRef} className="relative">
                 <Button
                   type="button"
-                  variant="outline"
+                  variant="ghost"
                   size="icon"
-                  className="size-10"
-                  aria-label="Reload Huawei carts"
-                  onClick={() => void loadHuaweiCarts()}
-                  disabled={huaweiCartsLoading || !cookieValue.trim()}
+                  className="size-10 rounded-full border border-zinc-200"
+                  aria-label="Open Huawei cookie settings"
+                  aria-expanded={isProfileOpen}
+                  onClick={() => setIsProfileOpen((current) => !current)}
                 >
-                  <RefreshCw className={`size-4 ${huaweiCartsLoading ? "animate-spin" : ""}`} />
+                  <UserCircle2 className="size-5" />
                 </Button>
+
+                {isProfileOpen ? (
+                  <div className="absolute top-full right-0 z-50 mt-3 w-[min(92vw,380px)] rounded-2xl border border-zinc-200 bg-white p-4 shadow-[0_28px_80px_-40px_rgba(15,23,42,0.45)]">
+                    <div className="space-y-1">
+                      <p className="text-sm font-semibold text-zinc-950">Huawei Cloud Cookie</p>
+                      <p className="text-sm text-zinc-500">
+                        Paste your website cookie string. It will be saved locally in this browser and works even before you sign in.
+                      </p>
+                    </div>
+                    <div className="mt-4 space-y-3">
+                      <textarea
+                        value={cookieDraft}
+                        onChange={(event) => setCookieDraft(event.target.value)}
+                        className="min-h-32 w-full rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-900 outline-none transition focus:border-zinc-400 focus:ring-3 focus:ring-zinc-200"
+                        placeholder="cookie_name=value; other_cookie=value;"
+                      />
+                      <div className="flex items-center justify-between gap-3 text-xs text-zinc-500">
+                        <span>{cookieValue ? "Cookie saved locally" : "No cookie saved yet"}</span>
+                        <span>{cookieDraft.length} chars</span>
+                      </div>
+                      <div className="flex justify-end gap-2">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={() => {
+                            setCookieDraft(cookieValue);
+                            setIsProfileOpen(false);
+                          }}
+                        >
+                          Cancel
+                        </Button>
+                        <Button type="button" onClick={handleSaveCookie}>
+                          Save Cookie
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                ) : null}
+              </div>
+              {session ? (
                 <Button type="button" variant="outline" onClick={() => authClient.signOut()}>
                   Sign Out
                 </Button>
-                <div ref={profileAreaRef} className="relative">
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    className="size-10 rounded-full border border-zinc-200"
-                    aria-label="Open profile settings"
-                    aria-expanded={isProfileOpen}
-                    onClick={() => setIsProfileOpen((current) => !current)}
-                  >
-                    <UserCircle2 className="size-5" />
+              ) : (
+                <>
+                  <Button type="button" variant="outline" onClick={() => setAuthMode("sign-in")}>
+                    Sign In
                   </Button>
-
-                  {isProfileOpen ? (
-                    <div className="absolute top-full right-0 z-50 mt-3 w-[min(92vw,380px)] rounded-2xl border border-zinc-200 bg-white p-4 shadow-[0_28px_80px_-40px_rgba(15,23,42,0.45)]">
-                      <div className="space-y-1">
-                        <p className="text-sm font-semibold text-zinc-950">Huawei Cloud Cookie</p>
-                        <p className="text-sm text-zinc-500">Paste your website cookie string. It will be saved locally in this browser.</p>
-                      </div>
-                      <div className="mt-4 space-y-3">
-                        <textarea
-                          value={cookieDraft}
-                          onChange={(event) => setCookieDraft(event.target.value)}
-                          className="min-h-32 w-full rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-900 outline-none transition focus:border-zinc-400 focus:ring-3 focus:ring-zinc-200"
-                          placeholder="cookie_name=value; other_cookie=value;"
-                        />
-                        <div className="flex items-center justify-between gap-3 text-xs text-zinc-500">
-                          <span>{cookieValue ? "Cookie saved locally" : "No cookie saved yet"}</span>
-                          <span>{cookieDraft.length} chars</span>
-                        </div>
-                        <div className="flex justify-end gap-2">
-                          <Button
-                            type="button"
-                            variant="outline"
-                            onClick={() => {
-                              setCookieDraft(cookieValue);
-                              setIsProfileOpen(false);
-                            }}
-                          >
-                            Cancel
-                          </Button>
-                          <Button type="button" onClick={handleSaveCookie}>
-                            Save Cookie
-                          </Button>
-                        </div>
-                      </div>
-                    </div>
-                  ) : null}
-                </div>
-              </div>
-            ) : null}
+                  <Button type="button" onClick={() => setAuthMode("sign-up")}>
+                    Create Account
+                  </Button>
+                </>
+              )}
+            </div>
           </div>
+          <nav className="mt-3 flex items-center gap-2 lg:hidden">
+            <HomeNavLink href="/projects" active={false}>
+              Projects
+            </HomeNavLink>
+            <HomeNavLink href="/" active>
+              Dashboard
+            </HomeNavLink>
+          </nav>
         </header>
 
         {isSessionPending ? (
           <Card>
             <CardContent className="py-16 text-center text-zinc-500">Checking session...</CardContent>
           </Card>
-        ) : !session ? (
+        ) : (
+          <>
+        {!session ? (
           <Card className="mx-auto w-full max-w-md">
             <CardHeader className="space-y-2">
               <CardTitle>{authMode === "sign-in" ? "Sign In" : "Create Account"}</CardTitle>
               <p className="text-sm text-zinc-500">
-                Use email and password authentication. Projects and lists are stored per user in Bun SQLite.
+                Use the calculator without an account. Sign in only when you want to save carts, projects, or collaborate on shared work.
               </p>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -1838,154 +3359,148 @@ export default function Home() {
               </div>
             </CardContent>
           </Card>
-        ) : (
-          <>
-        <Card className="relative z-30 overflow-visible">
-          <CardHeader className="py-6">
-            <div className="flex justify-center">
-              <div ref={searchAreaRef} className="relative z-40 w-full max-w-3xl">
-                <label htmlFor="service-search" className="sr-only">
-                  Search services
-                </label>
-                <Search className="pointer-events-none absolute top-1/2 left-5 z-10 h-5 w-5 -translate-y-1/2 text-zinc-400" />
-                <Input
-                  id="service-search"
-                  ref={searchInputRef}
-                  value={query}
-                  onFocus={() => setIsSearchOpen(true)}
-                  onChange={(event) => {
-                    setQuery(event.target.value);
+        ) : null}
+        <div className="relative z-30 px-1 py-1 sm:px-2">
+          <div className="flex justify-center">
+            <div ref={searchAreaRef} className="relative z-40 w-full max-w-3xl">
+              <label htmlFor="service-search" className="sr-only">
+                Search services
+              </label>
+              <Search className="pointer-events-none absolute top-1/2 left-5 z-10 h-5 w-5 -translate-y-1/2 text-zinc-400" />
+              <Input
+                id="service-search"
+                ref={searchInputRef}
+                value={query}
+                onFocus={() => setIsSearchOpen(true)}
+                onChange={(event) => {
+                  setQuery(event.target.value);
+                  setIsSearchOpen(true);
+                  setActiveSuggestionIndex(0);
+                }}
+                onKeyDown={(event) => {
+                  if (event.key === "ArrowDown") {
+                    if (suggestions.length === 0) {
+                      return;
+                    }
+
+                    event.preventDefault();
                     setIsSearchOpen(true);
-                    setActiveSuggestionIndex(0);
-                  }}
-                  onKeyDown={(event) => {
-                    if (event.key === "ArrowDown") {
-                      if (suggestions.length === 0) {
-                        return;
-                      }
+                    setActiveSuggestionIndex((current) => (current + 1) % suggestions.length);
+                  }
 
-                      event.preventDefault();
-                      setIsSearchOpen(true);
-                      setActiveSuggestionIndex((current) => (current + 1) % suggestions.length);
+                  if (event.key === "ArrowUp") {
+                    if (suggestions.length === 0) {
+                      return;
                     }
 
-                    if (event.key === "ArrowUp") {
-                      if (suggestions.length === 0) {
-                        return;
-                      }
+                    event.preventDefault();
+                    setIsSearchOpen(true);
+                    setActiveSuggestionIndex((current) => (current - 1 + suggestions.length) % suggestions.length);
+                  }
 
-                      event.preventDefault();
-                      setIsSearchOpen(true);
-                      setActiveSuggestionIndex((current) => (current - 1 + suggestions.length) % suggestions.length);
-                    }
+                  if (event.key === "Enter" && suggestions[activeSuggestionIndex]) {
+                    event.preventDefault();
+                    handleSelectService(suggestions[activeSuggestionIndex].name);
+                  }
 
-                    if (event.key === "Enter" && suggestions[activeSuggestionIndex]) {
-                      event.preventDefault();
-                      handleSelectService(suggestions[activeSuggestionIndex].name);
-                    }
+                  if (event.key === "Escape") {
+                    setIsSearchOpen(false);
+                  }
+                }}
+                role="combobox"
+                aria-autocomplete="list"
+                aria-controls={listboxId}
+                aria-expanded={hasSuggestions}
+                aria-activedescendant={activeDescendant}
+                className="h-16 rounded-full border-zinc-200 bg-white pr-26 pl-14 text-base shadow-[0_20px_50px_-30px_rgba(15,23,42,0.35)]"
+                placeholder="Search service name"
+              />
+              <div className="pointer-events-none absolute top-1/2 right-3 -translate-y-1/2 rounded-full border border-zinc-200 bg-zinc-50 px-3 py-1 text-xs font-medium text-zinc-500">
+                Ctrl K
+              </div>
 
-                    if (event.key === "Escape") {
-                      setIsSearchOpen(false);
-                    }
-                  }}
-                  role="combobox"
-                  aria-autocomplete="list"
-                  aria-controls={listboxId}
-                  aria-expanded={hasSuggestions}
-                  aria-activedescendant={activeDescendant}
-                  className="h-16 rounded-full border-zinc-200 bg-white pr-26 pl-14 text-base shadow-[0_20px_50px_-30px_rgba(15,23,42,0.35)]"
-                  placeholder="Search service name"
-                />
-                <div className="pointer-events-none absolute top-1/2 right-3 -translate-y-1/2 rounded-full border border-zinc-200 bg-zinc-50 px-3 py-1 text-xs font-medium text-zinc-500">
-                  Ctrl K
-                </div>
-
-                {isSearchOpen && normalizedQuery ? (
-                  suggestions.length > 0 ? (
-                    <div
-                      id={listboxId}
-                      role="listbox"
-                      className="absolute top-full right-0 left-0 z-50 mt-3 overflow-hidden rounded-[28px] border border-zinc-200 bg-white shadow-[0_28px_80px_-40px_rgba(15,23,42,0.45)]"
-                    >
-                      <div className="border-b border-zinc-100 px-5 py-3 text-xs font-medium tracking-[0.18em] text-zinc-500 uppercase">
-                        Suggested services
-                      </div>
-                      <div className="p-2">
-                        {suggestions.map((service, index) => (
-                          <button
-                            key={service.name}
-                            id={`${listboxId}-${index}`}
-                            type="button"
-                            role="option"
-                            aria-selected={index === activeSuggestionIndex}
-                            className={`flex w-full items-center justify-between rounded-2xl px-4 py-3 text-left transition ${
-                              index === activeSuggestionIndex ? "bg-zinc-950 text-white" : "text-zinc-900 hover:bg-zinc-100"
-                            }`}
-                            onMouseEnter={() => setActiveSuggestionIndex(index)}
-                            onClick={() => handleSelectService(service.name)}
-                          >
-                            <div className="flex items-center gap-3">
-                              <Image src={service.icon} alt="" width={36} height={36} className="size-9 rounded-md object-contain" />
-                              <div>
-                                <p className="font-medium">{service.name}</p>
-                                <p
-                                  className={`text-sm ${
-                                    index === activeSuggestionIndex ? "text-zinc-300" : "text-zinc-500"
-                                  }`}
-                                >
-                                  {service.code}
-                                </p>
-                              </div>
-                            </div>
-                            <div className="flex items-center gap-2">
+              {isSearchOpen && normalizedQuery ? (
+                suggestions.length > 0 ? (
+                  <div
+                    id={listboxId}
+                    role="listbox"
+                    className="absolute top-full right-0 left-0 z-50 mt-3 overflow-hidden rounded-[28px] border border-zinc-200 bg-white shadow-[0_28px_80px_-40px_rgba(15,23,42,0.45)]"
+                  >
+                    <div className="border-b border-zinc-100 px-5 py-3 text-xs font-medium tracking-[0.18em] text-zinc-500 uppercase">
+                      Suggested services
+                    </div>
+                    <div className="p-2">
+                      {suggestions.map((service, index) => (
+                        <button
+                          key={service.name}
+                          id={`${listboxId}-${index}`}
+                          type="button"
+                          role="option"
+                          aria-selected={index === activeSuggestionIndex}
+                          className={`flex w-full items-center justify-between rounded-2xl px-4 py-3 text-left transition ${
+                            index === activeSuggestionIndex ? "bg-zinc-950 text-white" : "text-zinc-900 hover:bg-zinc-100"
+                          }`}
+                          onMouseEnter={() => setActiveSuggestionIndex(index)}
+                          onClick={() => handleSelectService(service.name)}
+                        >
+                          <div className="flex items-center gap-3">
+                            <Image src={service.icon} alt="" width={36} height={36} className="size-9 rounded-md object-contain" />
+                            <div>
+                              <p className="font-medium">{service.name}</p>
                               <p
-                                className={`rounded-full px-2 py-1 text-xs font-medium ${
-                                  index === activeSuggestionIndex ? "bg-white/10 text-zinc-200" : "bg-zinc-100 text-zinc-500"
+                                className={`text-sm ${
+                                  index === activeSuggestionIndex ? "text-zinc-300" : "text-zinc-500"
                                 }`}
                               >
                                 {service.code}
                               </p>
-                              <span
-                                className={`rounded-full px-2 py-1 text-xs font-medium ${
-                                  index === activeSuggestionIndex ? "bg-white/10 text-zinc-200" : "bg-zinc-100 text-zinc-500"
-                                }`}
-                              >
-                                Enter
-                              </span>
                             </div>
-                          </button>
-                        ))}
-                      </div>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <p
+                              className={`rounded-full px-2 py-1 text-xs font-medium ${
+                                index === activeSuggestionIndex ? "bg-white/10 text-zinc-200" : "bg-zinc-100 text-zinc-500"
+                              }`}
+                            >
+                              {service.code}
+                            </p>
+                            <span
+                              className={`rounded-full px-2 py-1 text-xs font-medium ${
+                                index === activeSuggestionIndex ? "bg-white/10 text-zinc-200" : "bg-zinc-100 text-zinc-500"
+                              }`}
+                            >
+                              Enter
+                            </span>
+                          </div>
+                        </button>
+                      ))}
                     </div>
-                  ) : (
-                    <div className="absolute top-full right-0 left-0 z-50 mt-3 rounded-[28px] border border-zinc-200 bg-white px-5 py-4 text-sm text-zinc-500 shadow-[0_28px_80px_-40px_rgba(15,23,42,0.45)]">
-                      No services matched your search.
-                    </div>
-                  )
-                ) : null}
-              </div>
+                  </div>
+                ) : (
+                  <div className="absolute top-full right-0 left-0 z-50 mt-3 rounded-[28px] border border-zinc-200 bg-white px-5 py-4 text-sm text-zinc-500 shadow-[0_28px_80px_-40px_rgba(15,23,42,0.45)]">
+                    No services matched your search.
+                  </div>
+                )
+              ) : null}
             </div>
-          </CardHeader>
-        </Card>
+          </div>
+        </div>
 
-        <main className="relative z-0 grid gap-4 xl:grid-cols-[260px_minmax(0,1fr)_340px]">
-          <Card className="overflow-hidden">
+        <main className="relative z-0 grid items-start gap-4 xl:grid-cols-[340px_minmax(0,1fr)_340px]">
+          <Card className="overflow-hidden xl:sticky xl:top-24 xl:max-h-[calc(100vh-7rem)]">
             <CardHeader className="pb-3">
               <div className="flex items-center justify-between">
                 <div>
                   <CardTitle>My Projects</CardTitle>
-                  <p className="mt-1 text-sm text-zinc-500">Projects and lists are scoped to your account.</p>
+                  <p className="mt-1 text-sm text-zinc-500">
+                    {session ? "Projects and lists are scoped to your account." : "Browse anonymously. Sign in when you want to save carts and projects."}
+                  </p>
                   {huaweiCartsSyncedAt ? (
                     <p className="mt-1 text-xs text-zinc-400">Huawei carts synced {new Date(huaweiCartsSyncedAt).toLocaleString()}</p>
                   ) : null}
                   {huaweiCartsError ? <p className="mt-1 text-xs text-red-600">{huaweiCartsError}</p> : null}
                 </div>
-                <div className="flex items-center gap-2">
-                  <Link href="/projects" className="text-xs text-zinc-500 underline-offset-4 hover:underline">
-                    Open full page
-                  </Link>
-                  <Badge variant="secondary">{projects.length}</Badge>
-                </div>
+                <Badge variant="secondary">{projects.length}</Badge>
               </div>
               <div className="flex flex-col gap-2">
                 <div className="flex gap-2">
@@ -1993,8 +3508,9 @@ export default function Home() {
                     value={newProjectName}
                     onChange={(event) => setNewProjectName(event.target.value)}
                     placeholder="New project name"
+                    disabled={!session}
                   />
-                  <Button variant="outline" size="sm" onClick={handleCreateProject} disabled={newProjectPending}>
+                  <Button variant="outline" size="sm" onClick={handleCreateProject} disabled={newProjectPending || !session}>
                     {newProjectPending ? "Adding..." : "New Project"}
                   </Button>
                 </div>
@@ -2003,8 +3519,13 @@ export default function Home() {
             </CardHeader>
             <Separator />
             <CardContent className="px-0">
-              <ScrollArea className="h-[620px] px-4">
+              <ScrollArea className="h-[620px] px-4 xl:h-[calc(100vh-15rem)]">
                 <div className="space-y-3 py-3">
+                  {!session ? (
+                    <div className="rounded-lg border border-dashed bg-zinc-50 p-4 text-sm text-zinc-500">
+                      Sign in to save carts and projects. The calculator and Huawei cookie tools still work without an account.
+                    </div>
+                  ) : null}
                   {projectsLoading ? (
                     <div className="rounded-lg border border-dashed bg-zinc-50 p-4 text-sm text-zinc-500">Loading projects...</div>
                   ) : null}
@@ -2013,9 +3534,38 @@ export default function Home() {
                     const isEditingProject = editingProjectId === project.id;
                     const isRenamingProject = renamingProjectId === project.id;
                     const isDeletingProject = deletingProjectId === project.id;
-                    const isCloningProject = cloningProjectId === project.id;
                     const projectCloneMessage = projectCloneMessages[project.id] ?? "";
                     const projectCloneIsError = projectCloneMessageErrors[project.id] ?? false;
+                    const projectHuaweiMessage = projectHuaweiMessages[project.id] ?? "";
+                    const projectHuaweiMessageIsError = projectHuaweiMessageErrors[project.id] ?? false;
+                    const projectShareMessage = projectShareMessages[project.id] ?? "";
+                    const projectMenuItems: ActionMenuItem[] = [
+                      {
+                        label: "Rename Project",
+                        icon: <Pencil className="size-4" />,
+                        onSelect: () => handleStartProjectRename(project),
+                        disabled: isDeletingProject,
+                      },
+                      {
+                        label: "Create Huawei Carts",
+                        icon: <RefreshCw className="size-4" />,
+                        onSelect: () => openActionModal({ kind: "project-huawei", projectId: project.id }),
+                      },
+                      {
+                        label: "Clone Project",
+                        icon: <Copy className="size-4" />,
+                        onSelect: () => openActionModal({ kind: "project-clone", projectId: project.id }),
+                      },
+                      ...(project.canShare
+                        ? [
+                            {
+                              label: "Share Project",
+                              icon: <Share2 className="size-4" />,
+                              onSelect: () => openActionModal({ kind: "project-share", projectId: project.id }),
+                            },
+                          ]
+                        : []),
+                    ];
 
                     return (
                       <div key={project.id} className="rounded-lg border bg-white">
@@ -2084,15 +3634,24 @@ export default function Home() {
                                 </Button>
                               </>
                             ) : (
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                onClick={() => handleStartProjectRename(project)}
-                                disabled={isDeletingProject}
-                                aria-label="Rename project"
-                              >
-                                <Pencil className="size-4" />
-                              </Button>
+                              <>
+                                {project.canShare ? (
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={() => openActionModal({ kind: "project-share", projectId: project.id })}
+                                    aria-label={`Share ${project.name}`}
+                                  >
+                                    <Share2 className="size-4" />
+                                  </Button>
+                                ) : null}
+                                <ActionMenu
+                                  open={openProjectMenuId === project.id}
+                                  onOpenChange={(open) => setOpenProjectMenuId(open ? project.id : null)}
+                                  label={`Open actions for ${project.name}`}
+                                  items={projectMenuItems}
+                                />
+                              </>
                             )}
                             <Button
                               variant="ghost"
@@ -2161,95 +3720,19 @@ export default function Home() {
                                   })}
                                 </SelectContent>
                               </Select>
-                              <div className="rounded-lg border bg-zinc-50 p-3">
-                                <div className="space-y-1">
-                                  <p className="text-sm font-medium text-zinc-900">Clone Project</p>
-                                  <p className="text-xs text-zinc-500">
-                                    Clone every cart in this project into a new project, with optional region and billing conversion.
-                                  </p>
-                                </div>
-                                <div className="mt-3 grid gap-2">
-                                  <Input
-                                    value={projectCloneNameDrafts[project.id] ?? ""}
-                                    onChange={(event) =>
-                                      setProjectCloneNameDrafts((current) => ({
-                                        ...current,
-                                        [project.id]: event.target.value,
-                                      }))}
-                                    placeholder={getProjectCloneDefaultName(
-                                      project.name,
-                                      projectCloneTargetRegions[project.id] ?? "",
-                                      projectCloneTargetBillingModes[project.id] ?? "",
-                                    )}
-                                  />
-                                  <div className="grid gap-2">
-                                    <Select
-                                      value={projectCloneTargetRegions[project.id] || "__keep"}
-                                      onValueChange={(value) =>
-                                        setProjectCloneTargetRegions((current) => ({
-                                          ...current,
-                                          [project.id]: value && value !== "__keep" ? (value as HuaweiRegionKey) : "",
-                                        }))}
-                                    >
-                                      <SelectTrigger className="bg-white">
-                                        <SelectValue>
-                                          {projectCloneTargetRegions[project.id]
-                                            ? `Region: ${huaweiRegions[projectCloneTargetRegions[project.id]].short}`
-                                            : "Keep current region"}
-                                        </SelectValue>
-                                      </SelectTrigger>
-                                      <SelectContent>
-                                        <SelectItem value="__keep">Keep current region</SelectItem>
-                                        {cloneableRegions.map(([value, labels]) => (
-                                          <SelectItem key={value} value={value}>
-                                            {labels.short}
-                                          </SelectItem>
-                                        ))}
-                                      </SelectContent>
-                                    </Select>
-                                    <Select
-                                      value={projectCloneTargetBillingModes[project.id] || "__keep"}
-                                      onValueChange={(value) =>
-                                        setProjectCloneTargetBillingModes((current) => ({
-                                          ...current,
-                                          [project.id]: value && value !== "__keep" ? (value as BillingOption) : "",
-                                        }))}
-                                    >
-                                      <SelectTrigger className="bg-white">
-                                        <SelectValue>
-                                          {projectCloneTargetBillingModes[project.id]
-                                            ? `Billing: ${projectCloneTargetBillingModes[project.id]}`
-                                            : "Keep current billing"}
-                                        </SelectValue>
-                                      </SelectTrigger>
-                                      <SelectContent>
-                                        <SelectItem value="__keep">Keep current billing</SelectItem>
-                                        {options.billing.map((option) => (
-                                          <SelectItem key={option} value={option}>
-                                            {option}
-                                          </SelectItem>
-                                        ))}
-                                      </SelectContent>
-                                    </Select>
-                                  </div>
-                                  <div className="flex flex-col gap-2">
+                              {projectHuaweiMessage || projectCloneMessage || projectShareMessage ? (
+                                <div className="rounded-lg border bg-zinc-50 p-3">
+                                  <div className="space-y-1 text-xs">
+                                    {projectHuaweiMessage ? (
+                                      <p className={projectHuaweiMessageIsError ? "text-red-600" : "text-zinc-600"}>{projectHuaweiMessage}</p>
+                                    ) : null}
                                     {projectCloneMessage ? (
-                                      <p className={`text-xs ${projectCloneIsError ? "text-red-600" : "text-zinc-500"}`}>{projectCloneMessage}</p>
-                                    ) : (
-                                      <p className="text-xs text-zinc-400">Huawei links are not copied to the new project.</p>
-                                    )}
-                                    <Button
-                                      type="button"
-                                      variant="outline"
-                                      size="sm"
-                                      onClick={() => void handleCloneProject(project)}
-                                      disabled={isCloningProject}
-                                    >
-                                      {isCloningProject ? "Cloning Project..." : "Clone Project"}
-                                    </Button>
+                                      <p className={projectCloneIsError ? "text-red-600" : "text-zinc-600"}>{projectCloneMessage}</p>
+                                    ) : null}
+                                    {projectShareMessage ? <p className="text-zinc-600">{projectShareMessage}</p> : null}
                                   </div>
                                 </div>
-                              </div>
+                              ) : null}
                               {project.lists.map((item) => (
                                 <div
                                   key={item.id}
@@ -2303,7 +3786,7 @@ export default function Home() {
             </CardContent>
           </Card>
 
-          <Card className="overflow-hidden">
+          <Card className="overflow-visible">
             <Tabs value={activeTab} onValueChange={setActiveTab}>
               <CardHeader className="space-y-4">
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -2323,423 +3806,230 @@ export default function Home() {
               <Separator />
 
               <TabsContent value="calculator">
-                <CardContent className="space-y-6 py-5">
-                  <div className="grid gap-4 lg:grid-cols-2">
-                    <div className="space-y-2">
-                      <p className="text-sm text-zinc-600">Description (Optional)</p>
-                      <Input value={selectedService} readOnly className="max-w-sm lg:max-w-none" />
-                    </div>
-
-                    <section className="space-y-3">
-                      <p className="text-sm font-medium">Region</p>
-                      <Select value={regionValue} onValueChange={(value) => setRegionValue(value as HuaweiRegionKey)}>
-                        <SelectTrigger className="max-w-sm bg-white lg:max-w-none">
-                          <SelectValue>{huaweiRegions[regionValue].full}</SelectValue>
-                        </SelectTrigger>
-                        <SelectContent>
-                          {Object.entries(huaweiRegions).map(([value, labels]) => (
-                            <SelectItem key={value} value={value}>
-                              {labels.short}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </section>
-                  </div>
-
-                  <section className={`grid gap-4 ${billingMode === "Pay-per-use" ? "xl:grid-cols-[minmax(0,1fr)_340px]" : ""}`}>
-                    <div className="space-y-3">
-                      <p className="text-sm font-medium">Billing Mode</p>
-                      <OptionGrid
-                        items={[...options.billing]}
-                        value={billingMode}
-                        onChange={(value) => {
-                          setBillingMode(value);
-                          setFlavorPage(1);
-                        }}
-                      />
-                    </div>
-                    {billingMode === "Pay-per-use" ? (
-                      <div className="space-y-3">
-                        <p className="text-sm font-medium">Usage Hours</p>
-                        <div className="flex items-center gap-3">
-                          <div className="flex items-center overflow-hidden rounded-lg border border-zinc-200 bg-white">
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              className="h-11 rounded-none px-3"
-                              onClick={() => updateUsageHours(String(Number(usageHours || "744") - 24))}
-                            >
-                              -
-                            </Button>
-                            <Input
-                              value={usageHours}
-                              onChange={(event) => {
-                                const digitsOnly = event.target.value.replace(/\D/g, "");
-                                if (digitsOnly === "") {
-                                  setUsageHours("");
-                                  return;
-                                }
-                                updateUsageHours(digitsOnly);
-                              }}
-                              onBlur={() => updateUsageHours(usageHours || "744")}
-                              inputMode="numeric"
-                              className="h-11 w-24 rounded-none border-0 text-center shadow-none focus-visible:ring-0"
-                            />
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              className="h-11 rounded-none px-3"
-                              onClick={() => updateUsageHours(String(Number(usageHours || "744") + 24))}
-                            >
-                              +
-                            </Button>
+                {isSelectedServiceImplemented ? (
+                  <>
+                    <div className="fixed right-4 bottom-4 left-4 z-40 grid gap-3 rounded-2xl border border-zinc-200 bg-white/95 px-4 py-3 shadow-[0_24px_70px_-32px_rgba(15,23,42,0.45)] backdrop-blur xl:left-1/2 xl:w-[min(920px,calc(100vw-48rem))] xl:-translate-x-1/2 xl:grid-cols-[minmax(0,1fr)_auto] xl:items-center">
+                      <div className="min-w-0">
+                        <p className="text-[2.125rem] leading-none font-semibold tracking-tight text-zinc-950">{selectedEstimateParts.amount}</p>
+                        <p className="mt-0.5 leading-tight text-sm text-zinc-500">
+                          {selectedEstimateParts.timeframe ? `${selectedEstimateParts.timeframe} · ` : ""}
+                          {instanceCountValue} {quantityLabel}
+                          {instanceCountValue === 1 ? "" : "s"}
+                        </p>
+                      </div>
+                      <div className="flex flex-col justify-center gap-2 xl:items-end">
+                        {addToListMessage ? <p className="text-sm text-zinc-500">{addToListMessage}</p> : null}
+                        <div className="flex flex-wrap items-center gap-3 xl:justify-end">
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm font-medium text-zinc-600">{quantityLabel}s</span>
+                            <div className="flex items-center overflow-hidden rounded-lg border border-zinc-200 bg-white">
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                className="h-10 rounded-none px-3"
+                                onClick={() => updateInstanceCount(String(Number(instanceCount || "1") - 1))}
+                              >
+                                -
+                              </Button>
+                              <Input
+                                value={instanceCount}
+                                onChange={(event) => {
+                                  const digitsOnly = event.target.value.replace(/\D/g, "");
+                                  if (digitsOnly === "") {
+                                    setInstanceCount("");
+                                    return;
+                                  }
+                                  updateInstanceCount(digitsOnly);
+                                }}
+                                onBlur={() => updateInstanceCount(instanceCount || "1")}
+                                inputMode="numeric"
+                                className="h-10 w-16 rounded-none border-0 text-center shadow-none focus-visible:ring-0"
+                              />
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                className="h-10 rounded-none px-3"
+                                onClick={() => updateInstanceCount(String(Number(instanceCount || "1") + 1))}
+                              >
+                                +
+                              </Button>
+                            </div>
                           </div>
-                          <span className="text-sm font-medium text-zinc-500">hours</span>
+                          {editingProductId ? (
+                            <Button type="button" variant="outline" onClick={handleCancelEdit} disabled={addToListPending}>
+                              Cancel
+                            </Button>
+                          ) : null}
+                          <Button onClick={handleAddToList} disabled={addToListPending || !selectedListId || !session}>
+                            {addToListPending ? (editingProductId ? "Saving..." : "Adding...") : editingProductId ? "Save Changes" : "Add to List"}
+                          </Button>
                         </div>
                       </div>
-                    ) : null}
-                  </section>
-                  <section className="space-y-3">
-                    <div className="grid gap-4 md:grid-cols-2">
-                      <div className="space-y-2">
-                        <p className="text-sm font-medium">Minimum vCPUs</p>
-                        <Input
-                          value={vcpuValue}
-                          onChange={(event) => setVcpuValue(event.target.value)}
-                          inputMode="numeric"
-                          placeholder="Show flavors with at least this many vCPUs"
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <p className="text-sm font-medium">Minimum Memory (GiB)</p>
-                        <Input
-                          value={ramValue}
-                          onChange={(event) => setRamValue(event.target.value)}
-                          inputMode="numeric"
-                          placeholder="Show flavors with at least this much RAM"
-                        />
-                      </div>
                     </div>
-                  </section>
+                    <CardContent className="space-y-6 py-5 pb-44">
+                      <div className="grid gap-4 lg:grid-cols-2">
+                        <div className="space-y-2">
+                          <p className="text-sm text-zinc-600">Description (Optional)</p>
+                          <Input value={selectedService} readOnly className="max-w-sm lg:max-w-none" />
+                        </div>
 
-                  <section className="space-y-3">
-                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                      <div>
-                        <p className="text-sm font-medium">Flavor</p>
-                        <p className="text-sm text-zinc-500">Only flavors meeting the minimum vCPU and RAM filters appear here.</p>
+                        <section className="space-y-3">
+                          <p className="text-sm font-medium">Region</p>
+                          <Select value={regionValue} onValueChange={(value) => setRegionValue(value as HuaweiRegionKey)}>
+                            <SelectTrigger className="max-w-sm bg-white lg:max-w-none">
+                              <SelectValue>{huaweiRegions[regionValue].full}</SelectValue>
+                            </SelectTrigger>
+                            <SelectContent>
+                              {Object.entries(huaweiRegions).map(([value, labels]) => (
+                                <SelectItem key={value} value={value}>
+                                  {labels.short}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </section>
                       </div>
-                      <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
-                        <div className="w-full sm:w-44">
-                          <Input
-                            value={flavorQuery}
-                            onChange={(event) => {
-                              setFlavorQuery(event.target.value);
+
+                      <section className={`grid gap-4 ${billingMode === "Pay-per-use" ? "xl:grid-cols-[minmax(0,1fr)_340px]" : ""}`}>
+                        <div className="space-y-3">
+                          <p className="text-sm font-medium">Billing Mode</p>
+                          <OptionGrid
+                            items={calculatorBillingOptions}
+                            value={billingMode}
+                            onChange={(value) => {
+                              setBillingMode(value);
                               setFlavorPage(1);
                             }}
-                            placeholder="Search flavors"
                           />
                         </div>
-                        <Select
-                          value={flavorSort}
-                          onValueChange={(value) => {
-                            if (!value) return;
+                        {billingMode === "Pay-per-use" ? (
+                          <div className="space-y-3">
+                            <p className="text-sm font-medium">Usage Hours</p>
+                            <div className="flex items-center gap-3">
+                              <div className="flex items-center overflow-hidden rounded-lg border border-zinc-200 bg-white">
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  className="h-11 rounded-none px-3"
+                                  onClick={() => updateUsageHours(String(Number(usageHours || "744") - 24))}
+                                >
+                                  -
+                                </Button>
+                                <Input
+                                  value={usageHours}
+                                  onChange={(event) => {
+                                    const digitsOnly = event.target.value.replace(/\D/g, "");
+                                    if (digitsOnly === "") {
+                                      setUsageHours("");
+                                      return;
+                                    }
+                                    updateUsageHours(digitsOnly);
+                                  }}
+                                  onBlur={() => updateUsageHours(usageHours || "744")}
+                                  inputMode="numeric"
+                                  className="h-11 w-24 rounded-none border-0 text-center shadow-none focus-visible:ring-0"
+                                />
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  className="h-11 rounded-none px-3"
+                                  onClick={() => updateUsageHours(String(Number(usageHours || "744") + 24))}
+                                >
+                                  +
+                                </Button>
+                              </div>
+                              <span className="text-sm font-medium text-zinc-500">hours</span>
+                            </div>
+                          </div>
+                        ) : null}
+                      </section>
+                      {isEcsCalculator ? (
+                        <EcsCalculatorPanel
+                          minVcpuValue={minVcpuValue}
+                          onMinVcpuChange={setMinVcpuValue}
+                          minRamValue={minRamValue}
+                          onMinRamChange={setMinRamValue}
+                          flavorQuery={flavorQuery}
+                          onFlavorQueryChange={(value) => {
+                            setFlavorQuery(value);
+                            setFlavorPage(1);
+                          }}
+                          flavorSort={flavorSort}
+                          flavorSortOptions={flavorSortOptions}
+                          onFlavorSortChange={(value) => {
+                            if (!value) {
+                              return;
+                            }
                             setFlavorSort(value);
                             setFlavorPage(1);
                           }}
-                        >
-                          <SelectTrigger className="w-full bg-white sm:w-52">
-                            <SelectValue>{flavorSortLabels[flavorSort as keyof typeof flavorSortLabels]}</SelectValue>
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="price-asc">{flavorSortLabels["price-asc"]}</SelectItem>
-                            <SelectItem value="price-desc">{flavorSortLabels["price-desc"]}</SelectItem>
-                            <SelectItem value="name-asc">{flavorSortLabels["name-asc"]}</SelectItem>
-                            <SelectItem value="vcpu-asc">{flavorSortLabels["vcpu-asc"]}</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    </div>
-
-                    <div className="rounded-xl border bg-zinc-50 p-3">
-                      {catalogFlavorsError ? <p className="mb-3 text-sm text-red-600">{catalogFlavorsError}</p> : null}
-                      {catalogFlavorsLastCompletedAt ? (
-                        <p className="mb-3 text-xs text-zinc-500">Last synced: {new Date(catalogFlavorsLastCompletedAt).toLocaleString()}</p>
-                      ) : null}
-                      <div className="space-y-2">
-                        {catalogFlavorsLoading ? (
-                          <div className="rounded-lg border border-dashed bg-white px-3 py-6 text-center text-sm text-zinc-500">
-                            Loading ECS flavors...
-                          </div>
-                        ) : null}
-
-                        {visibleFlavors.map((flavor) => {
-                          const isSelected = selectedFlavor === flavor.name;
-
-                          return (
-                            <button
-                              key={flavor.name}
-                              type="button"
-                              className={`flex w-full items-center justify-between rounded-lg border px-3 py-3 text-left ${
-                                isSelected ? "border-zinc-950 bg-white" : "border-zinc-200 bg-white/80"
-                              }`}
-                              onClick={() => {
-                                setSelectedFlavor(flavor.name);
-                                setVcpuValue(flavor.vcpu);
-                                setRamValue(flavor.ram);
-                              }}
-                            >
-                              <div>
-                                <p className="font-medium text-zinc-950">{flavor.name}</p>
-                                <p className="text-sm text-zinc-500">{flavor.family}</p>
-                                <p className="text-xs text-zinc-400">{flavor.priceModeLabel}</p>
-                              </div>
-                              <div className="text-right text-sm">
-                                <p className="font-medium text-zinc-950">{flavor.price}</p>
-                                <p className="text-zinc-500">
-                                  {flavor.vcpu} vCPUs · {flavor.ram} GiB RAM
-                                </p>
-                              </div>
-                            </button>
-                          );
-                        })}
-
-                        {!catalogFlavorsLoading && visibleFlavors.length === 0 ? (
-                          <div className="rounded-lg border border-dashed bg-white px-3 py-6 text-center text-sm text-zinc-500">
-                            No flavors matched your search.
-                          </div>
-                        ) : null}
-                      </div>
-
-                      <div className="mt-3 flex items-center justify-between text-sm text-zinc-500">
-                        <span>
-                          Page {currentFlavorPage} of {totalFlavorPages}
-                        </span>
-                        <div className="flex gap-2">
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            onClick={() => setFlavorPage((page) => Math.max(1, page - 1))}
-                            disabled={currentFlavorPage === 1}
-                          >
-                            Previous
-                          </Button>
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            onClick={() => setFlavorPage((page) => Math.min(totalFlavorPages, page + 1))}
-                            disabled={currentFlavorPage === totalFlavorPages}
-                          >
-                            Next
-                          </Button>
-                        </div>
-                      </div>
-                    </div>
-                  </section>
-
-                  <section className="space-y-3">
-                    <p className="text-sm font-medium">System Disk</p>
-                    <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
-                      <Select
-                        value={systemDiskType}
-                        onValueChange={(value) => {
-                          if (!value) return;
-                          setSystemDiskType(value as (typeof systemDiskOptions)[number]);
-                        }}
-                      >
-                        <SelectTrigger className="w-full bg-white lg:w-72">
-                          <SelectValue>{systemDiskType}</SelectValue>
-                        </SelectTrigger>
-                        <SelectContent>
-                          {systemDiskOptions.map((option) => (
-                            <SelectItem key={option} value={option}>
-                              {option}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-
-                      <div className="flex items-center gap-3">
-                        <div className="flex items-center overflow-hidden rounded-lg border border-zinc-200 bg-white">
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            className="h-11 rounded-none px-3"
-                            onClick={() => updateSystemDiskSize(String(Number(systemDiskSize || "40") - 10))}
-                          >
-                            -
-                          </Button>
-                          <Input
-                            value={systemDiskSize}
-                            onChange={(event) => {
-                              const digitsOnly = event.target.value.replace(/\D/g, "");
-                              if (digitsOnly === "") {
-                                setSystemDiskSize("");
-                                return;
-                              }
-                              updateSystemDiskSize(digitsOnly);
-                            }}
-                            onBlur={() => updateSystemDiskSize(systemDiskSize || "40")}
-                            inputMode="numeric"
-                            className="h-11 w-20 rounded-none border-0 text-center shadow-none focus-visible:ring-0"
-                          />
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            className="h-11 rounded-none px-3"
-                            onClick={() => updateSystemDiskSize(String(Number(systemDiskSize || "40") + 10))}
-                          >
-                            +
-                          </Button>
-                        </div>
-                        <span className="text-sm font-medium text-zinc-500">GiB</span>
-                      </div>
-                    </div>
-                    <p className="text-sm text-zinc-500">Minimum 40 GiB, maximum 1024 GiB.</p>
-                  </section>
-
-                  <div className="rounded-lg border bg-zinc-50 p-3 text-sm text-zinc-600">
-                    Selected specifications: {selectedFlavor} | {vcpuValue || "-"} vCPUs | {ramValue || "-"} GiB | {systemDiskType} {systemDiskSize || "40"} GiB
-                    {selectedDiskPrice ? ` | Disk ${formatFlavorAmount(selectedDiskPrice.currency, selectedDiskPrice.amount, selectedDiskPrice.suffix)}` : ""}
-                    {selectedFlavorCard?.flavorPrice && selectedDiskPrice ? (
-                      <p className="mt-2 text-xs text-zinc-500">
-                        Flavor {selectedFlavorCard.flavorPrice} + Disk {formatFlavorAmount(selectedDiskPrice.currency, selectedDiskPrice.amount, selectedDiskPrice.suffix)}
-                      </p>
-                    ) : null}
-                  </div>
-                </CardContent>
-                <Separator />
-                <div className="grid gap-4 p-4 xl:grid-cols-[minmax(0,1fr)_auto] xl:items-end">
-                  <div className="min-w-0">
-                    <p className="text-sm text-zinc-600">Estimated Price</p>
-                    <p className="mt-1 text-4xl font-semibold tracking-tight text-zinc-950">{selectedEstimateParts.amount}</p>
-                    {selectedEstimateParts.timeframe ? (
-                      <p className="mt-1 text-sm font-medium text-zinc-500">{selectedEstimateParts.timeframe}</p>
-                    ) : null}
-                  </div>
-                  <div className="flex flex-col gap-2 xl:items-end">
-                    {addToListMessage ? <p className="text-sm text-zinc-500">{addToListMessage}</p> : null}
-                    <div className="flex flex-wrap items-center gap-3 xl:justify-end">
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm font-medium text-zinc-600">Instances</span>
-                        <div className="flex items-center overflow-hidden rounded-lg border border-zinc-200 bg-white">
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            className="h-10 rounded-none px-3"
-                            onClick={() => updateInstanceCount(String(Number(instanceCount || "1") - 1))}
-                          >
-                            -
-                          </Button>
-                          <Input
-                            value={instanceCount}
-                            onChange={(event) => {
-                              const digitsOnly = event.target.value.replace(/\D/g, "");
-                              if (digitsOnly === "") {
-                                setInstanceCount("");
-                                return;
-                              }
-                              updateInstanceCount(digitsOnly);
-                            }}
-                            onBlur={() => updateInstanceCount(instanceCount || "1")}
-                            inputMode="numeric"
-                            className="h-10 w-16 rounded-none border-0 text-center shadow-none focus-visible:ring-0"
-                          />
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            className="h-10 rounded-none px-3"
-                            onClick={() => updateInstanceCount(String(Number(instanceCount || "1") + 1))}
-                          >
-                            +
-                          </Button>
-                        </div>
-                      </div>
-                        {editingProductId ? (
-                          <Button type="button" variant="outline" onClick={handleCancelEdit} disabled={addToListPending}>
-                            Cancel
-                          </Button>
-                        ) : null}
-                        <Button onClick={handleAddToList} disabled={addToListPending || !selectedListId}>
-                          {addToListPending ? (editingProductId ? "Saving..." : "Adding...") : editingProductId ? "Save Changes" : "Add to List"}
-                        </Button>
-                    </div>
-                  </div>
-                </div>
+                          flavorPageSize={flavorPageSize}
+                          flavorPageSizeOptions={flavorPageSizeOptions}
+                          onFlavorPageSizeChange={(value) => {
+                            if (!flavorPageSizeOptions.some((option) => option === value)) {
+                              return;
+                            }
+                            setFlavorPageSize(value as (typeof flavorPageSizeOptions)[number]);
+                            setFlavorPage(1);
+                            window.localStorage.setItem(flavorPageSizeStorageKey, String(value));
+                          }}
+                          catalogFlavorsError={catalogFlavorsError}
+                          catalogFlavorsLastCompletedAt={catalogFlavorsLastCompletedAt}
+                          catalogFlavorsLoading={catalogFlavorsLoading}
+                          visibleFlavors={visibleFlavors}
+                          selectedFlavor={selectedFlavor}
+                          onSelectFlavor={(name, vcpu, ram) => {
+                            setSelectedFlavor(name);
+                            setVcpuValue(vcpu);
+                            setRamValue(ram);
+                          }}
+                          currentFlavorPage={currentFlavorPage}
+                          totalFlavorPages={totalFlavorPages}
+                          onPreviousFlavorPage={() => setFlavorPage((page) => Math.max(1, page - 1))}
+                          onNextFlavorPage={() => setFlavorPage((page) => Math.min(totalFlavorPages, page + 1))}
+                          diskConfigProps={calculatorDiskConfigProps}
+                        />
+                      ) : (
+                        <EvsCalculatorPanel diskConfigProps={calculatorDiskConfigProps} />
+                      )}
+                    </CardContent>
+                  </>
+                ) : (
+                  <UnsupportedServicePanel
+                    title={`Calculator not implemented yet for ${selectedService}`}
+                    description={`This dashboard calculator currently supports ${supportedCalculatorServiceCodes.join(", ")} only. Select Elastic Cloud Server or Elastic Volume Service to use the pricing form and save items.`}
+                  />
+                )}
               </TabsContent>
 
               <TabsContent value="batch-add">
-                <CardContent className="space-y-6 py-5">
-                  <div className="space-y-2">
-                    <p className="text-sm font-medium">Region</p>
-                    <Select value={regionValue} onValueChange={(value) => setRegionValue(value as HuaweiRegionKey)}>
-                      <SelectTrigger className="max-w-sm bg-white">
-                        <SelectValue>{huaweiRegions[regionValue].full}</SelectValue>
-                      </SelectTrigger>
-                      <SelectContent>
-                        {Object.entries(huaweiRegions).map(([value, labels]) => (
-                          <SelectItem key={value} value={value}>
-                            {labels.short}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div className="space-y-2">
-                    <p className="text-sm font-medium">Batch input</p>
-                    <textarea
-                      className="min-h-48 w-full rounded-xl border border-zinc-200 bg-white px-3 py-3 text-sm text-zinc-900 outline-none transition focus:border-zinc-400 focus:ring-3 focus:ring-zinc-200"
-                      placeholder={`[
-  {
-    "vcpu": 2,
-    "ram": 8
-  },
-  {
-    "vcpu": 4,
-    "ram": 16,
-    "description": "Production API",
-    "evs": {
-      "type": "Ultra-high I/O",
-      "size": 100
-    }
-  }
-]`}
-                    />
-                    <p className="text-sm text-zinc-500">
-                      Paste a JSON array of instances. Required fields: <code>vcpu</code> and <code>ram</code>. Optional fields:
-                      <code>description</code> and <code>evs</code>.
-                    </p>
-                  </div>
-
-                  <div className="grid gap-4 md:grid-cols-2">
-                    <div className="rounded-lg border bg-zinc-50 p-4">
-                      <p className="text-sm font-medium text-zinc-900">Defaults</p>
-                      <p className="mt-1 text-sm text-zinc-500">
-                        If omitted, <code>description</code> defaults to <code>Elastic Cloud Server</code> and
-                        <code>evs</code> defaults to <code>{`{ "type": "High I/O", "size": 40 }`}</code>.
-                      </p>
-                    </div>
-                    <div className="rounded-lg border bg-zinc-50 p-4">
-                      <p className="text-sm font-medium text-zinc-900">Validation</p>
-                      <p className="mt-1 text-sm text-zinc-500">
-                        Each JSON item should include numeric <code>vcpu</code> and <code>ram</code>. When present, <code>evs.size</code>
-                        should be in GiB and <code>evs.type</code> should match an available disk type.
-                      </p>
-                    </div>
-                  </div>
-                </CardContent>
-                <Separator />
-                <div className="flex justify-end p-4">
-                  <Button>Add Batch</Button>
-                </div>
+                {isSelectedServiceBatchAddImplemented ? (
+                  <ServiceBatchAddPanel
+                    mode={isEcsCalculator ? "ecs" : "evs"}
+                    regionValue={regionValue}
+                    regionOptions={calculatorRegionOptions}
+                    onRegionChange={(value) => setRegionValue(value as HuaweiRegionKey)}
+                    batchInput={batchInput}
+                    onBatchInputChange={setBatchInput}
+                    batchAddMessage={batchAddMessage}
+                    systemDiskType={systemDiskType}
+                    systemDiskSizeValue={systemDiskSizeValue}
+                    evsSingleDiskMaxGiB={evsSingleDiskMaxGiB}
+                    onSubmit={handleBatchAdd}
+                    submitDisabled={batchAddPending || !selectedListId || !session}
+                    submitLabel={batchAddPending ? "Adding Batch..." : "Add Batch"}
+                  />
+                ) : (
+                  <UnsupportedServicePanel
+                    title={`Batch add not implemented yet for ${selectedService}`}
+                    description={`Batch input currently supports ${supportedBatchAddServiceCodes.join(", ")} only. Select Elastic Cloud Server to use it.`}
+                  />
+                )}
               </TabsContent>
             </Tabs>
           </Card>
 
-          <Card className="overflow-hidden">
+          <Card className="overflow-hidden xl:sticky xl:top-24 xl:max-h-[calc(100vh-7rem)]">
             <CardHeader className="pb-3">
               <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-start">
                 <div className="min-w-0">
@@ -2756,159 +4046,44 @@ export default function Home() {
                     <p className="mt-1 text-xs text-zinc-400">Last Huawei sync: {new Date(selectedList.huaweiLastSyncedAt).toLocaleString()}</p>
                   ) : null}
                   {selectedList?.huaweiLastError ? <p className="mt-1 text-xs text-red-600">{selectedList.huaweiLastError}</p> : null}
-                  {huaweiActionMessage && selectedList ? <p className="mt-1 text-xs text-zinc-500">{huaweiActionMessage}</p> : null}
+                  {selectedList && (huaweiActionMessage || cloneActionMessage || listShareMessages[selectedList.id]) ? (
+                    <div className="mt-2 space-y-1 text-xs">
+                      {huaweiActionMessage ? <p className="text-zinc-500">{huaweiActionMessage}</p> : null}
+                      {cloneActionMessage ? (
+                        <p className={cloneActionIsError ? "text-red-600" : "text-zinc-500"}>{cloneActionMessage}</p>
+                      ) : null}
+                      {listShareMessages[selectedList.id] ? <p className="text-zinc-500">{listShareMessages[selectedList.id]}</p> : null}
+                    </div>
+                  ) : null}
                 </div>
                 <div className="flex flex-wrap items-center gap-2 lg:justify-end">
                   <Badge variant="outline">{selectedCartProducts.length} items</Badge>
                   {selectedList?.huaweiCartKey ? <Badge variant="secondary">Huawei linked</Badge> : null}
-                  {selectedList ? (
+                  {selectedList?.canShare ? (
                     <Button
                       type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={handleSyncSelectedList}
-                      disabled={syncingHuaweiListId === selectedList.id}
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => openActionModal({ kind: "list-share", listId: selectedList.id })}
+                      aria-label={`Share ${selectedList.name}`}
                     >
-                      {syncingHuaweiListId === selectedList.id
-                        ? "Syncing..."
-                        : selectedList.huaweiCartKey
-                          ? "Sync Huawei"
-                          : "Create Huawei Cart"}
+                      <Share2 className="size-4" />
                     </Button>
+                  ) : null}
+                  {selectedList ? (
+                    <ActionMenu
+                      open={isCartMenuOpen}
+                      onOpenChange={setIsCartMenuOpen}
+                      label={`Open actions for ${selectedList.name}`}
+                      items={selectedCartMenuItems}
+                    />
                   ) : null}
                 </div>
               </div>
-              {selectedList && selectedProject ? (
-                <div className="space-y-2">
-                  <div className="min-w-0">
-                    <Select
-                      value={selectedHuaweiCartKey || "__unlinked"}
-                      onValueChange={(value) => setSelectedHuaweiCartKey(value && value !== "__unlinked" ? value : "")}
-                    >
-                      <SelectTrigger className="bg-white">
-                        <SelectValue>
-                          {selectedHuaweiCartKey
-                            ? `Huawei: ${selectedHuaweiCart?.name ?? selectedList.huaweiCartName ?? selectedHuaweiCartKey}`
-                            : "Choose Huawei cart to link"}
-                        </SelectValue>
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="__unlinked">No Huawei link selected</SelectItem>
-                        {selectedList.huaweiCartKey && !huaweiCarts.some((cart) => cart.key === selectedList.huaweiCartKey) ? (
-                          <SelectItem value={selectedList.huaweiCartKey}>
-                            {selectedList.huaweiCartName ?? selectedList.huaweiCartKey}
-                          </SelectItem>
-                        ) : null}
-                        {huaweiCarts.map((cart) => {
-                          const linkedElsewhere = Boolean(cart.associatedListId && cart.associatedListId !== selectedList.id);
-                          return (
-                            <SelectItem key={cart.key} value={cart.key} disabled={linkedElsewhere}>
-                              {cart.name}
-                            </SelectItem>
-                          );
-                        })}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="flex flex-wrap gap-2">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={handleLinkSelectedList}
-                      disabled={!selectedHuaweiCartKey || linkingHuaweiListId === selectedList.id}
-                    >
-                      <Link2 className="mr-2 size-4" />
-                      {linkingHuaweiListId === selectedList.id ? "Linking..." : "Link Huawei Cart"}
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="destructive"
-                      size="sm"
-                      onClick={() => void handleDeleteList(selectedList, selectedProject.id)}
-                      disabled={deletingListId === selectedList.id}
-                    >
-                      <Trash2 className="mr-2 size-4" />
-                      {deletingListId === selectedList.id ? "Deleting..." : "Delete Cart"}
-                    </Button>
-                  </div>
-                </div>
-              ) : null}
-              {selectedList ? (
-                <div className="rounded-lg border bg-zinc-50 p-3">
-                  <div className="space-y-1">
-                    <p className="text-sm font-medium text-zinc-900">Clone Cart</p>
-                    <p className="text-xs text-zinc-500">
-                      ECS items are reselected by cheapest available flavor that meets or exceeds the current vCPU and RAM.
-                    </p>
-                  </div>
-                  <div className="mt-3 grid gap-2">
-                    <Input
-                      value={cloneNameDraft}
-                      onChange={(event) => setCloneNameDraft(event.target.value)}
-                      placeholder={`${selectedList.name} (Copy)`}
-                    />
-                    <div className="grid gap-2 sm:grid-cols-2">
-                      <Select
-                        value={cloneTargetRegion || "__keep"}
-                        onValueChange={(value) => setCloneTargetRegion(value && value !== "__keep" ? (value as HuaweiRegionKey) : "")}
-                      >
-                        <SelectTrigger className="bg-white">
-                          <SelectValue>
-                            {cloneTargetRegion ? `Region: ${huaweiRegions[cloneTargetRegion].short}` : "Keep current region"}
-                          </SelectValue>
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="__keep">Keep current region</SelectItem>
-                          {cloneableRegions.map(([value, labels]) => (
-                            <SelectItem key={value} value={value}>
-                              {labels.short}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <Select
-                        value={cloneTargetBillingMode || "__keep"}
-                        onValueChange={(value) => setCloneTargetBillingMode(value && value !== "__keep" ? (value as BillingOption) : "")}
-                      >
-                        <SelectTrigger className="bg-white">
-                          <SelectValue>
-                            {cloneTargetBillingMode ? `Billing: ${cloneTargetBillingMode}` : "Keep current billing"}
-                          </SelectValue>
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="__keep">Keep current billing</SelectItem>
-                          {options.billing.map((option) => (
-                            <SelectItem key={option} value={option}>
-                              {option}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                      {cloneActionMessage ? (
-                        <p className={`text-xs ${cloneActionIsError ? "text-red-600" : "text-zinc-500"}`}>{cloneActionMessage}</p>
-                      ) : (
-                        <p className="text-xs text-zinc-400">Non-ECS items are copied unchanged.</p>
-                      )}
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={handleCloneSelectedList}
-                        disabled={cloningListId === selectedList.id}
-                      >
-                        {cloningListId === selectedList.id ? "Cloning..." : "Clone Cart"}
-                      </Button>
-                    </div>
-                  </div>
-                </div>
-              ) : null}
             </CardHeader>
             <Separator />
             <CardContent className="px-0">
-              <ScrollArea className="h-[620px] px-4">
+              <ScrollArea className="h-[620px] px-4 xl:h-[calc(100vh-15rem)]">
                 <div className="space-y-3 py-3">
                   {!selectedList ? (
                     <div className="rounded-lg border border-dashed bg-zinc-50 p-4 text-sm text-zinc-500">
@@ -2977,7 +4152,7 @@ export default function Home() {
                                     type="button"
                                     size="sm"
                                     onClick={handleAddToList}
-                                    disabled={addToListPending || !selectedListId || deletingProductId === product.id}
+                                    disabled={addToListPending || !selectedListId || !session || deletingProductId === product.id}
                                   >
                                     {addToListPending ? "Saving..." : "Save Changes"}
                                   </Button>
@@ -2986,21 +4161,23 @@ export default function Home() {
                                 <Button
                                   type="button"
                                   variant="outline"
-                                  size="sm"
+                                  size="icon"
                                   onClick={() => handleEditProduct(product)}
                                   disabled={deletingProductId === product.id}
+                                  aria-label={`Edit ${product.title}`}
                                 >
-                                  Edit
+                                  <Pencil className="size-4" />
                                 </Button>
                               )}
                               <Button
                                 type="button"
                                 variant="outline"
-                                size="sm"
+                                size="icon"
                                 onClick={() => handleDeleteProduct(product)}
                                 disabled={deletingProductId === product.id}
+                                aria-label={deletingProductId === product.id ? `Deleting ${product.title}` : `Delete ${product.title}`}
                               >
-                                {deletingProductId === product.id ? "Deleting..." : "Delete"}
+                                <Trash2 className="size-4" />
                               </Button>
                             </div>
                           </div>
@@ -3013,6 +4190,300 @@ export default function Home() {
             </CardContent>
           </Card>
         </main>
+        {activeModal && activeProject ? (
+          <ActionModal
+            title={
+              activeModal.kind === "project-huawei"
+                ? "Create Huawei Carts"
+                : activeModal.kind === "project-clone"
+                  ? "Clone Project"
+                  : activeModal.kind === "project-share"
+                    ? "Share Project"
+                    : activeModal.kind === "list-link"
+                      ? "Link Huawei Cart"
+                      : activeModal.kind === "list-clone"
+                        ? "Clone Cart"
+                        : "Share Cart"
+            }
+            description={
+              activeModal.kind === "project-huawei"
+                ? "Create or update one Huawei cart for every NeoCalculator cart in this project."
+                : activeModal.kind === "project-clone"
+                  ? "Clone every cart in this project into a new project, with optional region and billing conversion."
+                  : activeModal.kind === "project-share"
+                    ? "Choose whether recipients should import a detached copy or join a collaborative project."
+                    : activeModal.kind === "list-link"
+                      ? "Link this cart to an existing Huawei calculator cart using the saved Huawei Cloud cookie."
+                      : activeModal.kind === "list-clone"
+                        ? "Clone this cart with optional region and billing conversion."
+                        : "Create a detached copy link or a collaborative cart link for this cart only."
+            }
+            onClose={() => setActiveModal(null)}
+          >
+            {activeModal.kind === "project-huawei" ? (
+              <>
+                {activeProjectHuaweiMessage ? (
+                  <p className={`text-sm ${activeProjectHuaweiMessageIsError ? "text-red-600" : "text-zinc-600"}`}>
+                    {activeProjectHuaweiMessage}
+                  </p>
+                ) : !cookieValue.trim() ? (
+                  <p className="text-sm text-zinc-500">Save a Huawei Cloud cookie on the dashboard to enable project sync.</p>
+                ) : (
+                  <p className="text-sm text-zinc-500">
+                    Existing Huawei-linked carts are updated; unlinked carts will create new Huawei carts.
+                  </p>
+                )}
+                <div className="flex justify-end">
+                  <Button
+                    variant="outline"
+                    onClick={() => void handleSyncProjectHuawei(activeProject)}
+                    disabled={isActiveProjectSyncing || activeProject.lists.length === 0 || !cookieValue.trim()}
+                  >
+                    {isActiveProjectSyncing ? "Creating Huawei Carts..." : "Create Huawei Carts"}
+                  </Button>
+                </div>
+              </>
+            ) : null}
+
+            {activeModal.kind === "project-clone" ? (
+              <>
+                <Input
+                  value={projectCloneNameDrafts[activeProject.id] ?? ""}
+                  onChange={(event) =>
+                    setProjectCloneNameDrafts((current) => ({
+                      ...current,
+                      [activeProject.id]: event.target.value,
+                    }))}
+                  placeholder={getProjectCloneDefaultName(
+                    activeProject.name,
+                    activeProjectCloneTargetRegion,
+                    activeProjectCloneTargetBillingMode,
+                  )}
+                />
+                <div className="grid gap-2 md:grid-cols-2">
+                  <Select
+                    value={activeProjectCloneTargetRegion || "__keep"}
+                    onValueChange={(value) =>
+                      setProjectCloneTargetRegions((current) => ({
+                        ...current,
+                        [activeProject.id]: value && value !== "__keep" ? (value as HuaweiRegionKey) : "",
+                      }))}
+                  >
+                    <SelectTrigger className="bg-white">
+                      <SelectValue>
+                        {activeProjectCloneTargetRegion
+                          ? `Region: ${huaweiRegions[activeProjectCloneTargetRegion].short}`
+                          : "Keep current region"}
+                      </SelectValue>
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__keep">Keep current region</SelectItem>
+                      {cloneableRegions.map(([value, labels]) => (
+                        <SelectItem key={value} value={value}>
+                          {labels.short}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Select
+                    value={activeProjectCloneTargetBillingMode || "__keep"}
+                    onValueChange={(value) =>
+                      setProjectCloneTargetBillingModes((current) => ({
+                        ...current,
+                        [activeProject.id]: value && value !== "__keep" ? (value as BillingOption) : "",
+                      }))}
+                  >
+                    <SelectTrigger className="bg-white">
+                      <SelectValue>
+                        {activeProjectCloneTargetBillingMode
+                          ? `Billing: ${activeProjectCloneTargetBillingMode}`
+                          : "Keep current billing"}
+                      </SelectValue>
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__keep">Keep current billing</SelectItem>
+                      {options.billing.map((option) => (
+                        <SelectItem key={option} value={option}>
+                          {option}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                {activeProjectCloneMessage ? (
+                  <p className={`text-sm ${activeProjectCloneMessageIsError ? "text-red-600" : "text-zinc-600"}`}>
+                    {activeProjectCloneMessage}
+                  </p>
+                ) : (
+                  <p className="text-sm text-zinc-500">Huawei links are not copied to the cloned project.</p>
+                )}
+                <div className="flex justify-end">
+                  <Button variant="outline" onClick={() => void handleCloneProject(activeProject)} disabled={isActiveProjectCloning}>
+                    {isActiveProjectCloning ? "Cloning Project..." : "Clone Project"}
+                  </Button>
+                </div>
+              </>
+            ) : null}
+
+            {activeModal.kind === "project-share" ? (
+              <>
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    variant="outline"
+                    onClick={() => void handleCreateShare("project", activeProject.id, "copy")}
+                    disabled={sharingProjectKey === `project:${activeProject.id}:copy`}
+                  >
+                    {sharingProjectKey === `project:${activeProject.id}:copy` ? "Sharing..." : "Copy Link"}
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={() => void handleCreateShare("project", activeProject.id, "collaborate")}
+                    disabled={sharingProjectKey === `project:${activeProject.id}:collaborate`}
+                  >
+                    {sharingProjectKey === `project:${activeProject.id}:collaborate` ? "Sharing..." : "Collaborative Link"}
+                  </Button>
+                </div>
+                {activeProjectShareMessage ? <p className="text-sm text-zinc-600">{activeProjectShareMessage}</p> : null}
+              </>
+            ) : null}
+
+            {activeList && activeModal.kind === "list-link" ? (
+              <>
+                {activeList.huaweiCartKey ? (
+                  <p className="text-sm text-zinc-600">Linked to {activeList.huaweiCartName || activeList.huaweiCartKey}</p>
+                ) : null}
+                {activeList.huaweiLastSyncedAt ? (
+                  <p className="text-sm text-zinc-500">Last Huawei sync: {new Date(activeList.huaweiLastSyncedAt).toLocaleString()}</p>
+                ) : null}
+                {activeList.huaweiLastError ? <p className="text-sm text-red-600">{activeList.huaweiLastError}</p> : null}
+                {activeListHuaweiMessage ? (
+                  <p className="text-sm text-zinc-600">{activeListHuaweiMessage}</p>
+                ) : !cookieValue.trim() ? (
+                  <p className="text-sm text-zinc-500">Save a Huawei Cloud cookie on the dashboard to load linkable carts here.</p>
+                ) : null}
+                <Select
+                  value={activeSelectedHuaweiCartKey || "__unlinked"}
+                  onValueChange={(value) => setSelectedHuaweiCartKey(value && value !== "__unlinked" ? value : "")}
+                >
+                  <SelectTrigger className="bg-white">
+                    <SelectValue>
+                      {activeSelectedHuaweiCartKey
+                        ? `Huawei: ${activeSelectedHuaweiCart?.name ?? activeList.huaweiCartName ?? activeSelectedHuaweiCartKey}`
+                        : "Choose Huawei cart to link"}
+                    </SelectValue>
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__unlinked">No Huawei link selected</SelectItem>
+                    {activeList.huaweiCartKey && !huaweiCarts.some((cart) => cart.key === activeList.huaweiCartKey) ? (
+                      <SelectItem value={activeList.huaweiCartKey}>
+                        {activeList.huaweiCartName ?? activeList.huaweiCartKey}
+                      </SelectItem>
+                    ) : null}
+                    {huaweiCarts.map((cart) => {
+                      const linkedElsewhere = Boolean(cart.associatedListId && cart.associatedListId !== activeList.id);
+                      return (
+                        <SelectItem key={cart.key} value={cart.key} disabled={linkedElsewhere}>
+                          {cart.name}
+                        </SelectItem>
+                      );
+                    })}
+                  </SelectContent>
+                </Select>
+                <div className="flex justify-end">
+                  <Button
+                    variant="outline"
+                    onClick={handleLinkSelectedList}
+                    disabled={!activeSelectedHuaweiCartKey || isActiveListLinking}
+                  >
+                    {isActiveListLinking ? "Linking..." : "Link Huawei Cart"}
+                  </Button>
+                </div>
+              </>
+            ) : null}
+
+            {activeList && activeModal.kind === "list-clone" ? (
+              <>
+                <Input
+                  value={cloneNameDraft}
+                  onChange={(event) => setCloneNameDraft(event.target.value)}
+                  placeholder={getCartCloneDefaultName(activeList.name, cloneTargetRegion, cloneTargetBillingMode)}
+                />
+                <div className="grid gap-2 md:grid-cols-2">
+                  <Select
+                    value={cloneTargetRegion || "__keep"}
+                    onValueChange={(value) => setCloneTargetRegion(value && value !== "__keep" ? (value as HuaweiRegionKey) : "")}
+                  >
+                    <SelectTrigger className="bg-white">
+                      <SelectValue>
+                        {cloneTargetRegion ? `Region: ${huaweiRegions[cloneTargetRegion].short}` : "Keep current region"}
+                      </SelectValue>
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__keep">Keep current region</SelectItem>
+                      {cloneableRegions.map(([value, labels]) => (
+                        <SelectItem key={value} value={value}>
+                          {labels.short}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Select
+                    value={cloneTargetBillingMode || "__keep"}
+                    onValueChange={(value) => setCloneTargetBillingMode(value && value !== "__keep" ? (value as BillingOption) : "")}
+                  >
+                    <SelectTrigger className="bg-white">
+                      <SelectValue>
+                        {cloneTargetBillingMode ? `Billing: ${cloneTargetBillingMode}` : "Keep current billing"}
+                      </SelectValue>
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__keep">Keep current billing</SelectItem>
+                      {options.billing.map((option) => (
+                        <SelectItem key={option} value={option}>
+                          {option}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                {activeListCloneMessage ? (
+                  <p className={`text-sm ${activeListCloneMessageIsError ? "text-red-600" : "text-zinc-600"}`}>
+                    {activeListCloneMessage}
+                  </p>
+                ) : (
+                  <p className="text-sm text-zinc-500">ECS items are reselected by the cheapest flavor that meets or exceeds the current vCPU and RAM.</p>
+                )}
+                <div className="flex justify-end">
+                  <Button variant="outline" onClick={handleCloneSelectedList} disabled={isActiveListCloning}>
+                    {isActiveListCloning ? "Cloning..." : "Clone Cart"}
+                  </Button>
+                </div>
+              </>
+            ) : null}
+
+            {activeList && activeModal.kind === "list-share" ? (
+              <>
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    variant="outline"
+                    onClick={() => void handleCreateShare("list", activeList.id, "copy")}
+                    disabled={sharingListKey === `list:${activeList.id}:copy`}
+                  >
+                    {sharingListKey === `list:${activeList.id}:copy` ? "Sharing..." : "Copy Link"}
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={() => void handleCreateShare("list", activeList.id, "collaborate")}
+                    disabled={sharingListKey === `list:${activeList.id}:collaborate`}
+                  >
+                    {sharingListKey === `list:${activeList.id}:collaborate` ? "Sharing..." : "Collaborative Link"}
+                  </Button>
+                </div>
+                {activeListShareMessage ? <p className="text-sm text-zinc-600">{activeListShareMessage}</p> : null}
+              </>
+            ) : null}
+          </ActionModal>
+        ) : null}
           </>
         )}
       </div>

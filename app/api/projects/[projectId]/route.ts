@@ -1,5 +1,6 @@
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { getProjectAccessForUser } from "@/lib/resource-access";
 
 export const runtime = "nodejs";
 
@@ -33,12 +34,12 @@ export async function PATCH(
     return Response.json({ error: "Project name is required" }, { status: 400 });
   }
 
-  const existingProject = db
-    .query("SELECT id FROM project WHERE id = ? AND user_id = ?")
-    .get(projectId, session.user.id) as { id: string } | null;
-
+  const existingProject = getProjectAccessForUser(session.user.id, projectId);
   if (!existingProject) {
     return Response.json({ error: "Project not found" }, { status: 404 });
+  }
+  if (!existingProject.canRename) {
+    return Response.json({ error: "Only the project owner can rename this project" }, { status: 403 });
   }
 
   const now = new Date().toISOString();
@@ -48,9 +49,9 @@ export async function PATCH(
     `
       UPDATE project
       SET name = ?, description = ?, updated_at = ?
-      WHERE id = ? AND user_id = ?
+      WHERE id = ?
     `,
-  ).run(name, description, now, projectId, session.user.id);
+  ).run(name, description, now, projectId);
 
   return Response.json({
     id: projectId,
@@ -72,15 +73,15 @@ export async function DELETE(
 
   const { projectId } = await context.params;
 
-  const existingProject = db
-    .query("SELECT id FROM project WHERE id = ? AND user_id = ?")
-    .get(projectId, session.user.id) as { id: string } | null;
-
+  const existingProject = getProjectAccessForUser(session.user.id, projectId);
   if (!existingProject) {
     return Response.json({ error: "Project not found" }, { status: 404 });
   }
+  if (!existingProject.canDelete) {
+    return Response.json({ error: "Only the project owner can delete this project" }, { status: 403 });
+  }
 
-  db.query("DELETE FROM project WHERE id = ? AND user_id = ?").run(projectId, session.user.id);
+  db.query("DELETE FROM project WHERE id = ?").run(projectId);
 
   return Response.json({
     id: projectId,
