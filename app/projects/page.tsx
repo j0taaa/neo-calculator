@@ -12,7 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Separator } from "@/components/ui/separator";
 import { authClient } from "@/lib/auth-client";
 import { huaweiRegions, type HuaweiRegionKey } from "@/lib/huawei-regions";
-import { ArrowRightLeft, Check, ChevronDown, ChevronRight, Copy, Link2, MoreHorizontal, Pencil, RefreshCw, Share2, Trash2, X } from "lucide-react";
+import { ArrowRightLeft, Check, ChevronDown, ChevronRight, Copy, Download, Link2, MoreHorizontal, Pencil, RefreshCw, Share2, Trash2, X } from "lucide-react";
 
 type BillingOption = "Pay-per-use" | "RI" | "Yearly/Monthly";
 
@@ -91,6 +91,13 @@ type ActiveModal =
   | { kind: "list-clone"; listId: string }
   | { kind: "list-share"; listId: string }
   | null;
+
+type ResourceExportModalState = {
+  title: string;
+  description: string;
+  json: string;
+  filename: string;
+} | null;
 
 const billingOptions: BillingOption[] = ["Pay-per-use", "RI", "Yearly/Monthly"];
 
@@ -311,6 +318,79 @@ async function copyText(text: string) {
   }
 }
 
+function downloadJsonFile(filename: string, contents: string) {
+  if (typeof document === "undefined") {
+    return false;
+  }
+
+  const blob = new Blob([contents], { type: "application/json;charset=utf-8" });
+  const objectUrl = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = objectUrl;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(objectUrl);
+  return true;
+}
+
+function slugifyExportName(value: string) {
+  const slug = value
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+  return slug || "resource";
+}
+
+function buildNamedExportFilename(kind: "project" | "cart", name: string) {
+  const timestamp = new Date().toISOString().replace(/[:]/g, "-");
+  return `neocalculator-${kind}-${slugifyExportName(name)}-${timestamp}.json`;
+}
+
+function buildProjectExportPayload(project: AppProject) {
+  const totalProducts = project.lists.reduce((count, list) => count + list.products.length, 0);
+  const totalQuantity = project.lists.reduce(
+    (count, list) => count + list.products.reduce((sum, product) => sum + product.quantity, 0),
+    0,
+  );
+
+  return {
+    schemaVersion: 1,
+    exportedAt: new Date().toISOString(),
+    resourceType: "project",
+    summary: {
+      listCount: project.lists.length,
+      productCount: totalProducts,
+      totalQuantity,
+    },
+    project,
+  };
+}
+
+function buildListExportPayload(project: AppProject, list: AppList) {
+  const totalQuantity = list.products.reduce((count, product) => count + product.quantity, 0);
+
+  return {
+    schemaVersion: 1,
+    exportedAt: new Date().toISOString(),
+    resourceType: "cart",
+    summary: {
+      productCount: list.products.length,
+      totalQuantity,
+    },
+    project: {
+      id: project.id,
+      name: project.name,
+      ownerUserId: project.ownerUserId,
+      accessLevel: project.accessLevel,
+      canShare: project.canShare,
+    },
+    cart: list,
+  };
+}
+
 function getProjectCloneDefaultName(
   projectName: string,
   targetRegion: HuaweiRegionKey | "",
@@ -401,11 +481,13 @@ function ActionModal({
   description,
   onClose,
   children,
+  panelClassName,
 }: {
   title: string;
   description: string;
   onClose: () => void;
   children: ReactNode;
+  panelClassName?: string;
 }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-zinc-950/40 p-4" onClick={onClose}>
@@ -413,7 +495,7 @@ function ActionModal({
         role="dialog"
         aria-modal="true"
         aria-label={title}
-        className="w-full max-w-lg rounded-2xl border border-zinc-200 bg-white shadow-[0_32px_100px_-40px_rgba(15,23,42,0.55)]"
+        className={`w-full rounded-2xl border border-zinc-200 bg-white shadow-[0_32px_100px_-40px_rgba(15,23,42,0.55)] ${panelClassName ?? "max-w-lg"}`}
         onClick={(event) => event.stopPropagation()}
       >
         <div className="flex items-start justify-between gap-4 border-b border-zinc-100 px-5 py-4">
@@ -483,6 +565,8 @@ export default function ProjectsPage() {
   const [openProjectMenuId, setOpenProjectMenuId] = useState<string | null>(null);
   const [openListMenuId, setOpenListMenuId] = useState<string | null>(null);
   const [activeModal, setActiveModal] = useState<ActiveModal>(null);
+  const [resourceExportModal, setResourceExportModal] = useState<ResourceExportModalState>(null);
+  const [resourceExportActionMessage, setResourceExportActionMessage] = useState("");
 
   const cloneableRegions = (Object.entries(huaweiRegions) as Array<[HuaweiRegionKey, (typeof huaweiRegions)[HuaweiRegionKey]]>)
     .filter(([, labels]) => Boolean(labels.catalogRegionId));
@@ -1596,6 +1680,52 @@ export default function ProjectsPage() {
     setActiveModal(modal);
   };
 
+  const openResourceExportModal = (title: string, description: string, payload: unknown, filename: string) => {
+    setResourceExportActionMessage("");
+    setResourceExportModal({
+      title,
+      description,
+      json: JSON.stringify(payload, null, 2),
+      filename,
+    });
+  };
+
+  const handleOpenProjectExport = (project: AppProject) => {
+    openResourceExportModal(
+      "Export Project JSON",
+      "This export includes the full project, all carts in it, and every saved product.",
+      buildProjectExportPayload(project),
+      buildNamedExportFilename("project", project.name),
+    );
+  };
+
+  const handleOpenListExport = (project: AppProject, list: AppList) => {
+    openResourceExportModal(
+      "Export Cart JSON",
+      "This export includes the cart, its parent project reference, and every saved product in the cart.",
+      buildListExportPayload(project, list),
+      buildNamedExportFilename("cart", list.name),
+    );
+  };
+
+  const handleCopyResourceExport = async () => {
+    if (!resourceExportModal) {
+      return;
+    }
+
+    const copied = await copyText(resourceExportModal.json);
+    setResourceExportActionMessage(copied ? "JSON copied to clipboard." : "Clipboard access is unavailable in this browser.");
+  };
+
+  const handleDownloadResourceExport = () => {
+    if (!resourceExportModal) {
+      return;
+    }
+
+    const downloaded = downloadJsonFile(resourceExportModal.filename, resourceExportModal.json);
+    setResourceExportActionMessage(downloaded ? "JSON file download started." : "Unable to start the JSON download in this browser.");
+  };
+
   const toggleProject = (projectId: string) => {
     setExpandedProjects((current) => ({
       ...current,
@@ -1723,6 +1853,11 @@ export default function ProjectsPage() {
                       label: "Clone Project",
                       icon: <Copy className="size-4" />,
                       onSelect: () => openActionModal({ kind: "project-clone", projectId: project.id }),
+                    },
+                    {
+                      label: "Export Project JSON",
+                      icon: <Download className="size-4" />,
+                      onSelect: () => handleOpenProjectExport(project),
                     },
                     ...(project.canShare
                       ? [
@@ -1905,6 +2040,11 @@ export default function ProjectsPage() {
                                     label: "Link Huawei Cart",
                                     icon: <Link2 className="size-4" />,
                                     onSelect: () => openActionModal({ kind: "list-link", listId: list.id }),
+                                  },
+                                  {
+                                    label: "Export Cart JSON",
+                                    icon: <Download className="size-4" />,
+                                    onSelect: () => handleOpenListExport(project, list),
                                   },
                                   {
                                     label: "Clone Cart",
@@ -2091,6 +2231,37 @@ export default function ProjectsPage() {
         </Card>
         ) : null}
       </div>
+      {resourceExportModal ? (
+        <ActionModal
+          title={resourceExportModal.title}
+          description={resourceExportModal.description}
+          onClose={() => setResourceExportModal(null)}
+          panelClassName="max-w-4xl"
+        >
+          <textarea
+            value={resourceExportModal.json}
+            readOnly
+            spellCheck={false}
+            className="h-[26rem] w-full resize-none rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-3 font-mono text-xs leading-6 text-zinc-800 outline-none"
+            aria-label="Resource export JSON"
+          />
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <p className="text-sm text-zinc-500">
+              {resourceExportActionMessage || `${resourceExportModal.json.split("\n").length.toLocaleString()} lines ready to copy or download.`}
+            </p>
+            <div className="flex flex-wrap gap-2">
+              <Button type="button" variant="outline" onClick={() => void handleCopyResourceExport()}>
+                <Copy className="size-4" />
+                Copy JSON
+              </Button>
+              <Button type="button" variant="outline" onClick={handleDownloadResourceExport}>
+                <Download className="size-4" />
+                Download JSON
+              </Button>
+            </div>
+          </div>
+        </ActionModal>
+      ) : null}
       {activeModal && activeProject ? (
         <ActionModal
           title={

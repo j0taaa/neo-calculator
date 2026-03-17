@@ -563,6 +563,13 @@ type CalculatorExportData = {
   };
 };
 
+type ResourceExportModalState = {
+  title: string;
+  description: string;
+  json: string;
+  filename: string;
+} | null;
+
 function getFirstListId(projects: AppProject[]) {
   return projects[0]?.lists[0]?.id ?? "";
 }
@@ -648,6 +655,62 @@ function downloadJsonFile(filename: string, contents: string) {
 function buildExportFilename(serviceCode: string) {
   const timestamp = new Date().toISOString().replace(/[:]/g, "-");
   return `neocalculator-${serviceCode.toLowerCase()}-${timestamp}.json`;
+}
+
+function slugifyExportName(value: string) {
+  const slug = value
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+  return slug || "resource";
+}
+
+function buildNamedExportFilename(kind: "project" | "cart", name: string) {
+  const timestamp = new Date().toISOString().replace(/[:]/g, "-");
+  return `neocalculator-${kind}-${slugifyExportName(name)}-${timestamp}.json`;
+}
+
+function buildProjectExportPayload(project: AppProject) {
+  const totalProducts = project.lists.reduce((count, list) => count + list.products.length, 0);
+  const totalQuantity = project.lists.reduce(
+    (count, list) => count + list.products.reduce((sum, product) => sum + product.quantity, 0),
+    0,
+  );
+
+  return {
+    schemaVersion: 1,
+    exportedAt: new Date().toISOString(),
+    resourceType: "project",
+    summary: {
+      listCount: project.lists.length,
+      productCount: totalProducts,
+      totalQuantity,
+    },
+    project,
+  };
+}
+
+function buildListExportPayload(project: AppProject, list: AppList) {
+  const totalQuantity = list.products.reduce((count, product) => count + product.quantity, 0);
+
+  return {
+    schemaVersion: 1,
+    exportedAt: new Date().toISOString(),
+    resourceType: "cart",
+    summary: {
+      productCount: list.products.length,
+      totalQuantity,
+    },
+    project: {
+      id: project.id,
+      name: project.name,
+      ownerUserId: project.ownerUserId,
+      accessLevel: project.accessLevel,
+      canShare: project.canShare,
+    },
+    cart: list,
+  };
 }
 
 function ActionMenu({
@@ -1555,6 +1618,8 @@ export default function Home() {
   const [activeTab, setActiveTab] = useState("calculator");
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
   const [exportActionMessage, setExportActionMessage] = useState("");
+  const [resourceExportModal, setResourceExportModal] = useState<ResourceExportModalState>(null);
+  const [resourceExportActionMessage, setResourceExportActionMessage] = useState("");
   const [showFlexusLInEcs, setShowFlexusLInEcs] = useState(false);
   const [addToListPending, setAddToListPending] = useState(false);
   const [addToListMessage, setAddToListMessage] = useState("");
@@ -2779,6 +2844,52 @@ export default function Home() {
   const handleDownloadCalculatorExport = () => {
     const downloaded = downloadJsonFile(buildExportFilename(selectedServiceMeta.code), calculatorExportJson);
     setExportActionMessage(downloaded ? "JSON file download started." : "Unable to start the JSON download in this browser.");
+  };
+
+  const openResourceExportModal = (title: string, description: string, payload: unknown, filename: string) => {
+    setResourceExportActionMessage("");
+    setResourceExportModal({
+      title,
+      description,
+      json: JSON.stringify(payload, null, 2),
+      filename,
+    });
+  };
+
+  const handleOpenProjectExport = (project: AppProject) => {
+    openResourceExportModal(
+      "Export Project JSON",
+      "This export includes the full project, all carts in it, and every saved product.",
+      buildProjectExportPayload(project),
+      buildNamedExportFilename("project", project.name),
+    );
+  };
+
+  const handleOpenListExport = (project: AppProject, list: AppList) => {
+    openResourceExportModal(
+      "Export Cart JSON",
+      "This export includes the cart, its parent project reference, and every saved product in the cart.",
+      buildListExportPayload(project, list),
+      buildNamedExportFilename("cart", list.name),
+    );
+  };
+
+  const handleCopyResourceExport = async () => {
+    if (!resourceExportModal) {
+      return;
+    }
+
+    const copied = await copyText(resourceExportModal.json);
+    setResourceExportActionMessage(copied ? "JSON copied to clipboard." : "Clipboard access is unavailable in this browser.");
+  };
+
+  const handleDownloadResourceExport = () => {
+    if (!resourceExportModal) {
+      return;
+    }
+
+    const downloaded = downloadJsonFile(resourceExportModal.filename, resourceExportModal.json);
+    setResourceExportActionMessage(downloaded ? "JSON file download started." : "Unable to start the JSON download in this browser.");
   };
 
   const toggleProject = (projectName: string) => {
@@ -4474,6 +4585,11 @@ export default function Home() {
             onSelect: () => openActionModal({ kind: "list-link", listId: selectedList.id }),
           },
           {
+            label: "Export Cart JSON",
+            icon: <Download className="size-4" />,
+            onSelect: () => handleOpenListExport(selectedProject, selectedList),
+          },
+          {
             label: "Clone Cart",
             icon: <Copy className="size-4" />,
             onSelect: () => openActionModal({ kind: "list-clone", listId: selectedList.id }),
@@ -4858,6 +4974,11 @@ export default function Home() {
                         label: "Clone Project",
                         icon: <Copy className="size-4" />,
                         onSelect: () => openActionModal({ kind: "project-clone", projectId: project.id }),
+                      },
+                      {
+                        label: "Export Project JSON",
+                        icon: <Download className="size-4" />,
+                        onSelect: () => handleOpenProjectExport(project),
                       },
                       ...(project.canShare
                         ? [
@@ -5640,6 +5761,37 @@ export default function Home() {
                   Copy JSON
                 </Button>
                 <Button type="button" variant="outline" onClick={handleDownloadCalculatorExport}>
+                  <Download className="size-4" />
+                  Download JSON
+                </Button>
+              </div>
+            </div>
+          </ActionModal>
+        ) : null}
+        {resourceExportModal ? (
+          <ActionModal
+            title={resourceExportModal.title}
+            description={resourceExportModal.description}
+            onClose={() => setResourceExportModal(null)}
+            panelClassName="max-w-4xl"
+          >
+            <textarea
+              value={resourceExportModal.json}
+              readOnly
+              spellCheck={false}
+              className="h-[26rem] w-full resize-none rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-3 font-mono text-xs leading-6 text-zinc-800 outline-none"
+              aria-label="Resource export JSON"
+            />
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <p className="text-sm text-zinc-500">
+                {resourceExportActionMessage || `${resourceExportModal.json.split("\n").length.toLocaleString()} lines ready to copy or download.`}
+              </p>
+              <div className="flex flex-wrap gap-2">
+                <Button type="button" variant="outline" onClick={() => void handleCopyResourceExport()}>
+                  <Copy className="size-4" />
+                  Copy JSON
+                </Button>
+                <Button type="button" variant="outline" onClick={handleDownloadResourceExport}>
                   <Download className="size-4" />
                   Download JSON
                 </Button>
