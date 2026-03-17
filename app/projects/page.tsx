@@ -114,6 +114,15 @@ function getProductSpecsSummary(product: AppProduct) {
     : systemDisk && typeof systemDisk.throughput === "number"
       ? systemDisk.throughput
       : null;
+  const includedSystemDiskGiB = typeof product.config.systemDiskGiB === "number"
+    ? product.config.systemDiskGiB
+    : null;
+  const peakBandwidthMbit = typeof product.config.peakBandwidthMbit === "number"
+    ? product.config.peakBandwidthMbit
+    : null;
+  const dataPackageTiB = typeof product.config.dataPackageTiB === "number"
+    ? product.config.dataPackageTiB
+    : null;
   const parts: string[] = [];
 
   if (Number.isFinite(vcpu) && vcpu > 0) {
@@ -130,6 +139,8 @@ function getProductSpecsSummary(product: AppProduct) {
 
   if (typeof diskSizeGiB === "number" && Number.isFinite(diskSizeGiB) && diskSizeGiB > 0) {
     parts.push(`${diskSizeGiB} GiB`);
+  } else if (typeof includedSystemDiskGiB === "number" && Number.isFinite(includedSystemDiskGiB) && includedSystemDiskGiB > 0) {
+    parts.push(`${includedSystemDiskGiB} GiB system disk`);
   }
 
   if (typeof diskIops === "number" && Number.isFinite(diskIops) && diskIops > 0) {
@@ -138,6 +149,14 @@ function getProductSpecsSummary(product: AppProduct) {
 
   if (typeof diskThroughput === "number" && Number.isFinite(diskThroughput) && diskThroughput > 0) {
     parts.push(`${diskThroughput} MB/s`);
+  }
+
+  if (typeof peakBandwidthMbit === "number" && Number.isFinite(peakBandwidthMbit) && peakBandwidthMbit > 0) {
+    parts.push(`${peakBandwidthMbit} Mbit/s`);
+  }
+
+  if (typeof dataPackageTiB === "number" && Number.isFinite(dataPackageTiB) && dataPackageTiB > 0) {
+    parts.push(`${dataPackageTiB} TB/month`);
   }
 
   return parts.length ? parts.join(" · ") : null;

@@ -6,7 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Separator } from "@/components/ui/separator";
 
 type ServiceBatchAddPanelProps = {
-  mode: "ecs" | "evs";
+  mode: "ecs" | "flexus-l" | "evs";
   regionValue: string;
   regionOptions: Array<{ value: string; label: string }>;
   onRegionChange: (value: string) => void;
@@ -37,6 +37,7 @@ export function ServiceBatchAddPanel({
   submitLabel,
 }: ServiceBatchAddPanelProps) {
   const isEcs = mode === "ecs";
+  const isFlexusL = mode === "flexus-l";
 
   return (
     <>
@@ -88,6 +89,19 @@ export function ServiceBatchAddPanel({
     }
   }
 ]`
+                : isFlexusL
+                ? `[
+  {
+    "vcpu": 2,
+    "ram": 2
+  },
+  {
+    "vcpu": 4,
+    "ram": 8,
+    "quantity": 2,
+    "description": "ERP"
+  }
+]`
                 : `[
   {
     "size": 40
@@ -113,6 +127,11 @@ export function ServiceBatchAddPanel({
                 Paste a JSON array of instances. Required fields: <code>vcpu</code> and <code>ram</code>. Optional fields:
                 <code>quantity</code>, <code>description</code>, and <code>evs</code>.
               </>
+            ) : isFlexusL ? (
+              <>
+                Paste a JSON array of Flexus L instances. Required fields: <code>vcpu</code> and <code>ram</code>. Optional
+                fields: <code>quantity</code> and <code>description</code>.
+              </>
             ) : (
               <>
                 Paste a JSON array of EVS volumes. Optional fields: <code>type</code>, <code>size</code>,
@@ -132,6 +151,11 @@ export function ServiceBatchAddPanel({
                   If omitted, <code>description</code> defaults to <code>Elastic Cloud Server</code> and
                   <code>evs</code> defaults to <code>{`{ "type": "High I/O", "size": 40 }`}</code>.
                 </>
+              ) : isFlexusL ? (
+                <>
+                  If omitted, <code>description</code> defaults to <code>Flexus L Instance</code>. The calculator chooses the
+                  smallest public Flexus L plan that satisfies the requested <code>vcpu</code> and <code>ram</code>.
+                </>
               ) : (
                 <>
                   If omitted, <code>type</code> defaults to <code>{systemDiskType}</code> and
@@ -149,6 +173,11 @@ export function ServiceBatchAddPanel({
                 <>
                   Each JSON item should include numeric <code>vcpu</code> and <code>ram</code>. When present,
                   <code>evs.size</code> should be in GiB and <code>evs.type</code> should match an available disk type.
+                </>
+              ) : isFlexusL ? (
+                <>
+                  Each JSON item should include numeric <code>vcpu</code> and <code>ram</code>. If no published Flexus L plan
+                  satisfies the request, that item fails.
                 </>
               ) : (
                 <>

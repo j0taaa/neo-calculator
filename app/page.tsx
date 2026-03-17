@@ -6,6 +6,7 @@ import { type ReactNode, useCallback, useEffect, useId, useMemo, useRef, useStat
 
 import { EcsCalculatorPanel } from "@/components/calculators/ecs-calculator-panel";
 import { EvsCalculatorPanel } from "@/components/calculators/evs-calculator-panel";
+import { FlexusLCalculatorPanel } from "@/components/calculators/flexus-l-calculator-panel";
 import { ServiceBatchAddPanel } from "@/components/calculators/service-batch-add-panel";
 import { UnsupportedServicePanel } from "@/components/calculators/unsupported-service-panel";
 import { Badge } from "@/components/ui/badge";
@@ -13,6 +14,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { authClient } from "@/lib/auth-client";
+import { findBestFlexusLPlan, findFlexusLPlan, flexusLPlans, flexusLPricingReference } from "@/lib/flexus-l-catalog";
 import { huaweiRegions, type HuaweiRegionKey } from "@/lib/huawei-regions";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -164,8 +166,8 @@ const flavorSortLabels = {
   "vcpu-asc": "vCPU: Lowest first",
 } as const;
 
-const supportedCalculatorServiceCodes = ["ECS", "EVS"] as const;
-const supportedBatchAddServiceCodes = ["ECS", "EVS"] as const;
+const supportedCalculatorServiceCodes = ["ECS", "Flexus L", "EVS"] as const;
+const supportedBatchAddServiceCodes = ["ECS", "Flexus L", "EVS"] as const;
 const evsBillingOptions: BillingOption[] = ["Pay-per-use", "Yearly/Monthly"];
 const flavorPageSizeOptions = [1, 3, 5, 10, 20] as const;
 const flavorPageSizeStorageKey = "neoCalculator.flavorPageSize";
@@ -785,6 +787,23 @@ function getProductConfigSummary(product: AppProduct): string {
     return parts.join(" · ") || product.serviceName;
   }
 
+  if (product.productType === "flexus-l") {
+    const parts = [
+      typeof product.config.region === "string" ? product.config.region : null,
+      typeof product.config.planTitle === "string"
+        ? product.config.planTitle
+        : typeof product.config.planId === "string"
+          ? product.config.planId
+          : null,
+      typeof product.config.systemDiskGiB === "number" ? `${product.config.systemDiskGiB} GiB system disk` : null,
+      typeof product.config.peakBandwidthMbit === "number" ? `${product.config.peakBandwidthMbit} Mbit/s` : null,
+      typeof product.config.dataPackageTiB === "number" ? `${product.config.dataPackageTiB} TB/month` : null,
+      typeof product.config.billingMode === "string" ? product.config.billingMode : null,
+    ].filter(Boolean);
+
+    return parts.join(" · ") || product.serviceName;
+  }
+
   if (product.productType === "huawei-raw") {
     const parts = [
       typeof product.config.region === "string" ? product.config.region : null,
@@ -817,6 +836,10 @@ function isSystemDiskOption(value: unknown): value is SystemDiskOption {
 function getCalculatorBillingOptions(serviceCode: string): BillingOption[] {
   if (serviceCode === "EVS") {
     return evsBillingOptions;
+  }
+
+  if (serviceCode === "Flexus L") {
+    return ["Yearly/Monthly"];
   }
 
   return [...options.billing];
@@ -1202,6 +1225,7 @@ export default function Home() {
   const selectedServiceMeta = services.find((service) => service.name === selectedService) ?? services[0];
   const selectedServiceCode = selectedServiceMeta.code;
   const isEcsCalculator = selectedServiceCode === "ECS";
+  const isFlexusLCalculator = selectedServiceCode === "Flexus L";
   const isEvsCalculator = selectedServiceCode === "EVS";
   const calculatorBillingOptions = useMemo(() => getCalculatorBillingOptions(selectedServiceCode), [selectedServiceCode]);
   const isSelectedServiceImplemented = supportedCalculatorServiceCodes.includes(
@@ -1255,8 +1279,11 @@ export default function Home() {
     .filter((flavor) => getFlavorPriceForBillingOption(flavor, billingMode, usageHoursValue))
     .map((flavor) => toFlavorCard(flavor, billingMode, usageHoursValue, selectedDiskPrice));
   const selectedFlavorCard = billableFlavors.find((flavor) => flavor.name === selectedFlavor) ?? null;
+  const selectedFlexusLPlan = isFlexusLCalculator ? findFlexusLPlan(selectedFlavor) ?? flexusLPlans[0] ?? null : null;
   const selectedEstimateBase =
-    (isEvsCalculator && selectedDiskPrice
+    (isFlexusLCalculator && selectedFlexusLPlan
+      ? formatFlavorAmount("USD", selectedFlexusLPlan.monthlyPriceUsd, "/mo")
+      : isEvsCalculator && selectedDiskPrice
       ? formatFlavorAmount(selectedDiskPrice.currency, selectedDiskPrice.amount, selectedDiskPrice.suffix)
       : selectedFlavorCard?.price)
     ?? selectedPrices.find((entry) => entry.unit === "per month")?.price
@@ -1264,6 +1291,8 @@ export default function Home() {
     ?? "USD 0.00";
   const selectedEstimate = isEvsCalculator && selectedDiskPrice
     ? formatFlavorAmount(selectedDiskPrice.currency, selectedDiskPrice.amount * instanceCountValue, selectedDiskPrice.suffix)
+    : isFlexusLCalculator && selectedFlexusLPlan
+    ? formatFlavorAmount("USD", selectedFlexusLPlan.monthlyPriceUsd * instanceCountValue, "/mo")
     : selectedFlavorCard
     ? formatFlavorAmount(
         selectedFlavorCard.priceCurrency,
@@ -1445,6 +1474,23 @@ export default function Home() {
     setRamValue(nextFlavor.ram);
     lastFlavorAutoSelectKeyRef.current = flavorAutoSelectKey;
   }, [flavorAutoSelectKey, selectedFlavor, sortedFlavors]);
+
+  useEffect(() => {
+    if (!isFlexusLCalculator || !flexusLPlans.length) {
+      return;
+    }
+
+    const nextPlan = findFlexusLPlan(selectedFlavor) ?? flexusLPlans[0];
+    if (selectedFlavor !== nextPlan.id) {
+      setSelectedFlavor(nextPlan.id);
+    }
+    if (vcpuValue !== String(nextPlan.vcpu)) {
+      setVcpuValue(String(nextPlan.vcpu));
+    }
+    if (ramValue !== String(nextPlan.ramGiB)) {
+      setRamValue(String(nextPlan.ramGiB));
+    }
+  }, [isFlexusLCalculator, ramValue, selectedFlavor, vcpuValue]);
 
   useEffect(() => {
     const handlePointerDown = (event: MouseEvent) => {
@@ -2432,7 +2478,7 @@ export default function Home() {
   };
 
   const handleEditProduct = (product: AppProduct) => {
-    if (product.productType !== "ecs" && product.productType !== "evs") {
+    if (product.productType !== "ecs" && product.productType !== "evs" && product.productType !== "flexus-l") {
       setAddToListMessage("This product cannot be edited from the calculator.");
       return;
     }
@@ -2446,7 +2492,11 @@ export default function Home() {
       ? (product.config.region as HuaweiRegionKey)
       : regionValue;
     const rawBillingMode = isBillingOption(product.config.billingMode) ? product.config.billingMode : "Pay-per-use";
-    const nextBillingMode = product.productType === "evs" && rawBillingMode === "RI" ? "Pay-per-use" : rawBillingMode;
+    const nextBillingMode = product.productType === "evs" && rawBillingMode === "RI"
+      ? "Pay-per-use"
+      : product.productType === "flexus-l"
+        ? "Yearly/Monthly"
+        : rawBillingMode;
     const nextSystemDisk = isRecord(product.config.systemDisk) ? product.config.systemDisk : null;
 
     setSelectedService(product.serviceName);
@@ -2493,6 +2543,28 @@ export default function Home() {
       setRamValue(typeof product.config.ramGiB === "number" ? String(product.config.ramGiB) : ramValue);
       setMinVcpuValue(nextMinVcpuValue);
       setMinRamValue(nextMinRamValue);
+    } else if (product.productType === "flexus-l") {
+      const nextPlanId = typeof product.config.planId === "string"
+        ? product.config.planId
+        : typeof product.config.flavor === "string"
+          ? product.config.flavor
+          : flexusLPlans[0]?.id ?? "";
+      const nextPlan = findFlexusLPlan(nextPlanId) ?? flexusLPlans[0] ?? null;
+      setSelectedFlavor(nextPlan?.id ?? "");
+      setVcpuValue(
+        typeof product.config.vcpu === "number"
+          ? String(product.config.vcpu)
+          : nextPlan
+            ? String(nextPlan.vcpu)
+            : "",
+      );
+      setRamValue(
+        typeof product.config.ramGiB === "number"
+          ? String(product.config.ramGiB)
+          : nextPlan
+            ? String(nextPlan.ramGiB)
+            : "",
+      );
     } else {
       setSelectedFlavor("");
       setVcpuValue("");
@@ -2768,6 +2840,46 @@ export default function Home() {
                 },
               }];
             })()
+          : isFlexusLCalculator
+          ? (() => {
+              const requestedVcpu = parsePositiveNumber(item.vcpu);
+              const requestedRamGiB = parsePositiveNumber(item.ram);
+              if (requestedVcpu == null || requestedRamGiB == null) {
+                throw new Error(`Item ${index + 1} must include numeric vcpu and ram values.`);
+              }
+
+              const plan = findBestFlexusLPlan(requestedVcpu, requestedRamGiB);
+              if (!plan) {
+                throw new Error(
+                  `Item ${index + 1} could not find a Flexus L plan with at least ${requestedVcpu} vCPUs and ${requestedRamGiB} GiB RAM.`,
+                );
+              }
+
+              return [{
+                serviceCode: selectedServiceMeta.code,
+                serviceName: selectedService,
+                productType: "flexus-l",
+                title: `${selectedService} ${plan.title}`,
+                quantity,
+                config: {
+                  region: regionValue,
+                  billingMode: "Yearly/Monthly",
+                  description,
+                  planId: plan.id,
+                  planTitle: plan.title,
+                  vcpu: plan.vcpu,
+                  ramGiB: plan.ramGiB,
+                  systemDiskGiB: plan.systemDiskGiB,
+                  peakBandwidthMbit: plan.peakBandwidthMbit,
+                  dataPackageTiB: plan.dataPackageTiB,
+                  referenceRegion: flexusLPricingReference.region,
+                },
+                pricing: {
+                  total: formatFlavorAmount("USD", plan.monthlyPriceUsd * quantity, "/mo"),
+                  flavor: formatFlavorAmount("USD", plan.monthlyPriceUsd, "/mo"),
+                },
+              }];
+            })()
           : (() => {
               const diskType = getBatchDiskType(item, systemDiskType);
               const diskSizeGiB = getBatchDiskSize(item, systemDiskSizeValue, evsDiskSizeBounds);
@@ -2873,6 +2985,11 @@ export default function Home() {
       return;
     }
 
+    if (isFlexusLCalculator && !selectedFlexusLPlan) {
+      setAddToListMessage("Select a Flexus L plan first.");
+      return;
+    }
+
     if (isEvsCalculator && !selectedDiskPrice) {
       setAddToListMessage("Select a volume type first.");
       return;
@@ -2909,6 +3026,31 @@ export default function Home() {
               total: selectedEstimate,
               flavor: selectedFlavorCard?.flavorPrice ?? null,
               disk: selectedDiskPrice ? formatFlavorAmount(selectedDiskPrice.currency, selectedDiskPrice.amount, selectedDiskPrice.suffix) : null,
+            },
+          }
+        : isFlexusLCalculator && selectedFlexusLPlan
+        ? {
+            serviceCode: selectedServiceMeta.code,
+            serviceName: selectedService,
+            productType: "flexus-l",
+            title: `${selectedService} ${selectedFlexusLPlan.title}`,
+            quantity,
+            config: {
+              region: regionValue,
+              billingMode: "Yearly/Monthly",
+              description: selectedService,
+              planId: selectedFlexusLPlan.id,
+              planTitle: selectedFlexusLPlan.title,
+              vcpu: selectedFlexusLPlan.vcpu,
+              ramGiB: selectedFlexusLPlan.ramGiB,
+              systemDiskGiB: selectedFlexusLPlan.systemDiskGiB,
+              peakBandwidthMbit: selectedFlexusLPlan.peakBandwidthMbit,
+              dataPackageTiB: selectedFlexusLPlan.dataPackageTiB,
+              referenceRegion: flexusLPricingReference.region,
+            },
+            pricing: {
+              total: selectedEstimate,
+              flavor: formatFlavorAmount("USD", selectedFlexusLPlan.monthlyPriceUsd, "/mo"),
             },
           }
         : splitEvsDiskSizes(systemDiskSizeValue).map((chunkSizeGiB) => {
@@ -3088,6 +3230,8 @@ export default function Home() {
   const evsSplitNotice = isEvsCalculator ? buildEvsSplitNotice(systemDiskSizeValue) : null;
   const calculatorSelectionSummary = isEcsCalculator
     ? `Selected specifications: ${selectedFlavor} | ${vcpuValue || "-"} vCPUs | ${ramValue || "-"} GiB | ${systemDiskType} ${systemDiskSize || String(activeDiskSizeBounds.min)} GiB${isGpSsd2Selected && gpSsd2IopsValue != null && gpSsd2ThroughputValue != null ? ` | ${gpSsd2IopsValue} IOPS | ${gpSsd2ThroughputValue} MB/s` : ""}${selectedDiskPrice ? ` | Disk ${formatFlavorAmount(selectedDiskPrice.currency, selectedDiskPrice.amount, selectedDiskPrice.suffix)}` : ""}`
+    : isFlexusLCalculator && selectedFlexusLPlan
+    ? `Selected specifications: ${selectedFlexusLPlan.title} | ${selectedFlexusLPlan.systemDiskGiB} GiB system disk | ${selectedFlexusLPlan.peakBandwidthMbit} Mbit/s | ${selectedFlexusLPlan.dataPackageTiB} TB/month | ${formatFlavorAmount("USD", selectedFlexusLPlan.monthlyPriceUsd, "/mo")}`
     : `Selected specifications: ${systemDiskType} | ${systemDiskSize || String(activeDiskSizeBounds.min)} GiB${isGpSsd2Selected && gpSsd2IopsValue != null && gpSsd2ThroughputValue != null ? ` | ${gpSsd2IopsValue} IOPS | ${gpSsd2ThroughputValue} MB/s` : ""}${selectedDiskPrice ? ` | Disk ${formatFlavorAmount(selectedDiskPrice.currency, selectedDiskPrice.amount, selectedDiskPrice.suffix)}` : ""}`;
   const calculatorSelectionNotes = [
     ...(isEcsCalculator && selectedFlavorCard?.flavorPrice && selectedDiskPrice
@@ -3989,6 +4133,32 @@ export default function Home() {
                           onNextFlavorPage={() => setFlavorPage((page) => Math.min(totalFlavorPages, page + 1))}
                           diskConfigProps={calculatorDiskConfigProps}
                         />
+                      ) : isFlexusLCalculator ? (
+                        <FlexusLCalculatorPanel
+                          plans={flexusLPlans.map((plan) => ({
+                            id: plan.id,
+                            title: plan.title,
+                            vcpu: plan.vcpu,
+                            ramGiB: plan.ramGiB,
+                            systemDiskGiB: plan.systemDiskGiB,
+                            peakBandwidthMbit: plan.peakBandwidthMbit,
+                            dataPackageTiB: plan.dataPackageTiB,
+                            monthlyPrice: formatFlavorAmount("USD", plan.monthlyPriceUsd, "/mo"),
+                          }))}
+                          selectedPlanId={selectedFlexusLPlan?.id ?? ""}
+                          onSelectPlan={(planId) => {
+                            const plan = findFlexusLPlan(planId);
+                            if (!plan) {
+                              return;
+                            }
+                            setSelectedFlavor(plan.id);
+                            setVcpuValue(String(plan.vcpu));
+                            setRamValue(String(plan.ramGiB));
+                          }}
+                          selectionSummary={calculatorSelectionSummary}
+                          selectionNotes={calculatorSelectionNotes}
+                          referenceNote={`Reference pricing uses Huawei Cloud's public Flexus L monthly catalog for ${flexusLPricingReference.region}.`}
+                        />
                       ) : (
                         <EvsCalculatorPanel diskConfigProps={calculatorDiskConfigProps} />
                       )}
@@ -3997,7 +4167,7 @@ export default function Home() {
                 ) : (
                   <UnsupportedServicePanel
                     title={`Calculator not implemented yet for ${selectedService}`}
-                    description={`This dashboard calculator currently supports ${supportedCalculatorServiceCodes.join(", ")} only. Select Elastic Cloud Server or Elastic Volume Service to use the pricing form and save items.`}
+                    description={`This dashboard calculator currently supports ${supportedCalculatorServiceCodes.join(", ")} only. Select Elastic Cloud Server, Flexus L Instance, or Elastic Volume Service to use the pricing form and save items.`}
                   />
                 )}
               </TabsContent>
@@ -4005,7 +4175,7 @@ export default function Home() {
               <TabsContent value="batch-add">
                 {isSelectedServiceBatchAddImplemented ? (
                   <ServiceBatchAddPanel
-                    mode={isEcsCalculator ? "ecs" : "evs"}
+                    mode={isEcsCalculator ? "ecs" : isFlexusLCalculator ? "flexus-l" : "evs"}
                     regionValue={regionValue}
                     regionOptions={calculatorRegionOptions}
                     onRegionChange={(value) => setRegionValue(value as HuaweiRegionKey)}
@@ -4022,7 +4192,7 @@ export default function Home() {
                 ) : (
                   <UnsupportedServicePanel
                     title={`Batch add not implemented yet for ${selectedService}`}
-                    description={`Batch input currently supports ${supportedBatchAddServiceCodes.join(", ")} only. Select Elastic Cloud Server to use it.`}
+                    description={`Batch input currently supports ${supportedBatchAddServiceCodes.join(", ")} only. Select Elastic Cloud Server, Flexus L Instance, or Elastic Volume Service to use it.`}
                   />
                 )}
               </TabsContent>
