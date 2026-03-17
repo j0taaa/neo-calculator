@@ -45,7 +45,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Check, ChevronDown, ChevronRight, Copy, Link2, MoreHorizontal, Pencil, RefreshCw, Search, Share2, Trash2, UserCircle2, X } from "lucide-react";
+import { Check, ChevronDown, ChevronRight, Copy, Download, Link2, MoreHorizontal, Pencil, RefreshCw, Search, Share2, Trash2, UserCircle2, X } from "lucide-react";
 
 const services = [
   { name: "Bare Metal Server", code: "BMS", icon: "https://res-static.hc-cdn.cn/cloudbu-site/public/product-banner-icon/Compute/BMS.png" },
@@ -521,6 +521,48 @@ type ActiveModal =
   | { kind: "list-share"; listId: string }
   | null;
 
+type CalculatorExportData = {
+  schemaVersion: 1;
+  exportedAt: string;
+  activeTab: string;
+  service: {
+    name: string;
+    code: string;
+  };
+  region: {
+    key: HuaweiRegionKey;
+    label: string;
+    catalogRegionId: string;
+  };
+  billing: {
+    mode: BillingOption;
+    usageHours: number | null;
+  };
+  quantity: {
+    label: string;
+    value: number;
+  };
+  cartContext: {
+    projectId: string | null;
+    projectName: string | null;
+    listId: string | null;
+    listName: string | null;
+    editingProductId: string | null;
+  };
+  estimate: {
+    display: string;
+    amount: string;
+    timeframe: string | null;
+    summary: string;
+    notes: string[];
+  };
+  calculator: Record<string, unknown>;
+  batchAdd: {
+    enabled: boolean;
+    input: string;
+  };
+};
+
 function getFirstListId(projects: AppProject[]) {
   return projects[0]?.lists[0]?.id ?? "";
 }
@@ -586,6 +628,28 @@ async function copyText(text: string) {
   }
 }
 
+function downloadJsonFile(filename: string, contents: string) {
+  if (typeof document === "undefined") {
+    return false;
+  }
+
+  const blob = new Blob([contents], { type: "application/json;charset=utf-8" });
+  const objectUrl = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = objectUrl;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(objectUrl);
+  return true;
+}
+
+function buildExportFilename(serviceCode: string) {
+  const timestamp = new Date().toISOString().replace(/[:]/g, "-");
+  return `neocalculator-${serviceCode.toLowerCase()}-${timestamp}.json`;
+}
+
 function ActionMenu({
   open,
   onOpenChange,
@@ -642,11 +706,13 @@ function ActionModal({
   description,
   onClose,
   children,
+  panelClassName,
 }: {
   title: string;
   description: string;
   onClose: () => void;
   children: ReactNode;
+  panelClassName?: string;
 }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-zinc-950/40 p-4" onClick={onClose}>
@@ -654,7 +720,7 @@ function ActionModal({
         role="dialog"
         aria-modal="true"
         aria-label={title}
-        className="w-full max-w-lg rounded-2xl border border-zinc-200 bg-white shadow-[0_32px_100px_-40px_rgba(15,23,42,0.55)]"
+        className={`w-full rounded-2xl border border-zinc-200 bg-white shadow-[0_32px_100px_-40px_rgba(15,23,42,0.55)] ${panelClassName ?? "max-w-lg"}`}
         onClick={(event) => event.stopPropagation()}
       >
         <div className="flex items-start justify-between gap-4 border-b border-zinc-100 px-5 py-4">
@@ -1487,6 +1553,8 @@ export default function Home() {
   const [editingProductId, setEditingProductId] = useState<string | null>(null);
   const [editingProductListId, setEditingProductListId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState("calculator");
+  const [isExportModalOpen, setIsExportModalOpen] = useState(false);
+  const [exportActionMessage, setExportActionMessage] = useState("");
   const [showFlexusLInEcs, setShowFlexusLInEcs] = useState(false);
   const [addToListPending, setAddToListPending] = useState(false);
   const [addToListMessage, setAddToListMessage] = useState("");
@@ -2696,6 +2764,21 @@ export default function Home() {
     setOpenProjectMenuId(null);
     setIsCartMenuOpen(false);
     setActiveModal(modal);
+  };
+
+  const handleOpenExportModal = () => {
+    setExportActionMessage("");
+    setIsExportModalOpen(true);
+  };
+
+  const handleCopyCalculatorExport = async () => {
+    const copied = await copyText(calculatorExportJson);
+    setExportActionMessage(copied ? "JSON copied to clipboard." : "Clipboard access is unavailable in this browser.");
+  };
+
+  const handleDownloadCalculatorExport = () => {
+    const downloaded = downloadJsonFile(buildExportFilename(selectedServiceMeta.code), calculatorExportJson);
+    setExportActionMessage(downloaded ? "JSON file download started." : "Unable to start the JSON download in this browser.");
   };
 
   const toggleProject = (projectName: string) => {
@@ -4082,35 +4165,41 @@ export default function Home() {
     : isObsCalculator && selectedObsPricing
     ? `Selected specifications: ${obsProductType} | ${obsStorageClass} | ${obsRedundancy} | ${obsStorageSizeValue} ${obsStorageUnit} | ${obsDurationMonthsValue}mo | ${formatFlavorAmount(selectedObsPricing.currency, selectedObsPricing.amount, selectedObsPricing.suffix)}`
     : `Selected specifications: ${systemDiskType} | ${systemDiskSize || String(activeDiskSizeBounds.min)} GiB${isGpSsd2Selected && gpSsd2IopsValue != null && gpSsd2ThroughputValue != null ? ` | ${gpSsd2IopsValue} IOPS | ${gpSsd2ThroughputValue} MB/s` : ""}${selectedDiskPrice ? ` | Disk ${formatFlavorAmount(selectedDiskPrice.currency, selectedDiskPrice.amount, selectedDiskPrice.suffix)}` : ""}`;
-  const calculatorSelectionNotes = [
-    ...(isEcsCalculator && selectedFlavorCard?.productType === "flexus-l"
-      ? ["Flexus L plans include bundled system disk, bandwidth, and traffic. The ECS disk settings below are ignored for this selection."]
-      : []),
-    ...(isEcsCalculator && selectedFlavorCard?.productType === "ecs" && selectedFlavorCard?.flavorPrice && selectedDiskPrice
-      ? [`Flavor ${selectedFlavorCard.flavorPrice} + Disk ${formatFlavorAmount(selectedDiskPrice.currency, selectedDiskPrice.amount, selectedDiskPrice.suffix)}`]
-      : []),
-    ...(isObsCalculator && selectedObsPricing
-      ? [
-          ...selectedObsPricing.breakdown.map(
-            (entry) => `${entry.label}: ${formatFlavorAmount(selectedObsPricing.currency, entry.amount, selectedObsPricing.suffix)}`,
-          ),
-          `Monthly average: ${formatFlavorAmount(selectedObsPricing.currency, selectedObsPricing.monthlyAverageAmount, "/mo")}.`,
-          ...selectedObsPricing.notes,
-        ]
-      : []),
-    ...(isEvsCalculator && evsSplitNotice ? [evsSplitNotice] : []),
-  ];
-  const calculatorDiskNotes = [
-    ...(isGpSsd2Selected
-      ? ["Current estimate reflects capacity pricing only. Additional GPSSD2 IOPS and throughput charges are not modeled yet."]
-      : []),
-    ...(isEvsCalculator
-      ? [
-          `A single EVS disk can be up to ${evsSingleDiskMaxGiB} GiB. Entering a larger total will save multiple disks: ${evsSingleDiskMaxGiB} GiB chunks plus one final remainder disk.`,
-          ...(evsSplitNotice ? [evsSplitNotice] : []),
-        ]
-      : [`Minimum ${activeDiskSizeBounds.min} GiB, maximum ${activeDiskSizeBounds.max} GiB.`]),
-  ];
+  const calculatorSelectionNotes = useMemo(
+    () => [
+      ...(isEcsCalculator && selectedFlavorCard?.productType === "flexus-l"
+        ? ["Flexus L plans include bundled system disk, bandwidth, and traffic. The ECS disk settings below are ignored for this selection."]
+        : []),
+      ...(isEcsCalculator && selectedFlavorCard?.productType === "ecs" && selectedFlavorCard?.flavorPrice && selectedDiskPrice
+        ? [`Flavor ${selectedFlavorCard.flavorPrice} + Disk ${formatFlavorAmount(selectedDiskPrice.currency, selectedDiskPrice.amount, selectedDiskPrice.suffix)}`]
+        : []),
+      ...(isObsCalculator && selectedObsPricing
+        ? [
+            ...selectedObsPricing.breakdown.map(
+              (entry) => `${entry.label}: ${formatFlavorAmount(selectedObsPricing.currency, entry.amount, selectedObsPricing.suffix)}`,
+            ),
+            `Monthly average: ${formatFlavorAmount(selectedObsPricing.currency, selectedObsPricing.monthlyAverageAmount, "/mo")}.`,
+            ...selectedObsPricing.notes,
+          ]
+        : []),
+      ...(isEvsCalculator && evsSplitNotice ? [evsSplitNotice] : []),
+    ],
+    [evsSplitNotice, isEcsCalculator, isEvsCalculator, isObsCalculator, selectedDiskPrice, selectedFlavorCard, selectedObsPricing],
+  );
+  const calculatorDiskNotes = useMemo(
+    () => [
+      ...(isGpSsd2Selected
+        ? ["Current estimate reflects capacity pricing only. Additional GPSSD2 IOPS and throughput charges are not modeled yet."]
+        : []),
+      ...(isEvsCalculator
+        ? [
+            `A single EVS disk can be up to ${evsSingleDiskMaxGiB} GiB. Entering a larger total will save multiple disks: ${evsSingleDiskMaxGiB} GiB chunks plus one final remainder disk.`,
+            ...(evsSplitNotice ? [evsSplitNotice] : []),
+          ]
+        : [`Minimum ${activeDiskSizeBounds.min} GiB, maximum ${activeDiskSizeBounds.max} GiB.`]),
+    ],
+    [activeDiskSizeBounds.max, activeDiskSizeBounds.min, evsSplitNotice, isEvsCalculator, isGpSsd2Selected],
+  );
   const calculatorDiskConfigProps = {
     mode: isEvsCalculator ? ("evs" as const) : ("ecs" as const),
     systemDiskType,
@@ -4159,6 +4248,215 @@ export default function Home() {
     selectionSummary: calculatorSelectionSummary,
     selectionNotes: calculatorSelectionNotes,
   };
+  const calculatorExportData = useMemo<CalculatorExportData>(() => {
+    const common = {
+      schemaVersion: 1 as const,
+      exportedAt: new Date().toISOString(),
+      activeTab,
+      service: {
+        name: selectedService,
+        code: selectedServiceMeta.code,
+      },
+      region: {
+        key: regionValue,
+        label: huaweiRegions[regionValue].full,
+        catalogRegionId: obsCatalogRegionId ?? huaweiRegions[regionValue].catalogRegionId ?? regionValue,
+      },
+      billing: {
+        mode: billingMode,
+        usageHours: billingMode === "Pay-per-use" && !isObsCalculator ? usageHoursValue : null,
+      },
+      quantity: {
+        label: quantityLabel,
+        value: instanceCountValue,
+      },
+      cartContext: {
+        projectId: selectedProject?.id ?? null,
+        projectName: selectedProject?.name ?? null,
+        listId: selectedList?.id ?? null,
+        listName: selectedList?.name ?? null,
+        editingProductId,
+      },
+      estimate: {
+        display: selectedEstimate,
+        amount: selectedEstimateParts.amount,
+        timeframe: selectedEstimateParts.timeframe ?? null,
+        summary: calculatorSelectionSummary,
+        notes: calculatorSelectionNotes,
+      },
+      batchAdd: {
+        enabled: isSelectedServiceBatchAddImplemented,
+        input: batchInput,
+      },
+    };
+
+    if (isEcsCalculator) {
+      return {
+        ...common,
+        calculator: {
+          type: "ecs",
+          showFlexusL: canShowFlexusLInEcs && showFlexusLInEcs,
+          filters: {
+            minVcpu: minVcpuFilter,
+            minRamGiB: minRamFilter,
+            query: flavorQuery,
+            sort: flavorSort,
+            page: flavorPage,
+            pageSize: flavorPageSize,
+          },
+          selection: {
+            selectedFlavor,
+            vcpu: vcpuValue,
+            ramGiB: ramValue,
+            selectedFlavorCard,
+          },
+          systemDisk: {
+            type: systemDiskType,
+            sizeGiB: systemDiskSizeValue,
+            iops: gpSsd2IopsValue,
+            throughputMBps: gpSsd2ThroughputValue,
+          },
+        },
+      };
+    }
+
+    if (isFlexusLCalculator) {
+      return {
+        ...common,
+        calculator: {
+          type: "flexus-l",
+          selectedPlanId: selectedFlexusLPlan?.id ?? null,
+          selectedPlan: selectedFlexusLPlan,
+        },
+      };
+    }
+
+    if (isObsCalculator) {
+      return {
+        ...common,
+        calculator: {
+          type: "obs",
+          productType: obsProductType,
+          storageClass: obsStorageClass,
+          redundancy: obsRedundancy,
+          storage: {
+            amount: obsStorageSizeValue,
+            unit: obsStorageUnit,
+            effectiveGiB: convertObsCapacityToGb(obsStorageSizeValue, obsStorageUnit),
+          },
+          durationMonths: obsDurationMonthsValue,
+          outboundTraffic: {
+            amount: obsOutboundTrafficValue,
+            unit: obsOutboundTrafficUnit,
+          },
+          requests: {
+            inputUnit: `x${obsRequestInputMultiplier.toLocaleString()}`,
+            read: {
+              inputValue: obsReadRequestsValue,
+              actualRequests: convertObsRequestInputToCount(obsReadRequestsValue),
+            },
+            write: {
+              inputValue: obsWriteRequestsValue,
+              actualRequests: convertObsRequestInputToCount(obsWriteRequestsValue),
+            },
+            delete: {
+              inputValue: obsDeleteRequestsValue,
+              actualRequests: convertObsRequestInputToCount(obsDeleteRequestsValue),
+            },
+          },
+          pullTraffic: {
+            amount: obsPullTrafficValue,
+            unit: obsPullTrafficUnit,
+          },
+          replicationTraffic: {
+            amount: obsReplicationTrafficValue,
+            unit: obsReplicationTrafficUnit,
+          },
+          pricingCatalogRegionId: obsCatalogRegionId,
+          selectedPricing: selectedObsPricing,
+        },
+      };
+    }
+
+    return {
+      ...common,
+      calculator: {
+        type: "evs",
+        disk: {
+          type: systemDiskType,
+          sizeGiB: systemDiskSizeValue,
+          iops: gpSsd2IopsValue,
+          throughputMBps: gpSsd2ThroughputValue,
+          splitNotice: evsSplitNotice,
+        },
+        selectedDiskPrice,
+      },
+    };
+  }, [
+    activeTab,
+    batchInput,
+    billingMode,
+    calculatorSelectionNotes,
+    calculatorSelectionSummary,
+    canShowFlexusLInEcs,
+    editingProductId,
+    evsSplitNotice,
+    flavorPage,
+    flavorPageSize,
+    flavorQuery,
+    flavorSort,
+    gpSsd2IopsValue,
+    gpSsd2ThroughputValue,
+    instanceCountValue,
+    isEcsCalculator,
+    isFlexusLCalculator,
+    isObsCalculator,
+    isSelectedServiceBatchAddImplemented,
+    minRamFilter,
+    minVcpuFilter,
+    obsCatalogRegionId,
+    obsDeleteRequestsValue,
+    obsOutboundTrafficUnit,
+    obsOutboundTrafficValue,
+    obsProductType,
+    obsPullTrafficUnit,
+    obsPullTrafficValue,
+    obsReadRequestsValue,
+    obsRedundancy,
+    obsReplicationTrafficUnit,
+    obsReplicationTrafficValue,
+    obsStorageClass,
+    obsStorageSizeValue,
+    obsStorageUnit,
+    obsDurationMonthsValue,
+    obsWriteRequestsValue,
+    quantityLabel,
+    ramValue,
+    regionValue,
+    selectedDiskPrice,
+    selectedEstimate,
+    selectedEstimateParts.amount,
+    selectedEstimateParts.timeframe,
+    selectedFlavor,
+    selectedFlavorCard,
+    selectedFlexusLPlan,
+    selectedList?.id,
+    selectedList?.name,
+    selectedObsPricing,
+    selectedProject?.id,
+    selectedProject?.name,
+    selectedService,
+    selectedServiceMeta.code,
+    showFlexusLInEcs,
+    systemDiskSizeValue,
+    systemDiskType,
+    usageHoursValue,
+    vcpuValue,
+  ]);
+  const calculatorExportJson = useMemo(
+    () => JSON.stringify(calculatorExportData, null, 2),
+    [calculatorExportData],
+  );
   const selectedCartMenuItems: ActionMenuItem[] =
     selectedList && selectedProject
       ? [
@@ -4802,10 +5100,16 @@ export default function Home() {
                       <p className="text-sm text-zinc-500">{selectedServiceMeta.code}</p>
                     </div>
                   </div>
-                  <TabsList>
-                    <TabsTrigger value="calculator">Price Calculator</TabsTrigger>
-                    <TabsTrigger value="batch-add">Batch add</TabsTrigger>
-                  </TabsList>
+                  <div className="flex flex-wrap items-center gap-2 sm:justify-end">
+                    <Button type="button" variant="outline" size="sm" onClick={handleOpenExportModal}>
+                      <Download className="size-4" />
+                      Export JSON
+                    </Button>
+                    <TabsList>
+                      <TabsTrigger value="calculator">Price Calculator</TabsTrigger>
+                      <TabsTrigger value="batch-add">Batch add</TabsTrigger>
+                    </TabsList>
+                  </div>
                 </div>
               </CardHeader>
               <Separator />
@@ -5312,6 +5616,37 @@ export default function Home() {
             </CardContent>
           </Card>
         </main>
+        {isExportModalOpen ? (
+          <ActionModal
+            title="Export Calculator JSON"
+            description="This is the current calculator snapshot, including the active form state, estimate, and batch-add input."
+            onClose={() => setIsExportModalOpen(false)}
+            panelClassName="max-w-4xl"
+          >
+            <textarea
+              value={calculatorExportJson}
+              readOnly
+              spellCheck={false}
+              className="h-[26rem] w-full resize-none rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-3 font-mono text-xs leading-6 text-zinc-800 outline-none"
+              aria-label="Calculator export JSON"
+            />
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <p className="text-sm text-zinc-500">
+                {exportActionMessage || `${calculatorExportJson.split("\n").length.toLocaleString()} lines ready to copy or download.`}
+              </p>
+              <div className="flex flex-wrap gap-2">
+                <Button type="button" variant="outline" onClick={() => void handleCopyCalculatorExport()}>
+                  <Copy className="size-4" />
+                  Copy JSON
+                </Button>
+                <Button type="button" variant="outline" onClick={handleDownloadCalculatorExport}>
+                  <Download className="size-4" />
+                  Download JSON
+                </Button>
+              </div>
+            </div>
+          </ActionModal>
+        ) : null}
         {activeModal && activeProject ? (
           <ActionModal
             title={
