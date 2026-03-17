@@ -123,7 +123,24 @@ function getProductSpecsSummary(product: AppProduct) {
   const dataPackageTiB = typeof product.config.dataPackageTiB === "number"
     ? product.config.dataPackageTiB
     : null;
+  const storageClass = typeof product.config.storageClass === "string"
+    ? product.config.storageClass
+    : null;
+  const storageGiB = typeof product.config.storageGiB === "number"
+    ? product.config.storageGiB
+    : null;
+  const minimumStorageDays = typeof product.config.minimumStorageDays === "number"
+    ? product.config.minimumStorageDays
+    : null;
   const parts: string[] = [];
+
+  if (storageClass) {
+    parts.push(storageClass);
+  }
+
+  if (typeof storageGiB === "number" && Number.isFinite(storageGiB) && storageGiB > 0) {
+    parts.push(`${storageGiB} GiB`);
+  }
 
   if (Number.isFinite(vcpu) && vcpu > 0) {
     parts.push(`${vcpu} vCPUs`);
@@ -157,6 +174,10 @@ function getProductSpecsSummary(product: AppProduct) {
 
   if (typeof dataPackageTiB === "number" && Number.isFinite(dataPackageTiB) && dataPackageTiB > 0) {
     parts.push(`${dataPackageTiB} TB/month`);
+  }
+
+  if (typeof minimumStorageDays === "number" && Number.isFinite(minimumStorageDays) && minimumStorageDays > 0) {
+    parts.push(`${minimumStorageDays}-day minimum`);
   }
 
   return parts.length ? parts.join(" · ") : null;

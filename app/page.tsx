@@ -5,6 +5,7 @@ import Link from "next/link";
 import { type ReactNode, useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 
 import { EcsCalculatorPanel } from "@/components/calculators/ecs-calculator-panel";
+import { ObsCalculatorPanel } from "@/components/calculators/obs-calculator-panel";
 import { EvsCalculatorPanel } from "@/components/calculators/evs-calculator-panel";
 import { FlexusLCalculatorPanel } from "@/components/calculators/flexus-l-calculator-panel";
 import { ServiceBatchAddPanel } from "@/components/calculators/service-batch-add-panel";
@@ -16,6 +17,7 @@ import { Input } from "@/components/ui/input";
 import { authClient } from "@/lib/auth-client";
 import { findBestFlexusLPlan, findFlexusLPlan, flexusLPlans, flexusLPricingReference } from "@/lib/flexus-l-catalog";
 import { huaweiRegions, type HuaweiRegionKey } from "@/lib/huawei-regions";
+import { estimateObsStoragePrice, isObsStorageClass, obsPricingReference, obsStorageClasses, type ObsStorageClass } from "@/lib/obs-catalog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
@@ -147,7 +149,7 @@ const priceListEntries = [
   { service: "Flexus X Instance", sku: "fx1.medium", billing: "Pay-per-use", unit: "per hour", price: "USD 0.094" },
   { service: "Flexus X Instance", sku: "fx1.large", billing: "Yearly/Monthly", unit: "per month", price: "USD 64.20" },
   { service: "Object Storage Service", sku: "Standard Storage", billing: "Pay-per-use", unit: "per GB", price: "USD 0.023" },
-  { service: "Object Storage Service", sku: "Infrequent Access", billing: "Pay-per-use", unit: "per GB", price: "USD 0.012" },
+  { service: "Object Storage Service", sku: "Infrequent Access", billing: "Pay-per-use", unit: "per GB", price: "USD 0.014" },
   { service: "Elastic Load Balance", sku: "Shared ELB", billing: "Pay-per-use", unit: "per hour", price: "USD 0.031" },
   { service: "Elastic Load Balance", sku: "Dedicated ELB", billing: "Yearly/Monthly", unit: "per month", price: "USD 47.80" },
   { service: "Cloud Container Engine", sku: "Cluster Management", billing: "Pay-per-use", unit: "per hour", price: "USD 0.145" },
@@ -166,13 +168,15 @@ const flavorSortLabels = {
   "vcpu-asc": "vCPU: Lowest first",
 } as const;
 
-const supportedCalculatorServiceCodes = ["ECS", "Flexus L", "EVS"] as const;
-const supportedBatchAddServiceCodes = ["ECS", "Flexus L", "EVS"] as const;
+const supportedCalculatorServiceCodes = ["ECS", "Flexus L", "EVS", "OBS"] as const;
+const supportedBatchAddServiceCodes = ["ECS", "Flexus L", "EVS", "OBS"] as const;
 const evsBillingOptions: BillingOption[] = ["Pay-per-use", "Yearly/Monthly"];
+const obsBillingOptions: BillingOption[] = ["Pay-per-use"];
 const flavorPageSizeOptions = [1, 3, 5, 10, 20] as const;
 const flavorPageSizeStorageKey = "neoCalculator.flavorPageSize";
 const ecsDiskSizeBounds = { min: 40, max: 1024 } as const;
 const evsDiskSizeBounds = { min: 1, max: 1_000_000 } as const;
+const obsStorageSizeBounds = { min: 1, max: 1_000_000_000 } as const;
 const evsSingleDiskMaxGiB = 32_768;
 const gpSsd2IopsBounds = { min: 3_000, max: 128_000 } as const;
 const gpSsd2ThroughputBounds = { min: 125, max: 1_000 } as const;
@@ -849,6 +853,23 @@ function getProductConfigSummary(product: AppProduct): string {
     return parts.join(" · ") || product.serviceName;
   }
 
+  if (product.productType === "obs") {
+    const parts = [
+      typeof product.config.region === "string" ? product.config.region : null,
+      typeof product.config.storageClass === "string" ? product.config.storageClass : null,
+      typeof product.config.storageGiB === "number" ? `${product.config.storageGiB} GiB` : null,
+      typeof product.config.minimumStorageDays === "number" && product.config.minimumStorageDays > 0
+        ? `${product.config.minimumStorageDays}-day minimum`
+        : null,
+      typeof product.config.billingMode === "string" ? product.config.billingMode : null,
+      typeof product.config.usageHours === "number" && product.config.billingMode === "Pay-per-use"
+        ? `${product.config.usageHours}h`
+        : null,
+    ].filter(Boolean);
+
+    return parts.join(" · ") || product.serviceName;
+  }
+
   if (product.productType === "huawei-raw") {
     const parts = [
       typeof product.config.region === "string" ? product.config.region : null,
@@ -881,6 +902,10 @@ function isSystemDiskOption(value: unknown): value is SystemDiskOption {
 function getCalculatorBillingOptions(serviceCode: string): BillingOption[] {
   if (serviceCode === "EVS") {
     return evsBillingOptions;
+  }
+
+  if (serviceCode === "OBS") {
+    return obsBillingOptions;
   }
 
   if (serviceCode === "Flexus L") {
@@ -960,6 +985,49 @@ function getBatchDiskSize(
     const parsed = parsePositiveNumber(candidate);
     if (parsed != null) {
       return Math.min(bounds.max, Math.max(bounds.min, Math.floor(parsed)));
+    }
+  }
+
+  return fallback;
+}
+
+function getBatchObsStorageClass(value: unknown, fallback: ObsStorageClass) {
+  const obs = getNestedRecord(value, "obs");
+  const candidates = [
+    isRecord(value) ? value.storageClass : undefined,
+    isRecord(value) ? value.class : undefined,
+    isRecord(value) ? value.tier : undefined,
+    obs?.storageClass,
+    obs?.class,
+    obs?.tier,
+  ];
+
+  for (const candidate of candidates) {
+    if (isObsStorageClass(candidate)) {
+      return candidate;
+    }
+  }
+
+  return fallback;
+}
+
+function getBatchObsStorageSize(value: unknown, fallback: number) {
+  const obs = getNestedRecord(value, "obs");
+  const candidates = [
+    isRecord(value) ? value.size : undefined,
+    isRecord(value) ? value.sizeGiB : undefined,
+    isRecord(value) ? value.storageGiB : undefined,
+    isRecord(value) ? value.capacityGiB : undefined,
+    obs?.size,
+    obs?.sizeGiB,
+    obs?.storageGiB,
+    obs?.capacityGiB,
+  ];
+
+  for (const candidate of candidates) {
+    const parsed = parsePositiveNumber(candidate);
+    if (parsed != null) {
+      return Math.min(obsStorageSizeBounds.max, Math.max(obsStorageSizeBounds.min, Math.floor(parsed)));
     }
   }
 
@@ -1222,6 +1290,8 @@ export default function Home() {
   const [instanceCount, setInstanceCount] = useState("1");
   const [systemDiskType, setSystemDiskType] = useState<SystemDiskOption>("High I/O");
   const [systemDiskSize, setSystemDiskSize] = useState("40");
+  const [obsStorageClass, setObsStorageClass] = useState<ObsStorageClass>("Standard");
+  const [obsStorageSize, setObsStorageSize] = useState("100");
   const [gpSsd2Iops, setGpSsd2Iops] = useState("3000");
   const [gpSsd2Throughput, setGpSsd2Throughput] = useState("125");
   const [flavorQuery, setFlavorQuery] = useState("");
@@ -1308,6 +1378,7 @@ export default function Home() {
   const isEcsCalculator = selectedServiceCode === "ECS";
   const isFlexusLCalculator = selectedServiceCode === "Flexus L";
   const isEvsCalculator = selectedServiceCode === "EVS";
+  const isObsCalculator = selectedServiceCode === "OBS";
   const calculatorBillingOptions = useMemo(() => getCalculatorBillingOptions(selectedServiceCode), [selectedServiceCode]);
   const isSelectedServiceImplemented = supportedCalculatorServiceCodes.includes(
     selectedServiceCode as (typeof supportedCalculatorServiceCodes)[number],
@@ -1346,6 +1417,9 @@ export default function Home() {
   const minVcpuFilter = Number.isFinite(Number(minVcpuValue)) ? Math.max(0, Number(minVcpuValue)) : 0;
   const minRamFilter = Number.isFinite(Number(minRamValue)) ? Math.max(0, Number(minRamValue)) : 0;
   const activeDiskSizeBounds = isEvsCalculator ? evsDiskSizeBounds : ecsDiskSizeBounds;
+  const obsStorageSizeValue = Number.isFinite(Number(obsStorageSize))
+    ? Math.max(obsStorageSizeBounds.min, Math.min(obsStorageSizeBounds.max, Math.floor(Number(obsStorageSize))))
+    : obsStorageSizeBounds.min;
   const systemDiskSizeValue = Number.isFinite(Number(systemDiskSize))
     ? Math.max(activeDiskSizeBounds.min, Number(systemDiskSize))
     : activeDiskSizeBounds.min;
@@ -1358,6 +1432,7 @@ export default function Home() {
     isGpSsd2Selected && gpSsd2IopsValue != null ? getGpSsd2ThroughputBounds(gpSsd2IopsValue) : null;
   const instanceCountValue = Number.isFinite(Number(instanceCount)) ? Math.max(1, Number(instanceCount)) : 1;
   const selectedDiskPrice = getDiskPriceForBillingOption(diskPricing, systemDiskType, systemDiskSizeValue, billingMode, usageHoursValue);
+  const selectedObsPricing = isObsCalculator ? estimateObsStoragePrice(obsStorageClass, obsStorageSizeValue, usageHoursValue) : null;
   const ecsFlavorCards = catalogFlavors
     .filter((flavor) => getFlavorPriceForBillingOption(flavor, billingMode, usageHoursValue))
     .map((flavor) => toFlavorCard(flavor, billingMode, usageHoursValue, selectedDiskPrice));
@@ -1371,6 +1446,8 @@ export default function Home() {
   const selectedEstimateBase =
     (isFlexusLCalculator && selectedFlexusLPlan
       ? formatFlavorAmount("USD", selectedFlexusLPlan.monthlyPriceUsd, "/mo")
+      : isObsCalculator && selectedObsPricing
+      ? formatFlavorAmount(selectedObsPricing.currency, selectedObsPricing.amount, selectedObsPricing.suffix)
       : isEvsCalculator && selectedDiskPrice
       ? formatFlavorAmount(selectedDiskPrice.currency, selectedDiskPrice.amount, selectedDiskPrice.suffix)
       : selectedFlavorCard?.price)
@@ -1379,6 +1456,8 @@ export default function Home() {
     ?? "USD 0.00";
   const selectedEstimate = isEvsCalculator && selectedDiskPrice
     ? formatFlavorAmount(selectedDiskPrice.currency, selectedDiskPrice.amount * instanceCountValue, selectedDiskPrice.suffix)
+    : isObsCalculator && selectedObsPricing
+    ? formatFlavorAmount(selectedObsPricing.currency, selectedObsPricing.amount * instanceCountValue, selectedObsPricing.suffix)
     : isFlexusLCalculator && selectedFlexusLPlan
     ? formatFlavorAmount("USD", selectedFlexusLPlan.monthlyPriceUsd * instanceCountValue, "/mo")
     : selectedFlavorCard
@@ -1389,7 +1468,7 @@ export default function Home() {
       )
     : scalePriceDisplay(selectedEstimateBase, instanceCountValue);
   const selectedEstimateParts = splitPriceDisplay(selectedEstimate);
-  const quantityLabel = isEvsCalculator ? "Volume" : "Instance";
+  const quantityLabel = isEvsCalculator ? "Volume" : isObsCalculator ? "Bucket" : "Instance";
   const filteredFlavors = billableFlavors.filter((flavor) => {
     if (Number(flavor.vcpu) < minVcpuFilter || Number(flavor.ram) < minRamFilter) {
       return false;
@@ -2579,7 +2658,7 @@ export default function Home() {
   };
 
   const handleEditProduct = (product: AppProduct) => {
-    if (product.productType !== "ecs" && product.productType !== "evs" && product.productType !== "flexus-l") {
+    if (product.productType !== "ecs" && product.productType !== "evs" && product.productType !== "flexus-l" && product.productType !== "obs") {
       setAddToListMessage("This product cannot be edited from the calculator.");
       return;
     }
@@ -2595,6 +2674,8 @@ export default function Home() {
     const rawBillingMode = isBillingOption(product.config.billingMode) ? product.config.billingMode : "Pay-per-use";
     const nextBillingMode = product.productType === "evs" && rawBillingMode === "RI"
       ? "Pay-per-use"
+      : product.productType === "obs"
+        ? "Pay-per-use"
       : product.productType === "flexus-l"
         ? "Yearly/Monthly"
         : rawBillingMode;
@@ -2624,6 +2705,11 @@ export default function Home() {
           : product.productType === "evs"
             ? String(evsDiskSizeBounds.min)
             : String(ecsDiskSizeBounds.min);
+    const nextObsStorageClass = isObsStorageClass(product.config.storageClass) ? product.config.storageClass : "Standard";
+    const nextObsStorageSize =
+      typeof product.config.storageGiB === "number" && Number.isFinite(product.config.storageGiB)
+        ? String(Math.max(obsStorageSizeBounds.min, Math.floor(product.config.storageGiB)))
+        : String(obsStorageSizeBounds.min);
     if (product.productType === "ecs") {
       lastFlavorAutoSelectKeyRef.current = buildFlavorAutoSelectKey({
         minVcpuValue: nextMinVcpuValue,
@@ -2667,10 +2753,20 @@ export default function Home() {
             ? String(nextPlan.ramGiB)
             : "",
       );
+      setObsStorageClass("Standard");
+      setObsStorageSize("100");
+    } else if (product.productType === "obs") {
+      setSelectedFlavor("");
+      setVcpuValue("");
+      setRamValue("");
+      setObsStorageClass(nextObsStorageClass);
+      setObsStorageSize(nextObsStorageSize);
     } else {
       setSelectedFlavor("");
       setVcpuValue("");
       setRamValue("");
+      setObsStorageClass("Standard");
+      setObsStorageSize("100");
     }
     const nextGpSsd2Iops = getGpSsd2RequestedIops(product.config, Number(nextSystemDiskSize));
     const nextGpSsd2Throughput = getGpSsd2RequestedThroughput(product.config, nextGpSsd2Iops);
@@ -2689,6 +2785,21 @@ export default function Home() {
     setEditingProductId(null);
     setEditingProductListId(null);
     setAddToListMessage("");
+  };
+
+  const updateObsStorageSize = (nextValue: string) => {
+    if (nextValue === "") {
+      setObsStorageSize("");
+      return;
+    }
+
+    const parsed = Number(nextValue);
+    if (Number.isNaN(parsed)) {
+      return;
+    }
+
+    const normalized = Math.max(obsStorageSizeBounds.min, Math.min(obsStorageSizeBounds.max, Math.floor(parsed)));
+    setObsStorageSize(String(normalized));
   };
 
   const updateGpSsd2Iops = (nextValue: string) => {
@@ -3023,6 +3134,36 @@ export default function Home() {
                 },
               }];
             })()
+          : isObsCalculator
+          ? (() => {
+              const storageClass = getBatchObsStorageClass(item, obsStorageClass);
+              const storageGiB = getBatchObsStorageSize(item, obsStorageSizeValue);
+              const storagePrice = estimateObsStoragePrice(storageClass, storageGiB, usageHoursValue);
+
+              return [{
+                serviceCode: selectedServiceMeta.code,
+                serviceName: selectedService,
+                productType: "obs",
+                title: `${selectedService} ${storageClass} ${storageGiB} GiB`,
+                quantity,
+                config: {
+                  region: regionValue,
+                  billingMode: "Pay-per-use",
+                  usageHours: usageHoursValue,
+                  description,
+                  storageClass,
+                  storageGiB,
+                  minimumStorageDays: storagePrice.storageClass.minimumStorageDays,
+                  referenceHourlyConversionDays: obsPricingReference.hourlyConversionDays,
+                },
+                pricing: {
+                  total: formatFlavorAmount(storagePrice.currency, storagePrice.amount * quantity, storagePrice.suffix),
+                  storage: formatFlavorAmount(storagePrice.currency, storagePrice.amount, storagePrice.suffix),
+                  monthlyReference: formatFlavorAmount(storagePrice.currency, storagePrice.monthlyAmount, storagePrice.monthlySuffix),
+                  rate: `${storagePrice.currency} ${storagePrice.monthlyRatePerGiB.toFixed(4)}/GB-mo`,
+                },
+              }];
+            })()
           : (() => {
               const diskType = getBatchDiskType(item, systemDiskType);
               const diskSizeGiB = getBatchDiskSize(item, systemDiskSizeValue, evsDiskSizeBounds);
@@ -3138,6 +3279,11 @@ export default function Home() {
       return;
     }
 
+    if (isObsCalculator && !selectedObsPricing) {
+      setAddToListMessage("Select an OBS storage class first.");
+      return;
+    }
+
     setAddToListPending(true);
     setAddToListMessage("");
 
@@ -3226,6 +3372,34 @@ export default function Home() {
             pricing: {
               total: selectedEstimate,
               flavor: formatFlavorAmount("USD", selectedFlexusLPlan.monthlyPriceUsd, "/mo"),
+            },
+          }
+        : isObsCalculator && selectedObsPricing
+        ? {
+            serviceCode: selectedServiceMeta.code,
+            serviceName: selectedService,
+            productType: "obs",
+            title: `${selectedService} ${obsStorageClass} ${obsStorageSizeValue} GiB`,
+            quantity,
+            config: {
+              region: regionValue,
+              billingMode: "Pay-per-use",
+              usageHours: usageHoursValue,
+              description: selectedService,
+              storageClass: obsStorageClass,
+              storageGiB: obsStorageSizeValue,
+              minimumStorageDays: selectedObsPricing.storageClass.minimumStorageDays,
+              referenceHourlyConversionDays: obsPricingReference.hourlyConversionDays,
+            },
+            pricing: {
+              total: selectedEstimate,
+              storage: formatFlavorAmount(selectedObsPricing.currency, selectedObsPricing.amount, selectedObsPricing.suffix),
+              monthlyReference: formatFlavorAmount(
+                selectedObsPricing.currency,
+                selectedObsPricing.monthlyAmount,
+                selectedObsPricing.monthlySuffix,
+              ),
+              rate: `${selectedObsPricing.currency} ${selectedObsPricing.monthlyRatePerGiB.toFixed(4)}/GB-mo`,
             },
           }
         : splitEvsDiskSizes(systemDiskSizeValue).map((chunkSizeGiB) => {
@@ -3409,6 +3583,8 @@ export default function Home() {
       : `Selected specifications: ${selectedFlavor} | ${vcpuValue || "-"} vCPUs | ${ramValue || "-"} GiB | ${systemDiskType} ${systemDiskSize || String(activeDiskSizeBounds.min)} GiB${isGpSsd2Selected && gpSsd2IopsValue != null && gpSsd2ThroughputValue != null ? ` | ${gpSsd2IopsValue} IOPS | ${gpSsd2ThroughputValue} MB/s` : ""}${selectedDiskPrice ? ` | Disk ${formatFlavorAmount(selectedDiskPrice.currency, selectedDiskPrice.amount, selectedDiskPrice.suffix)}` : ""}`
     : isFlexusLCalculator && selectedFlexusLPlan
     ? `Selected specifications: ${selectedFlexusLPlan.title} | ${selectedFlexusLPlan.systemDiskGiB} GiB system disk | ${selectedFlexusLPlan.peakBandwidthMbit} Mbit/s | ${selectedFlexusLPlan.dataPackageTiB} TB/month | ${formatFlavorAmount("USD", selectedFlexusLPlan.monthlyPriceUsd, "/mo")}`
+    : isObsCalculator && selectedObsPricing
+    ? `Selected specifications: ${obsStorageClass} | ${obsStorageSizeValue} GiB | ${formatFlavorAmount(selectedObsPricing.currency, selectedObsPricing.amount, selectedObsPricing.suffix)}`
     : `Selected specifications: ${systemDiskType} | ${systemDiskSize || String(activeDiskSizeBounds.min)} GiB${isGpSsd2Selected && gpSsd2IopsValue != null && gpSsd2ThroughputValue != null ? ` | ${gpSsd2IopsValue} IOPS | ${gpSsd2ThroughputValue} MB/s` : ""}${selectedDiskPrice ? ` | Disk ${formatFlavorAmount(selectedDiskPrice.currency, selectedDiskPrice.amount, selectedDiskPrice.suffix)}` : ""}`;
   const calculatorSelectionNotes = [
     ...(isEcsCalculator && selectedFlavorCard?.productType === "flexus-l"
@@ -3416,6 +3592,15 @@ export default function Home() {
       : []),
     ...(isEcsCalculator && selectedFlavorCard?.productType === "ecs" && selectedFlavorCard?.flavorPrice && selectedDiskPrice
       ? [`Flavor ${selectedFlavorCard.flavorPrice} + Disk ${formatFlavorAmount(selectedDiskPrice.currency, selectedDiskPrice.amount, selectedDiskPrice.suffix)}`]
+      : []),
+    ...(isObsCalculator && selectedObsPricing
+      ? [
+          `Storage-only estimate based on ${formatFlavorAmount("USD", selectedObsPricing.monthlyRatePerGiB, "/GB-mo")} prorated over ${usageHoursValue} hours using Huawei's 30-day billing formula.`,
+          "Requests, outbound traffic, retrieval, and resource-package pricing are not modeled in this estimate.",
+          ...(selectedObsPricing.storageClass.minimumStorageDays > 0
+            ? [`${selectedObsPricing.storageClass.title} has a ${selectedObsPricing.storageClass.minimumStorageDays}-day minimum storage duration.`]
+            : []),
+        ]
       : []),
     ...(isEvsCalculator && evsSplitNotice ? [evsSplitNotice] : []),
   ];
@@ -4342,6 +4527,35 @@ export default function Home() {
                           selectionNotes={calculatorSelectionNotes}
                           referenceNote={`Reference pricing uses Huawei Cloud's public Flexus L monthly catalog for ${flexusLPricingReference.region}.`}
                         />
+                      ) : isObsCalculator ? (
+                        <ObsCalculatorPanel
+                          storageClasses={obsStorageClasses.map((storageClass) => ({
+                            title: storageClass.title,
+                            description: storageClass.description,
+                            monthlyPrice: formatFlavorAmount("USD", storageClass.monthlyPriceUsdPerGiB, "/GB-mo"),
+                            retrievalSummary: storageClass.retrievalSummary,
+                            minimumStorageDays: storageClass.minimumStorageDays,
+                          }))}
+                          selectedStorageClass={obsStorageClass}
+                          onStorageClassChange={(value) => {
+                            if (isObsStorageClass(value)) {
+                              setObsStorageClass(value);
+                            }
+                          }}
+                          storageSize={obsStorageSize}
+                          onStorageSizeChange={(value) => {
+                            if (value === "") {
+                              setObsStorageSize("");
+                              return;
+                            }
+                            updateObsStorageSize(value);
+                          }}
+                          onStorageSizeBlur={() => updateObsStorageSize(obsStorageSize || String(obsStorageSizeBounds.min))}
+                          onStorageSizeStep={(delta) => updateObsStorageSize(String(Number(obsStorageSize || String(obsStorageSizeBounds.min)) + delta))}
+                          selectionSummary={calculatorSelectionSummary}
+                          selectionNotes={calculatorSelectionNotes}
+                          referenceNote={`Reference pricing uses Huawei Cloud public OBS starting storage prices and the official 30-day pay-per-use proration formula. Resource-package pricing is not modeled. Sources: ${obsPricingReference.productUrl} and ${obsPricingReference.billingUrl}`}
+                        />
                       ) : (
                         <EvsCalculatorPanel diskConfigProps={calculatorDiskConfigProps} />
                       )}
@@ -4350,7 +4564,7 @@ export default function Home() {
                 ) : (
                   <UnsupportedServicePanel
                     title={`Calculator not implemented yet for ${selectedService}`}
-                    description={`This dashboard calculator currently supports ${supportedCalculatorServiceCodes.join(", ")} only. Select Elastic Cloud Server, Flexus L Instance, or Elastic Volume Service to use the pricing form and save items.`}
+                    description={`This dashboard calculator currently supports ${supportedCalculatorServiceCodes.join(", ")} only. Select Elastic Cloud Server, Flexus L Instance, Elastic Volume Service, or Object Storage Service to use the pricing form and save items.`}
                   />
                 )}
               </TabsContent>
@@ -4358,7 +4572,7 @@ export default function Home() {
               <TabsContent value="batch-add">
                 {isSelectedServiceBatchAddImplemented ? (
                   <ServiceBatchAddPanel
-                    mode={isEcsCalculator ? "ecs" : isFlexusLCalculator ? "flexus-l" : "evs"}
+                    mode={isEcsCalculator ? "ecs" : isFlexusLCalculator ? "flexus-l" : isObsCalculator ? "obs" : "evs"}
                     regionValue={regionValue}
                     regionOptions={calculatorRegionOptions}
                     onRegionChange={(value) => setRegionValue(value as HuaweiRegionKey)}
@@ -4368,6 +4582,8 @@ export default function Home() {
                     systemDiskType={systemDiskType}
                     systemDiskSizeValue={systemDiskSizeValue}
                     evsSingleDiskMaxGiB={evsSingleDiskMaxGiB}
+                    obsStorageClass={obsStorageClass}
+                    obsStorageSizeValue={obsStorageSizeValue}
                     showFlexusLToggleVisible={canShowFlexusLInEcs}
                     showFlexusLChecked={showFlexusLInEcs}
                     onShowFlexusLChange={setShowFlexusLInEcs}
@@ -4378,7 +4594,7 @@ export default function Home() {
                 ) : (
                   <UnsupportedServicePanel
                     title={`Batch add not implemented yet for ${selectedService}`}
-                    description={`Batch input currently supports ${supportedBatchAddServiceCodes.join(", ")} only. Select Elastic Cloud Server, Flexus L Instance, or Elastic Volume Service to use it.`}
+                    description={`Batch input currently supports ${supportedBatchAddServiceCodes.join(", ")} only. Select Elastic Cloud Server, Flexus L Instance, Elastic Volume Service, or Object Storage Service to use it.`}
                   />
                 )}
               </TabsContent>

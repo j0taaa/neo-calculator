@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Separator } from "@/components/ui/separator";
 
 type ServiceBatchAddPanelProps = {
-  mode: "ecs" | "flexus-l" | "evs";
+  mode: "ecs" | "flexus-l" | "evs" | "obs";
   regionValue: string;
   regionOptions: Array<{ value: string; label: string }>;
   onRegionChange: (value: string) => void;
@@ -17,6 +17,8 @@ type ServiceBatchAddPanelProps = {
   systemDiskType: string;
   systemDiskSizeValue: number;
   evsSingleDiskMaxGiB: number;
+  obsStorageClass?: string;
+  obsStorageSizeValue?: number;
   showFlexusLToggleVisible?: boolean;
   showFlexusLChecked?: boolean;
   onShowFlexusLChange?: (checked: boolean) => void;
@@ -36,6 +38,8 @@ export function ServiceBatchAddPanel({
   systemDiskType,
   systemDiskSizeValue,
   evsSingleDiskMaxGiB,
+  obsStorageClass = "Standard",
+  obsStorageSizeValue = 100,
   showFlexusLToggleVisible = false,
   showFlexusLChecked = false,
   onShowFlexusLChange,
@@ -45,6 +49,7 @@ export function ServiceBatchAddPanel({
 }: ServiceBatchAddPanelProps) {
   const isEcs = mode === "ecs";
   const isFlexusL = mode === "flexus-l";
+  const isObs = mode === "obs";
 
   return (
     <>
@@ -121,6 +126,18 @@ export function ServiceBatchAddPanel({
     "description": "ERP"
   }
 ]`
+                : isObs
+                ? `[
+  {
+    "size": 500
+  },
+  {
+    "storageClass": "Archive",
+    "size": 2048,
+    "quantity": 2,
+    "description": "Media archive"
+  }
+]`
                 : `[
   {
     "size": 40
@@ -152,6 +169,11 @@ export function ServiceBatchAddPanel({
                 Paste a JSON array of Flexus L instances. Required fields: <code>vcpu</code> and <code>ram</code>. Optional
                 fields: <code>quantity</code> and <code>description</code>.
               </>
+            ) : isObs ? (
+              <>
+                Paste a JSON array of OBS storage items. Required field: <code>size</code>. Optional fields:
+                <code>storageClass</code>, <code>quantity</code>, and <code>description</code>.
+              </>
             ) : (
               <>
                 Paste a JSON array of EVS volumes. Optional fields: <code>type</code>, <code>size</code>,
@@ -176,6 +198,11 @@ export function ServiceBatchAddPanel({
                   If omitted, <code>description</code> defaults to <code>Flexus L Instance</code>. The calculator chooses the
                   smallest public Flexus L plan that satisfies the requested <code>vcpu</code> and <code>ram</code>.
                 </>
+              ) : isObs ? (
+                <>
+                  If omitted, <code>storageClass</code> defaults to <code>{obsStorageClass}</code> and
+                  <code>size</code> defaults to <code>{obsStorageSizeValue}</code> GiB.
+                </>
               ) : (
                 <>
                   If omitted, <code>type</code> defaults to <code>{systemDiskType}</code> and
@@ -198,6 +225,11 @@ export function ServiceBatchAddPanel({
                 <>
                   Each JSON item should include numeric <code>vcpu</code> and <code>ram</code>. If no published Flexus L plan
                   satisfies the request, that item fails.
+                </>
+              ) : isObs ? (
+                <>
+                  Each JSON item should include a positive storage size in GiB. When present, <code>storageClass</code> should
+                  match an available OBS storage class.
                 </>
               ) : (
                 <>
