@@ -521,48 +521,6 @@ type ActiveModal =
   | { kind: "list-share"; listId: string }
   | null;
 
-type CalculatorExportData = {
-  schemaVersion: 1;
-  exportedAt: string;
-  activeTab: string;
-  service: {
-    name: string;
-    code: string;
-  };
-  region: {
-    key: HuaweiRegionKey;
-    label: string;
-    catalogRegionId: string;
-  };
-  billing: {
-    mode: BillingOption;
-    usageHours: number | null;
-  };
-  quantity: {
-    label: string;
-    value: number;
-  };
-  cartContext: {
-    projectId: string | null;
-    projectName: string | null;
-    listId: string | null;
-    listName: string | null;
-    editingProductId: string | null;
-  };
-  estimate: {
-    display: string;
-    amount: string;
-    timeframe: string | null;
-    summary: string;
-    notes: string[];
-  };
-  calculator: Record<string, unknown>;
-  batchAdd: {
-    enabled: boolean;
-    input: string;
-  };
-};
-
 type ResourceExportModalState = {
   title: string;
   description: string;
@@ -650,11 +608,6 @@ function downloadJsonFile(filename: string, contents: string) {
   document.body.removeChild(link);
   URL.revokeObjectURL(objectUrl);
   return true;
-}
-
-function buildExportFilename(serviceCode: string) {
-  const timestamp = new Date().toISOString().replace(/[:]/g, "-");
-  return `neocalculator-${serviceCode.toLowerCase()}-${timestamp}.json`;
 }
 
 function slugifyExportName(value: string) {
@@ -1616,8 +1569,6 @@ export default function Home() {
   const [editingProductId, setEditingProductId] = useState<string | null>(null);
   const [editingProductListId, setEditingProductListId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState("calculator");
-  const [isExportModalOpen, setIsExportModalOpen] = useState(false);
-  const [exportActionMessage, setExportActionMessage] = useState("");
   const [resourceExportModal, setResourceExportModal] = useState<ResourceExportModalState>(null);
   const [resourceExportActionMessage, setResourceExportActionMessage] = useState("");
   const [showFlexusLInEcs, setShowFlexusLInEcs] = useState(false);
@@ -2829,21 +2780,6 @@ export default function Home() {
     setOpenProjectMenuId(null);
     setIsCartMenuOpen(false);
     setActiveModal(modal);
-  };
-
-  const handleOpenExportModal = () => {
-    setExportActionMessage("");
-    setIsExportModalOpen(true);
-  };
-
-  const handleCopyCalculatorExport = async () => {
-    const copied = await copyText(calculatorExportJson);
-    setExportActionMessage(copied ? "JSON copied to clipboard." : "Clipboard access is unavailable in this browser.");
-  };
-
-  const handleDownloadCalculatorExport = () => {
-    const downloaded = downloadJsonFile(buildExportFilename(selectedServiceMeta.code), calculatorExportJson);
-    setExportActionMessage(downloaded ? "JSON file download started." : "Unable to start the JSON download in this browser.");
   };
 
   const openResourceExportModal = (title: string, description: string, payload: unknown, filename: string) => {
@@ -4359,215 +4295,6 @@ export default function Home() {
     selectionSummary: calculatorSelectionSummary,
     selectionNotes: calculatorSelectionNotes,
   };
-  const calculatorExportData = useMemo<CalculatorExportData>(() => {
-    const common = {
-      schemaVersion: 1 as const,
-      exportedAt: new Date().toISOString(),
-      activeTab,
-      service: {
-        name: selectedService,
-        code: selectedServiceMeta.code,
-      },
-      region: {
-        key: regionValue,
-        label: huaweiRegions[regionValue].full,
-        catalogRegionId: obsCatalogRegionId ?? huaweiRegions[regionValue].catalogRegionId ?? regionValue,
-      },
-      billing: {
-        mode: billingMode,
-        usageHours: billingMode === "Pay-per-use" && !isObsCalculator ? usageHoursValue : null,
-      },
-      quantity: {
-        label: quantityLabel,
-        value: instanceCountValue,
-      },
-      cartContext: {
-        projectId: selectedProject?.id ?? null,
-        projectName: selectedProject?.name ?? null,
-        listId: selectedList?.id ?? null,
-        listName: selectedList?.name ?? null,
-        editingProductId,
-      },
-      estimate: {
-        display: selectedEstimate,
-        amount: selectedEstimateParts.amount,
-        timeframe: selectedEstimateParts.timeframe ?? null,
-        summary: calculatorSelectionSummary,
-        notes: calculatorSelectionNotes,
-      },
-      batchAdd: {
-        enabled: isSelectedServiceBatchAddImplemented,
-        input: batchInput,
-      },
-    };
-
-    if (isEcsCalculator) {
-      return {
-        ...common,
-        calculator: {
-          type: "ecs",
-          showFlexusL: canShowFlexusLInEcs && showFlexusLInEcs,
-          filters: {
-            minVcpu: minVcpuFilter,
-            minRamGiB: minRamFilter,
-            query: flavorQuery,
-            sort: flavorSort,
-            page: flavorPage,
-            pageSize: flavorPageSize,
-          },
-          selection: {
-            selectedFlavor,
-            vcpu: vcpuValue,
-            ramGiB: ramValue,
-            selectedFlavorCard,
-          },
-          systemDisk: {
-            type: systemDiskType,
-            sizeGiB: systemDiskSizeValue,
-            iops: gpSsd2IopsValue,
-            throughputMBps: gpSsd2ThroughputValue,
-          },
-        },
-      };
-    }
-
-    if (isFlexusLCalculator) {
-      return {
-        ...common,
-        calculator: {
-          type: "flexus-l",
-          selectedPlanId: selectedFlexusLPlan?.id ?? null,
-          selectedPlan: selectedFlexusLPlan,
-        },
-      };
-    }
-
-    if (isObsCalculator) {
-      return {
-        ...common,
-        calculator: {
-          type: "obs",
-          productType: obsProductType,
-          storageClass: obsStorageClass,
-          redundancy: obsRedundancy,
-          storage: {
-            amount: obsStorageSizeValue,
-            unit: obsStorageUnit,
-            effectiveGiB: convertObsCapacityToGb(obsStorageSizeValue, obsStorageUnit),
-          },
-          durationMonths: obsDurationMonthsValue,
-          outboundTraffic: {
-            amount: obsOutboundTrafficValue,
-            unit: obsOutboundTrafficUnit,
-          },
-          requests: {
-            inputUnit: `x${obsRequestInputMultiplier.toLocaleString()}`,
-            read: {
-              inputValue: obsReadRequestsValue,
-              actualRequests: convertObsRequestInputToCount(obsReadRequestsValue),
-            },
-            write: {
-              inputValue: obsWriteRequestsValue,
-              actualRequests: convertObsRequestInputToCount(obsWriteRequestsValue),
-            },
-            delete: {
-              inputValue: obsDeleteRequestsValue,
-              actualRequests: convertObsRequestInputToCount(obsDeleteRequestsValue),
-            },
-          },
-          pullTraffic: {
-            amount: obsPullTrafficValue,
-            unit: obsPullTrafficUnit,
-          },
-          replicationTraffic: {
-            amount: obsReplicationTrafficValue,
-            unit: obsReplicationTrafficUnit,
-          },
-          pricingCatalogRegionId: obsCatalogRegionId,
-          selectedPricing: selectedObsPricing,
-        },
-      };
-    }
-
-    return {
-      ...common,
-      calculator: {
-        type: "evs",
-        disk: {
-          type: systemDiskType,
-          sizeGiB: systemDiskSizeValue,
-          iops: gpSsd2IopsValue,
-          throughputMBps: gpSsd2ThroughputValue,
-          splitNotice: evsSplitNotice,
-        },
-        selectedDiskPrice,
-      },
-    };
-  }, [
-    activeTab,
-    batchInput,
-    billingMode,
-    calculatorSelectionNotes,
-    calculatorSelectionSummary,
-    canShowFlexusLInEcs,
-    editingProductId,
-    evsSplitNotice,
-    flavorPage,
-    flavorPageSize,
-    flavorQuery,
-    flavorSort,
-    gpSsd2IopsValue,
-    gpSsd2ThroughputValue,
-    instanceCountValue,
-    isEcsCalculator,
-    isFlexusLCalculator,
-    isObsCalculator,
-    isSelectedServiceBatchAddImplemented,
-    minRamFilter,
-    minVcpuFilter,
-    obsCatalogRegionId,
-    obsDeleteRequestsValue,
-    obsOutboundTrafficUnit,
-    obsOutboundTrafficValue,
-    obsProductType,
-    obsPullTrafficUnit,
-    obsPullTrafficValue,
-    obsReadRequestsValue,
-    obsRedundancy,
-    obsReplicationTrafficUnit,
-    obsReplicationTrafficValue,
-    obsStorageClass,
-    obsStorageSizeValue,
-    obsStorageUnit,
-    obsDurationMonthsValue,
-    obsWriteRequestsValue,
-    quantityLabel,
-    ramValue,
-    regionValue,
-    selectedDiskPrice,
-    selectedEstimate,
-    selectedEstimateParts.amount,
-    selectedEstimateParts.timeframe,
-    selectedFlavor,
-    selectedFlavorCard,
-    selectedFlexusLPlan,
-    selectedList?.id,
-    selectedList?.name,
-    selectedObsPricing,
-    selectedProject?.id,
-    selectedProject?.name,
-    selectedService,
-    selectedServiceMeta.code,
-    showFlexusLInEcs,
-    systemDiskSizeValue,
-    systemDiskType,
-    usageHoursValue,
-    vcpuValue,
-  ]);
-  const calculatorExportJson = useMemo(
-    () => JSON.stringify(calculatorExportData, null, 2),
-    [calculatorExportData],
-  );
   const selectedCartMenuItems: ActionMenuItem[] =
     selectedList && selectedProject
       ? [
@@ -5221,16 +4948,10 @@ export default function Home() {
                       <p className="text-sm text-zinc-500">{selectedServiceMeta.code}</p>
                     </div>
                   </div>
-                  <div className="flex flex-wrap items-center gap-2 sm:justify-end">
-                    <Button type="button" variant="outline" size="sm" onClick={handleOpenExportModal}>
-                      <Download className="size-4" />
-                      Export JSON
-                    </Button>
-                    <TabsList>
-                      <TabsTrigger value="calculator">Price Calculator</TabsTrigger>
-                      <TabsTrigger value="batch-add">Batch add</TabsTrigger>
-                    </TabsList>
-                  </div>
+                  <TabsList>
+                    <TabsTrigger value="calculator">Price Calculator</TabsTrigger>
+                    <TabsTrigger value="batch-add">Batch add</TabsTrigger>
+                  </TabsList>
                 </div>
               </CardHeader>
               <Separator />
@@ -5737,37 +5458,6 @@ export default function Home() {
             </CardContent>
           </Card>
         </main>
-        {isExportModalOpen ? (
-          <ActionModal
-            title="Export Calculator JSON"
-            description="This is the current calculator snapshot, including the active form state, estimate, and batch-add input."
-            onClose={() => setIsExportModalOpen(false)}
-            panelClassName="max-w-4xl"
-          >
-            <textarea
-              value={calculatorExportJson}
-              readOnly
-              spellCheck={false}
-              className="h-[26rem] w-full resize-none rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-3 font-mono text-xs leading-6 text-zinc-800 outline-none"
-              aria-label="Calculator export JSON"
-            />
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <p className="text-sm text-zinc-500">
-                {exportActionMessage || `${calculatorExportJson.split("\n").length.toLocaleString()} lines ready to copy or download.`}
-              </p>
-              <div className="flex flex-wrap gap-2">
-                <Button type="button" variant="outline" onClick={() => void handleCopyCalculatorExport()}>
-                  <Copy className="size-4" />
-                  Copy JSON
-                </Button>
-                <Button type="button" variant="outline" onClick={handleDownloadCalculatorExport}>
-                  <Download className="size-4" />
-                  Download JSON
-                </Button>
-              </div>
-            </div>
-          </ActionModal>
-        ) : null}
         {resourceExportModal ? (
           <ActionModal
             title={resourceExportModal.title}
