@@ -41,6 +41,13 @@ import {
   type ObsRedundancy,
   type ObsStorageClass,
 } from "@/lib/obs-catalog";
+import {
+  buildListExportPayload,
+  buildNamedExportFilename,
+  buildProjectExportPayload,
+  downloadProjectWorkbookFile,
+  downloadTextFile,
+} from "@/lib/resource-export";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
@@ -591,79 +598,6 @@ async function copyText(text: string) {
   } finally {
     document.body.removeChild(textarea);
   }
-}
-
-function downloadJsonFile(filename: string, contents: string) {
-  if (typeof document === "undefined") {
-    return false;
-  }
-
-  const blob = new Blob([contents], { type: "application/json;charset=utf-8" });
-  const objectUrl = URL.createObjectURL(blob);
-  const link = document.createElement("a");
-  link.href = objectUrl;
-  link.download = filename;
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-  URL.revokeObjectURL(objectUrl);
-  return true;
-}
-
-function slugifyExportName(value: string) {
-  const slug = value
-    .trim()
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "");
-  return slug || "resource";
-}
-
-function buildNamedExportFilename(kind: "project" | "cart", name: string) {
-  const timestamp = new Date().toISOString().replace(/[:]/g, "-");
-  return `neocalculator-${kind}-${slugifyExportName(name)}-${timestamp}.json`;
-}
-
-function buildProjectExportPayload(project: AppProject) {
-  const totalProducts = project.lists.reduce((count, list) => count + list.products.length, 0);
-  const totalQuantity = project.lists.reduce(
-    (count, list) => count + list.products.reduce((sum, product) => sum + product.quantity, 0),
-    0,
-  );
-
-  return {
-    schemaVersion: 1,
-    exportedAt: new Date().toISOString(),
-    resourceType: "project",
-    summary: {
-      listCount: project.lists.length,
-      productCount: totalProducts,
-      totalQuantity,
-    },
-    project,
-  };
-}
-
-function buildListExportPayload(project: AppProject, list: AppList) {
-  const totalQuantity = list.products.reduce((count, product) => count + product.quantity, 0);
-
-  return {
-    schemaVersion: 1,
-    exportedAt: new Date().toISOString(),
-    resourceType: "cart",
-    summary: {
-      productCount: list.products.length,
-      totalQuantity,
-    },
-    project: {
-      id: project.id,
-      name: project.name,
-      ownerUserId: project.ownerUserId,
-      accessLevel: project.accessLevel,
-      canShare: project.canShare,
-    },
-    cart: list,
-  };
 }
 
 async function parseJsonFile(file: File) {
@@ -1616,6 +1550,8 @@ export default function Home() {
   const [projectHuaweiMessageErrors, setProjectHuaweiMessageErrors] = useState<Record<string, boolean>>({});
   const [projectImportMessages, setProjectImportMessages] = useState<Record<string, string>>({});
   const [projectImportMessageErrors, setProjectImportMessageErrors] = useState<Record<string, boolean>>({});
+  const [projectExportMessages, setProjectExportMessages] = useState<Record<string, string>>({});
+  const [projectExportMessageErrors, setProjectExportMessageErrors] = useState<Record<string, boolean>>({});
   const [sharingProjectKey, setSharingProjectKey] = useState<string | null>(null);
   const [sharingListKey, setSharingListKey] = useState<string | null>(null);
   const [projectShareMessages, setProjectShareMessages] = useState<Record<string, string>>({});
@@ -2955,7 +2891,7 @@ export default function Home() {
       "Export Project JSON",
       "This export includes the full project, all carts in it, and every saved product.",
       buildProjectExportPayload(project),
-      buildNamedExportFilename("project", project.name),
+      buildNamedExportFilename("project", project.name, "json"),
     );
   };
 
@@ -2964,8 +2900,28 @@ export default function Home() {
       "Export Cart JSON",
       "This export includes the cart, its parent project reference, and every saved product in the cart.",
       buildListExportPayload(project, list),
-      buildNamedExportFilename("cart", list.name),
+      buildNamedExportFilename("cart", list.name, "json"),
     );
+  };
+
+  const handleExportProjectExcel = async (project: AppProject) => {
+    setProjectExportMessages((current) => ({ ...current, [project.id]: "" }));
+    setProjectExportMessageErrors((current) => ({ ...current, [project.id]: false }));
+
+    try {
+      const downloaded = await downloadProjectWorkbookFile(project);
+      setProjectExportMessages((current) => ({
+        ...current,
+        [project.id]: downloaded ? "Excel export download started." : "Unable to start the Excel download in this browser.",
+      }));
+      setProjectExportMessageErrors((current) => ({ ...current, [project.id]: !downloaded }));
+    } catch (error) {
+      setProjectExportMessages((current) => ({
+        ...current,
+        [project.id]: error instanceof Error ? error.message : "Unable to export the project as Excel.",
+      }));
+      setProjectExportMessageErrors((current) => ({ ...current, [project.id]: true }));
+    }
   };
 
   const handleCopyResourceExport = async () => {
@@ -2982,7 +2938,7 @@ export default function Home() {
       return;
     }
 
-    const downloaded = downloadJsonFile(resourceExportModal.filename, resourceExportModal.json);
+    const downloaded = downloadTextFile(resourceExportModal.filename, resourceExportModal.json, "application/json;charset=utf-8");
     setResourceExportActionMessage(downloaded ? "JSON file download started." : "Unable to start the JSON download in this browser.");
   };
 
@@ -4886,6 +4842,8 @@ export default function Home() {
                   const projectHuaweiMessageIsError = projectHuaweiMessageErrors[project.id] ?? false;
                   const projectImportMessage = projectImportMessages[project.id] ?? "";
                   const projectImportMessageIsError = projectImportMessageErrors[project.id] ?? false;
+                  const projectExportMessage = projectExportMessages[project.id] ?? "";
+                  const projectExportMessageIsError = projectExportMessageErrors[project.id] ?? false;
                   const projectShareMessage = projectShareMessages[project.id] ?? "";
                     const projectMenuItems: ActionMenuItem[] = [
                       {
@@ -4914,6 +4872,11 @@ export default function Home() {
                         label: "Export Project JSON",
                         icon: <Download className="size-4" />,
                         onSelect: () => handleOpenProjectExport(project),
+                      },
+                      {
+                        label: "Export Project Excel",
+                        icon: <Download className="size-4" />,
+                        onSelect: () => void handleExportProjectExcel(project),
                       },
                       ...(project.canShare
                         ? [
@@ -5079,7 +5042,7 @@ export default function Home() {
                                   })}
                                 </SelectContent>
                               </Select>
-                              {projectHuaweiMessage || projectCloneMessage || projectImportMessage || projectShareMessage ? (
+                              {projectHuaweiMessage || projectCloneMessage || projectImportMessage || projectExportMessage || projectShareMessage ? (
                                 <div className="rounded-lg border bg-zinc-50 p-3">
                                   <div className="space-y-1 text-xs">
                                     {projectHuaweiMessage ? (
@@ -5090,6 +5053,9 @@ export default function Home() {
                                     ) : null}
                                     {projectImportMessage ? (
                                       <p className={projectImportMessageIsError ? "text-red-600" : "text-zinc-600"}>{projectImportMessage}</p>
+                                    ) : null}
+                                    {projectExportMessage ? (
+                                      <p className={projectExportMessageIsError ? "text-red-600" : "text-zinc-600"}>{projectExportMessage}</p>
                                     ) : null}
                                     {projectShareMessage ? <p className="text-zinc-600">{projectShareMessage}</p> : null}
                                   </div>
