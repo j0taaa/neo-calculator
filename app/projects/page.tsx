@@ -580,7 +580,6 @@ export default function ProjectsPage() {
   const [openProjectMenuId, setOpenProjectMenuId] = useState<string | null>(null);
   const [openListMenuId, setOpenListMenuId] = useState<string | null>(null);
   const [isProjectCreateMenuOpen, setIsProjectCreateMenuOpen] = useState(false);
-  const [openProjectListCreateMenuId, setOpenProjectListCreateMenuId] = useState<string | null>(null);
   const [activeModal, setActiveModal] = useState<ActiveModal>(null);
   const [resourceExportModal, setResourceExportModal] = useState<ResourceExportModalState>(null);
   const [resourceExportActionMessage, setResourceExportActionMessage] = useState("");
@@ -825,7 +824,7 @@ export default function ProjectsPage() {
   }, [loadHuaweiCarts]);
 
   useEffect(() => {
-    if (!openProjectMenuId && !openListMenuId && !isProjectCreateMenuOpen && !openProjectListCreateMenuId) {
+    if (!openProjectMenuId && !openListMenuId && !isProjectCreateMenuOpen) {
       return;
     }
 
@@ -837,12 +836,11 @@ export default function ProjectsPage() {
       setOpenProjectMenuId(null);
       setOpenListMenuId(null);
       setIsProjectCreateMenuOpen(false);
-      setOpenProjectListCreateMenuId(null);
     };
 
     document.addEventListener("mousedown", handlePointerDown);
     return () => document.removeEventListener("mousedown", handlePointerDown);
-  }, [isProjectCreateMenuOpen, openListMenuId, openProjectListCreateMenuId, openProjectMenuId]);
+  }, [isProjectCreateMenuOpen, openListMenuId, openProjectMenuId]);
 
   useEffect(() => {
     if (!activeModal) {
@@ -2020,15 +2018,13 @@ export default function ProjectsPage() {
                   const cloneMessage = projectCloneMessages[project.id] ?? "";
                   const cloneMessageIsError = projectCloneMessageErrors[project.id] ?? false;
                   const projectShareMessage = projectShareMessages[project.id] ?? "";
-                  const projectListCreateMenuItems: ActionMenuItem[] = [
+                  const projectMenuItems: ActionMenuItem[] = [
                     {
                       label: "Import Cart",
                       icon: <Upload className="size-4" />,
                       onSelect: () => openCartImportPicker(project.id),
                       disabled: importCartPendingProjectId === project.id,
                     },
-                  ];
-                  const projectMenuItems: ActionMenuItem[] = [
                     {
                       label: "Create Huawei Carts",
                       icon: <RefreshCw className="size-4" />,
@@ -2158,12 +2154,6 @@ export default function ProjectsPage() {
                               >
                                 {listPendingProjectId === project.id ? "Adding..." : "Add Cart"}
                               </Button>
-                              <ActionMenu
-                                open={openProjectListCreateMenuId === project.id}
-                                onOpenChange={(open) => setOpenProjectListCreateMenuId(open ? project.id : null)}
-                                label={`Open cart actions for ${project.name}`}
-                                items={projectListCreateMenuItems}
-                              />
                             </div>
 
                             <Select
