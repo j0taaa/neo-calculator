@@ -45,7 +45,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Check, ChevronDown, ChevronRight, Copy, Download, Link2, MoreHorizontal, Pencil, RefreshCw, Search, Share2, Trash2, UserCircle2, X } from "lucide-react";
+import { Check, ChevronDown, ChevronRight, Copy, Download, Link2, MoreHorizontal, Pencil, RefreshCw, Search, Share2, Trash2, Upload, UserCircle2, X } from "lucide-react";
 
 const services = [
   { name: "Bare Metal Server", code: "BMS", icon: "https://res-static.hc-cdn.cn/cloudbu-site/public/product-banner-icon/Compute/BMS.png" },
@@ -1621,6 +1621,8 @@ export default function Home() {
   const [projectShareMessages, setProjectShareMessages] = useState<Record<string, string>>({});
   const [listShareMessages, setListShareMessages] = useState<Record<string, string>>({});
   const [openProjectMenuId, setOpenProjectMenuId] = useState<string | null>(null);
+  const [isProjectCreateMenuOpen, setIsProjectCreateMenuOpen] = useState(false);
+  const [openProjectListCreateMenuId, setOpenProjectListCreateMenuId] = useState<string | null>(null);
   const [isCartMenuOpen, setIsCartMenuOpen] = useState(false);
   const [activeModal, setActiveModal] = useState<ActiveModal>(null);
   const [importCartTargetProjectId, setImportCartTargetProjectId] = useState<string | null>(null);
@@ -2091,7 +2093,7 @@ export default function Home() {
   }, []);
 
   useEffect(() => {
-    if (!openProjectMenuId && !isCartMenuOpen) {
+    if (!openProjectMenuId && !isCartMenuOpen && !isProjectCreateMenuOpen && !openProjectListCreateMenuId) {
       return;
     }
 
@@ -2101,12 +2103,14 @@ export default function Home() {
       }
 
       setOpenProjectMenuId(null);
+      setIsProjectCreateMenuOpen(false);
+      setOpenProjectListCreateMenuId(null);
       setIsCartMenuOpen(false);
     };
 
     document.addEventListener("mousedown", handlePointerDown);
     return () => document.removeEventListener("mousedown", handlePointerDown);
-  }, [isCartMenuOpen, openProjectMenuId]);
+  }, [isCartMenuOpen, isProjectCreateMenuOpen, openProjectListCreateMenuId, openProjectMenuId]);
 
   useEffect(() => {
     if (!activeModal) {
@@ -4339,6 +4343,14 @@ export default function Home() {
   const activeProjectCloneMessageIsError = activeProject ? projectCloneMessageErrors[activeProject.id] ?? false : false;
   const activeProjectHuaweiMessage = activeProject ? projectHuaweiMessages[activeProject.id] ?? "" : "";
   const activeProjectHuaweiMessageIsError = activeProject ? projectHuaweiMessageErrors[activeProject.id] ?? false : false;
+  const projectCreateMenuItems: ActionMenuItem[] = [
+    {
+      label: "Import Project",
+      icon: <Upload className="size-4" />,
+      onSelect: openProjectImportPicker,
+      disabled: importProjectPending || !session,
+    },
+  ];
   const activeProjectShareMessage = activeProject ? projectShareMessages[activeProject.id] ?? "" : "";
   const activeSelectedHuaweiCartKey = activeList ? selectedHuaweiCartKey || activeList.huaweiCartKey || "" : "";
   const activeSelectedHuaweiCart = huaweiCarts.find((cart) => cart.key === activeSelectedHuaweiCartKey) ?? null;
@@ -4840,9 +4852,12 @@ export default function Home() {
                   <Button variant="outline" size="sm" onClick={handleCreateProject} disabled={newProjectPending || !session}>
                     {newProjectPending ? "Adding..." : "New Project"}
                   </Button>
-                  <Button variant="outline" size="sm" onClick={openProjectImportPicker} disabled={importProjectPending || !session}>
-                    {importProjectPending ? "Importing..." : "Import Project"}
-                  </Button>
+                  <ActionMenu
+                    open={isProjectCreateMenuOpen}
+                    onOpenChange={setIsProjectCreateMenuOpen}
+                    label="Open project actions"
+                    items={projectCreateMenuItems}
+                  />
                 </div>
                 {projectsError ? <p className="text-sm text-red-600">{projectsError}</p> : null}
                 {importProjectMessage ? (
@@ -4874,6 +4889,14 @@ export default function Home() {
                   const projectImportMessage = projectImportMessages[project.id] ?? "";
                   const projectImportMessageIsError = projectImportMessageErrors[project.id] ?? false;
                   const projectShareMessage = projectShareMessages[project.id] ?? "";
+                    const projectListCreateMenuItems: ActionMenuItem[] = [
+                      {
+                        label: "Import Cart",
+                        icon: <Upload className="size-4" />,
+                        onSelect: () => openCartImportPicker(project.id),
+                        disabled: importCartPendingProjectId === project.id,
+                      },
+                    ];
                     const projectMenuItems: ActionMenuItem[] = [
                       {
                         label: "Rename Project",
@@ -5031,14 +5054,12 @@ export default function Home() {
                                 >
                                   {listPendingProjectId === project.id ? "Adding..." : "Add List"}
                                 </Button>
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={() => openCartImportPicker(project.id)}
-                                  disabled={importCartPendingProjectId === project.id}
-                                >
-                                  {importCartPendingProjectId === project.id ? "Importing..." : "Import Cart"}
-                                </Button>
+                                <ActionMenu
+                                  open={openProjectListCreateMenuId === project.id}
+                                  onOpenChange={(open) => setOpenProjectListCreateMenuId(open ? project.id : null)}
+                                  label={`Open cart actions for ${project.name}`}
+                                  items={projectListCreateMenuItems}
+                                />
                               </div>
                               <Select
                                 value={listBaseDrafts[project.id] || "__blank"}

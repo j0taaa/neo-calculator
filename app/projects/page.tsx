@@ -12,7 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Separator } from "@/components/ui/separator";
 import { authClient } from "@/lib/auth-client";
 import { huaweiRegions, type HuaweiRegionKey } from "@/lib/huawei-regions";
-import { ArrowRightLeft, Check, ChevronDown, ChevronRight, Copy, Download, Link2, MoreHorizontal, Pencil, RefreshCw, Share2, Trash2, X } from "lucide-react";
+import { ArrowRightLeft, Check, ChevronDown, ChevronRight, Copy, Download, Link2, MoreHorizontal, Pencil, RefreshCw, Share2, Trash2, Upload, X } from "lucide-react";
 
 type BillingOption = "Pay-per-use" | "RI" | "Yearly/Monthly";
 
@@ -579,6 +579,8 @@ export default function ProjectsPage() {
   const [listShareMessages, setListShareMessages] = useState<Record<string, string>>({});
   const [openProjectMenuId, setOpenProjectMenuId] = useState<string | null>(null);
   const [openListMenuId, setOpenListMenuId] = useState<string | null>(null);
+  const [isProjectCreateMenuOpen, setIsProjectCreateMenuOpen] = useState(false);
+  const [openProjectListCreateMenuId, setOpenProjectListCreateMenuId] = useState<string | null>(null);
   const [activeModal, setActiveModal] = useState<ActiveModal>(null);
   const [resourceExportModal, setResourceExportModal] = useState<ResourceExportModalState>(null);
   const [resourceExportActionMessage, setResourceExportActionMessage] = useState("");
@@ -823,7 +825,7 @@ export default function ProjectsPage() {
   }, [loadHuaweiCarts]);
 
   useEffect(() => {
-    if (!openProjectMenuId && !openListMenuId) {
+    if (!openProjectMenuId && !openListMenuId && !isProjectCreateMenuOpen && !openProjectListCreateMenuId) {
       return;
     }
 
@@ -834,11 +836,13 @@ export default function ProjectsPage() {
 
       setOpenProjectMenuId(null);
       setOpenListMenuId(null);
+      setIsProjectCreateMenuOpen(false);
+      setOpenProjectListCreateMenuId(null);
     };
 
     document.addEventListener("mousedown", handlePointerDown);
     return () => document.removeEventListener("mousedown", handlePointerDown);
-  }, [openProjectMenuId, openListMenuId]);
+  }, [isProjectCreateMenuOpen, openListMenuId, openProjectListCreateMenuId, openProjectMenuId]);
 
   useEffect(() => {
     if (!activeModal) {
@@ -1872,6 +1876,14 @@ export default function ProjectsPage() {
   const activeProjectCloneMessageIsError = activeProject ? projectCloneMessageErrors[activeProject.id] ?? false : false;
   const activeProjectHuaweiMessage = activeProject ? projectHuaweiMessages[activeProject.id] ?? "" : "";
   const activeProjectHuaweiMessageIsError = activeProject ? projectHuaweiMessageErrors[activeProject.id] ?? false : false;
+  const projectCreateMenuItems: ActionMenuItem[] = [
+    {
+      label: "Import Project",
+      icon: <Upload className="size-4" />,
+      onSelect: openProjectImportPicker,
+      disabled: importProjectPending,
+    },
+  ];
   const activeProjectShareMessage = activeProject ? projectShareMessages[activeProject.id] ?? "" : "";
   const isActiveProjectCloning = activeProject ? cloningProjectId === activeProject.id : false;
   const isActiveProjectSyncing = activeProject ? syncingHuaweiProjectId === activeProject.id : false;
@@ -1973,9 +1985,12 @@ export default function ProjectsPage() {
               <Button variant="outline" size="sm" onClick={handleCreateProject} disabled={newProjectPending}>
                 {newProjectPending ? "Adding..." : "New Project"}
               </Button>
-              <Button variant="outline" size="sm" onClick={openProjectImportPicker} disabled={importProjectPending}>
-                {importProjectPending ? "Importing..." : "Import Project"}
-              </Button>
+              <ActionMenu
+                open={isProjectCreateMenuOpen}
+                onOpenChange={setIsProjectCreateMenuOpen}
+                label="Open project actions"
+                items={projectCreateMenuItems}
+              />
             </div>
             {projectsError ? <p className="text-sm text-red-600">{projectsError}</p> : null}
             {importProjectMessage ? (
@@ -2005,6 +2020,14 @@ export default function ProjectsPage() {
                   const cloneMessage = projectCloneMessages[project.id] ?? "";
                   const cloneMessageIsError = projectCloneMessageErrors[project.id] ?? false;
                   const projectShareMessage = projectShareMessages[project.id] ?? "";
+                  const projectListCreateMenuItems: ActionMenuItem[] = [
+                    {
+                      label: "Import Cart",
+                      icon: <Upload className="size-4" />,
+                      onSelect: () => openCartImportPicker(project.id),
+                      disabled: importCartPendingProjectId === project.id,
+                    },
+                  ];
                   const projectMenuItems: ActionMenuItem[] = [
                     {
                       label: "Create Huawei Carts",
@@ -2135,14 +2158,12 @@ export default function ProjectsPage() {
                               >
                                 {listPendingProjectId === project.id ? "Adding..." : "Add Cart"}
                               </Button>
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => openCartImportPicker(project.id)}
-                                disabled={importCartPendingProjectId === project.id}
-                              >
-                                {importCartPendingProjectId === project.id ? "Importing..." : "Import Cart"}
-                              </Button>
+                              <ActionMenu
+                                open={openProjectListCreateMenuId === project.id}
+                                onOpenChange={(open) => setOpenProjectListCreateMenuId(open ? project.id : null)}
+                                label={`Open cart actions for ${project.name}`}
+                                items={projectListCreateMenuItems}
+                              />
                             </div>
 
                             <Select
