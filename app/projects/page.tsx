@@ -45,6 +45,18 @@ type AppList = {
   products: AppProduct[];
 };
 
+function formatObsRequestSummary(value: number, label: string) {
+  if (!Number.isFinite(value) || value <= 0) {
+    return null;
+  }
+
+  const normalized = value / 10_000;
+  const displayValue = Number.isInteger(normalized)
+    ? normalized.toLocaleString()
+    : Number(normalized.toFixed(4)).toLocaleString();
+  return `${displayValue} x 10k ${label}`;
+}
+
 type AppProject = {
   id: string;
   name: string;
@@ -242,16 +254,19 @@ function getProductSpecsSummary(product: AppProduct) {
     parts.push(`CRR ${replicationTrafficAmount} ${replicationTrafficUnit}`);
   }
 
-  if (typeof readRequests === "number" && Number.isFinite(readRequests) && readRequests > 0) {
-    parts.push(`${readRequests} reads`);
+  const readRequestSummary = typeof readRequests === "number" ? formatObsRequestSummary(readRequests, "reads") : null;
+  if (readRequestSummary) {
+    parts.push(readRequestSummary);
   }
 
-  if (typeof writeRequests === "number" && Number.isFinite(writeRequests) && writeRequests > 0) {
-    parts.push(`${writeRequests} writes`);
+  const writeRequestSummary = typeof writeRequests === "number" ? formatObsRequestSummary(writeRequests, "writes") : null;
+  if (writeRequestSummary) {
+    parts.push(writeRequestSummary);
   }
 
-  if (typeof deleteRequests === "number" && Number.isFinite(deleteRequests) && deleteRequests > 0) {
-    parts.push(`${deleteRequests} deletes`);
+  const deleteRequestSummary = typeof deleteRequests === "number" ? formatObsRequestSummary(deleteRequests, "deletes") : null;
+  if (deleteRequestSummary) {
+    parts.push(deleteRequestSummary);
   }
 
   if (typeof minimumStorageDays === "number" && Number.isFinite(minimumStorageDays) && minimumStorageDays > 0) {

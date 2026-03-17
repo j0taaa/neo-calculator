@@ -20,6 +20,8 @@ import { huaweiRegions, type HuaweiRegionKey } from "@/lib/huawei-regions";
 import {
   buildObsHuaweiPayload,
   convertObsCapacityToGb,
+  convertObsRequestCountToInput,
+  convertObsRequestInputToCount,
   estimateObsConfiguration,
   isObsCapacityUnit,
   isObsProductType,
@@ -31,6 +33,7 @@ import {
   normalizeObsPositiveNumber,
   obsCapacityUnits,
   obsPricingReference,
+  obsRequestInputMultiplier,
   type ObsCapacityUnit,
   type ObsEstimateInput,
   type ObsPricingCatalog,
@@ -896,9 +899,9 @@ function getProductConfigSummary(product: AppProduct): string {
       outboundTrafficAmount != null && outboundTrafficAmount > 0 ? `Outbound ${outboundTrafficAmount} ${outboundTrafficUnit ?? "GB"}` : null,
       pullTrafficAmount != null && pullTrafficAmount > 0 ? `Pull ${pullTrafficAmount} ${pullTrafficUnit ?? "GB"}` : null,
       replicationTrafficAmount != null && replicationTrafficAmount > 0 ? `CRR ${replicationTrafficAmount} ${replicationTrafficUnit ?? "GB"}` : null,
-      typeof product.config.readRequests === "number" && product.config.readRequests > 0 ? `${product.config.readRequests} reads` : null,
-      typeof product.config.writeRequests === "number" && product.config.writeRequests > 0 ? `${product.config.writeRequests} writes` : null,
-      typeof product.config.deleteRequests === "number" && product.config.deleteRequests > 0 ? `${product.config.deleteRequests} deletes` : null,
+      typeof product.config.readRequests === "number" ? formatObsRequestSummary(product.config.readRequests, "reads") : null,
+      typeof product.config.writeRequests === "number" ? formatObsRequestSummary(product.config.writeRequests, "writes") : null,
+      typeof product.config.deleteRequests === "number" ? formatObsRequestSummary(product.config.deleteRequests, "deletes") : null,
       typeof product.config.minimumStorageDays === "number" && product.config.minimumStorageDays > 0
         ? `${product.config.minimumStorageDays}-day minimum`
         : null,
@@ -1162,6 +1165,23 @@ function getBatchObsAmount(value: unknown, fallback: number, keys: string[]) {
 
 function getObsRequestUnits(step: number | null | undefined, value: number) {
   return typeof step === "number" && Number.isFinite(step) && step > 0 ? value / step : value;
+}
+
+function formatObsRequestInputValue(value: number) {
+  const normalized = convertObsRequestCountToInput(value);
+  return Number.isInteger(normalized) ? String(normalized) : String(Number(normalized.toFixed(4)));
+}
+
+function formatObsRequestSummary(value: number, label: string) {
+  const normalized = convertObsRequestCountToInput(value);
+  if (!Number.isFinite(normalized) || normalized <= 0) {
+    return null;
+  }
+
+  const displayValue = Number.isInteger(normalized)
+    ? normalized.toLocaleString()
+    : Number(normalized.toFixed(4)).toLocaleString();
+  return `${displayValue} x 10k ${label}`;
 }
 
 function getBatchDescription(value: unknown, fallback: string) {
@@ -1604,9 +1624,9 @@ export default function Home() {
         durationMonths: obsDurationMonthsValue,
         outboundTrafficAmount: obsOutboundTrafficValue,
         outboundTrafficUnit: obsOutboundTrafficUnit,
-        readRequests: obsReadRequestsValue,
-        writeRequests: obsWriteRequestsValue,
-        deleteRequests: obsDeleteRequestsValue,
+        readRequests: convertObsRequestInputToCount(obsReadRequestsValue),
+        writeRequests: convertObsRequestInputToCount(obsWriteRequestsValue),
+        deleteRequests: convertObsRequestInputToCount(obsDeleteRequestsValue),
         pullTrafficAmount: obsPullTrafficValue,
         pullTrafficUnit: obsPullTrafficUnit,
         replicationTrafficAmount: obsReplicationTrafficValue,
@@ -2990,15 +3010,15 @@ export default function Home() {
       : "GB";
     const nextObsReadRequests =
       typeof product.config.readRequests === "number" && Number.isFinite(product.config.readRequests)
-        ? String(Math.max(0, product.config.readRequests))
+        ? formatObsRequestInputValue(product.config.readRequests)
         : "0";
     const nextObsWriteRequests =
       typeof product.config.writeRequests === "number" && Number.isFinite(product.config.writeRequests)
-        ? String(Math.max(0, product.config.writeRequests))
+        ? formatObsRequestInputValue(product.config.writeRequests)
         : "0";
     const nextObsDeleteRequests =
       typeof product.config.deleteRequests === "number" && Number.isFinite(product.config.deleteRequests)
-        ? String(Math.max(0, product.config.deleteRequests))
+        ? formatObsRequestInputValue(product.config.deleteRequests)
         : "0";
     const nextObsPullTraffic =
       typeof product.config.pullTrafficAmount === "number" && Number.isFinite(product.config.pullTrafficAmount)
@@ -3489,9 +3509,12 @@ export default function Home() {
               const durationMonths = Math.max(1, Math.floor(getBatchObsAmount(item, obsDurationMonthsValue, ["durationMonths", "months"])));
               const outboundTrafficAmount = getBatchObsAmount(item, obsOutboundTrafficValue, ["outboundTraffic", "internetOutboundTraffic"]);
               const outboundTrafficUnit = getBatchObsUnit(item, obsOutboundTrafficUnit, ["outboundTrafficUnit", "internetOutboundTrafficUnit"]);
-              const readRequests = getBatchObsAmount(item, obsReadRequestsValue, ["readRequests", "apiReadRequests"]);
-              const writeRequests = getBatchObsAmount(item, obsWriteRequestsValue, ["writeRequests", "apiWriteRequests"]);
-              const deleteRequests = getBatchObsAmount(item, obsDeleteRequestsValue, ["deleteRequests", "apiDeleteRequests"]);
+              const readRequestInput = getBatchObsAmount(item, obsReadRequestsValue, ["readRequests", "apiReadRequests"]);
+              const writeRequestInput = getBatchObsAmount(item, obsWriteRequestsValue, ["writeRequests", "apiWriteRequests"]);
+              const deleteRequestInput = getBatchObsAmount(item, obsDeleteRequestsValue, ["deleteRequests", "apiDeleteRequests"]);
+              const readRequests = convertObsRequestInputToCount(readRequestInput);
+              const writeRequests = convertObsRequestInputToCount(writeRequestInput);
+              const deleteRequests = convertObsRequestInputToCount(deleteRequestInput);
               const pullTrafficAmount = getBatchObsAmount(item, obsPullTrafficValue, ["pullTraffic"]);
               const pullTrafficUnit = getBatchObsUnit(item, obsPullTrafficUnit, ["pullTrafficUnit"]);
               const replicationTrafficAmount = getBatchObsAmount(item, obsReplicationTrafficValue, ["replicationTraffic", "crossRegionReplicationTraffic"]);
@@ -3553,6 +3576,7 @@ export default function Home() {
                   replicationTrafficAmount,
                   replicationTrafficUnit,
                   minimumStorageDays: estimate.variant.minimumStorageDays,
+                  requestInputMultiplier: obsRequestInputMultiplier,
                   huaweiPayload: buildObsHuaweiPayload({
                     regionId: catalogRegionId,
                     catalog: obsCatalog,
@@ -3825,14 +3849,15 @@ export default function Home() {
               durationMonths: obsDurationMonthsValue,
               outboundTrafficAmount: obsOutboundTrafficValue,
               outboundTrafficUnit: obsOutboundTrafficUnit,
-              readRequests: obsReadRequestsValue,
-              writeRequests: obsWriteRequestsValue,
-              deleteRequests: obsDeleteRequestsValue,
+              readRequests: convertObsRequestInputToCount(obsReadRequestsValue),
+              writeRequests: convertObsRequestInputToCount(obsWriteRequestsValue),
+              deleteRequests: convertObsRequestInputToCount(obsDeleteRequestsValue),
               pullTrafficAmount: obsPullTrafficValue,
               pullTrafficUnit: obsPullTrafficUnit,
               replicationTrafficAmount: obsReplicationTrafficValue,
               replicationTrafficUnit: obsReplicationTrafficUnit,
               minimumStorageDays: selectedObsPricing.variant.minimumStorageDays,
+              requestInputMultiplier: obsRequestInputMultiplier,
               huaweiPayload: buildObsHuaweiPayload({
                 regionId: obsCatalogRegionId ?? huaweiRegions[regionValue].catalogRegionId ?? regionValue,
                 catalog: obsCatalog,
@@ -3845,9 +3870,9 @@ export default function Home() {
                   durationMonths: obsDurationMonthsValue,
                   outboundTrafficAmount: obsOutboundTrafficValue,
                   outboundTrafficUnit: obsOutboundTrafficUnit,
-                  readRequests: obsReadRequestsValue,
-                  writeRequests: obsWriteRequestsValue,
-                  deleteRequests: obsDeleteRequestsValue,
+                  readRequests: convertObsRequestInputToCount(obsReadRequestsValue),
+                  writeRequests: convertObsRequestInputToCount(obsWriteRequestsValue),
+                  deleteRequests: convertObsRequestInputToCount(obsDeleteRequestsValue),
                   pullTrafficAmount: obsPullTrafficValue,
                   pullTrafficUnit: obsPullTrafficUnit,
                   replicationTrafficAmount: obsReplicationTrafficValue,
@@ -3857,9 +3882,9 @@ export default function Home() {
                 title: `${selectedService} ${obsProductType} ${obsStorageClass} ${obsStorageSizeValue} ${obsStorageUnit}`,
                 description: selectedService,
                 storageRequestUnits: {
-                  read: getObsRequestUnits(obsCatalog?.requestRates[obsStorageClass]?.read?.measureUnitStep, obsReadRequestsValue),
-                  write: getObsRequestUnits(obsCatalog?.requestRates[obsStorageClass]?.write?.measureUnitStep, obsWriteRequestsValue),
-                  delete: getObsRequestUnits(obsCatalog?.requestRates[obsStorageClass]?.delete?.measureUnitStep, obsDeleteRequestsValue),
+                  read: getObsRequestUnits(obsCatalog?.requestRates[obsStorageClass]?.read?.measureUnitStep, convertObsRequestInputToCount(obsReadRequestsValue)),
+                  write: getObsRequestUnits(obsCatalog?.requestRates[obsStorageClass]?.write?.measureUnitStep, convertObsRequestInputToCount(obsWriteRequestsValue)),
+                  delete: getObsRequestUnits(obsCatalog?.requestRates[obsStorageClass]?.delete?.measureUnitStep, convertObsRequestInputToCount(obsDeleteRequestsValue)),
                 },
               }),
             },

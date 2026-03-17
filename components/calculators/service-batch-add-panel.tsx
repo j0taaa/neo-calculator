@@ -147,9 +147,9 @@ export function ServiceBatchAddPanel({
     "sizeUnit": "TB",
     "durationMonths": 3,
     "outboundTraffic": 120,
-    "readRequests": 500000,
-    "writeRequests": 80000,
-    "deleteRequests": 10000,
+    "readRequests": 50,
+    "writeRequests": 8,
+    "deleteRequests": 1,
     "pullTraffic": 50,
     "replicationTraffic": 20,
     "quantity": 2,
@@ -193,7 +193,8 @@ export function ServiceBatchAddPanel({
                 <code>productType</code>, <code>storageClass</code>, <code>redundancy</code>, <code>sizeUnit</code>,
                 <code>durationMonths</code>, <code>outboundTraffic</code>, <code>readRequests</code>,
                 <code>writeRequests</code>, <code>deleteRequests</code>, <code>pullTraffic</code>,
-                <code>replicationTraffic</code>, <code>quantity</code>, and <code>description</code>.
+                <code>replicationTraffic</code>, <code>quantity</code>, and <code>description</code>. Request fields use
+                units of <code>10,000</code>, so <code>2</code> means <code>20,000</code> requests.
               </>
             ) : (
               <>

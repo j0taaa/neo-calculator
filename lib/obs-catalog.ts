@@ -32,6 +32,7 @@ export const obsMinimumStorageDays = {
 } as const;
 
 export const obsCapacityUnits = ["GB", "TB", "PB"] as const;
+export const obsRequestInputMultiplier = 10_000;
 
 export type ObsProductType = (typeof obsProductTypeLabels)[keyof typeof obsProductTypeLabels];
 export type ObsStorageClass = (typeof obsStorageClassLabels)[keyof typeof obsStorageClassLabels];
@@ -157,6 +158,14 @@ export function convertObsCapacityToGb(amount: number, unit: ObsCapacityUnit) {
     return normalizedAmount * 1_000;
   }
   return normalizedAmount;
+}
+
+export function convertObsRequestInputToCount(value: number) {
+  return Math.max(0, value) * obsRequestInputMultiplier;
+}
+
+export function convertObsRequestCountToInput(value: number) {
+  return Math.max(0, value) / obsRequestInputMultiplier;
 }
 
 function roundObsAmount(value: number) {

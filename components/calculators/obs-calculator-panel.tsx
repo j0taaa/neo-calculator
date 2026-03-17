@@ -275,14 +275,15 @@ export function ObsCalculatorPanel({
         </div>
 
         <div className="rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-3 text-sm text-zinc-600">
-          Huawei charges requests in different blocks by storage class. Enter raw request counts below and the calculator normalizes them to the billed request units.
+          Huawei charges requests in different blocks by storage class. Enter request counts in units of 10,000 below, so
+          <span className="font-medium text-zinc-700"> 2 means 20,000 requests</span>, and the calculator normalizes them to the billed request units.
         </div>
       </section>
 
       <section className="grid gap-4 md:grid-cols-3">
-        <NumericField label="Read requests" value={readRequests} onChange={onReadRequestsChange} />
-        <NumericField label="Write requests" value={writeRequests} onChange={onWriteRequestsChange} />
-        <NumericField label="Delete requests" value={deleteRequests} onChange={onDeleteRequestsChange} />
+        <NumericField label="Read requests" value={readRequests} onChange={onReadRequestsChange} suffix="x10,000" />
+        <NumericField label="Write requests" value={writeRequests} onChange={onWriteRequestsChange} suffix="x10,000" />
+        <NumericField label="Delete requests" value={deleteRequests} onChange={onDeleteRequestsChange} suffix="x10,000" />
       </section>
 
       {pricingError ? <p className="text-sm text-red-600">{pricingError}</p> : null}
