@@ -666,6 +666,16 @@ function buildListExportPayload(project: AppProject, list: AppList) {
   };
 }
 
+async function parseJsonFile(file: File) {
+  const text = await file.text();
+
+  try {
+    return JSON.parse(text) as unknown;
+  } catch {
+    throw new Error("Import file is not valid JSON");
+  }
+}
+
 function ActionMenu({
   open,
   onOpenChange,
@@ -1556,6 +1566,9 @@ export default function Home() {
   const [projectsError, setProjectsError] = useState("");
   const [newProjectName, setNewProjectName] = useState("");
   const [newProjectPending, setNewProjectPending] = useState(false);
+  const [importProjectPending, setImportProjectPending] = useState(false);
+  const [importProjectMessage, setImportProjectMessage] = useState("");
+  const [importProjectMessageIsError, setImportProjectMessageIsError] = useState(false);
   const [editingProjectId, setEditingProjectId] = useState<string | null>(null);
   const [projectNameDrafts, setProjectNameDrafts] = useState<Record<string, string>>({});
   const [renamingProjectId, setRenamingProjectId] = useState<string | null>(null);
@@ -1601,6 +1614,8 @@ export default function Home() {
   const [syncingHuaweiProjectId, setSyncingHuaweiProjectId] = useState<string | null>(null);
   const [projectHuaweiMessages, setProjectHuaweiMessages] = useState<Record<string, string>>({});
   const [projectHuaweiMessageErrors, setProjectHuaweiMessageErrors] = useState<Record<string, boolean>>({});
+  const [projectImportMessages, setProjectImportMessages] = useState<Record<string, string>>({});
+  const [projectImportMessageErrors, setProjectImportMessageErrors] = useState<Record<string, boolean>>({});
   const [sharingProjectKey, setSharingProjectKey] = useState<string | null>(null);
   const [sharingListKey, setSharingListKey] = useState<string | null>(null);
   const [projectShareMessages, setProjectShareMessages] = useState<Record<string, string>>({});
@@ -1608,9 +1623,13 @@ export default function Home() {
   const [openProjectMenuId, setOpenProjectMenuId] = useState<string | null>(null);
   const [isCartMenuOpen, setIsCartMenuOpen] = useState(false);
   const [activeModal, setActiveModal] = useState<ActiveModal>(null);
+  const [importCartTargetProjectId, setImportCartTargetProjectId] = useState<string | null>(null);
+  const [importCartPendingProjectId, setImportCartPendingProjectId] = useState<string | null>(null);
   const searchAreaRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const profileAreaRef = useRef<HTMLDivElement>(null);
+  const projectImportInputRef = useRef<HTMLInputElement>(null);
+  const cartImportInputRef = useRef<HTMLInputElement>(null);
   const listboxId = `${useId()}-services`;
   const lastFlavorAutoSelectKeyRef = useRef("");
 
@@ -2282,6 +2301,143 @@ export default function Home() {
     setCookieValue(cookieDraft);
     setIsProfileOpen(false);
     setHuaweiActionMessage("");
+  };
+
+  const reloadProjectsSnapshot = async (preferredListId?: string, preferredProjectId?: string) => {
+    const response = await fetch("/api/projects", { cache: "no-store" });
+    if (!response.ok) {
+      const payload = (await response.json().catch(() => null)) as { error?: string } | null;
+      throw new Error(getResponseError(payload, "Failed to load projects"));
+    }
+
+    const payload = (await response.json()) as AppProject[];
+    setProjects(payload);
+    setSelectedListId((current) => {
+      const nextPreferredListId = preferredListId
+        && payload.some((project) => project.lists.some((list) => list.id === preferredListId))
+        ? preferredListId
+        : null;
+      if (nextPreferredListId) {
+        return nextPreferredListId;
+      }
+
+      if (current && payload.some((project) => project.lists.some((list) => list.id === current))) {
+        return current;
+      }
+
+      return getFirstListId(payload);
+    });
+    setExpandedProjects((current) => {
+      const nextState: Record<string, boolean> = {};
+      payload.forEach((project, index) => {
+        nextState[project.id] = project.id === preferredProjectId ? true : (current[project.id] ?? index === 0);
+      });
+      return nextState;
+    });
+  };
+
+  const openProjectImportPicker = () => {
+    if (!session) {
+      setProjectsError("Sign in to save carts and projects.");
+      return;
+    }
+
+    setImportProjectMessage("");
+    setImportProjectMessageIsError(false);
+    if (projectImportInputRef.current) {
+      projectImportInputRef.current.value = "";
+      projectImportInputRef.current.click();
+    }
+  };
+
+  const openCartImportPicker = (projectId: string) => {
+    if (!session) {
+      setProjectsError("Sign in to save carts and projects.");
+      return;
+    }
+
+    setImportCartTargetProjectId(projectId);
+    setProjectImportMessages((current) => ({ ...current, [projectId]: "" }));
+    setProjectImportMessageErrors((current) => ({ ...current, [projectId]: false }));
+    if (cartImportInputRef.current) {
+      cartImportInputRef.current.value = "";
+      cartImportInputRef.current.click();
+    }
+  };
+
+  const handleImportProjectFile = async (file: File) => {
+    setImportProjectPending(true);
+    setImportProjectMessage("");
+    setImportProjectMessageIsError(false);
+    setProjectsError("");
+
+    try {
+      const payload = await parseJsonFile(file);
+      const response = await fetch("/api/import", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ payload }),
+      });
+      const result = (await response.json().catch(() => null)) as
+        | { projectId: string; firstListId: string | null; name: string; importedListCount: number; importedProductCount: number; error?: never }
+        | { error?: string }
+        | null;
+
+      if (!response.ok || !result || !("projectId" in result)) {
+        throw new Error(getResponseError(result, "Unable to import project"));
+      }
+
+      await reloadProjectsSnapshot(result.firstListId ?? undefined, result.projectId);
+      setImportProjectMessage(
+        `Imported project ${result.name} with ${result.importedListCount} cart(s) and ${result.importedProductCount} product(s).`,
+      );
+      setImportProjectMessageIsError(false);
+    } catch (error) {
+      setImportProjectMessage(error instanceof Error ? error.message : "Unable to import project");
+      setImportProjectMessageIsError(true);
+    } finally {
+      setImportProjectPending(false);
+    }
+  };
+
+  const handleImportCartFile = async (projectId: string, file: File) => {
+    setImportCartPendingProjectId(projectId);
+    setProjectImportMessages((current) => ({ ...current, [projectId]: "" }));
+    setProjectImportMessageErrors((current) => ({ ...current, [projectId]: false }));
+    setProjectsError("");
+
+    try {
+      const payload = await parseJsonFile(file);
+      const response = await fetch("/api/import", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ payload, targetProjectId: projectId }),
+      });
+      const result = (await response.json().catch(() => null)) as
+        | { projectId: string; listId: string; name: string; importedProductCount: number; error?: never }
+        | { error?: string }
+        | null;
+
+      if (!response.ok || !result || !("listId" in result)) {
+        throw new Error(getResponseError(result, "Unable to import cart"));
+      }
+
+      await reloadProjectsSnapshot(result.listId, projectId);
+      setProjectImportMessages((current) => ({
+        ...current,
+        [projectId]: `Imported cart ${result.name} with ${result.importedProductCount} product(s).`,
+      }));
+      setProjectImportMessageErrors((current) => ({ ...current, [projectId]: false }));
+    } catch (error) {
+      setProjectImportMessages((current) => ({
+        ...current,
+        [projectId]: error instanceof Error ? error.message : "Unable to import cart",
+      }));
+      setProjectImportMessageErrors((current) => ({ ...current, [projectId]: true }));
+    } finally {
+      setImportCartPendingProjectId(null);
+      setImportCartTargetProjectId(null);
+    }
   };
 
   const handleCreateProject = async () => {
@@ -4631,6 +4787,31 @@ export default function Home() {
             </div>
           </div>
         </div>
+        <input
+          ref={projectImportInputRef}
+          type="file"
+          accept="application/json,.json"
+          className="hidden"
+          onChange={(event) => {
+            const file = event.target.files?.[0];
+            if (file) {
+              void handleImportProjectFile(file);
+            }
+          }}
+        />
+        <input
+          ref={cartImportInputRef}
+          type="file"
+          accept="application/json,.json"
+          className="hidden"
+          onChange={(event) => {
+            const file = event.target.files?.[0];
+            const projectId = importCartTargetProjectId;
+            if (file && projectId) {
+              void handleImportCartFile(projectId, file);
+            }
+          }}
+        />
 
         <main className="relative z-0 grid items-start gap-4 xl:grid-cols-[340px_minmax(0,1fr)_340px]">
           <Card className="overflow-hidden xl:sticky xl:top-24 xl:max-h-[calc(100vh-7rem)]">
@@ -4659,8 +4840,14 @@ export default function Home() {
                   <Button variant="outline" size="sm" onClick={handleCreateProject} disabled={newProjectPending || !session}>
                     {newProjectPending ? "Adding..." : "New Project"}
                   </Button>
+                  <Button variant="outline" size="sm" onClick={openProjectImportPicker} disabled={importProjectPending || !session}>
+                    {importProjectPending ? "Importing..." : "Import Project"}
+                  </Button>
                 </div>
                 {projectsError ? <p className="text-sm text-red-600">{projectsError}</p> : null}
+                {importProjectMessage ? (
+                  <p className={`text-sm ${importProjectMessageIsError ? "text-red-600" : "text-zinc-600"}`}>{importProjectMessage}</p>
+                ) : null}
               </div>
             </CardHeader>
             <Separator />
@@ -4680,11 +4867,13 @@ export default function Home() {
                     const isEditingProject = editingProjectId === project.id;
                     const isRenamingProject = renamingProjectId === project.id;
                     const isDeletingProject = deletingProjectId === project.id;
-                    const projectCloneMessage = projectCloneMessages[project.id] ?? "";
-                    const projectCloneIsError = projectCloneMessageErrors[project.id] ?? false;
-                    const projectHuaweiMessage = projectHuaweiMessages[project.id] ?? "";
-                    const projectHuaweiMessageIsError = projectHuaweiMessageErrors[project.id] ?? false;
-                    const projectShareMessage = projectShareMessages[project.id] ?? "";
+                  const projectCloneMessage = projectCloneMessages[project.id] ?? "";
+                  const projectCloneIsError = projectCloneMessageErrors[project.id] ?? false;
+                  const projectHuaweiMessage = projectHuaweiMessages[project.id] ?? "";
+                  const projectHuaweiMessageIsError = projectHuaweiMessageErrors[project.id] ?? false;
+                  const projectImportMessage = projectImportMessages[project.id] ?? "";
+                  const projectImportMessageIsError = projectImportMessageErrors[project.id] ?? false;
+                  const projectShareMessage = projectShareMessages[project.id] ?? "";
                     const projectMenuItems: ActionMenuItem[] = [
                       {
                         label: "Rename Project",
@@ -4842,6 +5031,14 @@ export default function Home() {
                                 >
                                   {listPendingProjectId === project.id ? "Adding..." : "Add List"}
                                 </Button>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => openCartImportPicker(project.id)}
+                                  disabled={importCartPendingProjectId === project.id}
+                                >
+                                  {importCartPendingProjectId === project.id ? "Importing..." : "Import Cart"}
+                                </Button>
                               </div>
                               <Select
                                 value={listBaseDrafts[project.id] || "__blank"}
@@ -4871,7 +5068,7 @@ export default function Home() {
                                   })}
                                 </SelectContent>
                               </Select>
-                              {projectHuaweiMessage || projectCloneMessage || projectShareMessage ? (
+                              {projectHuaweiMessage || projectCloneMessage || projectImportMessage || projectShareMessage ? (
                                 <div className="rounded-lg border bg-zinc-50 p-3">
                                   <div className="space-y-1 text-xs">
                                     {projectHuaweiMessage ? (
@@ -4879,6 +5076,9 @@ export default function Home() {
                                     ) : null}
                                     {projectCloneMessage ? (
                                       <p className={projectCloneIsError ? "text-red-600" : "text-zinc-600"}>{projectCloneMessage}</p>
+                                    ) : null}
+                                    {projectImportMessage ? (
+                                      <p className={projectImportMessageIsError ? "text-red-600" : "text-zinc-600"}>{projectImportMessage}</p>
                                     ) : null}
                                     {projectShareMessage ? <p className="text-zinc-600">{projectShareMessage}</p> : null}
                                   </div>
