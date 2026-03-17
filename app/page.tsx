@@ -32,7 +32,7 @@ const services = [
   { name: "Dedicated Host", code: "DeH", icon: "https://res-static.hc-cdn.cn/cloudbu-site/public/product-banner-icon/Compute/DeH.png" },
   { name: "Cloud Container Engine", code: "CCE", icon: "https://res-static.hc-cdn.cn/cloudbu-site/public/product-banner-icon/Containers/CCE.png" },
   { name: "Elastic Cloud Server", code: "ECS", icon: "https://res-static.hc-cdn.cn/cloudbu-site/public/product-banner-icon/Compute/ECS.png" },
-  { name: "Flexus L Instance", code: "Flexus L", icon: "https://res-static.hc-cdn.cn/cloudbu-site/public/product-banner-icon/Compute/FECSL.png" },
+  { name: "Flexus L Instance", code: "Flexus L", icon: "https://res-static.hc-cdn.cn/aem/program/prod/common/china/zh-cn/service-icon/hcss.svg" },
   { name: "Flexus X Instance", code: "Flexus X", icon: "https://res-static.hc-cdn.cn/cloudbu-site/public/product-banner-icon/Compute/FECSX.png" },
   { name: "MapReduce Service", code: "MRS", icon: "https://res-static.hc-cdn.cn/cloudbu-site/public/product-banner-icon/Analytics/DWS.png" },
   { name: "DataArts Insight", code: "DataArts Insight", icon: "https://res-static.hc-cdn.cn/cloudbu-site/public/product-banner-icon/Analytics/DataArts.png" },
