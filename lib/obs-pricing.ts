@@ -41,6 +41,7 @@ const OBS_PRODUCT_INFO_URL =
   "https://portal-intl.huaweicloud.com/api/calculator/rest/cbc/portalcalculatornodeservice/v4/api/productInfo";
 
 const DEFAULT_CURRENCY = "USD";
+const DEFAULT_ARCHIVE_EVENT = "event.type.obs.size_cold";
 const DEFAULT_DEEP_ARCHIVE_EVENT = "event.type.obs.obs.size_deep_archive";
 
 function buildObsProductInfoUrl(regionId: string) {
@@ -182,6 +183,35 @@ export async function fetchObsPricingCatalog(regionId: string): Promise<ObsPrici
     buildVariant(items, "calc_29_", "dataInfo_1_", "dataInfo_4_", "event.type.obs.size_cold"),
     buildVariant(items, "calc_30_", "dataInfo_2_", "dataInfo_4_", "event.type.obs.obs.pfs_size"),
   ].filter((variant): variant is ObsPricingVariant => variant != null);
+
+  if (!variants.some((variant) => (
+    variant.productTypeCode === "calc_29_"
+    && variant.storageClassCode === "dataInfo_1_"
+    && variant.redundancyCode === "dataInfo_4_"
+  ))) {
+    const archiveFallbackAmount = obsPricingReference.archiveMonthlyPriceUsdPerGbFallback / (24 * obsPricingReference.hourlyConversionDays);
+    variants.push({
+      productType: obsProductTypeLabels.calc_29_,
+      productTypeCode: "calc_29_",
+      storageClass: obsStorageClassLabels.dataInfo_1_,
+      storageClassCode: "dataInfo_1_",
+      redundancy: obsRedundancyLabels.dataInfo_4_,
+      redundancyCode: "dataInfo_4_",
+      storageRate: {
+        billingEvent: DEFAULT_ARCHIVE_EVENT,
+        productId: null,
+        usageFactor: "size_cold",
+        usageMeasureId: 13,
+        measureUnit: 10,
+        measureUnitStep: 1,
+        amount: archiveFallbackAmount,
+        tiers: [],
+        conditionalRates: [],
+      },
+      minimumStorageDays: obsMinimumStorageDays.Archive,
+      isFallback: true,
+    });
+  }
 
   const deepArchiveFallbackAmount = obsPricingReference.deepArchiveMonthlyPriceUsdPerGbFallback / (24 * obsPricingReference.hourlyConversionDays);
   variants.push({

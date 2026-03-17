@@ -3,6 +3,7 @@ export const obsPricingReference = {
   billingUrl: "https://support.huaweicloud.com/intl/en-us/price-obs/obs_42_0009.html",
   packageOverviewUrl: "https://support.huaweicloud.com/intl/en-us/price-obs/obs_42_0020.html",
   hourlyConversionDays: 30,
+  archiveMonthlyPriceUsdPerGbFallback: 0.0045,
   deepArchiveMonthlyPriceUsdPerGbFallback: 0.002,
 } as const;
 
@@ -293,7 +294,7 @@ export function estimateObsConfiguration(catalog: ObsPricingCatalog, input: ObsE
     notes.push(`${variant.storageClass} has a ${variant.minimumStorageDays}-day minimum storage duration.`);
   }
   if (variant.isFallback) {
-    notes.push("The base Deep Archive storage rate uses Huawei's public pricing-page fallback because the productInfo endpoint omits that specific storage event.");
+    notes.push(`The base ${variant.storageClass} storage rate uses Huawei's public pricing-page fallback because the productInfo endpoint omits that specific storage event.`);
   }
 
   const breakdown: ObsEstimateBreakdownItem[] = [
