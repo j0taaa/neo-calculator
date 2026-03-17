@@ -1458,8 +1458,14 @@ export default function Home() {
   }, [isEcsCalculator, isEvsCalculator, regionValue]);
 
   useEffect(() => {
+    if (!isEcsCalculator) {
+      return;
+    }
+
     if (!sortedFlavors.length) {
-      setSelectedFlavor("");
+      if (selectedFlavor !== "") {
+        setSelectedFlavor("");
+      }
       return;
     }
 
@@ -1473,7 +1479,7 @@ export default function Home() {
     setVcpuValue(nextFlavor.vcpu);
     setRamValue(nextFlavor.ram);
     lastFlavorAutoSelectKeyRef.current = flavorAutoSelectKey;
-  }, [flavorAutoSelectKey, selectedFlavor, sortedFlavors]);
+  }, [flavorAutoSelectKey, isEcsCalculator, selectedFlavor, sortedFlavors]);
 
   useEffect(() => {
     if (!isFlexusLCalculator || !flexusLPlans.length) {
