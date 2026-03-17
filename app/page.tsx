@@ -17,7 +17,27 @@ import { Input } from "@/components/ui/input";
 import { authClient } from "@/lib/auth-client";
 import { findBestFlexusLPlan, findFlexusLPlan, flexusLPlans, flexusLPricingReference } from "@/lib/flexus-l-catalog";
 import { huaweiRegions, type HuaweiRegionKey } from "@/lib/huawei-regions";
-import { estimateObsStoragePrice, isObsStorageClass, obsPricingReference, obsStorageClasses, type ObsStorageClass } from "@/lib/obs-catalog";
+import {
+  buildObsHuaweiPayload,
+  convertObsCapacityToGb,
+  estimateObsConfiguration,
+  isObsCapacityUnit,
+  isObsProductType,
+  isObsRedundancy,
+  isObsStorageClass,
+  listObsProductTypes,
+  listObsRedundancies,
+  listObsStorageClasses,
+  normalizeObsPositiveNumber,
+  obsCapacityUnits,
+  obsPricingReference,
+  type ObsCapacityUnit,
+  type ObsEstimateInput,
+  type ObsPricingCatalog,
+  type ObsProductType,
+  type ObsRedundancy,
+  type ObsStorageClass,
+} from "@/lib/obs-catalog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
@@ -854,17 +874,35 @@ function getProductConfigSummary(product: AppProduct): string {
   }
 
   if (product.productType === "obs") {
+    const storageAmount = typeof product.config.storageAmount === "number"
+      ? product.config.storageAmount
+      : typeof product.config.storageGiB === "number"
+        ? product.config.storageGiB
+        : null;
+    const storageUnit = typeof product.config.storageUnit === "string" ? product.config.storageUnit : null;
+    const outboundTrafficAmount = typeof product.config.outboundTrafficAmount === "number" ? product.config.outboundTrafficAmount : null;
+    const outboundTrafficUnit = typeof product.config.outboundTrafficUnit === "string" ? product.config.outboundTrafficUnit : null;
+    const pullTrafficAmount = typeof product.config.pullTrafficAmount === "number" ? product.config.pullTrafficAmount : null;
+    const pullTrafficUnit = typeof product.config.pullTrafficUnit === "string" ? product.config.pullTrafficUnit : null;
+    const replicationTrafficAmount = typeof product.config.replicationTrafficAmount === "number" ? product.config.replicationTrafficAmount : null;
+    const replicationTrafficUnit = typeof product.config.replicationTrafficUnit === "string" ? product.config.replicationTrafficUnit : null;
     const parts = [
       typeof product.config.region === "string" ? product.config.region : null,
+      typeof product.config.productType === "string" ? product.config.productType : null,
       typeof product.config.storageClass === "string" ? product.config.storageClass : null,
-      typeof product.config.storageGiB === "number" ? `${product.config.storageGiB} GiB` : null,
+      typeof product.config.redundancy === "string" ? product.config.redundancy : null,
+      storageAmount != null ? `${storageAmount} ${storageUnit ?? "GB"}` : null,
+      typeof product.config.durationMonths === "number" ? `${product.config.durationMonths}mo` : null,
+      outboundTrafficAmount != null && outboundTrafficAmount > 0 ? `Outbound ${outboundTrafficAmount} ${outboundTrafficUnit ?? "GB"}` : null,
+      pullTrafficAmount != null && pullTrafficAmount > 0 ? `Pull ${pullTrafficAmount} ${pullTrafficUnit ?? "GB"}` : null,
+      replicationTrafficAmount != null && replicationTrafficAmount > 0 ? `CRR ${replicationTrafficAmount} ${replicationTrafficUnit ?? "GB"}` : null,
+      typeof product.config.readRequests === "number" && product.config.readRequests > 0 ? `${product.config.readRequests} reads` : null,
+      typeof product.config.writeRequests === "number" && product.config.writeRequests > 0 ? `${product.config.writeRequests} writes` : null,
+      typeof product.config.deleteRequests === "number" && product.config.deleteRequests > 0 ? `${product.config.deleteRequests} deletes` : null,
       typeof product.config.minimumStorageDays === "number" && product.config.minimumStorageDays > 0
         ? `${product.config.minimumStorageDays}-day minimum`
         : null,
       typeof product.config.billingMode === "string" ? product.config.billingMode : null,
-      typeof product.config.usageHours === "number" && product.config.billingMode === "Pay-per-use"
-        ? `${product.config.usageHours}h`
-        : null,
     ].filter(Boolean);
 
     return parts.join(" · ") || product.serviceName;
@@ -923,6 +961,21 @@ function parsePositiveNumber(value: unknown) {
   if (typeof value === "string" && value.trim()) {
     const parsed = Number(value);
     if (Number.isFinite(parsed) && parsed > 0) {
+      return parsed;
+    }
+  }
+
+  return null;
+}
+
+function parseNonNegativeNumber(value: unknown) {
+  if (typeof value === "number" && Number.isFinite(value) && value >= 0) {
+    return value;
+  }
+
+  if (typeof value === "string" && value.trim()) {
+    const parsed = Number(value);
+    if (Number.isFinite(parsed) && parsed >= 0) {
       return parsed;
     }
   }
@@ -1011,27 +1064,104 @@ function getBatchObsStorageClass(value: unknown, fallback: ObsStorageClass) {
   return fallback;
 }
 
+function getBatchObsProductType(value: unknown, fallback: ObsProductType) {
+  const obs = getNestedRecord(value, "obs");
+  const candidates = [
+    isRecord(value) ? value.productType : undefined,
+    isRecord(value) ? value.type : undefined,
+    obs?.productType,
+    obs?.type,
+  ];
+
+  for (const candidate of candidates) {
+    if (isObsProductType(candidate)) {
+      return candidate;
+    }
+  }
+
+  return fallback;
+}
+
+function getBatchObsRedundancy(value: unknown, fallback: ObsRedundancy) {
+  const obs = getNestedRecord(value, "obs");
+  const candidates = [
+    isRecord(value) ? value.redundancy : undefined,
+    isRecord(value) ? value.redundancyPolicy : undefined,
+    isRecord(value) ? value.dataRedundancyPolicy : undefined,
+    obs?.redundancy,
+    obs?.redundancyPolicy,
+    obs?.dataRedundancyPolicy,
+  ];
+
+  for (const candidate of candidates) {
+    if (isObsRedundancy(candidate)) {
+      return candidate;
+    }
+  }
+
+  return fallback;
+}
+
 function getBatchObsStorageSize(value: unknown, fallback: number) {
   const obs = getNestedRecord(value, "obs");
   const candidates = [
     isRecord(value) ? value.size : undefined,
     isRecord(value) ? value.sizeGiB : undefined,
     isRecord(value) ? value.storageGiB : undefined,
+    isRecord(value) ? value.storageAmount : undefined,
     isRecord(value) ? value.capacityGiB : undefined,
     obs?.size,
     obs?.sizeGiB,
     obs?.storageGiB,
+    obs?.storageAmount,
     obs?.capacityGiB,
   ];
 
   for (const candidate of candidates) {
     const parsed = parsePositiveNumber(candidate);
     if (parsed != null) {
-      return Math.min(obsStorageSizeBounds.max, Math.max(obsStorageSizeBounds.min, Math.floor(parsed)));
+      return Math.min(obsStorageSizeBounds.max, Math.max(obsStorageSizeBounds.min, parsed));
     }
   }
 
   return fallback;
+}
+
+function getBatchObsUnit(value: unknown, fallback: ObsCapacityUnit, keys: string[]) {
+  const obs = getNestedRecord(value, "obs");
+  const candidates = [
+    ...keys.map((key) => (isRecord(value) ? value[key] : undefined)),
+    ...keys.map((key) => obs?.[key]),
+  ];
+
+  for (const candidate of candidates) {
+    if (isObsCapacityUnit(candidate)) {
+      return candidate;
+    }
+  }
+
+  return fallback;
+}
+
+function getBatchObsAmount(value: unknown, fallback: number, keys: string[]) {
+  const obs = getNestedRecord(value, "obs");
+  const candidates = [
+    ...keys.map((key) => (isRecord(value) ? value[key] : undefined)),
+    ...keys.map((key) => obs?.[key]),
+  ];
+
+  for (const candidate of candidates) {
+    const parsed = parseNonNegativeNumber(candidate);
+    if (parsed != null) {
+      return Math.max(0, parsed);
+    }
+  }
+
+  return fallback;
+}
+
+function getObsRequestUnits(step: number | null | undefined, value: number) {
+  return typeof step === "number" && Number.isFinite(step) && step > 0 ? value / step : value;
 }
 
 function getBatchDescription(value: unknown, fallback: string) {
@@ -1290,8 +1420,23 @@ export default function Home() {
   const [instanceCount, setInstanceCount] = useState("1");
   const [systemDiskType, setSystemDiskType] = useState<SystemDiskOption>("High I/O");
   const [systemDiskSize, setSystemDiskSize] = useState("40");
+  const [obsProductType, setObsProductType] = useState<ObsProductType>("Object storage");
   const [obsStorageClass, setObsStorageClass] = useState<ObsStorageClass>("Standard");
+  const [obsRedundancy, setObsRedundancy] = useState<ObsRedundancy>("Single-AZ storage");
   const [obsStorageSize, setObsStorageSize] = useState("100");
+  const [obsStorageUnit, setObsStorageUnit] = useState<ObsCapacityUnit>("GB");
+  const [obsDurationMonths, setObsDurationMonths] = useState("1");
+  const [obsOutboundTraffic, setObsOutboundTraffic] = useState("0");
+  const [obsOutboundTrafficUnit, setObsOutboundTrafficUnit] = useState<ObsCapacityUnit>("GB");
+  const [obsReadRequests, setObsReadRequests] = useState("0");
+  const [obsWriteRequests, setObsWriteRequests] = useState("0");
+  const [obsDeleteRequests, setObsDeleteRequests] = useState("0");
+  const [obsPullTraffic, setObsPullTraffic] = useState("0");
+  const [obsPullTrafficUnit, setObsPullTrafficUnit] = useState<ObsCapacityUnit>("GB");
+  const [obsReplicationTraffic, setObsReplicationTraffic] = useState("0");
+  const [obsReplicationTrafficUnit, setObsReplicationTrafficUnit] = useState<ObsCapacityUnit>("GB");
+  const [obsCatalog, setObsCatalog] = useState<ObsPricingCatalog | null>(null);
+  const [obsCatalogRegionId, setObsCatalogRegionId] = useState<string | null>(null);
   const [gpSsd2Iops, setGpSsd2Iops] = useState("3000");
   const [gpSsd2Throughput, setGpSsd2Throughput] = useState("125");
   const [flavorQuery, setFlavorQuery] = useState("");
@@ -1417,9 +1562,14 @@ export default function Home() {
   const minVcpuFilter = Number.isFinite(Number(minVcpuValue)) ? Math.max(0, Number(minVcpuValue)) : 0;
   const minRamFilter = Number.isFinite(Number(minRamValue)) ? Math.max(0, Number(minRamValue)) : 0;
   const activeDiskSizeBounds = isEvsCalculator ? evsDiskSizeBounds : ecsDiskSizeBounds;
-  const obsStorageSizeValue = Number.isFinite(Number(obsStorageSize))
-    ? Math.max(obsStorageSizeBounds.min, Math.min(obsStorageSizeBounds.max, Math.floor(Number(obsStorageSize))))
-    : obsStorageSizeBounds.min;
+  const obsStorageSizeValue = normalizeObsPositiveNumber(obsStorageSize, obsStorageSizeBounds.min, obsStorageSizeBounds.min);
+  const obsDurationMonthsValue = Math.max(1, Math.floor(normalizeObsPositiveNumber(obsDurationMonths, 1, 1)));
+  const obsOutboundTrafficValue = normalizeObsPositiveNumber(obsOutboundTraffic, 0, 0);
+  const obsReadRequestsValue = normalizeObsPositiveNumber(obsReadRequests, 0, 0);
+  const obsWriteRequestsValue = normalizeObsPositiveNumber(obsWriteRequests, 0, 0);
+  const obsDeleteRequestsValue = normalizeObsPositiveNumber(obsDeleteRequests, 0, 0);
+  const obsPullTrafficValue = normalizeObsPositiveNumber(obsPullTraffic, 0, 0);
+  const obsReplicationTrafficValue = normalizeObsPositiveNumber(obsReplicationTraffic, 0, 0);
   const systemDiskSizeValue = Number.isFinite(Number(systemDiskSize))
     ? Math.max(activeDiskSizeBounds.min, Number(systemDiskSize))
     : activeDiskSizeBounds.min;
@@ -1432,7 +1582,37 @@ export default function Home() {
     isGpSsd2Selected && gpSsd2IopsValue != null ? getGpSsd2ThroughputBounds(gpSsd2IopsValue) : null;
   const instanceCountValue = Number.isFinite(Number(instanceCount)) ? Math.max(1, Number(instanceCount)) : 1;
   const selectedDiskPrice = getDiskPriceForBillingOption(diskPricing, systemDiskType, systemDiskSizeValue, billingMode, usageHoursValue);
-  const selectedObsPricing = isObsCalculator ? estimateObsStoragePrice(obsStorageClass, obsStorageSizeValue, usageHoursValue) : null;
+  const obsProductTypeOptions = useMemo(
+    (): ObsProductType[] => (obsCatalog ? listObsProductTypes(obsCatalog) : ["Object storage", "Parallel file system"]),
+    [obsCatalog],
+  );
+  const obsStorageClassOptions = useMemo(
+    (): ObsStorageClass[] => (obsCatalog ? listObsStorageClasses(obsCatalog, obsProductType) : ["Standard"]),
+    [obsCatalog, obsProductType],
+  );
+  const obsRedundancyOptions = useMemo(
+    (): ObsRedundancy[] => (obsCatalog ? listObsRedundancies(obsCatalog, obsProductType, obsStorageClass) : ["Single-AZ storage"]),
+    [obsCatalog, obsProductType, obsStorageClass],
+  );
+  const selectedObsPricing = isObsCalculator && obsCatalog
+    ? estimateObsConfiguration(obsCatalog, {
+        productType: obsProductType,
+        storageClass: obsStorageClass,
+        redundancy: obsRedundancy,
+        storageAmount: obsStorageSizeValue,
+        storageUnit: obsStorageUnit,
+        durationMonths: obsDurationMonthsValue,
+        outboundTrafficAmount: obsOutboundTrafficValue,
+        outboundTrafficUnit: obsOutboundTrafficUnit,
+        readRequests: obsReadRequestsValue,
+        writeRequests: obsWriteRequestsValue,
+        deleteRequests: obsDeleteRequestsValue,
+        pullTrafficAmount: obsPullTrafficValue,
+        pullTrafficUnit: obsPullTrafficUnit,
+        replicationTrafficAmount: obsReplicationTrafficValue,
+        replicationTrafficUnit: obsReplicationTrafficUnit,
+      } satisfies ObsEstimateInput)
+    : null;
   const ecsFlavorCards = catalogFlavors
     .filter((flavor) => getFlavorPriceForBillingOption(flavor, billingMode, usageHoursValue))
     .map((flavor) => toFlavorCard(flavor, billingMode, usageHoursValue, selectedDiskPrice));
@@ -1506,6 +1686,8 @@ export default function Home() {
 
   const [evsPricingLoading, setEvsPricingLoading] = useState(false);
   const [evsPricingError, setEvsPricingError] = useState("");
+  const [obsPricingLoading, setObsPricingLoading] = useState(false);
+  const [obsPricingError, setObsPricingError] = useState("");
 
   useEffect(() => {
     if (!calculatorBillingOptions.includes(billingMode)) {
@@ -1544,6 +1726,10 @@ export default function Home() {
         setCatalogFlavorsError("");
         setEvsPricingLoading(false);
         setEvsPricingError("");
+        setObsPricingLoading(false);
+        setObsPricingError("");
+        setObsCatalog(null);
+        setObsCatalogRegionId(null);
 
         try {
           const response = await fetch(`/api/catalog/ecs-flavors?region=${encodeURIComponent(regionValue)}`, {
@@ -1585,6 +1771,50 @@ export default function Home() {
       setCatalogFlavorsLastCompletedAt(null);
       setCatalogFlavorsLoading(false);
       setCatalogFlavorsError("");
+
+      if (isObsCalculator) {
+        setDiskPricing(null);
+        setEvsPricingLoading(false);
+        setEvsPricingError("");
+        setObsPricingLoading(true);
+        setObsPricingError("");
+
+        try {
+          const response = await fetch(`/api/catalog/obs-pricing?region=${encodeURIComponent(regionValue)}`, {
+            cache: "no-store",
+          });
+          const rawBody = await response.text();
+          const payload = (rawBody ? JSON.parse(rawBody) : {}) as {
+            catalog?: ObsPricingCatalog | null;
+            catalogRegionId?: string | null;
+            error?: string;
+          };
+
+          if (!response.ok || !payload.catalog) {
+            throw new Error(payload.error ?? "Failed to load OBS pricing");
+          }
+
+          if (cancelled) return;
+
+          setObsCatalog(payload.catalog);
+          setObsCatalogRegionId(payload.catalogRegionId ?? null);
+        } catch (error) {
+          if (cancelled) return;
+          setObsCatalog(null);
+          setObsCatalogRegionId(null);
+          setObsPricingError(error instanceof Error ? error.message : "Failed to load OBS pricing");
+        } finally {
+          if (!cancelled) {
+            setObsPricingLoading(false);
+          }
+        }
+        return;
+      }
+
+      setObsCatalog(null);
+      setObsCatalogRegionId(null);
+      setObsPricingLoading(false);
+      setObsPricingError("");
 
       if (!isEvsCalculator) {
         setDiskPricing(null);
@@ -1629,7 +1859,7 @@ export default function Home() {
     return () => {
       cancelled = true;
     };
-  }, [isEcsCalculator, isEvsCalculator, regionValue]);
+  }, [isEcsCalculator, isEvsCalculator, isObsCalculator, regionValue]);
 
   useEffect(() => {
     if (!isEcsCalculator) {
@@ -1671,6 +1901,38 @@ export default function Home() {
       setRamValue(String(nextPlan.ramGiB));
     }
   }, [isFlexusLCalculator, ramValue, selectedFlavor, vcpuValue]);
+
+  useEffect(() => {
+    if (!isObsCalculator || !obsCatalog) {
+      return;
+    }
+
+    const nextProductType = obsProductTypeOptions.includes(obsProductType) ? obsProductType : obsProductTypeOptions[0];
+    if (nextProductType && nextProductType !== obsProductType) {
+      setObsProductType(nextProductType);
+      return;
+    }
+
+    const nextStorageClass = obsStorageClassOptions.includes(obsStorageClass) ? obsStorageClass : obsStorageClassOptions[0];
+    if (nextStorageClass && nextStorageClass !== obsStorageClass) {
+      setObsStorageClass(nextStorageClass);
+      return;
+    }
+
+    const nextRedundancy = obsRedundancyOptions.includes(obsRedundancy) ? obsRedundancy : obsRedundancyOptions[0];
+    if (nextRedundancy && nextRedundancy !== obsRedundancy) {
+      setObsRedundancy(nextRedundancy);
+    }
+  }, [
+    isObsCalculator,
+    obsCatalog,
+    obsProductType,
+    obsProductTypeOptions,
+    obsRedundancy,
+    obsRedundancyOptions,
+    obsStorageClass,
+    obsStorageClassOptions,
+  ]);
 
   useEffect(() => {
     const handlePointerDown = (event: MouseEvent) => {
@@ -2706,10 +2968,50 @@ export default function Home() {
             ? String(evsDiskSizeBounds.min)
             : String(ecsDiskSizeBounds.min);
     const nextObsStorageClass = isObsStorageClass(product.config.storageClass) ? product.config.storageClass : "Standard";
+    const nextObsProductType = isObsProductType(product.config.productType) ? product.config.productType : "Object storage";
+    const nextObsRedundancy = isObsRedundancy(product.config.redundancy) ? product.config.redundancy : "Single-AZ storage";
     const nextObsStorageSize =
-      typeof product.config.storageGiB === "number" && Number.isFinite(product.config.storageGiB)
-        ? String(Math.max(obsStorageSizeBounds.min, Math.floor(product.config.storageGiB)))
+      typeof product.config.storageAmount === "number" && Number.isFinite(product.config.storageAmount)
+        ? String(Math.max(obsStorageSizeBounds.min, product.config.storageAmount))
+        : typeof product.config.storageGiB === "number" && Number.isFinite(product.config.storageGiB)
+          ? String(Math.max(obsStorageSizeBounds.min, product.config.storageGiB))
         : String(obsStorageSizeBounds.min);
+    const nextObsStorageUnit = isObsCapacityUnit(product.config.storageUnit) ? product.config.storageUnit : "GB";
+    const nextObsDurationMonths =
+      typeof product.config.durationMonths === "number" && Number.isFinite(product.config.durationMonths)
+        ? String(Math.max(1, Math.floor(product.config.durationMonths)))
+        : "1";
+    const nextObsOutboundTraffic =
+      typeof product.config.outboundTrafficAmount === "number" && Number.isFinite(product.config.outboundTrafficAmount)
+        ? String(Math.max(0, product.config.outboundTrafficAmount))
+        : "0";
+    const nextObsOutboundTrafficUnit = isObsCapacityUnit(product.config.outboundTrafficUnit)
+      ? product.config.outboundTrafficUnit
+      : "GB";
+    const nextObsReadRequests =
+      typeof product.config.readRequests === "number" && Number.isFinite(product.config.readRequests)
+        ? String(Math.max(0, product.config.readRequests))
+        : "0";
+    const nextObsWriteRequests =
+      typeof product.config.writeRequests === "number" && Number.isFinite(product.config.writeRequests)
+        ? String(Math.max(0, product.config.writeRequests))
+        : "0";
+    const nextObsDeleteRequests =
+      typeof product.config.deleteRequests === "number" && Number.isFinite(product.config.deleteRequests)
+        ? String(Math.max(0, product.config.deleteRequests))
+        : "0";
+    const nextObsPullTraffic =
+      typeof product.config.pullTrafficAmount === "number" && Number.isFinite(product.config.pullTrafficAmount)
+        ? String(Math.max(0, product.config.pullTrafficAmount))
+        : "0";
+    const nextObsPullTrafficUnit = isObsCapacityUnit(product.config.pullTrafficUnit) ? product.config.pullTrafficUnit : "GB";
+    const nextObsReplicationTraffic =
+      typeof product.config.replicationTrafficAmount === "number" && Number.isFinite(product.config.replicationTrafficAmount)
+        ? String(Math.max(0, product.config.replicationTrafficAmount))
+        : "0";
+    const nextObsReplicationTrafficUnit = isObsCapacityUnit(product.config.replicationTrafficUnit)
+      ? product.config.replicationTrafficUnit
+      : "GB";
     if (product.productType === "ecs") {
       lastFlavorAutoSelectKeyRef.current = buildFlavorAutoSelectKey({
         minVcpuValue: nextMinVcpuValue,
@@ -2753,20 +3055,59 @@ export default function Home() {
             ? String(nextPlan.ramGiB)
             : "",
       );
+      setObsProductType("Object storage");
+      setObsRedundancy("Single-AZ storage");
       setObsStorageClass("Standard");
       setObsStorageSize("100");
+      setObsStorageUnit("GB");
+      setObsDurationMonths("1");
+      setObsOutboundTraffic("0");
+      setObsOutboundTrafficUnit("GB");
+      setObsReadRequests("0");
+      setObsWriteRequests("0");
+      setObsDeleteRequests("0");
+      setObsPullTraffic("0");
+      setObsPullTrafficUnit("GB");
+      setObsReplicationTraffic("0");
+      setObsReplicationTrafficUnit("GB");
     } else if (product.productType === "obs") {
       setSelectedFlavor("");
       setVcpuValue("");
       setRamValue("");
+      setObsProductType(nextObsProductType);
       setObsStorageClass(nextObsStorageClass);
+      setObsRedundancy(nextObsRedundancy);
       setObsStorageSize(nextObsStorageSize);
+      setObsStorageUnit(nextObsStorageUnit);
+      setObsDurationMonths(nextObsDurationMonths);
+      setObsOutboundTraffic(nextObsOutboundTraffic);
+      setObsOutboundTrafficUnit(nextObsOutboundTrafficUnit);
+      setObsReadRequests(nextObsReadRequests);
+      setObsWriteRequests(nextObsWriteRequests);
+      setObsDeleteRequests(nextObsDeleteRequests);
+      setObsPullTraffic(nextObsPullTraffic);
+      setObsPullTrafficUnit(nextObsPullTrafficUnit);
+      setObsReplicationTraffic(nextObsReplicationTraffic);
+      setObsReplicationTrafficUnit(nextObsReplicationTrafficUnit);
     } else {
       setSelectedFlavor("");
       setVcpuValue("");
       setRamValue("");
+      setObsProductType("Object storage");
+      setObsRedundancy("Single-AZ storage");
       setObsStorageClass("Standard");
       setObsStorageSize("100");
+      setObsStorageUnit("GB");
+      setObsDurationMonths("1");
+      setObsOutboundTraffic("0");
+      setObsOutboundTrafficUnit("GB");
+      setObsReadRequests("0");
+      setObsWriteRequests("0");
+      setObsDeleteRequests("0");
+      setObsPullTraffic("0");
+      setObsPullTrafficUnit("GB");
+      setObsReplicationTraffic("0");
+      setObsReplicationTrafficUnit("GB");
     }
     const nextGpSsd2Iops = getGpSsd2RequestedIops(product.config, Number(nextSystemDiskSize));
     const nextGpSsd2Throughput = getGpSsd2RequestedThroughput(product.config, nextGpSsd2Iops);
@@ -2798,7 +3139,7 @@ export default function Home() {
       return;
     }
 
-    const normalized = Math.max(obsStorageSizeBounds.min, Math.min(obsStorageSizeBounds.max, Math.floor(parsed)));
+    const normalized = Math.max(obsStorageSizeBounds.min, Math.min(obsStorageSizeBounds.max, parsed));
     setObsStorageSize(String(normalized));
   };
 
@@ -3136,31 +3477,120 @@ export default function Home() {
             })()
           : isObsCalculator
           ? (() => {
+              if (!obsCatalog) {
+                throw new Error("OBS pricing is still loading.");
+              }
+
+              const productType = getBatchObsProductType(item, obsProductType);
               const storageClass = getBatchObsStorageClass(item, obsStorageClass);
-              const storageGiB = getBatchObsStorageSize(item, obsStorageSizeValue);
-              const storagePrice = estimateObsStoragePrice(storageClass, storageGiB, usageHoursValue);
+              const redundancy = getBatchObsRedundancy(item, obsRedundancy);
+              const storageAmount = getBatchObsStorageSize(item, obsStorageSizeValue);
+              const storageUnit = getBatchObsUnit(item, obsStorageUnit, ["sizeUnit", "storageUnit", "unit"]);
+              const durationMonths = Math.max(1, Math.floor(getBatchObsAmount(item, obsDurationMonthsValue, ["durationMonths", "months"])));
+              const outboundTrafficAmount = getBatchObsAmount(item, obsOutboundTrafficValue, ["outboundTraffic", "internetOutboundTraffic"]);
+              const outboundTrafficUnit = getBatchObsUnit(item, obsOutboundTrafficUnit, ["outboundTrafficUnit", "internetOutboundTrafficUnit"]);
+              const readRequests = getBatchObsAmount(item, obsReadRequestsValue, ["readRequests", "apiReadRequests"]);
+              const writeRequests = getBatchObsAmount(item, obsWriteRequestsValue, ["writeRequests", "apiWriteRequests"]);
+              const deleteRequests = getBatchObsAmount(item, obsDeleteRequestsValue, ["deleteRequests", "apiDeleteRequests"]);
+              const pullTrafficAmount = getBatchObsAmount(item, obsPullTrafficValue, ["pullTraffic"]);
+              const pullTrafficUnit = getBatchObsUnit(item, obsPullTrafficUnit, ["pullTrafficUnit"]);
+              const replicationTrafficAmount = getBatchObsAmount(item, obsReplicationTrafficValue, ["replicationTraffic", "crossRegionReplicationTraffic"]);
+              const replicationTrafficUnit = getBatchObsUnit(item, obsReplicationTrafficUnit, ["replicationTrafficUnit", "crossRegionReplicationTrafficUnit"]);
+              const estimate = estimateObsConfiguration(obsCatalog, {
+                productType,
+                storageClass,
+                redundancy,
+                storageAmount,
+                storageUnit,
+                durationMonths,
+                outboundTrafficAmount,
+                outboundTrafficUnit,
+                readRequests,
+                writeRequests,
+                deleteRequests,
+                pullTrafficAmount,
+                pullTrafficUnit,
+                replicationTrafficAmount,
+                replicationTrafficUnit,
+              });
+
+              if (!estimate) {
+                throw new Error(`Item ${index + 1} uses an OBS combination that is not available in ${regionValue}.`);
+              }
+
+              const requestRateSet = obsCatalog.requestRates[storageClass];
+              const readRequestUnits = getObsRequestUnits(requestRateSet?.read?.measureUnitStep, readRequests);
+              const writeRequestUnits = getObsRequestUnits(requestRateSet?.write?.measureUnitStep, writeRequests);
+              const deleteRequestUnits = getObsRequestUnits(requestRateSet?.delete?.measureUnitStep, deleteRequests);
+              const storageGiB = convertObsCapacityToGb(storageAmount, storageUnit);
+              const catalogRegionId = obsCatalogRegionId ?? huaweiRegions[regionValue].catalogRegionId ?? regionValue;
 
               return [{
                 serviceCode: selectedServiceMeta.code,
                 serviceName: selectedService,
                 productType: "obs",
-                title: `${selectedService} ${storageClass} ${storageGiB} GiB`,
+                title: `${selectedService} ${productType} ${storageClass} ${storageAmount} ${storageUnit}`,
                 quantity,
                 config: {
                   region: regionValue,
+                  catalogRegionId,
                   billingMode: "Pay-per-use",
-                  usageHours: usageHoursValue,
                   description,
+                  productType,
                   storageClass,
+                  redundancy,
+                  storageAmount,
+                  storageUnit,
                   storageGiB,
-                  minimumStorageDays: storagePrice.storageClass.minimumStorageDays,
-                  referenceHourlyConversionDays: obsPricingReference.hourlyConversionDays,
+                  durationMonths,
+                  outboundTrafficAmount,
+                  outboundTrafficUnit,
+                  readRequests,
+                  writeRequests,
+                  deleteRequests,
+                  pullTrafficAmount,
+                  pullTrafficUnit,
+                  replicationTrafficAmount,
+                  replicationTrafficUnit,
+                  minimumStorageDays: estimate.variant.minimumStorageDays,
+                  huaweiPayload: buildObsHuaweiPayload({
+                    regionId: catalogRegionId,
+                    catalog: obsCatalog,
+                    input: {
+                      productType,
+                      storageClass,
+                      redundancy,
+                      storageAmount,
+                      storageUnit,
+                      durationMonths,
+                      outboundTrafficAmount,
+                      outboundTrafficUnit,
+                      readRequests,
+                      writeRequests,
+                      deleteRequests,
+                      pullTrafficAmount,
+                      pullTrafficUnit,
+                      replicationTrafficAmount,
+                      replicationTrafficUnit,
+                    },
+                    estimate,
+                    title: `${selectedService} ${productType} ${storageClass} ${storageAmount} ${storageUnit}`,
+                    description: selectedService,
+                    storageRequestUnits: {
+                      read: readRequestUnits,
+                      write: writeRequestUnits,
+                      delete: deleteRequestUnits,
+                    },
+                  }),
                 },
                 pricing: {
-                  total: formatFlavorAmount(storagePrice.currency, storagePrice.amount * quantity, storagePrice.suffix),
-                  storage: formatFlavorAmount(storagePrice.currency, storagePrice.amount, storagePrice.suffix),
-                  monthlyReference: formatFlavorAmount(storagePrice.currency, storagePrice.monthlyAmount, storagePrice.monthlySuffix),
-                  rate: `${storagePrice.currency} ${storagePrice.monthlyRatePerGiB.toFixed(4)}/GB-mo`,
+                  total: formatFlavorAmount(estimate.currency, estimate.amount * quantity, estimate.suffix),
+                  estimate: formatFlavorAmount(estimate.currency, estimate.amount, estimate.suffix),
+                  monthlyAverage: formatFlavorAmount(estimate.currency, estimate.monthlyAverageAmount, "/mo"),
+                  breakdown: estimate.breakdown.map((entry) => ({
+                    label: entry.label,
+                    value: formatFlavorAmount(estimate.currency, entry.amount, estimate.suffix),
+                  })),
                 },
               }];
             })()
@@ -3378,28 +3808,69 @@ export default function Home() {
         ? {
             serviceCode: selectedServiceMeta.code,
             serviceName: selectedService,
-            productType: "obs",
-            title: `${selectedService} ${obsStorageClass} ${obsStorageSizeValue} GiB`,
-            quantity,
-            config: {
-              region: regionValue,
+              productType: "obs",
+              title: `${selectedService} ${obsProductType} ${obsStorageClass} ${obsStorageSizeValue} ${obsStorageUnit}`,
+              quantity,
+              config: {
+                region: regionValue,
+              catalogRegionId: obsCatalogRegionId ?? huaweiRegions[regionValue].catalogRegionId ?? regionValue,
               billingMode: "Pay-per-use",
-              usageHours: usageHoursValue,
               description: selectedService,
-              storageClass: obsStorageClass,
-              storageGiB: obsStorageSizeValue,
-              minimumStorageDays: selectedObsPricing.storageClass.minimumStorageDays,
-              referenceHourlyConversionDays: obsPricingReference.hourlyConversionDays,
+                productType: obsProductType,
+                storageClass: obsStorageClass,
+                redundancy: obsRedundancy,
+                storageAmount: obsStorageSizeValue,
+                storageUnit: obsStorageUnit,
+                storageGiB: convertObsCapacityToGb(obsStorageSizeValue, obsStorageUnit),
+              durationMonths: obsDurationMonthsValue,
+              outboundTrafficAmount: obsOutboundTrafficValue,
+              outboundTrafficUnit: obsOutboundTrafficUnit,
+              readRequests: obsReadRequestsValue,
+              writeRequests: obsWriteRequestsValue,
+              deleteRequests: obsDeleteRequestsValue,
+              pullTrafficAmount: obsPullTrafficValue,
+              pullTrafficUnit: obsPullTrafficUnit,
+              replicationTrafficAmount: obsReplicationTrafficValue,
+              replicationTrafficUnit: obsReplicationTrafficUnit,
+              minimumStorageDays: selectedObsPricing.variant.minimumStorageDays,
+              huaweiPayload: buildObsHuaweiPayload({
+                regionId: obsCatalogRegionId ?? huaweiRegions[regionValue].catalogRegionId ?? regionValue,
+                catalog: obsCatalog,
+                input: {
+                  productType: obsProductType,
+                  storageClass: obsStorageClass,
+                  redundancy: obsRedundancy,
+                  storageAmount: obsStorageSizeValue,
+                  storageUnit: obsStorageUnit,
+                  durationMonths: obsDurationMonthsValue,
+                  outboundTrafficAmount: obsOutboundTrafficValue,
+                  outboundTrafficUnit: obsOutboundTrafficUnit,
+                  readRequests: obsReadRequestsValue,
+                  writeRequests: obsWriteRequestsValue,
+                  deleteRequests: obsDeleteRequestsValue,
+                  pullTrafficAmount: obsPullTrafficValue,
+                  pullTrafficUnit: obsPullTrafficUnit,
+                  replicationTrafficAmount: obsReplicationTrafficValue,
+                  replicationTrafficUnit: obsReplicationTrafficUnit,
+                },
+                estimate: selectedObsPricing,
+                title: `${selectedService} ${obsProductType} ${obsStorageClass} ${obsStorageSizeValue} ${obsStorageUnit}`,
+                description: selectedService,
+                storageRequestUnits: {
+                  read: getObsRequestUnits(obsCatalog?.requestRates[obsStorageClass]?.read?.measureUnitStep, obsReadRequestsValue),
+                  write: getObsRequestUnits(obsCatalog?.requestRates[obsStorageClass]?.write?.measureUnitStep, obsWriteRequestsValue),
+                  delete: getObsRequestUnits(obsCatalog?.requestRates[obsStorageClass]?.delete?.measureUnitStep, obsDeleteRequestsValue),
+                },
+              }),
             },
             pricing: {
               total: selectedEstimate,
-              storage: formatFlavorAmount(selectedObsPricing.currency, selectedObsPricing.amount, selectedObsPricing.suffix),
-              monthlyReference: formatFlavorAmount(
-                selectedObsPricing.currency,
-                selectedObsPricing.monthlyAmount,
-                selectedObsPricing.monthlySuffix,
-              ),
-              rate: `${selectedObsPricing.currency} ${selectedObsPricing.monthlyRatePerGiB.toFixed(4)}/GB-mo`,
+              estimate: formatFlavorAmount(selectedObsPricing.currency, selectedObsPricing.amount, selectedObsPricing.suffix),
+              monthlyAverage: formatFlavorAmount(selectedObsPricing.currency, selectedObsPricing.monthlyAverageAmount, "/mo"),
+              breakdown: selectedObsPricing.breakdown.map((entry) => ({
+                label: entry.label,
+                value: formatFlavorAmount(selectedObsPricing.currency, entry.amount, selectedObsPricing.suffix),
+              })),
             },
           }
         : splitEvsDiskSizes(systemDiskSizeValue).map((chunkSizeGiB) => {
@@ -3584,7 +4055,7 @@ export default function Home() {
     : isFlexusLCalculator && selectedFlexusLPlan
     ? `Selected specifications: ${selectedFlexusLPlan.title} | ${selectedFlexusLPlan.systemDiskGiB} GiB system disk | ${selectedFlexusLPlan.peakBandwidthMbit} Mbit/s | ${selectedFlexusLPlan.dataPackageTiB} TB/month | ${formatFlavorAmount("USD", selectedFlexusLPlan.monthlyPriceUsd, "/mo")}`
     : isObsCalculator && selectedObsPricing
-    ? `Selected specifications: ${obsStorageClass} | ${obsStorageSizeValue} GiB | ${formatFlavorAmount(selectedObsPricing.currency, selectedObsPricing.amount, selectedObsPricing.suffix)}`
+    ? `Selected specifications: ${obsProductType} | ${obsStorageClass} | ${obsRedundancy} | ${obsStorageSizeValue} ${obsStorageUnit} | ${obsDurationMonthsValue}mo | ${formatFlavorAmount(selectedObsPricing.currency, selectedObsPricing.amount, selectedObsPricing.suffix)}`
     : `Selected specifications: ${systemDiskType} | ${systemDiskSize || String(activeDiskSizeBounds.min)} GiB${isGpSsd2Selected && gpSsd2IopsValue != null && gpSsd2ThroughputValue != null ? ` | ${gpSsd2IopsValue} IOPS | ${gpSsd2ThroughputValue} MB/s` : ""}${selectedDiskPrice ? ` | Disk ${formatFlavorAmount(selectedDiskPrice.currency, selectedDiskPrice.amount, selectedDiskPrice.suffix)}` : ""}`;
   const calculatorSelectionNotes = [
     ...(isEcsCalculator && selectedFlavorCard?.productType === "flexus-l"
@@ -3595,11 +4066,11 @@ export default function Home() {
       : []),
     ...(isObsCalculator && selectedObsPricing
       ? [
-          `Storage-only estimate based on ${formatFlavorAmount("USD", selectedObsPricing.monthlyRatePerGiB, "/GB-mo")} prorated over ${usageHoursValue} hours using Huawei's 30-day billing formula.`,
-          "Requests, outbound traffic, retrieval, and resource-package pricing are not modeled in this estimate.",
-          ...(selectedObsPricing.storageClass.minimumStorageDays > 0
-            ? [`${selectedObsPricing.storageClass.title} has a ${selectedObsPricing.storageClass.minimumStorageDays}-day minimum storage duration.`]
-            : []),
+          ...selectedObsPricing.breakdown.map(
+            (entry) => `${entry.label}: ${formatFlavorAmount(selectedObsPricing.currency, entry.amount, selectedObsPricing.suffix)}`,
+          ),
+          `Monthly average: ${formatFlavorAmount(selectedObsPricing.currency, selectedObsPricing.monthlyAverageAmount, "/mo")}.`,
+          ...selectedObsPricing.notes,
         ]
       : []),
     ...(isEvsCalculator && evsSplitNotice ? [evsSplitNotice] : []),
@@ -4529,32 +5000,82 @@ export default function Home() {
                         />
                       ) : isObsCalculator ? (
                         <ObsCalculatorPanel
-                          storageClasses={obsStorageClasses.map((storageClass) => ({
-                            title: storageClass.title,
-                            description: storageClass.description,
-                            monthlyPrice: formatFlavorAmount("USD", storageClass.monthlyPriceUsdPerGiB, "/GB-mo"),
-                            retrievalSummary: storageClass.retrievalSummary,
-                            minimumStorageDays: storageClass.minimumStorageDays,
-                          }))}
-                          selectedStorageClass={obsStorageClass}
+                          productType={obsProductType}
+                          productTypeOptions={obsProductTypeOptions}
+                          onProductTypeChange={(value) => {
+                            if (isObsProductType(value)) {
+                              setObsProductType(value);
+                            }
+                          }}
+                          storageClass={obsStorageClass}
+                          storageClassOptions={obsStorageClassOptions}
                           onStorageClassChange={(value) => {
                             if (isObsStorageClass(value)) {
                               setObsStorageClass(value);
                             }
                           }}
-                          storageSize={obsStorageSize}
-                          onStorageSizeChange={(value) => {
+                          redundancy={obsRedundancy}
+                          redundancyOptions={obsRedundancyOptions}
+                          onRedundancyChange={(value) => {
+                            if (isObsRedundancy(value)) {
+                              setObsRedundancy(value);
+                            }
+                          }}
+                          storageAmount={obsStorageSize}
+                          storageUnit={obsStorageUnit}
+                          storageUnitOptions={obsCapacityUnits}
+                          onStorageAmountChange={(value) => {
                             if (value === "") {
                               setObsStorageSize("");
                               return;
                             }
                             updateObsStorageSize(value);
                           }}
-                          onStorageSizeBlur={() => updateObsStorageSize(obsStorageSize || String(obsStorageSizeBounds.min))}
-                          onStorageSizeStep={(delta) => updateObsStorageSize(String(Number(obsStorageSize || String(obsStorageSizeBounds.min)) + delta))}
+                          onStorageAmountBlur={() => updateObsStorageSize(obsStorageSize || String(obsStorageSizeBounds.min))}
+                          onStorageAmountStep={(delta) => updateObsStorageSize(String(Number(obsStorageSize || String(obsStorageSizeBounds.min)) + delta))}
+                          onStorageUnitChange={(value) => {
+                            if (isObsCapacityUnit(value)) {
+                              setObsStorageUnit(value);
+                            }
+                          }}
+                          durationMonths={obsDurationMonths}
+                          onDurationMonthsChange={(value) => setObsDurationMonths(value.replace(/[^\d]/g, ""))}
+                          onDurationMonthsBlur={() => setObsDurationMonths(String(obsDurationMonthsValue))}
+                          outboundTrafficAmount={obsOutboundTraffic}
+                          outboundTrafficUnit={obsOutboundTrafficUnit}
+                          onOutboundTrafficAmountChange={setObsOutboundTraffic}
+                          onOutboundTrafficUnitChange={(value) => {
+                            if (isObsCapacityUnit(value)) {
+                              setObsOutboundTrafficUnit(value);
+                            }
+                          }}
+                          readRequests={obsReadRequests}
+                          onReadRequestsChange={setObsReadRequests}
+                          writeRequests={obsWriteRequests}
+                          onWriteRequestsChange={setObsWriteRequests}
+                          deleteRequests={obsDeleteRequests}
+                          onDeleteRequestsChange={setObsDeleteRequests}
+                          pullTrafficAmount={obsPullTraffic}
+                          pullTrafficUnit={obsPullTrafficUnit}
+                          onPullTrafficAmountChange={setObsPullTraffic}
+                          onPullTrafficUnitChange={(value) => {
+                            if (isObsCapacityUnit(value)) {
+                              setObsPullTrafficUnit(value);
+                            }
+                          }}
+                          replicationTrafficAmount={obsReplicationTraffic}
+                          replicationTrafficUnit={obsReplicationTrafficUnit}
+                          onReplicationTrafficAmountChange={setObsReplicationTraffic}
+                          onReplicationTrafficUnitChange={(value) => {
+                            if (isObsCapacityUnit(value)) {
+                              setObsReplicationTrafficUnit(value);
+                            }
+                          }}
+                          pricingError={obsPricingError}
+                          pricingLoadingMessage={obsPricingLoading ? "Loading OBS pricing..." : null}
                           selectionSummary={calculatorSelectionSummary}
                           selectionNotes={calculatorSelectionNotes}
-                          referenceNote={`Reference pricing uses Huawei Cloud public OBS starting storage prices and the official 30-day pay-per-use proration formula. Resource-package pricing is not modeled. Sources: ${obsPricingReference.productUrl} and ${obsPricingReference.billingUrl}`}
+                          referenceNote={`Reference pricing uses Huawei Cloud OBS calculator catalog data for ${obsCatalogRegionId ?? (huaweiRegions[regionValue].catalogRegionId ?? regionValue)}. Deep Archive storage falls back to Huawei's public pricing page because that storage event is omitted from the productInfo response. Sources: ${obsPricingReference.productUrl}, ${obsPricingReference.billingUrl}, and ${obsPricingReference.packageOverviewUrl}`}
                         />
                       ) : (
                         <EvsCalculatorPanel diskConfigProps={calculatorDiskConfigProps} />
@@ -4582,8 +5103,12 @@ export default function Home() {
                     systemDiskType={systemDiskType}
                     systemDiskSizeValue={systemDiskSizeValue}
                     evsSingleDiskMaxGiB={evsSingleDiskMaxGiB}
+                    obsProductType={obsProductType}
                     obsStorageClass={obsStorageClass}
+                    obsRedundancy={obsRedundancy}
                     obsStorageSizeValue={obsStorageSizeValue}
+                    obsStorageUnit={obsStorageUnit}
+                    obsDurationMonthsValue={obsDurationMonthsValue}
                     showFlexusLToggleVisible={canShowFlexusLInEcs}
                     showFlexusLChecked={showFlexusLInEcs}
                     onShowFlexusLChange={setShowFlexusLInEcs}

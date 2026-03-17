@@ -1870,7 +1870,11 @@ export async function createHuaweiCart(name: string, cookieInput: string) {
 }
 
 async function buildHuaweiPayloadFromLocalProduct(product: LocalProductInput) {
-  if (product.productType === "huawei-raw" && isRecord(product.config) && isRecord((product.config as LocalRawConfig).huaweiPayload)) {
+  if (
+    (product.productType === "huawei-raw" || product.productType === "obs")
+    && isRecord(product.config)
+    && isRecord((product.config as LocalRawConfig).huaweiPayload)
+  ) {
     return cloneJson((product.config as LocalRawConfig).huaweiPayload as CalculatorCartItemPayload);
   }
 

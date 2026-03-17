@@ -126,20 +126,70 @@ function getProductSpecsSummary(product: AppProduct) {
   const storageClass = typeof product.config.storageClass === "string"
     ? product.config.storageClass
     : null;
+  const obsProductType = typeof product.config.productType === "string"
+    ? product.config.productType
+    : null;
+  const obsRedundancy = typeof product.config.redundancy === "string"
+    ? product.config.redundancy
+    : null;
+  const storageAmount = typeof product.config.storageAmount === "number"
+    ? product.config.storageAmount
+    : typeof product.config.storageGiB === "number"
+      ? product.config.storageGiB
+      : null;
+  const storageUnit = typeof product.config.storageUnit === "string"
+    ? product.config.storageUnit
+    : "GB";
   const storageGiB = typeof product.config.storageGiB === "number"
     ? product.config.storageGiB
+    : null;
+  const durationMonths = typeof product.config.durationMonths === "number"
+    ? product.config.durationMonths
     : null;
   const minimumStorageDays = typeof product.config.minimumStorageDays === "number"
     ? product.config.minimumStorageDays
     : null;
+  const outboundTrafficAmount = typeof product.config.outboundTrafficAmount === "number"
+    ? product.config.outboundTrafficAmount
+    : null;
+  const outboundTrafficUnit = typeof product.config.outboundTrafficUnit === "string"
+    ? product.config.outboundTrafficUnit
+    : "GB";
+  const readRequests = typeof product.config.readRequests === "number" ? product.config.readRequests : null;
+  const writeRequests = typeof product.config.writeRequests === "number" ? product.config.writeRequests : null;
+  const deleteRequests = typeof product.config.deleteRequests === "number" ? product.config.deleteRequests : null;
+  const pullTrafficAmount = typeof product.config.pullTrafficAmount === "number"
+    ? product.config.pullTrafficAmount
+    : null;
+  const pullTrafficUnit = typeof product.config.pullTrafficUnit === "string"
+    ? product.config.pullTrafficUnit
+    : "GB";
+  const replicationTrafficAmount = typeof product.config.replicationTrafficAmount === "number"
+    ? product.config.replicationTrafficAmount
+    : null;
+  const replicationTrafficUnit = typeof product.config.replicationTrafficUnit === "string"
+    ? product.config.replicationTrafficUnit
+    : "GB";
   const parts: string[] = [];
+
+  if (obsProductType) {
+    parts.push(obsProductType);
+  }
 
   if (storageClass) {
     parts.push(storageClass);
   }
 
+  if (obsRedundancy) {
+    parts.push(obsRedundancy);
+  }
+
+  if (typeof storageAmount === "number" && Number.isFinite(storageAmount) && storageAmount > 0) {
+    parts.push(`${storageAmount} ${storageUnit}`);
+  }
+
   if (typeof storageGiB === "number" && Number.isFinite(storageGiB) && storageGiB > 0) {
-    parts.push(`${storageGiB} GiB`);
+    parts.push(`${storageGiB} GiB effective`);
   }
 
   if (Number.isFinite(vcpu) && vcpu > 0) {
@@ -174,6 +224,34 @@ function getProductSpecsSummary(product: AppProduct) {
 
   if (typeof dataPackageTiB === "number" && Number.isFinite(dataPackageTiB) && dataPackageTiB > 0) {
     parts.push(`${dataPackageTiB} TB/month`);
+  }
+
+  if (typeof durationMonths === "number" && Number.isFinite(durationMonths) && durationMonths > 0) {
+    parts.push(`${durationMonths}mo`);
+  }
+
+  if (typeof outboundTrafficAmount === "number" && Number.isFinite(outboundTrafficAmount) && outboundTrafficAmount > 0) {
+    parts.push(`Outbound ${outboundTrafficAmount} ${outboundTrafficUnit}`);
+  }
+
+  if (typeof pullTrafficAmount === "number" && Number.isFinite(pullTrafficAmount) && pullTrafficAmount > 0) {
+    parts.push(`Pull ${pullTrafficAmount} ${pullTrafficUnit}`);
+  }
+
+  if (typeof replicationTrafficAmount === "number" && Number.isFinite(replicationTrafficAmount) && replicationTrafficAmount > 0) {
+    parts.push(`CRR ${replicationTrafficAmount} ${replicationTrafficUnit}`);
+  }
+
+  if (typeof readRequests === "number" && Number.isFinite(readRequests) && readRequests > 0) {
+    parts.push(`${readRequests} reads`);
+  }
+
+  if (typeof writeRequests === "number" && Number.isFinite(writeRequests) && writeRequests > 0) {
+    parts.push(`${writeRequests} writes`);
+  }
+
+  if (typeof deleteRequests === "number" && Number.isFinite(deleteRequests) && deleteRequests > 0) {
+    parts.push(`${deleteRequests} deletes`);
   }
 
   if (typeof minimumStorageDays === "number" && Number.isFinite(minimumStorageDays) && minimumStorageDays > 0) {

@@ -17,8 +17,12 @@ type ServiceBatchAddPanelProps = {
   systemDiskType: string;
   systemDiskSizeValue: number;
   evsSingleDiskMaxGiB: number;
+  obsProductType?: string;
   obsStorageClass?: string;
+  obsRedundancy?: string;
   obsStorageSizeValue?: number;
+  obsStorageUnit?: string;
+  obsDurationMonthsValue?: number;
   showFlexusLToggleVisible?: boolean;
   showFlexusLChecked?: boolean;
   onShowFlexusLChange?: (checked: boolean) => void;
@@ -38,8 +42,12 @@ export function ServiceBatchAddPanel({
   systemDiskType,
   systemDiskSizeValue,
   evsSingleDiskMaxGiB,
+  obsProductType = "Object storage",
   obsStorageClass = "Standard",
+  obsRedundancy = "Single-AZ storage",
   obsStorageSizeValue = 100,
+  obsStorageUnit = "GB",
+  obsDurationMonthsValue = 1,
   showFlexusLToggleVisible = false,
   showFlexusLChecked = false,
   onShowFlexusLChange,
@@ -132,8 +140,18 @@ export function ServiceBatchAddPanel({
     "size": 500
   },
   {
+    "productType": "Object storage",
     "storageClass": "Archive",
-    "size": 2048,
+    "redundancy": "Single-AZ storage",
+    "size": 2,
+    "sizeUnit": "TB",
+    "durationMonths": 3,
+    "outboundTraffic": 120,
+    "readRequests": 500000,
+    "writeRequests": 80000,
+    "deleteRequests": 10000,
+    "pullTraffic": 50,
+    "replicationTraffic": 20,
     "quantity": 2,
     "description": "Media archive"
   }
@@ -171,8 +189,11 @@ export function ServiceBatchAddPanel({
               </>
             ) : isObs ? (
               <>
-                Paste a JSON array of OBS storage items. Required field: <code>size</code>. Optional fields:
-                <code>storageClass</code>, <code>quantity</code>, and <code>description</code>.
+                Paste a JSON array of OBS items. Required field: <code>size</code>. Optional fields:
+                <code>productType</code>, <code>storageClass</code>, <code>redundancy</code>, <code>sizeUnit</code>,
+                <code>durationMonths</code>, <code>outboundTraffic</code>, <code>readRequests</code>,
+                <code>writeRequests</code>, <code>deleteRequests</code>, <code>pullTraffic</code>,
+                <code>replicationTraffic</code>, <code>quantity</code>, and <code>description</code>.
               </>
             ) : (
               <>
@@ -200,8 +221,12 @@ export function ServiceBatchAddPanel({
                 </>
               ) : isObs ? (
                 <>
-                  If omitted, <code>storageClass</code> defaults to <code>{obsStorageClass}</code> and
-                  <code>size</code> defaults to <code>{obsStorageSizeValue}</code> GiB.
+                  If omitted, <code>productType</code> defaults to <code>{obsProductType}</code>,
+                  <code>storageClass</code> defaults to <code>{obsStorageClass}</code>,
+                  <code>redundancy</code> defaults to <code>{obsRedundancy}</code>,
+                  <code>size</code> defaults to <code>{obsStorageSizeValue}</code>,
+                  <code>sizeUnit</code> defaults to <code>{obsStorageUnit}</code>, and
+                  <code>durationMonths</code> defaults to <code>{obsDurationMonthsValue}</code>.
                 </>
               ) : (
                 <>
@@ -228,8 +253,9 @@ export function ServiceBatchAddPanel({
                 </>
               ) : isObs ? (
                 <>
-                  Each JSON item should include a positive storage size in GiB. When present, <code>storageClass</code> should
-                  match an available OBS storage class.
+                  Each JSON item should include a positive storage size. When present, <code>productType</code>,
+                  <code>storageClass</code>, <code>redundancy</code>, and all unit fields should match the available OBS options
+                  for the selected region. Unsupported combinations fail item-by-item.
                 </>
               ) : (
                 <>
