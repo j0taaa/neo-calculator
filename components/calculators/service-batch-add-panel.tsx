@@ -2,6 +2,7 @@
 
 import { Button } from "@/components/ui/button";
 import { CardContent } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 
@@ -16,6 +17,9 @@ type ServiceBatchAddPanelProps = {
   systemDiskType: string;
   systemDiskSizeValue: number;
   evsSingleDiskMaxGiB: number;
+  showFlexusLToggleVisible?: boolean;
+  showFlexusLChecked?: boolean;
+  onShowFlexusLChange?: (checked: boolean) => void;
   onSubmit: () => void;
   submitDisabled: boolean;
   submitLabel: string;
@@ -32,6 +36,9 @@ export function ServiceBatchAddPanel({
   systemDiskType,
   systemDiskSizeValue,
   evsSingleDiskMaxGiB,
+  showFlexusLToggleVisible = false,
+  showFlexusLChecked = false,
+  onShowFlexusLChange,
   onSubmit,
   submitDisabled,
   submitLabel,
@@ -66,7 +73,19 @@ export function ServiceBatchAddPanel({
         </div>
 
         <div className="space-y-2">
-          <p className="text-sm font-medium">Batch input</p>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <p className="text-sm font-medium">Batch input</p>
+            {isEcs && showFlexusLToggleVisible && onShowFlexusLChange ? (
+              <label className="flex cursor-pointer items-center gap-2 rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-700">
+                <Checkbox
+                  checked={showFlexusLChecked}
+                  onCheckedChange={(checked) => onShowFlexusLChange(Boolean(checked))}
+                  aria-label="Show Flexus L"
+                />
+                <span>Show Flexus L</span>
+              </label>
+            ) : null}
+          </div>
           <textarea
             value={batchInput}
             onChange={(event) => onBatchInputChange(event.target.value)}
@@ -126,6 +145,7 @@ export function ServiceBatchAddPanel({
               <>
                 Paste a JSON array of instances. Required fields: <code>vcpu</code> and <code>ram</code>. Optional fields:
                 <code>quantity</code>, <code>description</code>, and <code>evs</code>.
+                {showFlexusLToggleVisible && showFlexusLChecked ? " With Show Flexus L enabled, matching Flexus L plans are considered too." : ""}
               </>
             ) : isFlexusL ? (
               <>

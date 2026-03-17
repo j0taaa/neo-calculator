@@ -206,6 +206,13 @@ type FlavorCard = {
   priceModeLabel: string;
   flavorPrice: string | null;
   description: string | null;
+  productType: "ecs" | "flexus-l";
+  serviceCode: string;
+  serviceName: string;
+  referencePlanId?: string;
+  includedSystemDiskGiB?: number;
+  peakBandwidthMbit?: number;
+  dataPackageTiB?: number;
 };
 
 type DiskPricing = {
@@ -365,6 +372,36 @@ function toFlavorCard(
     priceModeLabel: preferredPrice?.label ?? "Unavailable",
     flavorPrice: preferredPrice ? formatFlavorAmount(flavor.currency, preferredPrice.amount, preferredPrice.suffix) : null,
     description: flavor.description,
+    productType: "ecs",
+    serviceCode: "ECS",
+    serviceName: "Elastic Cloud Server",
+  };
+}
+
+function toFlexusLFlavorCard(plan: (typeof flexusLPlans)[number], billingOption: BillingOption, usageHours: number): FlavorCard {
+  const priceSuffix = billingOption === "Pay-per-use" ? getUsageSuffix(usageHours) : "/mo";
+  const priceModeLabel =
+    billingOption === "RI" ? "RI reference" : billingOption === "Pay-per-use" ? "Pay-per-use reference" : "Monthly";
+
+  return {
+    name: `Flexus L ${plan.title}`,
+    vcpu: String(plan.vcpu),
+    ram: String(plan.ramGiB),
+    family: `Flexus L · ${plan.systemDiskGiB} GiB included · ${plan.dataPackageTiB} TB/month`,
+    price: formatFlavorAmount("USD", plan.monthlyPriceUsd, priceSuffix),
+    priceValue: plan.monthlyPriceUsd,
+    priceCurrency: "USD",
+    priceSuffix,
+    priceModeLabel,
+    flavorPrice: formatFlavorAmount("USD", plan.monthlyPriceUsd, priceSuffix),
+    description: `Flexus L bundled plan with ${plan.systemDiskGiB} GiB system disk, ${plan.peakBandwidthMbit} Mbit/s peak bandwidth, and ${plan.dataPackageTiB} TB/month.`,
+    productType: "flexus-l",
+    serviceCode: "Flexus L",
+    serviceName: "Flexus L Instance",
+    referencePlanId: plan.id,
+    includedSystemDiskGiB: plan.systemDiskGiB,
+    peakBandwidthMbit: plan.peakBandwidthMbit,
+    dataPackageTiB: plan.dataPackageTiB,
   };
 }
 
@@ -431,6 +468,11 @@ type BatchEcsSelection = {
   flavor: CatalogFlavor;
   flavorCard: FlavorCard;
   diskPrice: NonNullable<ReturnType<typeof getDiskPriceForBillingOption>>;
+};
+
+type BatchFlexusLSelection = {
+  plan: (typeof flexusLPlans)[number];
+  flavorCard: FlavorCard;
 };
 
 type ProductMutationBody = {
@@ -703,6 +745,7 @@ function buildFlavorAutoSelectKey({
   usageHoursValue,
   systemDiskType,
   systemDiskSizeValue,
+  includeFlexusL,
 }: {
   minVcpuValue: string;
   minRamValue: string;
@@ -713,6 +756,7 @@ function buildFlavorAutoSelectKey({
   usageHoursValue: number;
   systemDiskType: SystemDiskOption;
   systemDiskSizeValue: number;
+  includeFlexusL: boolean;
 }) {
   return [
     minVcpuValue,
@@ -724,6 +768,7 @@ function buildFlavorAutoSelectKey({
     String(usageHoursValue),
     systemDiskType,
     String(systemDiskSizeValue),
+    includeFlexusL ? "with-flexus-l" : "ecs-only",
   ].join("|");
 }
 
@@ -929,6 +974,24 @@ function getBatchDescription(value: unknown, fallback: string) {
   return fallback;
 }
 
+function hasExplicitBatchDiskConfig(value: unknown) {
+  const evs = getNestedRecord(value, "evs");
+  if (!isRecord(value)) {
+    return false;
+  }
+
+  return (
+    value.type !== undefined
+    || value.diskType !== undefined
+    || value.systemDiskType !== undefined
+    || value.size !== undefined
+    || value.sizeGiB !== undefined
+    || value.diskSizeGiB !== undefined
+    || value.systemDiskSizeGiB !== undefined
+    || evs != null
+  );
+}
+
 function getGpSsd2IopsBounds(sizeGiB: number) {
   const max = Math.max(1, Math.min(gpSsd2IopsBounds.max, Math.floor(sizeGiB * 500)));
   return {
@@ -1089,6 +1152,23 @@ function findBestBatchEcsSelection(
   return candidates[0] ?? null;
 }
 
+function findBestBatchFlexusLSelection(
+  billingOption: BillingOption,
+  usageHours: number,
+  vcpu: number,
+  ramGiB: number,
+): BatchFlexusLSelection | null {
+  const plan = findBestFlexusLPlan(vcpu, ramGiB);
+  if (!plan) {
+    return null;
+  }
+
+  return {
+    plan,
+    flavorCard: toFlexusLFlavorCard(plan, billingOption, usageHours),
+  };
+}
+
 function OptionGrid({
   items,
   value,
@@ -1172,6 +1252,7 @@ export default function Home() {
   const [editingProductId, setEditingProductId] = useState<string | null>(null);
   const [editingProductListId, setEditingProductListId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState("calculator");
+  const [showFlexusLInEcs, setShowFlexusLInEcs] = useState(false);
   const [addToListPending, setAddToListPending] = useState(false);
   const [addToListMessage, setAddToListMessage] = useState("");
   const [batchInput, setBatchInput] = useState("");
@@ -1260,6 +1341,8 @@ export default function Home() {
   const cloneableRegions = (Object.entries(huaweiRegions) as Array<[HuaweiRegionKey, (typeof huaweiRegions)[HuaweiRegionKey]]>)
     .filter(([, labels]) => Boolean(labels.catalogRegionId));
   const usageHoursValue = Number.isFinite(Number(usageHours)) ? Math.max(1, Number(usageHours)) : 744;
+  const canShowFlexusLInEcs = isEcsCalculator
+    && (billingMode === "RI" || billingMode === "Yearly/Monthly" || (billingMode === "Pay-per-use" && (usageHoursValue === 730 || usageHoursValue === 744)));
   const minVcpuFilter = Number.isFinite(Number(minVcpuValue)) ? Math.max(0, Number(minVcpuValue)) : 0;
   const minRamFilter = Number.isFinite(Number(minRamValue)) ? Math.max(0, Number(minRamValue)) : 0;
   const activeDiskSizeBounds = isEvsCalculator ? evsDiskSizeBounds : ecsDiskSizeBounds;
@@ -1275,9 +1358,14 @@ export default function Home() {
     isGpSsd2Selected && gpSsd2IopsValue != null ? getGpSsd2ThroughputBounds(gpSsd2IopsValue) : null;
   const instanceCountValue = Number.isFinite(Number(instanceCount)) ? Math.max(1, Number(instanceCount)) : 1;
   const selectedDiskPrice = getDiskPriceForBillingOption(diskPricing, systemDiskType, systemDiskSizeValue, billingMode, usageHoursValue);
-  const billableFlavors = catalogFlavors
+  const ecsFlavorCards = catalogFlavors
     .filter((flavor) => getFlavorPriceForBillingOption(flavor, billingMode, usageHoursValue))
     .map((flavor) => toFlavorCard(flavor, billingMode, usageHoursValue, selectedDiskPrice));
+  const flexusLFlavorCards =
+    isEcsCalculator && canShowFlexusLInEcs && showFlexusLInEcs
+      ? flexusLPlans.map((plan) => toFlexusLFlavorCard(plan, billingMode, usageHoursValue))
+      : [];
+  const billableFlavors = [...ecsFlavorCards, ...flexusLFlavorCards];
   const selectedFlavorCard = billableFlavors.find((flavor) => flavor.name === selectedFlavor) ?? null;
   const selectedFlexusLPlan = isFlexusLCalculator ? findFlexusLPlan(selectedFlavor) ?? flexusLPlans[0] ?? null : null;
   const selectedEstimateBase =
@@ -1334,6 +1422,7 @@ export default function Home() {
     usageHoursValue,
     systemDiskType,
     systemDiskSizeValue,
+    includeFlexusL: isEcsCalculator && canShowFlexusLInEcs && showFlexusLInEcs,
   });
 
   const [evsPricingLoading, setEvsPricingLoading] = useState(false);
@@ -1344,6 +1433,12 @@ export default function Home() {
       setBillingMode(calculatorBillingOptions[0]);
     }
   }, [billingMode, calculatorBillingOptions]);
+
+  useEffect(() => {
+    if (!canShowFlexusLInEcs && showFlexusLInEcs) {
+      setShowFlexusLInEcs(false);
+    }
+  }, [canShowFlexusLInEcs, showFlexusLInEcs]);
 
   useEffect(() => {
     if (!isGpSsd2Selected || gpSsd2IopsValue == null || gpSsd2ThroughputValue == null) {
@@ -2543,6 +2638,7 @@ export default function Home() {
             : 744,
         systemDiskType: nextSystemDiskType,
         systemDiskSizeValue: Number(nextSystemDiskSize),
+        includeFlexusL: false,
       });
       setSelectedFlavor(typeof product.config.flavor === "string" ? product.config.flavor : "");
       setVcpuValue(typeof product.config.vcpu === "number" ? String(product.config.vcpu) : vcpuValue);
@@ -2803,16 +2899,57 @@ export default function Home() {
                 diskSizeGiB,
                 description,
               );
+              const flexusSelection =
+                canShowFlexusLInEcs && showFlexusLInEcs && !hasExplicitBatchDiskConfig(item)
+                  ? findBestBatchFlexusLSelection(billingMode, usageHoursValue, requestedVcpu, requestedRamGiB)
+                  : null;
+              const useFlexusSelection = flexusSelection != null
+                && (selection == null || flexusSelection.flavorCard.priceValue < selection.flavorCard.priceValue);
 
-              if (!selection) {
+              if (!selection && !flexusSelection) {
                 throw new Error(
-                  `Item ${index + 1} could not find an ECS flavor with at least ${requestedVcpu} vCPUs and ${requestedRamGiB} GiB RAM.`,
+                  `Item ${index + 1} could not find an ECS or Flexus L flavor with at least ${requestedVcpu} vCPUs and ${requestedRamGiB} GiB RAM.`,
                 );
               }
 
+              if (useFlexusSelection && flexusSelection) {
+                return [{
+                  serviceCode: flexusSelection.flavorCard.serviceCode,
+                  serviceName: flexusSelection.flavorCard.serviceName,
+                  productType: "flexus-l",
+                  title: `${flexusSelection.flavorCard.serviceName} ${flexusSelection.plan.title}`,
+                  quantity,
+                  config: {
+                    region: regionValue,
+                    billingMode,
+                    description,
+                    planId: flexusSelection.plan.id,
+                    planTitle: flexusSelection.plan.title,
+                    vcpu: flexusSelection.plan.vcpu,
+                    ramGiB: flexusSelection.plan.ramGiB,
+                    systemDiskGiB: flexusSelection.plan.systemDiskGiB,
+                    peakBandwidthMbit: flexusSelection.plan.peakBandwidthMbit,
+                    dataPackageTiB: flexusSelection.plan.dataPackageTiB,
+                    referenceRegion: flexusLPricingReference.region,
+                  },
+                  pricing: {
+                    total: formatFlavorAmount(
+                      flexusSelection.flavorCard.priceCurrency,
+                      flexusSelection.flavorCard.priceValue * quantity,
+                      flexusSelection.flavorCard.priceSuffix,
+                    ),
+                    flavor: flexusSelection.flavorCard.flavorPrice,
+                  },
+                }];
+              }
+
+              if (!selection) {
+                throw new Error(`Item ${index + 1} could not find an ECS flavor.`);
+              }
+
               return [{
-                serviceCode: selectedServiceMeta.code,
-                serviceName: selectedService,
+                serviceCode: selection.flavorCard.serviceCode,
+                serviceName: selection.flavorCard.serviceName,
                 productType: "ecs",
                 title: `${selectedService} ${selection.flavor.resourceSpecCode}`,
                 quantity,
@@ -3007,33 +3144,65 @@ export default function Home() {
     try {
       const quantity = Math.max(1, Number(instanceCount || "1"));
       const requestBodies = isEcsCalculator
-        ? {
-            serviceCode: selectedServiceMeta.code,
-            serviceName: selectedService,
-            productType: "ecs",
-            title: `${selectedService} ${selectedFlavor}`,
-            quantity,
-            config: {
-              region: regionValue,
-              billingMode,
-              usageHours: billingMode === "Pay-per-use" ? usageHoursValue : null,
-              description: selectedFlavorCard?.description ?? selectedService,
-              flavor: selectedFlavor,
-              vcpu: Number(vcpuValue || "0"),
-              ramGiB: Number(ramValue || "0"),
-              systemDisk: {
-                type: systemDiskType,
-                sizeGiB: systemDiskSizeValue,
-                ...(isGpSsd2Selected && gpSsd2IopsValue != null ? { iops: gpSsd2IopsValue } : {}),
-                ...(isGpSsd2Selected && gpSsd2ThroughputValue != null ? { throughput: gpSsd2ThroughputValue } : {}),
+        ? selectedFlavorCard?.productType === "flexus-l" && selectedFlavorCard.referencePlanId
+          ? (() => {
+              const selectedPlan = findFlexusLPlan(selectedFlavorCard.referencePlanId);
+              if (!selectedPlan) {
+                throw new Error("Select a Flexus L plan first.");
+              }
+
+              return {
+                serviceCode: selectedFlavorCard.serviceCode,
+                serviceName: selectedFlavorCard.serviceName,
+                productType: "flexus-l",
+                title: `${selectedFlavorCard.serviceName} ${selectedPlan.title}`,
+                quantity,
+                config: {
+                  region: regionValue,
+                  billingMode,
+                  description: selectedFlavorCard.description ?? selectedService,
+                  planId: selectedPlan.id,
+                  planTitle: selectedPlan.title,
+                  vcpu: selectedPlan.vcpu,
+                  ramGiB: selectedPlan.ramGiB,
+                  systemDiskGiB: selectedPlan.systemDiskGiB,
+                  peakBandwidthMbit: selectedPlan.peakBandwidthMbit,
+                  dataPackageTiB: selectedPlan.dataPackageTiB,
+                  referenceRegion: flexusLPricingReference.region,
+                },
+                pricing: {
+                  total: selectedEstimate,
+                  flavor: selectedFlavorCard.flavorPrice ?? null,
+                },
+              } satisfies ProductMutationBody;
+            })()
+          : {
+              serviceCode: selectedServiceMeta.code,
+              serviceName: selectedService,
+              productType: "ecs",
+              title: `${selectedService} ${selectedFlavor}`,
+              quantity,
+              config: {
+                region: regionValue,
+                billingMode,
+                usageHours: billingMode === "Pay-per-use" ? usageHoursValue : null,
+                description: selectedFlavorCard?.description ?? selectedService,
+                flavor: selectedFlavor,
+                vcpu: Number(vcpuValue || "0"),
+                ramGiB: Number(ramValue || "0"),
+                systemDisk: {
+                  type: systemDiskType,
+                  sizeGiB: systemDiskSizeValue,
+                  ...(isGpSsd2Selected && gpSsd2IopsValue != null ? { iops: gpSsd2IopsValue } : {}),
+                  ...(isGpSsd2Selected && gpSsd2ThroughputValue != null ? { throughput: gpSsd2ThroughputValue } : {}),
+                },
               },
-            },
-            pricing: {
-              total: selectedEstimate,
-              flavor: selectedFlavorCard?.flavorPrice ?? null,
-              disk: selectedDiskPrice ? formatFlavorAmount(selectedDiskPrice.currency, selectedDiskPrice.amount, selectedDiskPrice.suffix) : null,
-            },
-          }
+              pricing: {
+                total: selectedEstimate,
+                flavor: selectedFlavorCard?.flavorPrice ?? null,
+                disk: selectedDiskPrice ? formatFlavorAmount(selectedDiskPrice.currency, selectedDiskPrice.amount, selectedDiskPrice.suffix) : null,
+              },
+            }
         : isFlexusLCalculator && selectedFlexusLPlan
         ? {
             serviceCode: selectedServiceMeta.code,
@@ -3235,12 +3404,17 @@ export default function Home() {
   }));
   const evsSplitNotice = isEvsCalculator ? buildEvsSplitNotice(systemDiskSizeValue) : null;
   const calculatorSelectionSummary = isEcsCalculator
-    ? `Selected specifications: ${selectedFlavor} | ${vcpuValue || "-"} vCPUs | ${ramValue || "-"} GiB | ${systemDiskType} ${systemDiskSize || String(activeDiskSizeBounds.min)} GiB${isGpSsd2Selected && gpSsd2IopsValue != null && gpSsd2ThroughputValue != null ? ` | ${gpSsd2IopsValue} IOPS | ${gpSsd2ThroughputValue} MB/s` : ""}${selectedDiskPrice ? ` | Disk ${formatFlavorAmount(selectedDiskPrice.currency, selectedDiskPrice.amount, selectedDiskPrice.suffix)}` : ""}`
+    ? selectedFlavorCard?.productType === "flexus-l"
+      ? `Selected specifications: ${selectedFlavorCard.name} | ${selectedFlavorCard.includedSystemDiskGiB ?? "-"} GiB system disk | ${selectedFlavorCard.peakBandwidthMbit ?? "-"} Mbit/s | ${selectedFlavorCard.dataPackageTiB ?? "-"} TB/month | ${selectedFlavorCard.price}`
+      : `Selected specifications: ${selectedFlavor} | ${vcpuValue || "-"} vCPUs | ${ramValue || "-"} GiB | ${systemDiskType} ${systemDiskSize || String(activeDiskSizeBounds.min)} GiB${isGpSsd2Selected && gpSsd2IopsValue != null && gpSsd2ThroughputValue != null ? ` | ${gpSsd2IopsValue} IOPS | ${gpSsd2ThroughputValue} MB/s` : ""}${selectedDiskPrice ? ` | Disk ${formatFlavorAmount(selectedDiskPrice.currency, selectedDiskPrice.amount, selectedDiskPrice.suffix)}` : ""}`
     : isFlexusLCalculator && selectedFlexusLPlan
     ? `Selected specifications: ${selectedFlexusLPlan.title} | ${selectedFlexusLPlan.systemDiskGiB} GiB system disk | ${selectedFlexusLPlan.peakBandwidthMbit} Mbit/s | ${selectedFlexusLPlan.dataPackageTiB} TB/month | ${formatFlavorAmount("USD", selectedFlexusLPlan.monthlyPriceUsd, "/mo")}`
     : `Selected specifications: ${systemDiskType} | ${systemDiskSize || String(activeDiskSizeBounds.min)} GiB${isGpSsd2Selected && gpSsd2IopsValue != null && gpSsd2ThroughputValue != null ? ` | ${gpSsd2IopsValue} IOPS | ${gpSsd2ThroughputValue} MB/s` : ""}${selectedDiskPrice ? ` | Disk ${formatFlavorAmount(selectedDiskPrice.currency, selectedDiskPrice.amount, selectedDiskPrice.suffix)}` : ""}`;
   const calculatorSelectionNotes = [
-    ...(isEcsCalculator && selectedFlavorCard?.flavorPrice && selectedDiskPrice
+    ...(isEcsCalculator && selectedFlavorCard?.productType === "flexus-l"
+      ? ["Flexus L plans include bundled system disk, bandwidth, and traffic. The ECS disk settings below are ignored for this selection."]
+      : []),
+    ...(isEcsCalculator && selectedFlavorCard?.productType === "ecs" && selectedFlavorCard?.flavorPrice && selectedDiskPrice
       ? [`Flavor ${selectedFlavorCard.flavorPrice} + Disk ${formatFlavorAmount(selectedDiskPrice.currency, selectedDiskPrice.amount, selectedDiskPrice.suffix)}`]
       : []),
     ...(isEvsCalculator && evsSplitNotice ? [evsSplitNotice] : []),
@@ -4137,6 +4311,9 @@ export default function Home() {
                           totalFlavorPages={totalFlavorPages}
                           onPreviousFlavorPage={() => setFlavorPage((page) => Math.max(1, page - 1))}
                           onNextFlavorPage={() => setFlavorPage((page) => Math.min(totalFlavorPages, page + 1))}
+                          showFlexusLToggleVisible={canShowFlexusLInEcs}
+                          showFlexusLChecked={showFlexusLInEcs}
+                          onShowFlexusLChange={setShowFlexusLInEcs}
                           diskConfigProps={calculatorDiskConfigProps}
                         />
                       ) : isFlexusLCalculator ? (
@@ -4191,6 +4368,9 @@ export default function Home() {
                     systemDiskType={systemDiskType}
                     systemDiskSizeValue={systemDiskSizeValue}
                     evsSingleDiskMaxGiB={evsSingleDiskMaxGiB}
+                    showFlexusLToggleVisible={canShowFlexusLInEcs}
+                    showFlexusLChecked={showFlexusLInEcs}
+                    onShowFlexusLChange={setShowFlexusLInEcs}
                     onSubmit={handleBatchAdd}
                     submitDisabled={batchAddPending || !selectedListId || !session}
                     submitLabel={batchAddPending ? "Adding Batch..." : "Add Batch"}

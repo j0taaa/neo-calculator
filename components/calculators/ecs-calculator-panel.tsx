@@ -2,6 +2,7 @@
 
 import type { ReactNode } from "react";
 
+import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -40,6 +41,9 @@ type EcsCalculatorPanelProps = {
   totalFlavorPages: number;
   onPreviousFlavorPage: () => void;
   onNextFlavorPage: () => void;
+  showFlexusLToggleVisible: boolean;
+  showFlexusLChecked: boolean;
+  onShowFlexusLChange: (checked: boolean) => void;
   diskConfigProps: CalculatorDiskConfigSectionProps;
   children?: ReactNode;
 };
@@ -67,6 +71,9 @@ export function EcsCalculatorPanel({
   totalFlavorPages,
   onPreviousFlavorPage,
   onNextFlavorPage,
+  showFlexusLToggleVisible,
+  showFlexusLChecked,
+  onShowFlexusLChange,
   diskConfigProps,
   children,
 }: EcsCalculatorPanelProps) {
@@ -101,7 +108,17 @@ export function EcsCalculatorPanel({
             <p className="text-sm font-medium">Flavor</p>
             <p className="text-sm text-zinc-500">Only flavors meeting the minimum vCPU and RAM filters appear here.</p>
           </div>
-          <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
+          <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
+            {showFlexusLToggleVisible ? (
+              <label className="flex cursor-pointer items-center gap-2 rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-700">
+                <Checkbox
+                  checked={showFlexusLChecked}
+                  onCheckedChange={(checked) => onShowFlexusLChange(Boolean(checked))}
+                  aria-label="Show Flexus L"
+                />
+                <span>Show Flexus L</span>
+              </label>
+            ) : null}
             <div className="w-full sm:w-44">
               <Input
                 value={flavorQuery}
