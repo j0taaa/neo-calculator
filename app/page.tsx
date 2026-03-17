@@ -4870,7 +4870,7 @@ export default function Home() {
                         </section>
                       </div>
 
-                      <section className={`grid gap-4 ${billingMode === "Pay-per-use" ? "xl:grid-cols-[minmax(0,1fr)_340px]" : ""}`}>
+                      <section className={`grid gap-4 ${billingMode === "Pay-per-use" && !isObsCalculator ? "xl:grid-cols-[minmax(0,1fr)_340px]" : ""}`}>
                         <div className="space-y-3">
                           <p className="text-sm font-medium">Billing Mode</p>
                           <OptionGrid
@@ -4882,7 +4882,7 @@ export default function Home() {
                             }}
                           />
                         </div>
-                        {billingMode === "Pay-per-use" ? (
+                        {billingMode === "Pay-per-use" && !isObsCalculator ? (
                           <div className="space-y-3">
                             <p className="text-sm font-medium">Usage Hours</p>
                             <div className="flex items-center gap-3">
