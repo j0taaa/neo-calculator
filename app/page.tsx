@@ -2,19 +2,10 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { type ReactNode, useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 
-import { EcsCalculatorPanel } from "@/components/calculators/ecs-calculator-panel";
-import { ObsCalculatorPanel } from "@/components/calculators/obs-calculator-panel";
-import { EvsCalculatorPanel } from "@/components/calculators/evs-calculator-panel";
-import { FlexusLCalculatorPanel } from "@/components/calculators/flexus-l-calculator-panel";
-import { CceCalculatorPanel } from "@/components/calculators/cce-calculator-panel";
-import { CciCalculatorPanel } from "@/components/calculators/cci-calculator-panel";
-import { ConfigurableServicePanel } from "@/components/calculators/configurable-service-panel";
-import { ElbCalculatorPanel } from "@/components/calculators/elb-calculator-panel";
-import { EipCalculatorPanel } from "@/components/calculators/eip-calculator-panel";
-import { NatCalculatorPanel } from "@/components/calculators/nat-calculator-panel";
-import { VpnCalculatorPanel } from "@/components/calculators/vpn-calculator-panel";
+import { CalculatorPanelRouter } from "@/components/calculators/calculator-panel-router";
+import { ActionMenu, ActionModal, HomeNavLink, type ActionMenuItem } from "@/components/home-page-shell-parts";
 import { ServiceBatchAddPanel } from "@/components/calculators/service-batch-add-panel";
 import { UnsupportedServicePanel } from "@/components/calculators/unsupported-service-panel";
 import { Badge } from "@/components/ui/badge";
@@ -27,11 +18,17 @@ import {
   getConfigurableServiceBundleByCode,
   getConfigurableServiceDefinitionByCode,
   getConfiguredBillingOptions,
-  isServiceFieldVisible,
   serviceCatalog,
   supportedBatchAddServiceCodes,
   supportedCalculatorServiceCodes,
 } from "@/lib/service-config";
+import {
+  buildCalculatorEstimate,
+  buildCalculatorSelectionNotes,
+  buildCalculatorSelectionSummary,
+} from "@/lib/calculator-presentation";
+import { buildConfiguredFields } from "@/lib/configurable-service-fields";
+import { getCalculatorRuntimeMeta } from "@/lib/calculator-runtime-registry";
 import { useSessionContext } from "@/components/session-provider";
 import { formatDate, formatDateTime, formatNumber } from "@/lib/utils";
 import { findBestFlexusLPlan, findFlexusLPlan, flexusLPlans, flexusLPricingReference } from "@/lib/flexus-l-catalog";
@@ -171,7 +168,32 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Check, ChevronDown, ChevronRight, Copy, Download, Link2, MoreHorizontal, Pencil, RefreshCw, Search, Share2, Trash2, Upload, UserCircle2, X } from "lucide-react";
+import { Check, ChevronDown, ChevronRight, Copy, Download, Link2, Pencil, RefreshCw, Search, Share2, Trash2, Upload, UserCircle2, X } from "lucide-react";
+import {
+  copyText,
+  formatFlavorAmount,
+  getCartCloneDefaultName,
+  getDiskPriceForBillingOption,
+  getFlavorPriceForBillingOption,
+  getFirstListId,
+  getProjectCloneDefaultName,
+  getResponseError,
+  isRecord,
+  parseJsonFile,
+  splitPriceDisplay,
+  splitProductPriceSummary,
+  toFlavorCard,
+  toFlexusLFlavorCard,
+  type AppList,
+  type AppProduct,
+  type AppProject,
+  type BillingOption as PageBillingOption,
+  type CatalogFlavor,
+  type DiskPricing,
+  type FlavorCard,
+  type HuaweiCartSummary,
+  type ProductMutationBody,
+} from "@/lib/calculator-page-helpers";
 
 const services = serviceCatalog;
 const evsPilotDefinition = getConfigurableServiceDefinitionByCode("EVS");
@@ -180,7 +202,7 @@ const options = {
   billing: ["Pay-per-use", "RI", "Yearly/Monthly"],
 } as const;
 
-type BillingOption = (typeof options.billing)[number];
+type BillingOption = PageBillingOption;
 
 const systemDiskOptions = [
   "High I/O",
@@ -231,320 +253,6 @@ const evsSingleDiskMaxGiB = 32_768;
 const gpSsd2IopsBounds = { min: 3_000, max: 128_000 } as const;
 const gpSsd2ThroughputBounds = { min: 125, max: 1_000 } as const;
 
-type FlavorBillingMode = "ONDEMAND" | "MONTHLY" | "YEARLY" | "RI";
-type FlavorPriceSource = "catalog_plan" | "rate_inquiry";
-
-type CatalogFlavor = {
-  resourceSpecCode: string;
-  family: string | null;
-  architecture: string | null;
-  series: string | null;
-  description: string | null;
-  cpu: number;
-  ramGiB: number;
-  prices: Partial<Record<FlavorBillingMode, number>>;
-  priceSources?: Partial<Record<FlavorBillingMode, FlavorPriceSource>>;
-  currency: string;
-  updatedAt: string;
-};
-
-type FlavorCard = {
-  name: string;
-  vcpu: string;
-  ram: string;
-  family: string;
-  price: string;
-  priceValue: number;
-  priceCurrency: string;
-  priceSuffix: string;
-  priceModeLabel: string;
-  flavorPrice: string | null;
-  description: string | null;
-  productType: "ecs" | "flexus-l";
-  serviceCode: string;
-  serviceName: string;
-  referencePlanId?: string;
-  includedSystemDiskGiB?: number;
-  peakBandwidthMbit?: number;
-  dataPackageTiB?: number;
-};
-
-type DiskPricing = {
-  currency: string;
-  prices: Record<SystemDiskOption, Partial<Record<FlavorBillingMode, number>>>;
-};
-
-const flavorPricePriority: Array<{ mode: FlavorBillingMode; label: string; suffix: string }> = [
-  { mode: "ONDEMAND", label: "Pay-per-use", suffix: "/h" },
-  { mode: "MONTHLY", label: "Monthly", suffix: "/mo" },
-  { mode: "YEARLY", label: "Yearly", suffix: "/yr" },
-  { mode: "RI", label: "RI", suffix: "" },
-];
-
-const billingOptionConfig: Record<
-  BillingOption,
-  {
-    modes: FlavorBillingMode[];
-    label: string;
-    suffix: string;
-  }
-> = {
-  "Yearly/Monthly": {
-    modes: ["MONTHLY", "YEARLY"],
-    label: "Monthly",
-    suffix: "/mo",
-  },
-  "Pay-per-use": {
-    modes: ["ONDEMAND"],
-    label: "Pay-per-use",
-    suffix: "/h",
-  },
-  RI: {
-    modes: ["RI"],
-    label: "RI",
-    suffix: "",
-  },
-};
-
-function formatFlavorAmount(currency: string, amount: number, suffix: string) {
-  return `${currency} ${amount.toFixed(amount < 1 ? 4 : 2)}${suffix}`;
-}
-
-function getUsageSuffix(hours: number) {
-  return `/${hours}h`;
-}
-
-function getMonthUsageSuffix(months: number) {
-  return `/${Math.max(1, Math.floor(months))}mo`;
-}
-
-function getYearlyMonthlyDiskAmount(
-  monthlyRate: number | undefined,
-  yearlyRate: number | undefined,
-  systemDiskSizeGiB: number,
-  durationMonths: number,
-) {
-  const normalizedMonths = Math.max(1, Math.floor(durationMonths));
-  const normalizedSize = Math.max(1, Math.floor(systemDiskSizeGiB));
-  let remainingMonths = normalizedMonths;
-  let total = 0;
-
-  if (typeof yearlyRate === "number" && Number.isFinite(yearlyRate) && yearlyRate > 0) {
-    const wholeYears = Math.floor(remainingMonths / 12);
-    if (wholeYears > 0) {
-      total += yearlyRate * normalizedSize * wholeYears;
-      remainingMonths -= wholeYears * 12;
-    }
-  }
-
-  if (remainingMonths > 0) {
-    if (typeof monthlyRate === "number" && Number.isFinite(monthlyRate) && monthlyRate > 0) {
-      total += monthlyRate * normalizedSize * remainingMonths;
-    } else if (typeof yearlyRate === "number" && Number.isFinite(yearlyRate) && yearlyRate > 0) {
-      total += (yearlyRate / 12) * normalizedSize * remainingMonths;
-    } else {
-      return null;
-    }
-  }
-
-  return total;
-}
-
-function getDiskPriceForBillingOption(
-  diskPricing: DiskPricing | null,
-  systemDiskType: SystemDiskOption,
-  systemDiskSizeGiB: number,
-  billingOption: BillingOption,
-  usageHours: number,
-  durationMonths = 1,
-) {
-  if (!diskPricing || systemDiskSizeGiB <= 0) {
-    return null;
-  }
-
-  const rates = diskPricing.prices[systemDiskType];
-  if (!rates) {
-    return null;
-  }
-
-  if (billingOption === "Pay-per-use") {
-    const rate = rates.ONDEMAND;
-    if (typeof rate !== "number" || !Number.isFinite(rate)) {
-      return null;
-    }
-
-    return {
-      currency: diskPricing.currency,
-      amount: rate * systemDiskSizeGiB * usageHours,
-      label: "Disk",
-      suffix: getUsageSuffix(usageHours),
-    };
-  }
-
-  if (billingOption === "Yearly/Monthly") {
-    const amount = getYearlyMonthlyDiskAmount(rates.MONTHLY, rates.YEARLY, systemDiskSizeGiB, durationMonths);
-    if (amount != null) {
-      return {
-        currency: diskPricing.currency,
-        amount,
-        label: "Disk",
-        suffix: getMonthUsageSuffix(durationMonths),
-      };
-    }
-
-    return null;
-  }
-
-  const onDemandRate = rates.ONDEMAND;
-  if (typeof onDemandRate !== "number" || !Number.isFinite(onDemandRate)) {
-    return null;
-  }
-
-  return {
-    currency: diskPricing.currency,
-    amount: onDemandRate * systemDiskSizeGiB * 24 * 365,
-    label: "Disk (annualized)",
-    suffix: "",
-  };
-}
-
-function getFlavorPriceForBillingOption(flavor: CatalogFlavor, billingOption: BillingOption, usageHours: number) {
-  const config = billingOptionConfig[billingOption];
-
-  for (const mode of config.modes) {
-    if (mode === "ONDEMAND" && flavor.priceSources?.ONDEMAND && flavor.priceSources.ONDEMAND !== "catalog_plan") {
-      continue;
-    }
-
-    const amount = flavor.prices[mode];
-    if (typeof amount === "number" && Number.isFinite(amount)) {
-      const modeDetails = flavorPricePriority.find((entry) => entry.mode === mode);
-      return {
-        amount: billingOption === "Pay-per-use" ? amount * usageHours : amount,
-        label: modeDetails?.label ?? config.label,
-        suffix: billingOption === "Pay-per-use" ? getUsageSuffix(usageHours) : modeDetails?.suffix ?? config.suffix,
-      };
-    }
-  }
-
-  return null;
-}
-
-function toFlavorCard(
-  flavor: CatalogFlavor,
-  billingOption: BillingOption,
-  usageHours: number,
-  diskPrice: ReturnType<typeof getDiskPriceForBillingOption>,
-): FlavorCard {
-  const preferredPrice = getFlavorPriceForBillingOption(flavor, billingOption, usageHours);
-
-  const familyParts = [flavor.family, flavor.architecture].filter(Boolean);
-  const totalAmount = preferredPrice ? preferredPrice.amount + (diskPrice?.amount ?? 0) : Number.POSITIVE_INFINITY;
-
-  return {
-    name: flavor.resourceSpecCode,
-    vcpu: String(flavor.cpu),
-    ram: String(Number.isInteger(flavor.ramGiB) ? flavor.ramGiB : Number(flavor.ramGiB.toFixed(1))),
-    family: familyParts.join(" · ") || flavor.series || "ECS",
-    price: preferredPrice ? formatFlavorAmount(flavor.currency, totalAmount, preferredPrice.suffix) : "Price unavailable",
-    priceValue: totalAmount,
-    priceCurrency: flavor.currency,
-    priceSuffix: preferredPrice?.suffix ?? "",
-    priceModeLabel: preferredPrice?.label ?? "Unavailable",
-    flavorPrice: preferredPrice ? formatFlavorAmount(flavor.currency, preferredPrice.amount, preferredPrice.suffix) : null,
-    description: flavor.description,
-    productType: "ecs",
-    serviceCode: "ECS",
-    serviceName: "Elastic Cloud Server",
-  };
-}
-
-function toFlexusLFlavorCard(plan: (typeof flexusLPlans)[number], billingOption: BillingOption, usageHours: number): FlavorCard {
-  const priceSuffix = billingOption === "Pay-per-use" ? getUsageSuffix(usageHours) : "/mo";
-  const priceModeLabel =
-    billingOption === "RI" ? "RI reference" : billingOption === "Pay-per-use" ? "Pay-per-use reference" : "Monthly";
-
-  return {
-    name: `Flexus L ${plan.title}`,
-    vcpu: String(plan.vcpu),
-    ram: String(plan.ramGiB),
-    family: `Flexus L · ${plan.systemDiskGiB} GiB included · ${plan.dataPackageTiB} TB/month`,
-    price: formatFlavorAmount("USD", plan.monthlyPriceUsd, priceSuffix),
-    priceValue: plan.monthlyPriceUsd,
-    priceCurrency: "USD",
-    priceSuffix,
-    priceModeLabel,
-    flavorPrice: formatFlavorAmount("USD", plan.monthlyPriceUsd, priceSuffix),
-    description: `Flexus L bundled plan with ${plan.systemDiskGiB} GiB system disk, ${plan.peakBandwidthMbit} Mbit/s peak bandwidth, and ${plan.dataPackageTiB} TB/month.`,
-    productType: "flexus-l",
-    serviceCode: "Flexus L",
-    serviceName: "Flexus L Instance",
-    referencePlanId: plan.id,
-    includedSystemDiskGiB: plan.systemDiskGiB,
-    peakBandwidthMbit: plan.peakBandwidthMbit,
-    dataPackageTiB: plan.dataPackageTiB,
-  };
-}
-
-type AppList = {
-  id: string;
-  name: string;
-  ownerUserId: string;
-  accessLevel: "owner" | "project_collaborator" | "list_collaborator";
-  canShare: boolean;
-  huaweiCartKey: string | null;
-  huaweiCartName: string | null;
-  huaweiLastSyncedAt: string | null;
-  huaweiLastError: string | null;
-  huaweiLastRemoteUpdatedAt: number | null;
-  createdAt: string;
-  updatedAt: string;
-  productCount: number;
-  products: AppProduct[];
-};
-
-type AppProduct = {
-  id: string;
-  serviceCode: string;
-  serviceName: string;
-  productType: string;
-  title: string;
-  quantity: number;
-  config: unknown;
-  pricing: unknown;
-  createdAt?: string;
-  updatedAt: string;
-};
-
-type AppProject = {
-  id: string;
-  name: string;
-  ownerUserId: string;
-  accessLevel: "owner" | "project_collaborator" | "list_collaborator";
-  canShare: boolean;
-  description: string | null;
-  createdAt: string;
-  updatedAt: string;
-  lists: AppList[];
-};
-
-type HuaweiCartSummary = {
-  key: string;
-  name: string;
-  updateTime: number;
-  billingMode: string | null;
-  totalAmount: number | null;
-  originalAmount: number | null;
-  associatedListId: string | null;
-};
-
-type ActionMenuItem = {
-  label: string;
-  icon: ReactNode;
-  onSelect: () => void;
-  disabled?: boolean;
-};
-
 type BatchEcsSelection = {
   flavor: CatalogFlavor;
   flavorCard: FlavorCard;
@@ -554,16 +262,6 @@ type BatchEcsSelection = {
 type BatchFlexusLSelection = {
   plan: (typeof flexusLPlans)[number];
   flavorCard: FlavorCard;
-};
-
-type ProductMutationBody = {
-  serviceCode: string;
-  serviceName: string;
-  productType: string;
-  title: string;
-  quantity: number;
-  config: unknown;
-  pricing: unknown;
 };
 
 type ActiveModal =
@@ -581,259 +279,6 @@ type ResourceExportModalState = {
   json: string;
   filename: string;
 } | null;
-
-function getFirstListId(projects: AppProject[]) {
-  return projects[0]?.lists[0]?.id ?? "";
-}
-
-function getProjectCloneDefaultName(
-  projectName: string,
-  targetRegion: HuaweiRegionKey | "",
-  targetBillingMode: BillingOption | "",
-) {
-  const base = projectName.trim() || "NeoCalculator project";
-  const suffixParts: string[] = [];
-  if (targetRegion) {
-    suffixParts.push(huaweiRegions[targetRegion].short);
-  }
-  if (targetBillingMode) {
-    suffixParts.push(targetBillingMode);
-  }
-
-  return suffixParts.length ? `${base} ${suffixParts.join(" ")}` : `${base} (Copy)`;
-}
-
-function getCartCloneDefaultName(
-  listName: string,
-  targetRegion: HuaweiRegionKey | "",
-  targetBillingMode: BillingOption | "",
-) {
-  const base = listName.trim() || "NeoCalculator cart";
-  const suffixParts: string[] = [];
-  if (targetRegion) {
-    suffixParts.push(huaweiRegions[targetRegion].short);
-  }
-  if (targetBillingMode) {
-    suffixParts.push(targetBillingMode);
-  }
-
-  return suffixParts.length ? `${base} (${suffixParts.join(" · ")})` : `${base} (Copy)`;
-}
-
-async function copyText(text: string) {
-  if (typeof navigator !== "undefined" && navigator.clipboard?.writeText) {
-    await navigator.clipboard.writeText(text);
-    return true;
-  }
-
-  if (typeof document === "undefined") {
-    return false;
-  }
-
-  const textarea = document.createElement("textarea");
-  textarea.value = text;
-  textarea.setAttribute("readonly", "");
-  textarea.style.position = "fixed";
-  textarea.style.opacity = "0";
-  textarea.style.pointerEvents = "none";
-  document.body.appendChild(textarea);
-  textarea.focus();
-  textarea.select();
-
-  try {
-    return document.execCommand("copy");
-  } finally {
-    document.body.removeChild(textarea);
-  }
-}
-
-async function parseJsonFile(file: File) {
-  const text = await file.text();
-
-  try {
-    return JSON.parse(text) as unknown;
-  } catch {
-    throw new Error("Import file is not valid JSON");
-  }
-}
-
-function ActionMenu({
-  open,
-  onOpenChange,
-  label,
-  items,
-}: {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  label: string;
-  items: ActionMenuItem[];
-}) {
-  return (
-    <div data-action-menu-root className="relative">
-      <Button
-        type="button"
-        variant="ghost"
-        size="icon"
-        aria-haspopup="menu"
-        aria-expanded={open}
-        aria-label={label}
-        onClick={() => onOpenChange(!open)}
-      >
-        <MoreHorizontal className="size-4" />
-      </Button>
-      {open ? (
-        <div
-          role="menu"
-          className="absolute top-full right-0 z-30 mt-2 w-52 rounded-xl border border-zinc-200 bg-white p-1 shadow-[0_24px_70px_-32px_rgba(15,23,42,0.45)]"
-        >
-          {items.map((item) => (
-            <button
-              key={item.label}
-              type="button"
-              role="menuitem"
-              disabled={item.disabled}
-              className="flex w-full cursor-pointer items-center gap-2 rounded-lg px-3 py-2 text-left text-sm text-zinc-700 transition hover:bg-zinc-100 disabled:cursor-not-allowed disabled:opacity-50"
-              onClick={() => {
-                onOpenChange(false);
-                item.onSelect();
-              }}
-            >
-              <span className="text-zinc-500">{item.icon}</span>
-              <span>{item.label}</span>
-            </button>
-          ))}
-        </div>
-      ) : null}
-    </div>
-  );
-}
-
-function ActionModal({
-  title,
-  description,
-  onClose,
-  children,
-  panelClassName,
-}: {
-  title: string;
-  description: string;
-  onClose: () => void;
-  children: ReactNode;
-  panelClassName?: string;
-}) {
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-zinc-950/40 p-4" onClick={onClose}>
-      <div
-        role="dialog"
-        aria-modal="true"
-        aria-label={title}
-        className={`w-full rounded-2xl border border-zinc-200 bg-white shadow-[0_32px_100px_-40px_rgba(15,23,42,0.55)] ${panelClassName ?? "max-w-lg"}`}
-        onClick={(event) => event.stopPropagation()}
-      >
-        <div className="flex items-start justify-between gap-4 border-b border-zinc-100 px-5 py-4">
-          <div>
-            <h2 className="text-lg font-semibold text-zinc-950">{title}</h2>
-            <p className="mt-1 text-sm text-zinc-500">{description}</p>
-          </div>
-          <Button type="button" variant="ghost" size="icon" aria-label={`Close ${title}`} onClick={onClose}>
-            <X className="size-4" />
-          </Button>
-        </div>
-        <div className="space-y-4 px-5 py-5">{children}</div>
-      </div>
-    </div>
-  );
-}
-
-function HomeNavLink({
-  href,
-  active,
-  children,
-}: {
-  href: string;
-  active: boolean;
-  children: ReactNode;
-}) {
-  return (
-    <Link
-      href={href}
-      className={`rounded-full px-4 py-2 text-sm font-medium transition ${
-        active ? "bg-zinc-950 text-white" : "text-zinc-600 hover:bg-zinc-100 hover:text-zinc-950"
-      }`}
-    >
-      {children}
-    </Link>
-  );
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null;
-}
-
-function getResponseError(payload: unknown, fallback: string) {
-  return isRecord(payload) && typeof payload.error === "string" ? payload.error : fallback;
-}
-
-function getProductPriceSummary(product: AppProduct): string {
-  if (isRecord(product.pricing) && typeof product.pricing.total === "string" && product.pricing.total.trim()) {
-    return product.pricing.total.trim();
-  }
-
-  return "Price unavailable";
-}
-
-function splitProductPriceSummary(product: AppProduct) {
-  const summary = getProductPriceSummary(product);
-  const slashIndex = summary.indexOf("/");
-
-  if (slashIndex === -1) {
-    return {
-      amount: summary,
-      timeframe: null,
-    };
-  }
-
-  return {
-    amount: summary.slice(0, slashIndex),
-    timeframe: summary.slice(slashIndex + 1),
-  };
-}
-
-function splitPriceDisplay(summary: string) {
-  const slashIndex = summary.indexOf("/");
-
-  if (slashIndex === -1) {
-    return {
-      amount: summary,
-      timeframe: null,
-    };
-  }
-
-  return {
-    amount: summary.slice(0, slashIndex),
-    timeframe: summary.slice(slashIndex + 1),
-  };
-}
-
-function scalePriceDisplay(summary: string, multiplier: number) {
-  const normalizedMultiplier = Number.isFinite(multiplier) ? Math.max(1, multiplier) : 1;
-  if (normalizedMultiplier === 1) {
-    return summary;
-  }
-
-  const match = summary.match(/^([A-Z]{3})\s+([0-9]+(?:\.[0-9]+)?)(.*)$/);
-  if (!match) {
-    return summary;
-  }
-
-  const [, currency, rawAmount, suffix] = match;
-  const amount = Number(rawAmount);
-  if (!Number.isFinite(amount)) {
-    return summary;
-  }
-
-  return formatFlavorAmount(currency, amount * normalizedMultiplier, suffix);
-}
 
 function buildFlavorAutoSelectKey({
   minVcpuValue,
@@ -1600,7 +1045,7 @@ function buildEvsProductMutationBodies(input: {
   diskSizeGiB: number;
   requestedIops: number | null;
   requestedThroughput: number | null;
-  diskPricing: DiskPricing | null;
+  diskPricing: DiskPricing<SystemDiskOption> | null;
 }) {
   const chunkSizes = splitEvsDiskSizes(input.diskSizeGiB);
 
@@ -1663,7 +1108,7 @@ function buildEvsSplitNotice(totalGiB: number) {
 
 function findBestBatchEcsSelection(
   flavors: CatalogFlavor[],
-  diskPricing: DiskPricing | null,
+  diskPricing: DiskPricing<SystemDiskOption> | null,
   billingOption: BillingOption,
   usageHours: number,
   vcpu: number,
@@ -1869,7 +1314,7 @@ export default function Home() {
   const [flavorPageSize, setFlavorPageSize] = useState<(typeof flavorPageSizeOptions)[number]>(3);
   const [selectedFlavor, setSelectedFlavor] = useState("");
   const [catalogFlavors, setCatalogFlavors] = useState<CatalogFlavor[]>([]);
-  const [diskPricing, setDiskPricing] = useState<DiskPricing | null>(null);
+  const [diskPricing, setDiskPricing] = useState<DiskPricing<SystemDiskOption> | null>(null);
   const [catalogFlavorsLoading, setCatalogFlavorsLoading] = useState(false);
   const [catalogFlavorsError, setCatalogFlavorsError] = useState("");
   const [catalogFlavorsLastCompletedAt, setCatalogFlavorsLastCompletedAt] = useState<string | null>(null);
@@ -1980,6 +1425,7 @@ export default function Home() {
   const isConfigurableCciCalculator = isCciCalculator && selectedServiceDefinition?.definitionId === "cci";
   const isModelArtsCalculator = selectedServiceCode === "ModelArts";
   const isConfigurableModelArtsCalculator = isModelArtsCalculator && selectedServiceDefinition?.definitionId === "modelarts";
+  const activeRuntimeMeta = getCalculatorRuntimeMeta(selectedServiceCode);
   const activeVpnCatalog = vpnCatalog ?? getFallbackVpnPricingCatalog();
   const vpnModeOptions = useMemo(
     () => listVpnModes(activeVpnCatalog, {
@@ -2432,57 +1878,29 @@ export default function Home() {
   const billableFlavors = [...ecsFlavorCards, ...flexusLFlavorCards];
   const selectedFlavorCard = billableFlavors.find((flavor) => flavor.name === selectedFlavor) ?? null;
   const selectedFlexusLPlan = isFlexusLCalculator ? findFlexusLPlan(selectedFlavor) ?? flexusLPlans[0] ?? null : null;
-  const selectedEstimateBase =
-    (isFlexusLCalculator && selectedFlexusLPlan
-      ? formatFlavorAmount("USD", selectedFlexusLPlan.monthlyPriceUsd, "/mo")
-      : isObsCalculator && selectedObsPricing
-      ? formatFlavorAmount(selectedObsPricing.currency, selectedObsPricing.amount, selectedObsPricing.suffix)
-      : isEipCalculator && selectedEipPricing
-      ? formatFlavorAmount(selectedEipPricing.currency, selectedEipPricing.amount, selectedEipPricing.suffix)
-      : isElbCalculator && selectedElbPricing
-      ? formatFlavorAmount(selectedElbPricing.currency, selectedElbPricing.amount, selectedElbPricing.suffix)
-      : isNatCalculator && selectedNatPricing
-      ? formatFlavorAmount(selectedNatPricing.currency, selectedNatPricing.amount, selectedNatPricing.suffix)
-      : isVpnCalculator && selectedVpnPricing
-      ? formatFlavorAmount(selectedVpnPricing.currency, selectedVpnPricing.amount, selectedVpnPricing.suffix)
-      : isModelArtsCalculator && selectedModelArtsPricing
-      ? formatFlavorAmount(selectedModelArtsPricing.currency, selectedModelArtsPricing.amount, selectedModelArtsPricing.suffix)
-      : isCceCalculator && selectedCcePricing
-      ? formatFlavorAmount(selectedCcePricing.currency, selectedCcePricing.amount, selectedCcePricing.suffix)
-      : isEvsCalculator && selectedDiskPrice
-      ? formatFlavorAmount(selectedDiskPrice.currency, selectedDiskPrice.amount, selectedDiskPrice.suffix)
-      : selectedFlavorCard?.price)
-    ?? selectedPrices.find((entry) => entry.unit === "per month")?.price
-    ?? selectedPrices[0]?.price
-    ?? "USD 0.00";
-  const selectedEstimate = isEvsCalculator && selectedDiskPrice
-    ? formatFlavorAmount(selectedDiskPrice.currency, selectedDiskPrice.amount * instanceCountValue, selectedDiskPrice.suffix)
-    : isObsCalculator && selectedObsPricing
-    ? formatFlavorAmount(selectedObsPricing.currency, selectedObsPricing.amount * instanceCountValue, selectedObsPricing.suffix)
-    : isEipCalculator && selectedEipPricing
-    ? formatFlavorAmount(selectedEipPricing.currency, selectedEipPricing.amount * instanceCountValue, selectedEipPricing.suffix)
-    : isElbCalculator && selectedElbPricing
-    ? formatFlavorAmount(selectedElbPricing.currency, selectedElbPricing.amount * instanceCountValue, selectedElbPricing.suffix)
-    : isNatCalculator && selectedNatPricing
-    ? formatFlavorAmount(selectedNatPricing.currency, selectedNatPricing.amount * instanceCountValue, selectedNatPricing.suffix)
-    : isVpnCalculator && selectedVpnPricing
-    ? formatFlavorAmount(selectedVpnPricing.currency, selectedVpnPricing.amount * instanceCountValue, selectedVpnPricing.suffix)
-    : isModelArtsCalculator && selectedModelArtsPricing
-    ? formatFlavorAmount(selectedModelArtsPricing.currency, selectedModelArtsPricing.amount, selectedModelArtsPricing.suffix)
-    : isCceCalculator && selectedCcePricing
-    ? formatFlavorAmount(selectedCcePricing.currency, selectedCcePricing.amount * instanceCountValue, selectedCcePricing.suffix)
-    : isFlexusLCalculator && selectedFlexusLPlan
-    ? formatFlavorAmount("USD", selectedFlexusLPlan.monthlyPriceUsd * instanceCountValue, "/mo")
-    : selectedFlavorCard
-    ? formatFlavorAmount(
-        selectedFlavorCard.priceCurrency,
-        selectedFlavorCard.priceValue * instanceCountValue,
-        selectedFlavorCard.priceSuffix,
-      )
-    : scalePriceDisplay(selectedEstimateBase, instanceCountValue);
+  const {
+    selectedEstimate,
+    quantityLabel,
+    showGlobalQuantityControl,
+  } = buildCalculatorEstimate(
+    {
+      serviceCode: selectedServiceCode,
+      instanceCountValue,
+      selectedPrices,
+      selectedFlavorCard,
+      selectedFlexusLPlan,
+      selectedDiskPrice,
+      selectedObsPricing,
+      selectedEipPricing,
+      selectedElbPricing,
+      selectedNatPricing,
+      selectedVpnPricing,
+      selectedModelArtsPricing,
+      selectedCcePricing,
+    },
+    formatFlavorAmount,
+  );
   const selectedEstimateParts = splitPriceDisplay(selectedEstimate);
-  const quantityLabel = isModelArtsCalculator ? "Configuration" : isEvsCalculator ? "Volume" : isObsCalculator ? "Bucket" : isEipCalculator ? "EIP" : isNatCalculator || isVpnCalculator ? "Gateway" : "Instance";
-  const showGlobalQuantityControl = !isModelArtsCalculator;
   const displayQuantityValue = showGlobalQuantityControl ? instanceCountValue : 1;
   const filteredFlavors = billableFlavors.filter((flavor) => {
     if (Number(flavor.vcpu) < minVcpuFilter || Number(flavor.ram) < minRamFilter) {
@@ -2694,7 +2112,7 @@ export default function Home() {
           const rawBody = await response.text();
           const payload = (rawBody ? JSON.parse(rawBody) : {}) as {
             flavors?: CatalogFlavor[];
-            diskPricing?: DiskPricing;
+            diskPricing?: DiskPricing<SystemDiskOption>;
             error?: string;
             lastCompletedAt?: string | null;
           };
@@ -3096,7 +2514,7 @@ export default function Home() {
         });
         const rawBody = await response.text();
         const payload = (rawBody ? JSON.parse(rawBody) : {}) as {
-          diskPricing?: DiskPricing | null;
+          diskPricing?: DiskPricing<SystemDiskOption> | null;
           error?: string;
         };
 
@@ -5949,128 +5367,112 @@ export default function Home() {
     label,
   }));
   const evsSplitNotice = isEvsCalculator ? buildEvsSplitNotice(systemDiskSizeValue) : null;
-  const calculatorSelectionSummary = isEcsCalculator
-    ? selectedFlavorCard?.productType === "flexus-l"
-      ? `Selected specifications: ${selectedFlavorCard.name} | ${selectedFlavorCard.includedSystemDiskGiB ?? "-"} GiB system disk | ${selectedFlavorCard.peakBandwidthMbit ?? "-"} Mbit/s | ${selectedFlavorCard.dataPackageTiB ?? "-"} TB/month | ${selectedFlavorCard.price}`
-      : `Selected specifications: ${selectedFlavor} | ${vcpuValue || "-"} vCPUs | ${ramValue || "-"} GiB | ${systemDiskType} ${systemDiskSize || String(activeDiskSizeBounds.min)} GiB${isGpSsd2Selected && gpSsd2IopsValue != null && gpSsd2ThroughputValue != null ? ` | ${gpSsd2IopsValue} IOPS | ${gpSsd2ThroughputValue} MB/s` : ""}${selectedDiskPrice ? ` | Disk ${formatFlavorAmount(selectedDiskPrice.currency, selectedDiskPrice.amount, selectedDiskPrice.suffix)}` : ""}`
-    : isFlexusLCalculator && selectedFlexusLPlan
-    ? `Selected specifications: ${selectedFlexusLPlan.title} | ${selectedFlexusLPlan.systemDiskGiB} GiB system disk | ${selectedFlexusLPlan.peakBandwidthMbit} Mbit/s | ${selectedFlexusLPlan.dataPackageTiB} TB/month | ${formatFlavorAmount("USD", selectedFlexusLPlan.monthlyPriceUsd, "/mo")}`
-    : isObsCalculator && selectedObsPricing
-    ? `Selected specifications: ${obsProductType} | ${obsStorageClass} | ${obsRedundancy}${obsRestorationType ? ` | ${obsRestorationType}` : ""} | ${obsStorageSizeValue} ${obsStorageUnit}${obsReadTrafficValue > 0 ? ` | Read ${obsReadTrafficValue} ${obsReadTrafficUnit}` : ""} | ${obsDurationMonthsValue}mo | ${formatFlavorAmount(selectedObsPricing.currency, selectedObsPricing.amount, selectedObsPricing.suffix)}`
-    : isEipCalculator && selectedEipPricing
-    ? `Selected specifications: ${eipType} | Dynamic BGP | ${eipChargeMode}${showEipBandwidth ? ` | ${eipBandwidthMbitValue} Mbit/s` : ""}${showEipEnhanced95DurationMonths ? ` | ${eipEnhanced95DurationMonthsValue}mo` : ""}${showEipSharedBandwidthQuantity ? ` | ${eipSharedBandwidthQuantityValue} shared bandwidth${eipSharedBandwidthQuantityValue === 1 ? "" : "s"}` : ""}${showEipTraffic ? ` | ${eipTrafficAmountValue} ${eipTrafficUnit}` : ""} | ${formatFlavorAmount(selectedEipPricing.currency, selectedEipPricing.amount, selectedEipPricing.suffix)}`
-    : isElbCalculator && selectedElbPricing
-    ? `Selected specifications: ${elbType}${elbType === "Dedicated load balancer" ? ` | ${elbSpecificationType}` : ""}${elbType === "Dedicated load balancer" && elbSpecificationType === "Fixed" ? ` | ${elbFixedAvailabilityAzCount} AZs | ${elbFixedSelectedTypes.map((type) => `${type}: ${normalizedElbFixedTypeSpecs[type]}`).join(" | ")}` : ""}${elbType === "Dedicated load balancer" && elbSpecificationType === "Elastic" ? ` | ${elbSubAz}` : ""} | ${elbNetworkType}${elbType === "Shared load balancer" && showElbSharedChargeMode ? ` | ${elbSharedChargeMode}${showElbSharedBandwidth ? ` | ${elbSharedBandwidthMbitValue} Mbit/s` : ""}${showElbSharedTraffic ? ` | ${elbSharedTrafficAmountValue} ${elbSharedTrafficUnit}` : ""}` : ""}${elbType === "Dedicated load balancer" ? ` | ${selectedElbPricing.estimatedLcus.total} estimated LCU` : ""} | ${formatFlavorAmount(selectedElbPricing.currency, selectedElbPricing.amount, selectedElbPricing.suffix)}`
-    : isNatCalculator && selectedNatPricing
-    ? `Selected specifications: ${natType} | ${natSize} | ${formatFlavorAmount(selectedNatPricing.currency, selectedNatPricing.amount, selectedNatPricing.suffix)}`
-    : isVpnCalculator && selectedVpnPricing
-    ? `Selected specifications: ${vpnEdition}${vpnEdition === "Enterprise" ? ` | ${vpnMode} | ${vpnNetworkType} | ${vpnSelectedSpecification}${showVpnPublicBandwidth ? ` | ${vpnUseSharedBandwidth ? "Shared" : "Dedicated"} bandwidth | EIP1 ${Math.max(0, Number(vpnEipBandwidthMbit1) || 0)} Mbit/s | EIP2 ${Math.max(0, Number(vpnEipBandwidthMbit2) || 0)} Mbit/s` : ""}` : ""}${billingMode === "Yearly/Monthly" ? ` | ${vpnDurationMonths}mo` : ""} | ${formatFlavorAmount(selectedVpnPricing.currency, selectedVpnPricing.amount, selectedVpnPricing.suffix)}`
-    : isModelArtsCalculator
-    ? `Selected specifications: AI Development Lifecycle | ${modelArtsResourceType} | ${modelArtsSpecification}${modelArtsResourceType === "EVS Storage" ? ` | ${modelArtsStorageQuotaValue} GB` : ` | ${modelArtsQuantityValue} instance${modelArtsQuantityValue === 1 ? "" : "s"}`}${billingMode === "Yearly/Monthly" ? ` | ${modelArtsDurationMonthsValue === 12 ? "1yr" : `${modelArtsDurationMonthsValue}mo`}` : ` | ${usageHoursValue}h`}${selectedModelArtsPricing ? ` | ${formatFlavorAmount(selectedModelArtsPricing.currency, selectedModelArtsPricing.amount, selectedModelArtsPricing.suffix)}` : ""}`
-    : isCceCalculator && selectedCcePricing
-    ? `Selected specifications: ${cceClusterScale} | ${cceMasterNodes} | ${formatFlavorAmount(selectedCcePricing.currency, selectedCcePricing.amount, selectedCcePricing.suffix)}`
-    : `Selected specifications: ${systemDiskType} | ${systemDiskSize || String(activeDiskSizeBounds.min)} GiB${isEvsCalculator ? ` | ${billingMode === "Pay-per-use" ? `${usageHoursValue}h` : `${evsDurationMonthsValue}mo`}` : ""}${isGpSsd2Selected && gpSsd2IopsValue != null && gpSsd2ThroughputValue != null ? ` | ${gpSsd2IopsValue} IOPS | ${gpSsd2ThroughputValue} MB/s` : ""}${selectedDiskPrice ? ` | Disk ${formatFlavorAmount(selectedDiskPrice.currency, selectedDiskPrice.amount, selectedDiskPrice.suffix)}` : ""}`;
+  const calculatorSelectionSummary = buildCalculatorSelectionSummary(
+    {
+      serviceCode: selectedServiceCode,
+      billingMode,
+      selectedFlavor,
+      selectedFlavorCard,
+      selectedFlexusLPlan,
+      vcpuValue,
+      ramValue,
+      systemDiskType,
+      systemDiskSize,
+      activeDiskSizeMin: activeDiskSizeBounds.min,
+      isGpSsd2Selected,
+      gpSsd2IopsValue,
+      gpSsd2ThroughputValue,
+      selectedDiskPrice,
+      selectedObsPricing,
+      obsProductType,
+      obsStorageClass,
+      obsRedundancy,
+      obsRestorationType,
+      obsStorageSizeValue,
+      obsStorageUnit,
+      obsReadTrafficValue,
+      obsReadTrafficUnit,
+      obsDurationMonthsValue,
+      selectedEipPricing,
+      eipType,
+      eipChargeMode,
+      showEipBandwidth,
+      eipBandwidthMbitValue,
+      showEipEnhanced95DurationMonths,
+      eipEnhanced95DurationMonthsValue,
+      showEipSharedBandwidthQuantity,
+      eipSharedBandwidthQuantityValue,
+      showEipTraffic,
+      eipTrafficAmountValue,
+      eipTrafficUnit,
+      selectedElbPricing,
+      elbType,
+      elbSpecificationType,
+      elbFixedAvailabilityAzCount,
+      elbFixedSelectedTypes,
+      normalizedElbFixedTypeSpecs,
+      elbSubAz,
+      elbNetworkType,
+      showElbSharedChargeMode,
+      elbSharedChargeMode,
+      showElbSharedBandwidth,
+      elbSharedBandwidthMbitValue,
+      showElbSharedTraffic,
+      elbSharedTrafficAmountValue,
+      elbSharedTrafficUnit,
+      selectedNatPricing,
+      natType,
+      natSize,
+      selectedVpnPricing,
+      vpnEdition,
+      vpnMode,
+      vpnNetworkType,
+      vpnSelectedSpecification,
+      showVpnPublicBandwidth,
+      vpnUseSharedBandwidth,
+      vpnEipBandwidthMbit1,
+      vpnEipBandwidthMbit2,
+      vpnDurationMonths,
+      selectedModelArtsPricing,
+      modelArtsResourceType,
+      modelArtsSpecification,
+      modelArtsStorageQuotaValue,
+      modelArtsQuantityValue,
+      usageHoursValue,
+      modelArtsDurationMonthsValue,
+      selectedCcePricing,
+      cceClusterScale,
+      cceMasterNodes,
+      evsDurationMonthsValue,
+    },
+    formatFlavorAmount,
+  );
   const calculatorSelectionNotes = useMemo(
-    () => [
-      ...(isEcsCalculator && selectedFlavorCard?.productType === "flexus-l"
-        ? ["Flexus L plans include bundled system disk, bandwidth, and traffic. The ECS disk settings below are ignored for this selection."]
-        : []),
-      ...(isEcsCalculator && selectedFlavorCard?.productType === "ecs" && selectedFlavorCard?.flavorPrice && selectedDiskPrice
-        ? [`Flavor ${selectedFlavorCard.flavorPrice} + Disk ${formatFlavorAmount(selectedDiskPrice.currency, selectedDiskPrice.amount, selectedDiskPrice.suffix)}`]
-        : []),
-      ...(isObsCalculator && selectedObsPricing
-        ? [
-            ...selectedObsPricing.breakdown.map(
-              (entry) => `${entry.label}: ${formatFlavorAmount(selectedObsPricing.currency, entry.amount, selectedObsPricing.suffix)}`,
-            ),
-            `Monthly average: ${formatFlavorAmount(selectedObsPricing.currency, selectedObsPricing.monthlyAverageAmount, "/mo")}.`,
-            ...(obsRestorationType
-              ? ["Read traffic models the published retrieval or restored-data transfer charges. Separate restoration API request fees are not modeled in this form."]
-              : []),
-            ...selectedObsPricing.notes,
-          ]
-        : []),
-      ...(isEipCalculator && selectedEipPricing
-        ? [
-            ...selectedEipPricing.breakdown.map(
-              (entry) => `${entry.label}: ${formatFlavorAmount(selectedEipPricing.currency, entry.amount, selectedEipPricing.suffix)}`,
-            ),
-            `Monthly average: ${formatFlavorAmount(selectedEipPricing.currency, selectedEipPricing.monthlyAverageAmount, "/mo")}.`,
-            ...selectedEipPricing.notes,
-          ]
-        : []),
-      ...(isElbCalculator && selectedElbPricing
-        ? [
-            ...selectedElbPricing.breakdown.map(
-              (entry) => `${entry.label}: ${formatFlavorAmount(selectedElbPricing.currency, entry.amount, selectedElbPricing.suffix)}`,
-            ),
-            ...(elbType === "Dedicated load balancer" && elbSpecificationType === "Elastic"
-              ? [
-                  `Estimated LCUs: network ${selectedElbPricing.estimatedLcus.network}, application ${selectedElbPricing.estimatedLcus.application}, total ${selectedElbPricing.estimatedLcus.total}.`,
-                  ...selectedElbPricing.protocolBreakdowns.map(
-                    (entry) => `${entry.protocol}: ${entry.lcu} LCU (${entry.details.join(", ")})`,
-                  ),
-                ]
-              : []),
-            ...(elbType === "Dedicated load balancer" && elbSpecificationType === "Fixed"
-              ? [
-                  `Fixed dedicated sizing: ${elbFixedSelectedTypes.map((type) => `${type} ${normalizedElbFixedTypeSpecs[type]}`).join("; ")} across ${elbFixedAvailabilityAzCount} AZs.`,
-                ]
-              : []),
-            ...selectedElbPricing.notes,
-          ]
-        : []),
-      ...(isNatCalculator && selectedNatPricing
-        ? [
-            ...(selectedNatPricing.dailyAmount != null
-              ? [`Pay-per-use daily rate: ${formatFlavorAmount(selectedNatPricing.currency, selectedNatPricing.dailyAmount, "/day")}.`]
-              : []),
-            ...(selectedNatPricing.hourlyAmount != null
-              ? [`Pay-per-use hourly rate: ${formatFlavorAmount(selectedNatPricing.currency, selectedNatPricing.hourlyAmount, "/h")}.`]
-              : []),
-            ...(selectedNatPricing.monthlyAmount != null
-              ? [`Monthly rate: ${formatFlavorAmount(selectedNatPricing.currency, selectedNatPricing.monthlyAmount, "/mo")}.`]
-              : []),
-            ...(selectedNatPricing.yearlyAmount != null
-              ? [`Yearly rate: ${formatFlavorAmount(selectedNatPricing.currency, selectedNatPricing.yearlyAmount, "/yr")}.`]
-              : []),
-            ...selectedNatPricing.notes,
-          ]
-        : []),
-      ...(isVpnCalculator && selectedVpnPricing
-        ? [
-            ...selectedVpnPricing.breakdown.map(
-              (entry) => `${entry.label}: ${formatFlavorAmount(selectedVpnPricing.currency, entry.amount, selectedVpnPricing.suffix)}`,
-            ),
-            `Monthly average: ${formatFlavorAmount(selectedVpnPricing.currency, selectedVpnPricing.monthlyAverageAmount, "/mo")}.`,
-            ...selectedVpnPricing.notes,
-          ]
-        : []),
-      ...(isModelArtsCalculator && selectedModelArtsPricing
-        ? [
-            ...selectedModelArtsPricing.breakdown.map(
-              (entry) => `${entry.label}: ${formatFlavorAmount(selectedModelArtsPricing.currency, entry.amount, selectedModelArtsPricing.suffix)}`,
-            ),
-            `Monthly average: ${formatFlavorAmount(selectedModelArtsPricing.currency, selectedModelArtsPricing.monthlyAverageAmount, "/mo")}.`,
-            ...selectedModelArtsPricing.notes,
-          ]
-        : []),
-      ...(isCceCalculator && selectedCcePricing
-        ? [
-            ...(selectedCcePricing.hourlyAmount != null
-              ? [`Pay-per-use rate: ${formatFlavorAmount(selectedCcePricing.currency, selectedCcePricing.hourlyAmount, "/h")}.`]
-              : []),
-            ...(selectedCcePricing.monthlyAmount != null
-              ? [`Monthly rate: ${formatFlavorAmount(selectedCcePricing.currency, selectedCcePricing.monthlyAmount, "/mo")}.`]
-              : []),
-            ...(selectedCcePricing.yearlyAmount != null
-              ? [`Yearly rate: ${formatFlavorAmount(selectedCcePricing.currency, selectedCcePricing.yearlyAmount, "/yr")}.`]
-              : []),
-          ]
-        : []),
-      ...(isEvsCalculator && evsSplitNotice ? [evsSplitNotice] : []),
-    ],
-    [elbFixedAvailabilityAzCount, elbFixedSelectedTypes, elbSpecificationType, elbType, evsSplitNotice, isCceCalculator, isEcsCalculator, isEipCalculator, isElbCalculator, isEvsCalculator, isModelArtsCalculator, isNatCalculator, isObsCalculator, isVpnCalculator, normalizedElbFixedTypeSpecs, obsRestorationType, selectedCcePricing, selectedDiskPrice, selectedEipPricing, selectedElbPricing, selectedFlavorCard, selectedModelArtsPricing, selectedNatPricing, selectedObsPricing, selectedVpnPricing],
+    () =>
+      buildCalculatorSelectionNotes(
+        {
+          serviceCode: selectedServiceCode,
+          selectedFlavorCard,
+          selectedDiskPrice,
+          selectedObsPricing,
+          obsRestorationType,
+          selectedEipPricing,
+          selectedElbPricing,
+          elbType,
+          elbSpecificationType,
+          elbFixedSelectedTypes,
+          normalizedElbFixedTypeSpecs,
+          elbFixedAvailabilityAzCount,
+          selectedNatPricing,
+          selectedVpnPricing,
+          selectedModelArtsPricing,
+          selectedCcePricing,
+          isGpSsd2Selected,
+          evsSplitNotice,
+        },
+        formatFlavorAmount,
+      ),
+    [elbFixedAvailabilityAzCount, elbFixedSelectedTypes, elbSpecificationType, elbType, evsSplitNotice, isGpSsd2Selected, normalizedElbFixedTypeSpecs, obsRestorationType, selectedCcePricing, selectedDiskPrice, selectedEipPricing, selectedElbPricing, selectedFlavorCard, selectedModelArtsPricing, selectedNatPricing, selectedObsPricing, selectedServiceCode, selectedVpnPricing],
   );
   const calculatorDiskNotes = useMemo(
     () => [
@@ -6147,149 +5549,76 @@ export default function Home() {
     [billingMode, evsDurationMonthsValue, gpSsd2IopsValue, gpSsd2ThroughputValue, systemDiskSizeValue, systemDiskType, usageHoursValue],
   );
   const evsConfiguredFields = useMemo(() => {
-    if (!isConfigurableEvsCalculator || !selectedServiceDefinition) {
-      return [];
-    }
-
-    return selectedServiceDefinition.fields
-      .filter((field) => isServiceFieldVisible(field, evsFieldRuntimeValues))
-      .map((field) => {
-        const onChange = (value: string) => {
-          if (field.id === "billingMode" && isBillingOption(value)) {
+    return buildConfiguredFields({
+      enabled: isConfigurableEvsCalculator,
+      definition: selectedServiceDefinition,
+      runtimeValues: evsFieldRuntimeValues,
+      values: {
+        billingMode,
+        diskType: systemDiskType,
+        diskSizeGiB: systemDiskSize,
+        usageHours,
+        durationMonths: evsDurationMonths,
+        iops: gpSsd2Iops,
+        throughput: gpSsd2Throughput,
+      },
+      optionsByFieldId: {
+        billingMode: selectedServiceDefinition?.billingOptions.map((value) => ({ value, label: value })),
+        diskType: systemDiskOptions.map((value) => ({ value, label: value })),
+      },
+      minByFieldId: {
+        diskSizeGiB: evsDiskSizeBounds.min,
+        usageHours: 1,
+        durationMonths: 1,
+        iops: gpSsd2IopsRange?.min,
+        throughput: gpSsd2ThroughputRange?.min,
+      },
+      maxByFieldId: {
+        diskSizeGiB: evsDiskSizeBounds.max,
+        usageHours: 87600,
+        durationMonths: 360,
+        iops: gpSsd2IopsRange?.max,
+        throughput: gpSsd2ThroughputRange?.max,
+      },
+      onChangeByFieldId: {
+        billingMode: (value) => {
+          if (isBillingOption(value)) {
             setBillingMode(value);
-            return;
           }
-
-          if (field.id === "diskType" && isSystemDiskOption(value)) {
+        },
+        diskType: (value) => {
+          if (isSystemDiskOption(value)) {
             setSystemDiskType(value);
+          }
+        },
+        diskSizeGiB: (value) => {
+          if (value === "") {
+            setSystemDiskSize("");
             return;
           }
-
-          if (field.id === "diskSizeGiB") {
-            if (value === "") {
-              setSystemDiskSize("");
-              return;
-            }
-            updateSystemDiskSize(value);
-            return;
-          }
-
-          if (field.id === "usageHours") {
-            updateUsageHours(value);
-            return;
-          }
-
-          if (field.id === "durationMonths") {
-            updateEvsDurationMonths(value);
-            return;
-          }
-
-          if (field.id === "iops") {
-            updateGpSsd2Iops(value);
-            return;
-          }
-
-          if (field.id === "throughput") {
-            updateGpSsd2Throughput(value);
-          }
-        };
-
-        const onBlur = () => {
-          if (field.id === "diskSizeGiB") {
-            updateSystemDiskSize(systemDiskSize || String(evsDiskSizeBounds.min));
-            return;
-          }
-
-          if (field.id === "usageHours") {
-            updateUsageHours(usageHours || String(Number(evsPilotDefinition?.defaults.usageHours) || 744));
-            return;
-          }
-
-          if (field.id === "durationMonths") {
-            updateEvsDurationMonths(evsDurationMonths || String(Number(evsPilotDefinition?.defaults.durationMonths) || 1));
-            return;
-          }
-
-          if (field.id === "iops") {
-            updateGpSsd2Iops(gpSsd2Iops || String(gpSsd2IopsRange?.min ?? gpSsd2IopsBounds.min));
-            return;
-          }
-
-          if (field.id === "throughput") {
-            updateGpSsd2Throughput(gpSsd2Throughput || String(gpSsd2ThroughputRange?.min ?? gpSsd2ThroughputBounds.min));
-          }
-        };
-
-        const onStep = (delta: number) => {
-          if (field.id === "diskSizeGiB") {
-            updateSystemDiskSize(String(Number(systemDiskSize || String(evsDiskSizeBounds.min)) + delta));
-            return;
-          }
-
-          if (field.id === "usageHours") {
-            updateUsageHours(String(Number(usageHours || String(Number(evsPilotDefinition?.defaults.usageHours) || 744)) + delta));
-            return;
-          }
-
-          if (field.id === "durationMonths") {
-            updateEvsDurationMonths(String(Number(evsDurationMonths || String(Number(evsPilotDefinition?.defaults.durationMonths) || 1)) + delta));
-            return;
-          }
-
-          if (field.id === "iops") {
-            updateGpSsd2Iops(String(Number(gpSsd2Iops || String(gpSsd2IopsRange?.min ?? gpSsd2IopsBounds.min)) + delta));
-            return;
-          }
-
-          if (field.id === "throughput") {
-            updateGpSsd2Throughput(
-              String(Number(gpSsd2Throughput || String(gpSsd2ThroughputRange?.min ?? gpSsd2ThroughputBounds.min)) + delta),
-            );
-          }
-        };
-
-        const options =
-          field.id === "billingMode"
-            ? selectedServiceDefinition.billingOptions.map((value) => ({ value, label: value }))
-            : field.id === "diskType"
-            ? systemDiskOptions.map((value) => ({ value, label: value }))
-            : field.options?.map((value) => ({ value: String(value), label: String(value) }));
-
-        const min =
-          field.id === "diskSizeGiB" ? evsDiskSizeBounds.min
-          : field.id === "usageHours" ? 1
-          : field.id === "durationMonths" ? 1
-          : field.id === "iops" ? gpSsd2IopsRange?.min
-          : field.id === "throughput" ? gpSsd2ThroughputRange?.min
-          : field.min;
-        const max =
-          field.id === "diskSizeGiB" ? evsDiskSizeBounds.max
-          : field.id === "usageHours" ? 87600
-          : field.id === "durationMonths" ? 360
-          : field.id === "iops" ? gpSsd2IopsRange?.max
-          : field.id === "throughput" ? gpSsd2ThroughputRange?.max
-          : field.max;
-        const value =
-          field.id === "billingMode" ? billingMode
-          : field.id === "diskType" ? systemDiskType
-          : field.id === "diskSizeGiB" ? systemDiskSize
-          : field.id === "usageHours" ? usageHours
-          : field.id === "durationMonths" ? evsDurationMonths
-          : field.id === "iops" ? gpSsd2Iops
-          : field.id === "throughput" ? gpSsd2Throughput
-          : "";
-
-        return {
-          definition: field,
-          value,
-          options,
-          min,
-          max,
-          onChange,
-          onBlur: field.type === "number" ? onBlur : undefined,
-          onStep: field.type === "number" ? onStep : undefined,
-        };
-      });
+          updateSystemDiskSize(value);
+        },
+        usageHours: updateUsageHours,
+        durationMonths: updateEvsDurationMonths,
+        iops: updateGpSsd2Iops,
+        throughput: updateGpSsd2Throughput,
+      },
+      onBlurByFieldId: {
+        diskSizeGiB: () => updateSystemDiskSize(systemDiskSize || String(evsDiskSizeBounds.min)),
+        usageHours: () => updateUsageHours(usageHours || String(Number(evsPilotDefinition?.defaults.usageHours) || 744)),
+        durationMonths: () => updateEvsDurationMonths(evsDurationMonths || String(Number(evsPilotDefinition?.defaults.durationMonths) || 1)),
+        iops: () => updateGpSsd2Iops(gpSsd2Iops || String(gpSsd2IopsRange?.min ?? gpSsd2IopsBounds.min)),
+        throughput: () => updateGpSsd2Throughput(gpSsd2Throughput || String(gpSsd2ThroughputRange?.min ?? gpSsd2ThroughputBounds.min)),
+      },
+      onStepByFieldId: {
+        diskSizeGiB: (delta) => updateSystemDiskSize(String(Number(systemDiskSize || String(evsDiskSizeBounds.min)) + delta)),
+        usageHours: (delta) => updateUsageHours(String(Number(usageHours || String(Number(evsPilotDefinition?.defaults.usageHours) || 744)) + delta)),
+        durationMonths: (delta) => updateEvsDurationMonths(String(Number(evsDurationMonths || String(Number(evsPilotDefinition?.defaults.durationMonths) || 1)) + delta)),
+        iops: (delta) => updateGpSsd2Iops(String(Number(gpSsd2Iops || String(gpSsd2IopsRange?.min ?? gpSsd2IopsBounds.min)) + delta)),
+        throughput: (delta) =>
+          updateGpSsd2Throughput(String(Number(gpSsd2Throughput || String(gpSsd2ThroughputRange?.min ?? gpSsd2ThroughputBounds.min)) + delta)),
+      },
+    });
   }, [
     billingMode,
     evsDurationMonths,
@@ -6320,225 +5649,136 @@ export default function Home() {
     [obsProductType, obsRedundancy, obsRestorationTypeOptions.length, obsStorageClass, showObsReplicationTraffic],
   );
   const obsConfiguredFields = useMemo(() => {
-    if (!isConfigurableObsCalculator || !selectedServiceDefinition) {
-      return [];
-    }
-
-    return selectedServiceDefinition.fields
-      .filter((field) => isServiceFieldVisible(field, obsFieldRuntimeValues))
-      .map((field) => {
-        const onChange = (value: string) => {
-          if (field.id === "productType" && isObsProductType(value)) {
+    return buildConfiguredFields({
+      enabled: isConfigurableObsCalculator,
+      definition: selectedServiceDefinition,
+      runtimeValues: obsFieldRuntimeValues,
+      values: {
+        productType: obsProductType,
+        storageClass: obsStorageClass,
+        redundancy: obsRedundancy,
+        storageAmount: obsStorageSize,
+        storageUnit: obsStorageUnit,
+        durationMonths: obsDurationMonths,
+        outboundTrafficAmount: obsOutboundTraffic,
+        outboundTrafficUnit: obsOutboundTrafficUnit,
+        pullTrafficAmount: obsPullTraffic,
+        pullTrafficUnit: obsPullTrafficUnit,
+        restorationType: obsRestorationType ?? obsRestorationTypeOptions[0] ?? "",
+        readTrafficAmount: obsReadTraffic,
+        readTrafficUnit: obsReadTrafficUnit,
+        lifecycleTransitionRequests: obsLifecycleTransitionRequests,
+        replicationTrafficAmount: obsReplicationTraffic,
+        replicationTrafficUnit: obsReplicationTrafficUnit,
+        readRequests: obsReadRequests,
+        writeRequests: obsWriteRequests,
+        deleteRequests: obsDeleteRequests,
+      },
+      optionsByFieldId: {
+        productType: obsProductTypeOptions.map((value) => ({ value, label: value })),
+        storageClass: obsStorageClassOptions.map((value) => ({ value, label: value })),
+        redundancy: obsRedundancyOptions.map((value) => ({ value, label: value })),
+        storageUnit: obsCapacityUnits.map((value) => ({ value, label: value })),
+        outboundTrafficUnit: obsCapacityUnits.map((value) => ({ value, label: value })),
+        pullTrafficUnit: obsCapacityUnits.map((value) => ({ value, label: value })),
+        readTrafficUnit: obsCapacityUnits.map((value) => ({ value, label: value })),
+        replicationTrafficUnit: obsCapacityUnits.map((value) => ({ value, label: value })),
+        restorationType: obsRestorationTypeOptions.map((value) => ({ value, label: value })),
+      },
+      minByFieldId: {
+        storageAmount: obsStorageSizeBounds.min,
+      },
+      maxByFieldId: {
+        storageAmount: obsStorageSizeBounds.max,
+      },
+      onChangeByFieldId: {
+        productType: (value) => {
+          if (isObsProductType(value)) {
             setObsProductType(value);
-            return;
           }
-          if (field.id === "storageClass" && isObsStorageClass(value)) {
+        },
+        storageClass: (value) => {
+          if (isObsStorageClass(value)) {
             setObsStorageClass(value);
-            return;
           }
-          if (field.id === "redundancy" && isObsRedundancy(value)) {
+        },
+        redundancy: (value) => {
+          if (isObsRedundancy(value)) {
             setObsRedundancy(value);
+          }
+        },
+        storageAmount: (value) => {
+          if (value === "") {
+            setObsStorageSize("");
             return;
           }
-          if (field.id === "storageAmount") {
-            if (value === "") {
-              setObsStorageSize("");
-              return;
-            }
-            updateObsStorageSize(value);
-            return;
-          }
-          if (field.id === "storageUnit" && isObsCapacityUnit(value)) {
+          updateObsStorageSize(value);
+        },
+        storageUnit: (value) => {
+          if (isObsCapacityUnit(value)) {
             setObsStorageUnit(value);
-            return;
           }
-          if (field.id === "durationMonths") {
-            setObsDurationMonths(value);
-            return;
-          }
-          if (field.id === "outboundTrafficAmount") {
-            setObsOutboundTraffic(value);
-            return;
-          }
-          if (field.id === "outboundTrafficUnit" && isObsCapacityUnit(value)) {
+        },
+        durationMonths: setObsDurationMonths,
+        outboundTrafficAmount: setObsOutboundTraffic,
+        outboundTrafficUnit: (value) => {
+          if (isObsCapacityUnit(value)) {
             setObsOutboundTrafficUnit(value);
-            return;
           }
-          if (field.id === "pullTrafficAmount") {
-            setObsPullTraffic(value);
-            return;
-          }
-          if (field.id === "pullTrafficUnit" && isObsCapacityUnit(value)) {
+        },
+        pullTrafficAmount: setObsPullTraffic,
+        pullTrafficUnit: (value) => {
+          if (isObsCapacityUnit(value)) {
             setObsPullTrafficUnit(value);
-            return;
           }
-          if (field.id === "restorationType" && isObsRestorationType(value)) {
+        },
+        restorationType: (value) => {
+          if (isObsRestorationType(value)) {
             setObsRestorationType(value);
-            return;
           }
-          if (field.id === "readTrafficAmount") {
-            setObsReadTraffic(value);
-            return;
-          }
-          if (field.id === "readTrafficUnit" && isObsCapacityUnit(value)) {
+        },
+        readTrafficAmount: setObsReadTraffic,
+        readTrafficUnit: (value) => {
+          if (isObsCapacityUnit(value)) {
             setObsReadTrafficUnit(value);
-            return;
           }
-          if (field.id === "lifecycleTransitionRequests") {
-            setObsLifecycleTransitionRequests(value);
-            return;
-          }
-          if (field.id === "replicationTrafficAmount") {
-            setObsReplicationTraffic(value);
-            return;
-          }
-          if (field.id === "replicationTrafficUnit" && isObsCapacityUnit(value)) {
+        },
+        lifecycleTransitionRequests: setObsLifecycleTransitionRequests,
+        replicationTrafficAmount: setObsReplicationTraffic,
+        replicationTrafficUnit: (value) => {
+          if (isObsCapacityUnit(value)) {
             setObsReplicationTrafficUnit(value);
-            return;
           }
-          if (field.id === "readRequests") {
-            setObsReadRequests(value);
-            return;
-          }
-          if (field.id === "writeRequests") {
-            setObsWriteRequests(value);
-            return;
-          }
-          if (field.id === "deleteRequests") {
-            setObsDeleteRequests(value);
-          }
-        };
-
-        const onBlur = () => {
-          if (field.id === "storageAmount") {
-            updateObsStorageSize(obsStorageSize || String(obsStorageSizeBounds.min));
-            return;
-          }
-          if (field.id === "durationMonths") {
-            setObsDurationMonths(String(obsDurationMonthsValue));
-            return;
-          }
-          if (field.id === "outboundTrafficAmount") {
-            setObsOutboundTraffic(String(obsOutboundTrafficValue));
-            return;
-          }
-          if (field.id === "pullTrafficAmount") {
-            setObsPullTraffic(String(obsPullTrafficValue));
-            return;
-          }
-          if (field.id === "readTrafficAmount") {
-            setObsReadTraffic(String(obsReadTrafficValue));
-            return;
-          }
-          if (field.id === "lifecycleTransitionRequests") {
-            setObsLifecycleTransitionRequests(String(obsLifecycleTransitionRequestsValue));
-            return;
-          }
-          if (field.id === "replicationTrafficAmount") {
-            setObsReplicationTraffic(String(obsReplicationTrafficValue));
-            return;
-          }
-          if (field.id === "readRequests") {
-            setObsReadRequests(String(obsReadRequestsValue));
-            return;
-          }
-          if (field.id === "writeRequests") {
-            setObsWriteRequests(String(obsWriteRequestsValue));
-            return;
-          }
-          if (field.id === "deleteRequests") {
-            setObsDeleteRequests(String(obsDeleteRequestsValue));
-          }
-        };
-
-        const onStep = (delta: number) => {
-          if (field.id === "storageAmount") {
-            updateObsStorageSize(String(Number(obsStorageSize || String(obsStorageSizeBounds.min)) + delta));
-            return;
-          }
-          if (field.id === "durationMonths") {
-            setObsDurationMonths(String(obsDurationMonthsValue + delta));
-            return;
-          }
-          if (field.id === "outboundTrafficAmount") {
-            setObsOutboundTraffic(String(Math.max(0, obsOutboundTrafficValue + delta)));
-            return;
-          }
-          if (field.id === "pullTrafficAmount") {
-            setObsPullTraffic(String(Math.max(0, obsPullTrafficValue + delta)));
-            return;
-          }
-          if (field.id === "readTrafficAmount") {
-            setObsReadTraffic(String(Math.max(0, obsReadTrafficValue + delta)));
-            return;
-          }
-          if (field.id === "lifecycleTransitionRequests") {
-            setObsLifecycleTransitionRequests(String(Math.max(0, obsLifecycleTransitionRequestsValue + delta)));
-            return;
-          }
-          if (field.id === "replicationTrafficAmount") {
-            setObsReplicationTraffic(String(Math.max(0, obsReplicationTrafficValue + delta)));
-            return;
-          }
-          if (field.id === "readRequests") {
-            setObsReadRequests(String(Math.max(0, obsReadRequestsValue + delta)));
-            return;
-          }
-          if (field.id === "writeRequests") {
-            setObsWriteRequests(String(Math.max(0, obsWriteRequestsValue + delta)));
-            return;
-          }
-          if (field.id === "deleteRequests") {
-            setObsDeleteRequests(String(Math.max(0, obsDeleteRequestsValue + delta)));
-          }
-        };
-
-        const options =
-          field.id === "productType"
-            ? obsProductTypeOptions.map((value) => ({ value, label: value }))
-            : field.id === "storageClass"
-            ? obsStorageClassOptions.map((value) => ({ value, label: value }))
-            : field.id === "redundancy"
-            ? obsRedundancyOptions.map((value) => ({ value, label: value }))
-            : field.id === "storageUnit" || field.id === "outboundTrafficUnit" || field.id === "pullTrafficUnit" || field.id === "readTrafficUnit" || field.id === "replicationTrafficUnit"
-            ? obsCapacityUnits.map((value) => ({ value, label: value }))
-            : field.id === "restorationType"
-            ? obsRestorationTypeOptions.map((value) => ({ value, label: value }))
-            : field.options?.map((value) => ({ value: String(value), label: String(value) }));
-
-        const value =
-          field.id === "productType" ? obsProductType
-          : field.id === "storageClass" ? obsStorageClass
-          : field.id === "redundancy" ? obsRedundancy
-          : field.id === "storageAmount" ? obsStorageSize
-          : field.id === "storageUnit" ? obsStorageUnit
-          : field.id === "durationMonths" ? obsDurationMonths
-          : field.id === "outboundTrafficAmount" ? obsOutboundTraffic
-          : field.id === "outboundTrafficUnit" ? obsOutboundTrafficUnit
-          : field.id === "pullTrafficAmount" ? obsPullTraffic
-          : field.id === "pullTrafficUnit" ? obsPullTrafficUnit
-          : field.id === "restorationType" ? (obsRestorationType ?? obsRestorationTypeOptions[0] ?? "")
-          : field.id === "readTrafficAmount" ? obsReadTraffic
-          : field.id === "readTrafficUnit" ? obsReadTrafficUnit
-          : field.id === "lifecycleTransitionRequests" ? obsLifecycleTransitionRequests
-          : field.id === "replicationTrafficAmount" ? obsReplicationTraffic
-          : field.id === "replicationTrafficUnit" ? obsReplicationTrafficUnit
-          : field.id === "readRequests" ? obsReadRequests
-          : field.id === "writeRequests" ? obsWriteRequests
-          : field.id === "deleteRequests" ? obsDeleteRequests
-          : "";
-
-        return {
-          definition: field,
-          value,
-          options,
-          min: field.id === "storageAmount" ? obsStorageSizeBounds.min : field.min,
-          max: field.id === "storageAmount" ? obsStorageSizeBounds.max : field.max,
-          onChange,
-          onBlur: field.type === "number" ? onBlur : undefined,
-          onStep: field.type === "number" ? onStep : undefined,
-        };
-      });
+        },
+        readRequests: setObsReadRequests,
+        writeRequests: setObsWriteRequests,
+        deleteRequests: setObsDeleteRequests,
+      },
+      onBlurByFieldId: {
+        storageAmount: () => updateObsStorageSize(obsStorageSize || String(obsStorageSizeBounds.min)),
+        durationMonths: () => setObsDurationMonths(String(obsDurationMonthsValue)),
+        outboundTrafficAmount: () => setObsOutboundTraffic(String(obsOutboundTrafficValue)),
+        pullTrafficAmount: () => setObsPullTraffic(String(obsPullTrafficValue)),
+        readTrafficAmount: () => setObsReadTraffic(String(obsReadTrafficValue)),
+        lifecycleTransitionRequests: () => setObsLifecycleTransitionRequests(String(obsLifecycleTransitionRequestsValue)),
+        replicationTrafficAmount: () => setObsReplicationTraffic(String(obsReplicationTrafficValue)),
+        readRequests: () => setObsReadRequests(String(obsReadRequestsValue)),
+        writeRequests: () => setObsWriteRequests(String(obsWriteRequestsValue)),
+        deleteRequests: () => setObsDeleteRequests(String(obsDeleteRequestsValue)),
+      },
+      onStepByFieldId: {
+        storageAmount: (delta) => updateObsStorageSize(String(Number(obsStorageSize || String(obsStorageSizeBounds.min)) + delta)),
+        durationMonths: (delta) => setObsDurationMonths(String(obsDurationMonthsValue + delta)),
+        outboundTrafficAmount: (delta) => setObsOutboundTraffic(String(Math.max(0, obsOutboundTrafficValue + delta))),
+        pullTrafficAmount: (delta) => setObsPullTraffic(String(Math.max(0, obsPullTrafficValue + delta))),
+        readTrafficAmount: (delta) => setObsReadTraffic(String(Math.max(0, obsReadTrafficValue + delta))),
+        lifecycleTransitionRequests: (delta) => setObsLifecycleTransitionRequests(String(Math.max(0, obsLifecycleTransitionRequestsValue + delta))),
+        replicationTrafficAmount: (delta) => setObsReplicationTraffic(String(Math.max(0, obsReplicationTrafficValue + delta))),
+        readRequests: (delta) => setObsReadRequests(String(Math.max(0, obsReadRequestsValue + delta))),
+        writeRequests: (delta) => setObsWriteRequests(String(Math.max(0, obsWriteRequestsValue + delta))),
+        deleteRequests: (delta) => setObsDeleteRequests(String(Math.max(0, obsDeleteRequestsValue + delta))),
+      },
+    });
   }, [
     isConfigurableObsCalculator,
     obsDeleteRequests,
@@ -6600,108 +5840,61 @@ export default function Home() {
     ],
   );
   const eipConfiguredFields = useMemo(() => {
-    if (!isConfigurableEipCalculator || !selectedServiceDefinition) {
-      return [];
-    }
-
-    return selectedServiceDefinition.fields
-      .filter((field) => isServiceFieldVisible(field, eipFieldRuntimeValues))
-      .map((field) => {
-        const onChange = (value: string) => {
-          if (field.id === "type" && (value === "Dedicated EIP" || value === "Shared EIP")) {
+    return buildConfiguredFields({
+      enabled: isConfigurableEipCalculator,
+      definition: selectedServiceDefinition,
+      runtimeValues: eipFieldRuntimeValues,
+      values: {
+        type: eipType,
+        chargeMode: eipChargeMode,
+        bandwidthMbit: eipBandwidthMbit,
+        enhanced95DurationMonths: eipEnhanced95DurationMonths,
+        sharedBandwidthQuantity: eipSharedBandwidthQuantity,
+        trafficAmount: eipTrafficAmount,
+        trafficUnit: eipTrafficUnit,
+      },
+      optionsByFieldId: {
+        type: eipTypeOptions.map((value) => ({ value, label: value })),
+        chargeMode: eipChargeModeOptions.map((value) => ({ value, label: value })),
+        trafficUnit: eipTrafficUnitOptions.map((value) => ({ value, label: value })),
+      },
+      minByFieldId: {
+        bandwidthMbit: eipBandwidthMinimumMbit,
+      },
+      onChangeByFieldId: {
+        type: (value) => {
+          if (value === "Dedicated EIP" || value === "Shared EIP") {
             setEipType(value);
-            return;
           }
-          if (field.id === "chargeMode" && (value === "By bandwidth" || value === "By traffic" || value === "Enhanced 95")) {
+        },
+        chargeMode: (value) => {
+          if (value === "By bandwidth" || value === "By traffic" || value === "Enhanced 95") {
             setEipChargeMode(value);
-            return;
           }
-          if (field.id === "bandwidthMbit") {
-            setEipBandwidthMbit(value);
-            return;
-          }
-          if (field.id === "enhanced95DurationMonths") {
-            setEipEnhanced95DurationMonths(value);
-            return;
-          }
-          if (field.id === "sharedBandwidthQuantity") {
-            setEipSharedBandwidthQuantity(value);
-            return;
-          }
-          if (field.id === "trafficAmount") {
-            setEipTrafficAmount(value);
-            return;
-          }
-          if (field.id === "trafficUnit" && (value === "GB" || value === "TB")) {
+        },
+        bandwidthMbit: setEipBandwidthMbit,
+        enhanced95DurationMonths: setEipEnhanced95DurationMonths,
+        sharedBandwidthQuantity: setEipSharedBandwidthQuantity,
+        trafficAmount: setEipTrafficAmount,
+        trafficUnit: (value) => {
+          if (value === "GB" || value === "TB") {
             setEipTrafficUnit(value);
           }
-        };
-
-        const onBlur = () => {
-          if (field.id === "bandwidthMbit") {
-            setEipBandwidthMbit(String(eipBandwidthMbitValue));
-            return;
-          }
-          if (field.id === "enhanced95DurationMonths") {
-            setEipEnhanced95DurationMonths(String(eipEnhanced95DurationMonthsValue));
-            return;
-          }
-          if (field.id === "sharedBandwidthQuantity") {
-            setEipSharedBandwidthQuantity(String(eipSharedBandwidthQuantityValue));
-            return;
-          }
-          if (field.id === "trafficAmount") {
-            setEipTrafficAmount(String(eipTrafficAmountValue));
-          }
-        };
-
-        const onStep = (delta: number) => {
-          if (field.id === "bandwidthMbit") {
-            setEipBandwidthMbit(String(Math.max(eipBandwidthMinimumMbit, eipBandwidthMbitValue + delta)));
-            return;
-          }
-          if (field.id === "enhanced95DurationMonths") {
-            setEipEnhanced95DurationMonths(String(Math.max(1, eipEnhanced95DurationMonthsValue + delta)));
-            return;
-          }
-          if (field.id === "sharedBandwidthQuantity") {
-            setEipSharedBandwidthQuantity(String(Math.max(1, eipSharedBandwidthQuantityValue + delta)));
-            return;
-          }
-          if (field.id === "trafficAmount") {
-            setEipTrafficAmount(String(Math.max(0, eipTrafficAmountValue + delta)));
-          }
-        };
-
-        const options =
-          field.id === "type"
-            ? eipTypeOptions.map((value) => ({ value, label: value }))
-            : field.id === "chargeMode"
-            ? eipChargeModeOptions.map((value) => ({ value, label: value }))
-            : field.id === "trafficUnit"
-            ? eipTrafficUnitOptions.map((value) => ({ value, label: value }))
-            : field.options?.map((value) => ({ value: String(value), label: String(value) }));
-
-        const value =
-          field.id === "type" ? eipType
-          : field.id === "chargeMode" ? eipChargeMode
-          : field.id === "bandwidthMbit" ? eipBandwidthMbit
-          : field.id === "enhanced95DurationMonths" ? eipEnhanced95DurationMonths
-          : field.id === "sharedBandwidthQuantity" ? eipSharedBandwidthQuantity
-          : field.id === "trafficAmount" ? eipTrafficAmount
-          : field.id === "trafficUnit" ? eipTrafficUnit
-          : "";
-
-        return {
-          definition: field,
-          value,
-          options,
-          min: field.id === "bandwidthMbit" ? eipBandwidthMinimumMbit : field.min,
-          onChange,
-          onBlur: field.type === "number" ? onBlur : undefined,
-          onStep: field.type === "number" ? onStep : undefined,
-        };
-      });
+        },
+      },
+      onBlurByFieldId: {
+        bandwidthMbit: () => setEipBandwidthMbit(String(eipBandwidthMbitValue)),
+        enhanced95DurationMonths: () => setEipEnhanced95DurationMonths(String(eipEnhanced95DurationMonthsValue)),
+        sharedBandwidthQuantity: () => setEipSharedBandwidthQuantity(String(eipSharedBandwidthQuantityValue)),
+        trafficAmount: () => setEipTrafficAmount(String(eipTrafficAmountValue)),
+      },
+      onStepByFieldId: {
+        bandwidthMbit: (delta) => setEipBandwidthMbit(String(Math.max(eipBandwidthMinimumMbit, eipBandwidthMbitValue + delta))),
+        enhanced95DurationMonths: (delta) => setEipEnhanced95DurationMonths(String(Math.max(1, eipEnhanced95DurationMonthsValue + delta))),
+        sharedBandwidthQuantity: (delta) => setEipSharedBandwidthQuantity(String(Math.max(1, eipSharedBandwidthQuantityValue + delta))),
+        trafficAmount: (delta) => setEipTrafficAmount(String(Math.max(0, eipTrafficAmountValue + delta))),
+      },
+    });
   }, [
     eipBandwidthMinimumMbit,
     eipBandwidthMbit,
@@ -6721,28 +5914,30 @@ export default function Home() {
     selectedServiceDefinition,
   ]);
   const natConfiguredFields = useMemo(() => {
-    if (!isConfigurableNatCalculator || !selectedServiceDefinition) {
-      return [];
-    }
-
-    return selectedServiceDefinition.fields.map((field) => ({
-      definition: field,
-      value: field.id === "natType" ? natType : natSize,
-      options:
-        field.id === "natType"
-          ? natTypeOptions.map((value) => ({ value, label: value }))
-          : natSizeOptions.map((value) => ({ value, label: value })),
-      onChange: (value: string) => {
-        if (field.id === "natType" && (value === "Public NAT Gateway" || value === "Private NAT Gateway")) {
-          setNatType(value);
-          return;
-        }
-
-        if (field.id === "natSize" && (value === "Small" || value === "Medium" || value === "Large" || value === "Extra-large")) {
-          setNatSize(value);
-        }
+    return buildConfiguredFields({
+      enabled: isConfigurableNatCalculator,
+      definition: selectedServiceDefinition,
+      values: {
+        natType,
+        natSize,
       },
-    }));
+      optionsByFieldId: {
+        natType: natTypeOptions.map((value) => ({ value, label: value })),
+        natSize: natSizeOptions.map((value) => ({ value, label: value })),
+      },
+      onChangeByFieldId: {
+        natType: (value) => {
+          if (value === "Public NAT Gateway" || value === "Private NAT Gateway") {
+            setNatType(value);
+          }
+        },
+        natSize: (value) => {
+          if (value === "Small" || value === "Medium" || value === "Large" || value === "Extra-large") {
+            setNatSize(value);
+          }
+        },
+      },
+    });
   }, [isConfigurableNatCalculator, natSize, natSizeOptions, natType, natTypeOptions, selectedServiceDefinition]);
   const vpnFieldRuntimeValues = useMemo(
     () => ({
@@ -6753,98 +5948,61 @@ export default function Home() {
     [billingMode, vpnEdition, vpnNetworkType],
   );
   const vpnConfiguredFields = useMemo(() => {
-    if (!isConfigurableVpnCalculator || !selectedServiceDefinition) {
-      return [];
-    }
-
-    return selectedServiceDefinition.fields
-      .filter((field) => isServiceFieldVisible(field, vpnFieldRuntimeValues))
-      .map((field) => {
-        const onChange = (value: string) => {
-          if (field.id === "edition" && (value === "Classic" || value === "Enterprise")) {
+    return buildConfiguredFields({
+      enabled: isConfigurableVpnCalculator,
+      definition: selectedServiceDefinition,
+      runtimeValues: vpnFieldRuntimeValues,
+      values: {
+        edition: vpnEdition,
+        mode: vpnMode,
+        networkType: vpnNetworkType,
+        specification: vpnSelectedSpecification,
+        useSharedBandwidth: vpnUseSharedBandwidth ? "Yes" : "No",
+        eipBandwidthMbit1: vpnEipBandwidthMbit1,
+        eipBandwidthMbit2: vpnEipBandwidthMbit2,
+        durationMonths: vpnDurationMonths,
+      },
+      optionsByFieldId: {
+        edition: vpnEditionOptionsToShow.map((value) => ({ value, label: value })),
+        mode: vpnModeOptions.map((value) => ({ value, label: value })),
+        networkType: vpnNetworkTypeOptions.map((value) => ({ value, label: value })),
+        specification: vpnSpecificationOptions.map((value) => ({ value, label: value })),
+        useSharedBandwidth: ["Yes", "No"].map((value) => ({ value, label: value })),
+        durationMonths: vpnDurationOptions,
+      },
+      disabledByFieldId: {
+        specification: true,
+      },
+      onChangeByFieldId: {
+        edition: (value) => {
+          if (value === "Classic" || value === "Enterprise") {
             setVpnEdition(value);
-            return;
           }
-          if (field.id === "mode" && (value === "Site-to-Cloud" || value === "Point-to-Cloud")) {
+        },
+        mode: (value) => {
+          if (value === "Site-to-Cloud" || value === "Point-to-Cloud") {
             setVpnMode(value);
-            return;
           }
-          if (field.id === "networkType" && (value === "Public network" || value === "Private network")) {
+        },
+        networkType: (value) => {
+          if (value === "Public network" || value === "Private network") {
             setVpnNetworkType(value);
-            return;
           }
-          if (field.id === "useSharedBandwidth") {
-            setVpnUseSharedBandwidth(value === "Yes");
-            return;
-          }
-          if (field.id === "eipBandwidthMbit1") {
-            setVpnEipBandwidthMbit1(value);
-            return;
-          }
-          if (field.id === "eipBandwidthMbit2") {
-            setVpnEipBandwidthMbit2(value);
-            return;
-          }
-          if (field.id === "durationMonths") {
-            setVpnDurationMonths(value);
-          }
-        };
-
-        const onBlur = () => {
-          if (field.id === "eipBandwidthMbit1") {
-            setVpnEipBandwidthMbit1(String(Math.max(0, Number(vpnEipBandwidthMbit1) || 0)));
-            return;
-          }
-          if (field.id === "eipBandwidthMbit2") {
-            setVpnEipBandwidthMbit2(String(Math.max(0, Number(vpnEipBandwidthMbit2) || 0)));
-          }
-        };
-
-        const onStep = (delta: number) => {
-          if (field.id === "eipBandwidthMbit1") {
-            setVpnEipBandwidthMbit1(String(Math.max(0, (Number(vpnEipBandwidthMbit1) || 0) + delta)));
-            return;
-          }
-          if (field.id === "eipBandwidthMbit2") {
-            setVpnEipBandwidthMbit2(String(Math.max(0, (Number(vpnEipBandwidthMbit2) || 0) + delta)));
-          }
-        };
-
-        const options =
-          field.id === "edition"
-            ? vpnEditionOptionsToShow.map((value) => ({ value, label: value }))
-            : field.id === "mode"
-            ? vpnModeOptions.map((value) => ({ value, label: value }))
-            : field.id === "networkType"
-            ? vpnNetworkTypeOptions.map((value) => ({ value, label: value }))
-            : field.id === "specification"
-            ? vpnSpecificationOptions.map((value) => ({ value, label: value }))
-            : field.id === "useSharedBandwidth"
-            ? ["Yes", "No"].map((value) => ({ value, label: value }))
-            : field.id === "durationMonths"
-            ? vpnDurationOptions
-            : field.options?.map((value) => ({ value: String(value), label: String(value) }));
-        const value =
-          field.id === "edition" ? vpnEdition
-          : field.id === "mode" ? vpnMode
-          : field.id === "networkType" ? vpnNetworkType
-          : field.id === "specification" ? vpnSelectedSpecification
-          : field.id === "useSharedBandwidth" ? (vpnUseSharedBandwidth ? "Yes" : "No")
-          : field.id === "eipBandwidthMbit1" ? vpnEipBandwidthMbit1
-          : field.id === "eipBandwidthMbit2" ? vpnEipBandwidthMbit2
-          : field.id === "durationMonths" ? vpnDurationMonths
-          : "";
-
-        return {
-          definition: field,
-          value,
-          options,
-          disabled: field.id === "specification",
-          onChange,
-          onBlur: field.type === "number" ? onBlur : undefined,
-          onStep: field.type === "number" ? onStep : undefined,
-        };
-      });
+        },
+        useSharedBandwidth: (value) => setVpnUseSharedBandwidth(value === "Yes"),
+        eipBandwidthMbit1: setVpnEipBandwidthMbit1,
+        eipBandwidthMbit2: setVpnEipBandwidthMbit2,
+        durationMonths: setVpnDurationMonths,
+      },
+      onBlurByFieldId: {
+        eipBandwidthMbit1: () => setVpnEipBandwidthMbit1(String(Math.max(0, Number(vpnEipBandwidthMbit1) || 0))),
+        eipBandwidthMbit2: () => setVpnEipBandwidthMbit2(String(Math.max(0, Number(vpnEipBandwidthMbit2) || 0))),
+      },
+      onStepByFieldId: {
+        eipBandwidthMbit1: (delta) => setVpnEipBandwidthMbit1(String(Math.max(0, (Number(vpnEipBandwidthMbit1) || 0) + delta))),
+        eipBandwidthMbit2: (delta) => setVpnEipBandwidthMbit2(String(Math.max(0, (Number(vpnEipBandwidthMbit2) || 0) + delta))),
+      },
+    });
   }, [
     isConfigurableVpnCalculator,
     selectedServiceDefinition,
@@ -6863,47 +6021,52 @@ export default function Home() {
     vpnUseSharedBandwidth,
   ]);
   const cceConfiguredFields = useMemo(() => {
-    if (!isConfigurableCceCalculator || !selectedServiceDefinition) {
-      return [];
-    }
-
-    return selectedServiceDefinition.fields.map((field) => ({
-      definition: field,
-      value: field.id === "clusterScale" ? cceClusterScale : cceMasterNodes,
-      options:
-        field.id === "clusterScale"
-          ? cceClusterScaleOptions.map((value) => ({ value, label: value }))
-          : cceMasterNodesOptions.map((value) => ({ value, label: value })),
-      onChange: (value: string) => {
-        if (field.id === "clusterScale" && (value === "50 nodes" || value === "200 nodes" || value === "1000 nodes" || value === "2000 nodes")) {
-          setCceClusterScale(value);
-          return;
-        }
-
-        if (field.id === "masterNodes" && (value === "3 Masters" || value === "Single")) {
-          setCceMasterNodes(value);
-        }
+    return buildConfiguredFields({
+      enabled: isConfigurableCceCalculator,
+      definition: selectedServiceDefinition,
+      values: {
+        clusterScale: cceClusterScale,
+        masterNodes: cceMasterNodes,
       },
-    }));
+      optionsByFieldId: {
+        clusterScale: cceClusterScaleOptions.map((value) => ({ value, label: value })),
+        masterNodes: cceMasterNodesOptions.map((value) => ({ value, label: value })),
+      },
+      onChangeByFieldId: {
+        clusterScale: (value) => {
+          if (value === "50 nodes" || value === "200 nodes" || value === "1000 nodes" || value === "2000 nodes") {
+            setCceClusterScale(value);
+          }
+        },
+        masterNodes: (value) => {
+          if (value === "3 Masters" || value === "Single") {
+            setCceMasterNodes(value);
+          }
+        },
+      },
+    });
   }, [cceClusterScale, cceClusterScaleOptions, cceMasterNodes, cceMasterNodesOptions, isConfigurableCceCalculator, selectedServiceDefinition]);
   const cciConfiguredFields = useMemo(() => {
-    if (!isConfigurableCciCalculator || !selectedServiceDefinition) {
-      return [];
-    }
-
-    return selectedServiceDefinition.fields.map((field) => ({
-      definition: field,
-      value: field.id === "cpu" ? cciCpu : cciMemory,
-      onChange: field.id === "cpu" ? setCciCpu : setCciMemory,
-      onBlur:
-        field.id === "cpu"
-          ? () => setCciCpu(String(Math.max(1, Number(cciCpu) || 1)))
-          : () => setCciMemory(String(Math.max(1, Number(cciMemory) || 1))),
-      onStep:
-        field.id === "cpu"
-          ? (delta: number) => setCciCpu(String(Math.max(1, Number(cciCpu) + delta)))
-          : (delta: number) => setCciMemory(String(Math.max(1, Number(cciMemory) + delta))),
-    }));
+    return buildConfiguredFields({
+      enabled: isConfigurableCciCalculator,
+      definition: selectedServiceDefinition,
+      values: {
+        cpu: cciCpu,
+        memoryGiB: cciMemory,
+      },
+      onChangeByFieldId: {
+        cpu: setCciCpu,
+        memoryGiB: setCciMemory,
+      },
+      onBlurByFieldId: {
+        cpu: () => setCciCpu(String(Math.max(1, Number(cciCpu) || 1))),
+        memoryGiB: () => setCciMemory(String(Math.max(1, Number(cciMemory) || 1))),
+      },
+      onStepByFieldId: {
+        cpu: (delta) => setCciCpu(String(Math.max(1, Number(cciCpu) + delta))),
+        memoryGiB: (delta) => setCciMemory(String(Math.max(1, Number(cciMemory) + delta))),
+      },
+    });
   }, [cciCpu, cciMemory, isConfigurableCciCalculator, selectedServiceDefinition]);
   const modelArtsFieldRuntimeValues = useMemo(
     () => ({
@@ -6913,104 +6076,59 @@ export default function Home() {
     [billingMode, modelArtsResourceType],
   );
   const modelArtsConfiguredFields = useMemo(() => {
-    if (!isConfigurableModelArtsCalculator || !selectedServiceDefinition) {
-      return [];
-    }
-
-    return selectedServiceDefinition.fields
-      .filter((field) => isServiceFieldVisible(field, modelArtsFieldRuntimeValues))
-      .map((field) => {
-        const onChange = (value: string) => {
-          if (field.id === "serviceType") {
-            return;
-          }
-          if (field.id === "resourceType" && isModelArtsResourceType(value)) {
+    return buildConfiguredFields({
+      enabled: isConfigurableModelArtsCalculator,
+      definition: selectedServiceDefinition,
+      runtimeValues: modelArtsFieldRuntimeValues,
+      values: {
+        serviceType: "AI Development Lifecycle",
+        resourceType: modelArtsResourceType,
+        specification: modelArtsSpecification,
+        quantity: modelArtsQuantity,
+        storageQuotaGb: modelArtsStorageQuotaGb,
+        usageHours,
+        durationMonths: modelArtsDurationMonths,
+      },
+      optionsByFieldId: {
+        serviceType: [{ value: "AI Development Lifecycle", label: "AI Development Lifecycle" }],
+        resourceType: modelArtsResourceTypeOptions.map((value) => ({ value, label: value })),
+        specification: modelArtsSpecificationOptions.map((value) => ({ value, label: value })),
+        durationMonths: modelArtsDurationMonthOptions.map((value) => ({
+          value: String(value),
+          label: value === 12 ? "1 year" : value === 1 ? "1 month" : `${value} months`,
+        })),
+      },
+      minByFieldId: {
+        quantity: 1,
+        storageQuotaGb: 1,
+      },
+      disabledByFieldId: {
+        serviceType: true,
+      },
+      onChangeByFieldId: {
+        serviceType: () => {},
+        resourceType: (value) => {
+          if (isModelArtsResourceType(value)) {
             setModelArtsResourceType(value);
-            return;
           }
-          if (field.id === "specification") {
-            setModelArtsSpecification(value);
-            return;
-          }
-          if (field.id === "quantity") {
-            setModelArtsQuantity(value);
-            return;
-          }
-          if (field.id === "storageQuotaGb") {
-            setModelArtsStorageQuotaGb(value);
-            return;
-          }
-          if (field.id === "usageHours") {
-            updateUsageHours(value);
-            return;
-          }
-          if (field.id === "durationMonths") {
-            setModelArtsDurationMonths(value);
-          }
-        };
-
-        const onBlur = () => {
-          if (field.id === "quantity") {
-            setModelArtsQuantity(String(modelArtsQuantityValue));
-            return;
-          }
-          if (field.id === "storageQuotaGb") {
-            setModelArtsStorageQuotaGb(String(modelArtsStorageQuotaValue));
-            return;
-          }
-          if (field.id === "usageHours") {
-            updateUsageHours(usageHours || String(modelArtsDefaults.usageHours));
-          }
-        };
-
-        const onStep = (delta: number) => {
-          if (field.id === "quantity") {
-            setModelArtsQuantity(String(Math.max(1, modelArtsQuantityValue + delta)));
-            return;
-          }
-          if (field.id === "storageQuotaGb") {
-            setModelArtsStorageQuotaGb(String(Math.max(1, modelArtsStorageQuotaValue + delta)));
-            return;
-          }
-          if (field.id === "usageHours") {
-            updateUsageHours(String(usageHoursValue + delta));
-          }
-        };
-
-        const options =
-          field.id === "serviceType"
-            ? [{ value: "AI Development Lifecycle", label: "AI Development Lifecycle" }]
-            : field.id === "resourceType"
-            ? modelArtsResourceTypeOptions.map((value) => ({ value, label: value }))
-            : field.id === "specification"
-            ? modelArtsSpecificationOptions.map((value) => ({ value, label: value }))
-            : field.id === "durationMonths"
-            ? modelArtsDurationMonthOptions.map((value) => ({
-                value: String(value),
-                label: value === 12 ? "1 year" : value === 1 ? "1 month" : `${value} months`,
-              }))
-            : field.options?.map((value) => ({ value: String(value), label: String(value) }));
-        const value =
-          field.id === "serviceType" ? "AI Development Lifecycle"
-          : field.id === "resourceType" ? modelArtsResourceType
-          : field.id === "specification" ? modelArtsSpecification
-          : field.id === "quantity" ? modelArtsQuantity
-          : field.id === "storageQuotaGb" ? modelArtsStorageQuotaGb
-          : field.id === "usageHours" ? usageHours
-          : field.id === "durationMonths" ? modelArtsDurationMonths
-          : "";
-
-        return {
-          definition: field,
-          value,
-          options,
-          disabled: field.id === "serviceType",
-          onChange,
-          min: field.id === "quantity" ? 1 : field.id === "storageQuotaGb" ? 1 : field.min,
-          onBlur: field.type === "number" ? onBlur : undefined,
-          onStep: field.type === "number" ? onStep : undefined,
-        };
-      });
+        },
+        specification: setModelArtsSpecification,
+        quantity: setModelArtsQuantity,
+        storageQuotaGb: setModelArtsStorageQuotaGb,
+        usageHours: updateUsageHours,
+        durationMonths: setModelArtsDurationMonths,
+      },
+      onBlurByFieldId: {
+        quantity: () => setModelArtsQuantity(String(modelArtsQuantityValue)),
+        storageQuotaGb: () => setModelArtsStorageQuotaGb(String(modelArtsStorageQuotaValue)),
+        usageHours: () => updateUsageHours(usageHours || String(modelArtsDefaults.usageHours)),
+      },
+      onStepByFieldId: {
+        quantity: (delta) => setModelArtsQuantity(String(Math.max(1, modelArtsQuantityValue + delta))),
+        storageQuotaGb: (delta) => setModelArtsStorageQuotaGb(String(Math.max(1, modelArtsStorageQuotaValue + delta))),
+        usageHours: (delta) => updateUsageHours(String(usageHoursValue + delta)),
+      },
+    });
   }, [
     isConfigurableModelArtsCalculator,
     modelArtsFieldRuntimeValues,
@@ -7027,6 +6145,421 @@ export default function Home() {
     usageHours,
     usageHoursValue,
   ]);
+  const configurablePanels = {
+    OBS: isConfigurableObsCalculator && selectedServiceDefinition
+      ? {
+          definition: selectedServiceDefinition,
+          fields: obsConfiguredFields,
+          pricingError: obsPricingError,
+          pricingLoadingMessage: obsPricingLoading ? "Loading OBS pricing..." : null,
+          notes: selectedServiceDefinition.summary?.notes ?? [],
+          selectionSummary: calculatorSelectionSummary,
+          selectionNotes: calculatorSelectionNotes,
+          referenceNote: `Pricing sourced from Huawei Cloud OBS calculator API for ${obsCatalogRegionId ?? (huaweiRegions[regionValue].catalogRegionId ?? regionValue)}. Deep Archive storage falls back to Huawei's public pricing page because that storage event is omitted from the productInfo response. Sources: ${obsPricingReference.productUrl}, ${obsPricingReference.billingUrl}, and ${obsPricingReference.packageOverviewUrl}`,
+        }
+      : undefined,
+    EVS: isConfigurableEvsCalculator && selectedServiceDefinition
+      ? {
+          definition: selectedServiceDefinition,
+          fields: evsConfiguredFields,
+          pricingError: evsPricingError,
+          pricingLoadingMessage: evsPricingLoading ? "Loading EVS pricing..." : null,
+          notes: [...calculatorDiskNotes, ...(selectedServiceDefinition.summary?.notes ?? [])],
+          selectionSummary: calculatorSelectionSummary,
+          selectionNotes: calculatorSelectionNotes,
+        }
+      : undefined,
+    EIP: isConfigurableEipCalculator && selectedServiceDefinition
+      ? {
+          definition: selectedServiceDefinition,
+          fields: eipConfiguredFields,
+          pricingError: eipPricingError || undefined,
+          pricingLoadingMessage: eipPricingLoading ? "Loading EIP pricing..." : null,
+          notes: selectedServiceDefinition.summary?.notes ?? [],
+          selectionSummary: calculatorSelectionSummary,
+          selectionNotes: calculatorSelectionNotes,
+          referenceNote: `Pricing sourced from Huawei Cloud EIP calculator API for ${eipCatalogRegionId ?? (huaweiRegions[regionValue].catalogRegionId ?? regionValue)}. Source: ${eipPricingReference.pricingUrl}`,
+        }
+      : undefined,
+    NAT: isConfigurableNatCalculator && selectedServiceDefinition
+      ? {
+          definition: selectedServiceDefinition,
+          fields: natConfiguredFields,
+          pricingError: natPricingError || undefined,
+          pricingLoadingMessage: natPricingLoading ? "Loading NAT pricing..." : null,
+          notes: selectedServiceDefinition.summary?.notes ?? [],
+          selectionSummary: calculatorSelectionSummary,
+          selectionNotes: calculatorSelectionNotes,
+          referenceNote: `Pricing sourced from Huawei Cloud NAT calculator API for ${natCatalogRegionId ?? (huaweiRegions[regionValue].catalogRegionId ?? regionValue)}. Sources: ${natPricingReference.pricingUrl} and ${natPricingReference.specsUrl}`,
+        }
+      : undefined,
+    VPN: isConfigurableVpnCalculator && selectedServiceDefinition
+      ? {
+          definition: selectedServiceDefinition,
+          fields: vpnConfiguredFields,
+          pricingError: vpnPricingError || undefined,
+          pricingLoadingMessage: vpnPricingLoading ? "Loading VPN pricing..." : null,
+          notes: [vpnDescriptionNote, ...(selectedServiceDefinition.summary?.notes ?? [])],
+          selectionSummary: calculatorSelectionSummary,
+          selectionNotes: calculatorSelectionNotes,
+          referenceNote: `Pricing sourced from Huawei Cloud VPN calculator API for ${vpnCatalogRegionId ?? (huaweiRegions[regionValue].catalogRegionId ?? regionValue)}. Sources: ${vpnPricingReference.pricingUrl}, ${vpnPricingReference.productUrl}, and ${vpnPricingReference.specsUrl}`,
+        }
+      : undefined,
+    ModelArts: isConfigurableModelArtsCalculator && selectedServiceDefinition
+      ? {
+          definition: selectedServiceDefinition,
+          fields: modelArtsConfiguredFields,
+          pricingError: modelArtsPricingError || undefined,
+          pricingLoadingMessage: modelArtsPricingLoading ? "Loading ModelArts pricing..." : null,
+          notes: selectedServiceDefinition.summary?.notes ?? [],
+          selectionSummary: calculatorSelectionSummary,
+          selectionNotes: calculatorSelectionNotes,
+          referenceNote: `Pricing sourced from Huawei Cloud ModelArts calculator API for ${modelArtsCatalogRegionId ?? (huaweiRegions[regionValue].catalogRegionId ?? regionValue)}. Sources: ${modelArtsPricingReference.pricingUrl} and ${modelArtsPricingReference.productUrl}`,
+        }
+      : undefined,
+    CCE: isConfigurableCceCalculator && selectedServiceDefinition
+      ? {
+          definition: selectedServiceDefinition,
+          fields: cceConfiguredFields,
+          pricingError: ccePricingError || undefined,
+          pricingLoadingMessage: ccePricingLoading ? "Loading CCE pricing..." : null,
+          notes: selectedServiceDefinition.summary?.notes ?? [],
+          selectionSummary: calculatorSelectionSummary,
+          selectionNotes: calculatorSelectionNotes,
+          referenceNote: `Pricing sourced from Huawei Cloud CCE calculator API for ${cceCatalogRegionId ?? (huaweiRegions[regionValue].catalogRegionId ?? regionValue)}. Source: ${ccePricingReference.pricingUrl}`,
+        }
+      : undefined,
+    CCI: isConfigurableCciCalculator && selectedServiceDefinition
+      ? {
+          definition: selectedServiceDefinition,
+          fields: cciConfiguredFields,
+          pricingError: undefined,
+          pricingLoadingMessage: null,
+          notes: selectedServiceDefinition.summary?.notes ?? [],
+          selectionSummary: `${cciCpu} vCPU, ${cciMemory} GiB RAM`,
+          selectionNotes: [],
+          referenceNote: "Reference pricing based on Huawei Cloud CCI calculator.",
+        }
+      : undefined,
+  };
+  const ecsPanelProps = {
+    minVcpuValue,
+    onMinVcpuChange: setMinVcpuValue,
+    minRamValue,
+    onMinRamChange: setMinRamValue,
+    flavorQuery,
+    onFlavorQueryChange: (value: string) => {
+      setFlavorQuery(value);
+      setFlavorPage(1);
+    },
+    flavorSort,
+    flavorSortOptions,
+    onFlavorSortChange: (value: string) => {
+      if (!value) {
+        return;
+      }
+      setFlavorSort(value);
+      setFlavorPage(1);
+    },
+    flavorPageSize,
+    flavorPageSizeOptions,
+    onFlavorPageSizeChange: (value: number) => {
+      if (!flavorPageSizeOptions.some((option) => option === value)) {
+        return;
+      }
+      setFlavorPageSize(value as (typeof flavorPageSizeOptions)[number]);
+      setFlavorPage(1);
+      window.localStorage.setItem(flavorPageSizeStorageKey, String(value));
+    },
+    catalogFlavorsError,
+    catalogFlavorsLastCompletedAt,
+    catalogFlavorsLoading,
+    visibleFlavors,
+    selectedFlavor,
+    onSelectFlavor: (name: string, vcpu: string, ram: string) => {
+      setSelectedFlavor(name);
+      setVcpuValue(vcpu);
+      setRamValue(ram);
+    },
+    currentFlavorPage,
+    totalFlavorPages,
+    onPreviousFlavorPage: () => setFlavorPage((page) => Math.max(1, page - 1)),
+    onNextFlavorPage: () => setFlavorPage((page) => Math.min(totalFlavorPages, page + 1)),
+    showFlexusLToggleVisible: canShowFlexusLInEcs,
+    showFlexusLChecked: showFlexusLInEcs,
+    onShowFlexusLChange: setShowFlexusLInEcs,
+    diskConfigProps: calculatorDiskConfigProps,
+  };
+  const flexusLPanelProps = {
+    plans: flexusLPlans.map((plan) => ({
+      id: plan.id,
+      title: plan.title,
+      vcpu: plan.vcpu,
+      ramGiB: plan.ramGiB,
+      systemDiskGiB: plan.systemDiskGiB,
+      peakBandwidthMbit: plan.peakBandwidthMbit,
+      dataPackageTiB: plan.dataPackageTiB,
+      monthlyPrice: formatFlavorAmount("USD", plan.monthlyPriceUsd, "/mo"),
+    })),
+    selectedPlanId: selectedFlexusLPlan?.id ?? "",
+    onSelectPlan: (planId: string) => {
+      const plan = findFlexusLPlan(planId);
+      if (!plan) {
+        return;
+      }
+      setSelectedFlavor(plan.id);
+      setVcpuValue(String(plan.vcpu));
+      setRamValue(String(plan.ramGiB));
+    },
+    selectionSummary: calculatorSelectionSummary,
+    selectionNotes: calculatorSelectionNotes,
+    referenceNote: `Reference pricing uses Huawei Cloud's public Flexus L monthly catalog for ${flexusLPricingReference.region}.`,
+  };
+  const obsFallbackPanelProps = {
+    productType: obsProductType,
+    productTypeOptions: obsProductTypeOptions,
+    onProductTypeChange: (value: string) => {
+      if (isObsProductType(value)) {
+        setObsProductType(value);
+      }
+    },
+    storageClass: obsStorageClass,
+    storageClassOptions: obsStorageClassOptions,
+    onStorageClassChange: (value: string) => {
+      if (isObsStorageClass(value)) {
+        setObsStorageClass(value);
+      }
+    },
+    redundancy: obsRedundancy,
+    redundancyOptions: obsRedundancyOptions,
+    showRedundancySelector: showObsRedundancySelector,
+    onRedundancyChange: (value: string) => {
+      if (isObsRedundancy(value)) {
+        setObsRedundancy(value);
+      }
+    },
+    storageAmount: obsStorageSize,
+    storageUnit: obsStorageUnit,
+    storageUnitOptions: obsCapacityUnits,
+    onStorageAmountChange: (value: string) => {
+      if (value === "") {
+        setObsStorageSize("");
+        return;
+      }
+      updateObsStorageSize(value);
+    },
+    onStorageAmountBlur: () => updateObsStorageSize(obsStorageSize || String(obsStorageSizeBounds.min)),
+    onStorageAmountStep: (delta: number) => updateObsStorageSize(String(Number(obsStorageSize || String(obsStorageSizeBounds.min)) + delta)),
+    onStorageUnitChange: (value: string) => {
+      if (isObsCapacityUnit(value)) {
+        setObsStorageUnit(value);
+      }
+    },
+    durationMonths: obsDurationMonths,
+    onDurationMonthsChange: (value: string) => setObsDurationMonths(value.replace(/[^\d]/g, "")),
+    onDurationMonthsBlur: () => setObsDurationMonths(String(obsDurationMonthsValue)),
+    outboundTrafficAmount: obsOutboundTraffic,
+    outboundTrafficUnit: obsOutboundTrafficUnit,
+    onOutboundTrafficAmountChange: setObsOutboundTraffic,
+    onOutboundTrafficUnitChange: (value: string) => {
+      if (isObsCapacityUnit(value)) {
+        setObsOutboundTrafficUnit(value);
+      }
+    },
+    readRequests: obsReadRequests,
+    onReadRequestsChange: setObsReadRequests,
+    writeRequests: obsWriteRequests,
+    onWriteRequestsChange: setObsWriteRequests,
+    deleteRequests: obsDeleteRequests,
+    onDeleteRequestsChange: setObsDeleteRequests,
+    showPullTraffic: showObsPullTraffic,
+    pullTrafficAmount: obsPullTraffic,
+    pullTrafficUnit: obsPullTrafficUnit,
+    onPullTrafficAmountChange: setObsPullTraffic,
+    onPullTrafficUnitChange: (value: string) => {
+      if (isObsCapacityUnit(value)) {
+        setObsPullTrafficUnit(value);
+      }
+    },
+    restorationType: obsRestorationType,
+    restorationTypeOptions: obsRestorationTypeOptions,
+    onRestorationTypeChange: (value: string) => {
+      if (isObsRestorationType(value)) {
+        setObsRestorationType(value);
+      }
+    },
+    readTrafficAmount: obsReadTraffic,
+    readTrafficUnit: obsReadTrafficUnit,
+    onReadTrafficAmountChange: setObsReadTraffic,
+    onReadTrafficUnitChange: (value: string) => {
+      if (isObsCapacityUnit(value)) {
+        setObsReadTrafficUnit(value);
+      }
+    },
+    showReplicationTraffic: showObsReplicationTraffic,
+    replicationTrafficAmount: obsReplicationTraffic,
+    replicationTrafficUnit: obsReplicationTrafficUnit,
+    onReplicationTrafficAmountChange: setObsReplicationTraffic,
+    onReplicationTrafficUnitChange: (value: string) => {
+      if (isObsCapacityUnit(value)) {
+        setObsReplicationTrafficUnit(value);
+      }
+    },
+    lifecycleTransitionRequests: obsLifecycleTransitionRequests,
+    onLifecycleTransitionRequestsChange: setObsLifecycleTransitionRequests,
+    pricingError: obsPricingError,
+    pricingLoadingMessage: obsPricingLoading ? "Loading OBS pricing..." : null,
+    selectionSummary: calculatorSelectionSummary,
+    selectionNotes: calculatorSelectionNotes,
+    referenceNote: `Pricing sourced from Huawei Cloud OBS calculator API for ${obsCatalogRegionId ?? (huaweiRegions[regionValue].catalogRegionId ?? regionValue)}. Deep Archive storage falls back to Huawei's public pricing page because that storage event is omitted from the productInfo response. Sources: ${obsPricingReference.productUrl}, ${obsPricingReference.billingUrl}, and ${obsPricingReference.packageOverviewUrl}`,
+  };
+  const evsFallbackPanelProps = { diskConfigProps: calculatorDiskConfigProps };
+  const eipFallbackPanelProps = {
+    type: eipType,
+    typeOptions: eipTypeOptions,
+    onTypeChange: (value: string) => setEipType(value as EipType),
+    chargeMode: eipChargeMode,
+    chargeModeOptions: eipChargeModeOptions,
+    onChargeModeChange: (value: string) => setEipChargeMode(value as EipChargeMode),
+    bandwidthMbit: eipBandwidthMbit,
+    onBandwidthMbitChange: setEipBandwidthMbit,
+    showBandwidth: showEipBandwidth,
+    bandwidthLabel: eipChargeMode === "Enhanced 95" ? "Bandwidth" : "Bandwidth size",
+    bandwidthMinimumMbit: showEipBandwidth ? eipBandwidthMinimumMbit : null,
+    bandwidthMinimumLabel: showEipBandwidth ? `Minimum ${eipBandwidthMinimumMbit} Mbit/s` : null,
+    enhanced95DurationMonths: eipEnhanced95DurationMonths,
+    onEnhanced95DurationMonthsChange: setEipEnhanced95DurationMonths,
+    showEnhanced95DurationMonths: showEipEnhanced95DurationMonths,
+    sharedBandwidthQuantity: eipSharedBandwidthQuantity,
+    onSharedBandwidthQuantityChange: setEipSharedBandwidthQuantity,
+    showSharedBandwidthQuantity: showEipSharedBandwidthQuantity,
+    trafficAmount: eipTrafficAmount,
+    trafficUnit: eipTrafficUnit,
+    trafficUnitOptions: eipTrafficUnitOptions,
+    onTrafficAmountChange: setEipTrafficAmount,
+    onTrafficUnitChange: (value: string) => setEipTrafficUnit(value as EipTrafficUnit),
+    showTraffic: showEipTraffic,
+    pricingError: eipPricingError || undefined,
+    pricingLoadingMessage: eipPricingLoading ? "Loading EIP pricing..." : null,
+    selectionSummary: calculatorSelectionSummary,
+    selectionNotes: calculatorSelectionNotes,
+    referenceNote: `Pricing sourced from Huawei Cloud EIP calculator API for ${eipCatalogRegionId ?? (huaweiRegions[regionValue].catalogRegionId ?? regionValue)}. Source: ${eipPricingReference.pricingUrl}`,
+  };
+  const elbPanelProps = {
+    type: elbType,
+    typeOptions: ["Shared load balancer", "Dedicated load balancer"] as const,
+    onTypeChange: (value: string) => setElbType(value as ElbType),
+    networkType: elbNetworkType,
+    networkTypeOptions: ["Public network", "Private network"] as const,
+    onNetworkTypeChange: (value: string) => setElbNetworkType(value as ElbNetworkType),
+    sharedChargeMode: elbSharedChargeMode,
+    sharedChargeModeOptions: ["By bandwidth", "By traffic"] as const,
+    onSharedChargeModeChange: (value: string) => setElbSharedChargeMode(value as ElbInternetChargeMode),
+    showSharedChargeMode: showElbSharedChargeMode,
+    sharedBandwidthMbit: elbSharedBandwidthMbit,
+    onSharedBandwidthMbitChange: setElbSharedBandwidthMbit,
+    showSharedBandwidth: showElbSharedBandwidth,
+    sharedTrafficAmount: elbSharedTrafficAmount,
+    sharedTrafficUnit: elbSharedTrafficUnit,
+    sharedTrafficUnitOptions: elbTrafficUnitOptions,
+    onSharedTrafficAmountChange: setElbSharedTrafficAmount,
+    onSharedTrafficUnitChange: (value: string) => setElbSharedTrafficUnit(value as ElbTrafficUnit),
+    showSharedTraffic: showElbSharedTraffic,
+    requiredDurationHours: usageHours,
+    onRequiredDurationHoursChange: setUsageHours,
+    showRequiredDuration: elbType === "Shared load balancer",
+    specificationType: elbSpecificationType,
+    specificationTypeOptions: ["Fixed", "Elastic"] as const,
+    onSpecificationTypeChange: (value: string) => setElbSpecificationType(value as ElbSpecificationType),
+    fixedAvailabilityAzCount: String(elbFixedAvailabilityAzCount),
+    fixedAvailabilityAzCountOptions: elbFixedAvailabilityAzCountOptions,
+    onFixedAvailabilityAzCountChange: (value: string) => setElbFixedAvailabilityAzCount(Math.max(1, Number(value) || 1)),
+    fixedTypeSections: elbFixedTypeSections,
+    protocolSections: elbProtocolSections,
+    metricModeOptions: ["By traffic", "By bandwidth"] as const,
+    estimatedNetworkLcus: selectedElbPricing?.estimatedLcus.network ?? 0,
+    estimatedApplicationLcus: selectedElbPricing?.estimatedLcus.application ?? 0,
+    estimatedTotalLcus: selectedElbPricing?.estimatedLcus.total ?? 0,
+    selectedNetworkSpecLcus: selectedElbPricing?.selectedSpecLcus.network ?? 0,
+    selectedApplicationSpecLcus: selectedElbPricing?.selectedSpecLcus.application ?? 0,
+    pricingError: elbPricingError || undefined,
+    pricingLoadingMessage: elbPricingLoading ? "Loading ELB pricing..." : null,
+    selectionSummary: calculatorSelectionSummary,
+    selectionNotes: calculatorSelectionNotes,
+    referenceNote: `Pricing sourced from Huawei Cloud ELB calculator API for ${elbCatalogRegionId ?? (huaweiRegions[regionValue].catalogRegionId ?? regionValue)}. Sources: ${elbPricingReference.pricingUrl}, ${elbPricingReference.fixedDrawerNetworkUrl}, and ${elbPricingReference.fixedDrawerAppUrl}`,
+  };
+  const natFallbackPanelProps = {
+    natType,
+    natTypeOptions,
+    onNatTypeChange: (value: string) => setNatType(value as NatGatewayType),
+    natSize,
+    natSizeOptions,
+    onNatSizeChange: (value: string) => setNatSize(value as NatGatewaySize),
+    pricingError: natPricingError || undefined,
+    pricingLoadingMessage: natPricingLoading ? "Loading NAT pricing..." : null,
+    selectionSummary: calculatorSelectionSummary,
+    selectionNotes: calculatorSelectionNotes,
+    referenceNote: `Pricing sourced from Huawei Cloud NAT calculator API for ${natCatalogRegionId ?? (huaweiRegions[regionValue].catalogRegionId ?? regionValue)}. Sources: ${natPricingReference.pricingUrl} and ${natPricingReference.specsUrl}`,
+  };
+  const vpnFallbackPanelProps = {
+    edition: vpnEdition,
+    editionOptions: vpnEditionOptionsToShow,
+    onEditionChange: (value: string) => setVpnEdition(value as VpnEdition),
+    showEnterpriseFields: vpnEdition === "Enterprise",
+    mode: vpnMode,
+    modeOptions: vpnModeOptions,
+    onModeChange: (value: string) => setVpnMode(value as VpnMode),
+    networkType: vpnNetworkType,
+    networkTypeOptions: vpnNetworkTypeOptions,
+    onNetworkTypeChange: (value: string) => setVpnNetworkType(value as VpnNetworkType),
+    specification: vpnSelectedSpecification,
+    specificationOptions: vpnSpecificationOptions,
+    showEipGroup: showVpnPublicBandwidth,
+    useSharedBandwidth: vpnUseSharedBandwidth,
+    onUseSharedBandwidthChange: setVpnUseSharedBandwidth,
+    eipBandwidthMbit1: vpnEipBandwidthMbit1,
+    onEipBandwidthMbit1Change: setVpnEipBandwidthMbit1,
+    eipBandwidthMbit2: vpnEipBandwidthMbit2,
+    onEipBandwidthMbit2Change: setVpnEipBandwidthMbit2,
+    durationMonths: vpnDurationMonths,
+    durationMonthOptions: vpnDurationOptions,
+    onDurationMonthsChange: setVpnDurationMonths,
+    showDurationMonths: billingMode === "Yearly/Monthly",
+    pricingError: vpnPricingError || undefined,
+    pricingLoadingMessage: vpnPricingLoading ? "Loading VPN pricing..." : null,
+    selectionSummary: calculatorSelectionSummary,
+    selectionNotes: calculatorSelectionNotes,
+    referenceNote: `Pricing sourced from Huawei Cloud VPN calculator API for ${vpnCatalogRegionId ?? (huaweiRegions[regionValue].catalogRegionId ?? regionValue)}. Sources: ${vpnPricingReference.pricingUrl}, ${vpnPricingReference.productUrl}, and ${vpnPricingReference.specsUrl}`,
+    descriptionNote: vpnDescriptionNote,
+  };
+  const cceFallbackPanelProps = {
+    clusterScale: cceClusterScale,
+    clusterScaleOptions: cceClusterScaleOptions,
+    onClusterScaleChange: (value: string) => setCceClusterScale(value as CceClusterScale),
+    masterNodes: cceMasterNodes,
+    masterNodesOptions: cceMasterNodesOptions,
+    onMasterNodesChange: (value: string) => setCceMasterNodes(value as CceMasterNodes),
+    pricingError: ccePricingError || undefined,
+    pricingLoadingMessage: ccePricingLoading ? "Loading CCE pricing..." : null,
+    selectionSummary: calculatorSelectionSummary,
+    selectionNotes: calculatorSelectionNotes,
+    referenceNote: `Pricing sourced from Huawei Cloud CCE calculator API for ${cceCatalogRegionId ?? (huaweiRegions[regionValue].catalogRegionId ?? regionValue)}. Source: ${ccePricingReference.pricingUrl}`,
+  };
+  const cciFallbackPanelProps = {
+    cpu: cciCpu,
+    onCpuChange: setCciCpu,
+    onCpuBlur: () => setCciCpu(String(Math.max(1, Number(cciCpu) || 1))),
+    onCpuStep: (delta: number) => setCciCpu(String(Math.max(1, Number(cciCpu) + delta))),
+    memory: cciMemory,
+    onMemoryChange: setCciMemory,
+    onMemoryBlur: () => setCciMemory(String(Math.max(1, Number(cciMemory) || 1))),
+    onMemoryStep: (delta: number) => setCciMemory(String(Math.max(1, Number(cciMemory) + delta))),
+    pricingError: undefined,
+    pricingLoadingMessage: null,
+    selectionSummary: `${cciCpu} vCPU, ${cciMemory} GiB RAM`,
+    selectionNotes: [],
+    referenceNote: "Reference pricing based on Huawei Cloud CCI calculator.",
+  };
   const selectedCartMenuItems: ActionMenuItem[] =
     selectedList && selectedProject
       ? [
@@ -7782,8 +7315,8 @@ export default function Home() {
                         </section>
                       </div>
 
-                      {!isConfigurableEvsCalculator ? (
-                        <section className={`grid gap-4 ${billingMode === "Pay-per-use" && !isObsCalculator && !isModelArtsCalculator && !(isEipCalculator && showEipEnhanced95DurationMonths) ? "xl:grid-cols-[minmax(0,1fr)_340px]" : ""}`}>
+                      {activeRuntimeMeta.usesSharedBillingHeader ? (
+                        <section className={`grid gap-4 ${billingMode === "Pay-per-use" && activeRuntimeMeta.shouldShowSharedUsageHours({ showEipEnhanced95DurationMonths }) ? "xl:grid-cols-[minmax(0,1fr)_340px]" : ""}`}>
                           <div className="space-y-3">
                             <p className="text-sm font-medium">Billing Mode</p>
                             <OptionGrid
@@ -7795,7 +7328,7 @@ export default function Home() {
                               }}
                             />
                           </div>
-                          {billingMode === "Pay-per-use" && !isObsCalculator && !isModelArtsCalculator && !(isEipCalculator && showEipEnhanced95DurationMonths) ? (
+                          {billingMode === "Pay-per-use" && activeRuntimeMeta.shouldShowSharedUsageHours({ showEipEnhanced95DurationMonths }) ? (
                             <div className="space-y-3">
                               <p className="text-sm font-medium">Usage Hours</p>
                               <div className="flex items-center gap-3">
@@ -7837,438 +7370,20 @@ export default function Home() {
                           ) : null}
                         </section>
                       ) : null}
-                      {isEcsCalculator ? (
-                        <EcsCalculatorPanel
-                          minVcpuValue={minVcpuValue}
-                          onMinVcpuChange={setMinVcpuValue}
-                          minRamValue={minRamValue}
-                          onMinRamChange={setMinRamValue}
-                          flavorQuery={flavorQuery}
-                          onFlavorQueryChange={(value) => {
-                            setFlavorQuery(value);
-                            setFlavorPage(1);
-                          }}
-                          flavorSort={flavorSort}
-                          flavorSortOptions={flavorSortOptions}
-                          onFlavorSortChange={(value) => {
-                            if (!value) {
-                              return;
-                            }
-                            setFlavorSort(value);
-                            setFlavorPage(1);
-                          }}
-                          flavorPageSize={flavorPageSize}
-                          flavorPageSizeOptions={flavorPageSizeOptions}
-                          onFlavorPageSizeChange={(value) => {
-                            if (!flavorPageSizeOptions.some((option) => option === value)) {
-                              return;
-                            }
-                            setFlavorPageSize(value as (typeof flavorPageSizeOptions)[number]);
-                            setFlavorPage(1);
-                            window.localStorage.setItem(flavorPageSizeStorageKey, String(value));
-                          }}
-                          catalogFlavorsError={catalogFlavorsError}
-                          catalogFlavorsLastCompletedAt={catalogFlavorsLastCompletedAt}
-                          catalogFlavorsLoading={catalogFlavorsLoading}
-                          visibleFlavors={visibleFlavors}
-                          selectedFlavor={selectedFlavor}
-                          onSelectFlavor={(name, vcpu, ram) => {
-                            setSelectedFlavor(name);
-                            setVcpuValue(vcpu);
-                            setRamValue(ram);
-                          }}
-                          currentFlavorPage={currentFlavorPage}
-                          totalFlavorPages={totalFlavorPages}
-                          onPreviousFlavorPage={() => setFlavorPage((page) => Math.max(1, page - 1))}
-                          onNextFlavorPage={() => setFlavorPage((page) => Math.min(totalFlavorPages, page + 1))}
-                          showFlexusLToggleVisible={canShowFlexusLInEcs}
-                          showFlexusLChecked={showFlexusLInEcs}
-                          onShowFlexusLChange={setShowFlexusLInEcs}
-                          diskConfigProps={calculatorDiskConfigProps}
-                        />
-                      ) : isFlexusLCalculator ? (
-                        <FlexusLCalculatorPanel
-                          plans={flexusLPlans.map((plan) => ({
-                            id: plan.id,
-                            title: plan.title,
-                            vcpu: plan.vcpu,
-                            ramGiB: plan.ramGiB,
-                            systemDiskGiB: plan.systemDiskGiB,
-                            peakBandwidthMbit: plan.peakBandwidthMbit,
-                            dataPackageTiB: plan.dataPackageTiB,
-                            monthlyPrice: formatFlavorAmount("USD", plan.monthlyPriceUsd, "/mo"),
-                          }))}
-                          selectedPlanId={selectedFlexusLPlan?.id ?? ""}
-                          onSelectPlan={(planId) => {
-                            const plan = findFlexusLPlan(planId);
-                            if (!plan) {
-                              return;
-                            }
-                            setSelectedFlavor(plan.id);
-                            setVcpuValue(String(plan.vcpu));
-                            setRamValue(String(plan.ramGiB));
-                          }}
-                          selectionSummary={calculatorSelectionSummary}
-                          selectionNotes={calculatorSelectionNotes}
-                          referenceNote={`Reference pricing uses Huawei Cloud's public Flexus L monthly catalog for ${flexusLPricingReference.region}.`}
-                        />
-                      ) : isObsCalculator ? (
-                        isConfigurableObsCalculator && selectedServiceDefinition ? (
-                          <ConfigurableServicePanel
-                            definition={selectedServiceDefinition}
-                            fields={obsConfiguredFields}
-                            pricingError={obsPricingError}
-                            pricingLoadingMessage={obsPricingLoading ? "Loading OBS pricing..." : null}
-                            notes={selectedServiceDefinition.summary?.notes ?? []}
-                            selectionSummary={calculatorSelectionSummary}
-                            selectionNotes={calculatorSelectionNotes}
-                            referenceNote={`Pricing sourced from Huawei Cloud OBS calculator API for ${obsCatalogRegionId ?? (huaweiRegions[regionValue].catalogRegionId ?? regionValue)}. Deep Archive storage falls back to Huawei's public pricing page because that storage event is omitted from the productInfo response. Sources: ${obsPricingReference.productUrl}, ${obsPricingReference.billingUrl}, and ${obsPricingReference.packageOverviewUrl}`}
-                          />
-                        ) : (
-                          <ObsCalculatorPanel
-                            productType={obsProductType}
-                            productTypeOptions={obsProductTypeOptions}
-                            onProductTypeChange={(value) => {
-                              if (isObsProductType(value)) {
-                                setObsProductType(value);
-                              }
-                            }}
-                            storageClass={obsStorageClass}
-                            storageClassOptions={obsStorageClassOptions}
-                            onStorageClassChange={(value) => {
-                              if (isObsStorageClass(value)) {
-                                setObsStorageClass(value);
-                              }
-                            }}
-                            redundancy={obsRedundancy}
-                            redundancyOptions={obsRedundancyOptions}
-                            showRedundancySelector={showObsRedundancySelector}
-                            onRedundancyChange={(value) => {
-                              if (isObsRedundancy(value)) {
-                                setObsRedundancy(value);
-                              }
-                            }}
-                            storageAmount={obsStorageSize}
-                            storageUnit={obsStorageUnit}
-                            storageUnitOptions={obsCapacityUnits}
-                            onStorageAmountChange={(value) => {
-                              if (value === "") {
-                                setObsStorageSize("");
-                                return;
-                              }
-                              updateObsStorageSize(value);
-                            }}
-                            onStorageAmountBlur={() => updateObsStorageSize(obsStorageSize || String(obsStorageSizeBounds.min))}
-                            onStorageAmountStep={(delta) => updateObsStorageSize(String(Number(obsStorageSize || String(obsStorageSizeBounds.min)) + delta))}
-                            onStorageUnitChange={(value) => {
-                              if (isObsCapacityUnit(value)) {
-                                setObsStorageUnit(value);
-                              }
-                            }}
-                            durationMonths={obsDurationMonths}
-                            onDurationMonthsChange={(value) => setObsDurationMonths(value.replace(/[^\d]/g, ""))}
-                            onDurationMonthsBlur={() => setObsDurationMonths(String(obsDurationMonthsValue))}
-                            outboundTrafficAmount={obsOutboundTraffic}
-                            outboundTrafficUnit={obsOutboundTrafficUnit}
-                            onOutboundTrafficAmountChange={setObsOutboundTraffic}
-                            onOutboundTrafficUnitChange={(value) => {
-                              if (isObsCapacityUnit(value)) {
-                                setObsOutboundTrafficUnit(value);
-                              }
-                            }}
-                            readRequests={obsReadRequests}
-                            onReadRequestsChange={setObsReadRequests}
-                            writeRequests={obsWriteRequests}
-                            onWriteRequestsChange={setObsWriteRequests}
-                            deleteRequests={obsDeleteRequests}
-                            onDeleteRequestsChange={setObsDeleteRequests}
-                            showPullTraffic={showObsPullTraffic}
-                            pullTrafficAmount={obsPullTraffic}
-                            pullTrafficUnit={obsPullTrafficUnit}
-                            onPullTrafficAmountChange={setObsPullTraffic}
-                            onPullTrafficUnitChange={(value) => {
-                              if (isObsCapacityUnit(value)) {
-                                setObsPullTrafficUnit(value);
-                              }
-                            }}
-                            restorationType={obsRestorationType}
-                            restorationTypeOptions={obsRestorationTypeOptions}
-                            onRestorationTypeChange={(value) => {
-                              if (isObsRestorationType(value)) {
-                                setObsRestorationType(value);
-                              }
-                            }}
-                            readTrafficAmount={obsReadTraffic}
-                            readTrafficUnit={obsReadTrafficUnit}
-                            onReadTrafficAmountChange={setObsReadTraffic}
-                            onReadTrafficUnitChange={(value) => {
-                              if (isObsCapacityUnit(value)) {
-                                setObsReadTrafficUnit(value);
-                              }
-                            }}
-                            showReplicationTraffic={showObsReplicationTraffic}
-                            replicationTrafficAmount={obsReplicationTraffic}
-                            replicationTrafficUnit={obsReplicationTrafficUnit}
-                            onReplicationTrafficAmountChange={setObsReplicationTraffic}
-                            onReplicationTrafficUnitChange={(value) => {
-                              if (isObsCapacityUnit(value)) {
-                                setObsReplicationTrafficUnit(value);
-                              }
-                            }}
-                            lifecycleTransitionRequests={obsLifecycleTransitionRequests}
-                            onLifecycleTransitionRequestsChange={setObsLifecycleTransitionRequests}
-                            pricingError={obsPricingError}
-                            pricingLoadingMessage={obsPricingLoading ? "Loading OBS pricing..." : null}
-                            selectionSummary={calculatorSelectionSummary}
-                            selectionNotes={calculatorSelectionNotes}
-                            referenceNote={`Pricing sourced from Huawei Cloud OBS calculator API for ${obsCatalogRegionId ?? (huaweiRegions[regionValue].catalogRegionId ?? regionValue)}. Deep Archive storage falls back to Huawei's public pricing page because that storage event is omitted from the productInfo response. Sources: ${obsPricingReference.productUrl}, ${obsPricingReference.billingUrl}, and ${obsPricingReference.packageOverviewUrl}`}
-                          />
-                        )
-                      ) : isEvsCalculator ? (
-                        isConfigurableEvsCalculator && selectedServiceDefinition ? (
-                          <ConfigurableServicePanel
-                            definition={selectedServiceDefinition}
-                            fields={evsConfiguredFields}
-                            pricingError={evsPricingError}
-                            pricingLoadingMessage={evsPricingLoading ? "Loading EVS pricing..." : null}
-                            notes={[...calculatorDiskNotes, ...(selectedServiceDefinition.summary?.notes ?? [])]}
-                            selectionSummary={calculatorSelectionSummary}
-                            selectionNotes={calculatorSelectionNotes}
-                          />
-                        ) : (
-                          <EvsCalculatorPanel diskConfigProps={calculatorDiskConfigProps} />
-                        )
-                      ) : isEipCalculator ? (
-                        isConfigurableEipCalculator && selectedServiceDefinition ? (
-                          <ConfigurableServicePanel
-                            definition={selectedServiceDefinition}
-                            fields={eipConfiguredFields}
-                            pricingError={eipPricingError || undefined}
-                            pricingLoadingMessage={eipPricingLoading ? "Loading EIP pricing..." : null}
-                            notes={selectedServiceDefinition.summary?.notes ?? []}
-                            selectionSummary={calculatorSelectionSummary}
-                            selectionNotes={calculatorSelectionNotes}
-                            referenceNote={`Pricing sourced from Huawei Cloud EIP calculator API for ${eipCatalogRegionId ?? (huaweiRegions[regionValue].catalogRegionId ?? regionValue)}. Source: ${eipPricingReference.pricingUrl}`}
-                          />
-                        ) : (
-                          <EipCalculatorPanel
-                            type={eipType}
-                            typeOptions={eipTypeOptions}
-                            onTypeChange={(value) => setEipType(value as EipType)}
-                            chargeMode={eipChargeMode}
-                            chargeModeOptions={eipChargeModeOptions}
-                            onChargeModeChange={(value) => setEipChargeMode(value as EipChargeMode)}
-                            bandwidthMbit={eipBandwidthMbit}
-                            onBandwidthMbitChange={setEipBandwidthMbit}
-                            showBandwidth={showEipBandwidth}
-                            bandwidthLabel={eipChargeMode === "Enhanced 95" ? "Bandwidth" : "Bandwidth size"}
-                            bandwidthMinimumMbit={showEipBandwidth ? eipBandwidthMinimumMbit : null}
-                            bandwidthMinimumLabel={showEipBandwidth ? `Minimum ${eipBandwidthMinimumMbit} Mbit/s` : null}
-                            enhanced95DurationMonths={eipEnhanced95DurationMonths}
-                            onEnhanced95DurationMonthsChange={setEipEnhanced95DurationMonths}
-                            showEnhanced95DurationMonths={showEipEnhanced95DurationMonths}
-                            sharedBandwidthQuantity={eipSharedBandwidthQuantity}
-                            onSharedBandwidthQuantityChange={setEipSharedBandwidthQuantity}
-                            showSharedBandwidthQuantity={showEipSharedBandwidthQuantity}
-                            trafficAmount={eipTrafficAmount}
-                            trafficUnit={eipTrafficUnit}
-                            trafficUnitOptions={eipTrafficUnitOptions}
-                            onTrafficAmountChange={setEipTrafficAmount}
-                            onTrafficUnitChange={(value) => setEipTrafficUnit(value as EipTrafficUnit)}
-                            showTraffic={showEipTraffic}
-                            pricingError={eipPricingError || undefined}
-                            pricingLoadingMessage={eipPricingLoading ? "Loading EIP pricing..." : null}
-                            selectionSummary={calculatorSelectionSummary}
-                            selectionNotes={calculatorSelectionNotes}
-                            referenceNote={`Pricing sourced from Huawei Cloud EIP calculator API for ${eipCatalogRegionId ?? (huaweiRegions[regionValue].catalogRegionId ?? regionValue)}. Source: ${eipPricingReference.pricingUrl}`}
-                          />
-                        )
-                      ) : isElbCalculator ? (
-                        <ElbCalculatorPanel
-                          type={elbType}
-                          typeOptions={["Shared load balancer", "Dedicated load balancer"]}
-                          onTypeChange={(value) => setElbType(value as ElbType)}
-                          networkType={elbNetworkType}
-                          networkTypeOptions={["Public network", "Private network"]}
-                          onNetworkTypeChange={(value) => setElbNetworkType(value as ElbNetworkType)}
-                          sharedChargeMode={elbSharedChargeMode}
-                          sharedChargeModeOptions={["By bandwidth", "By traffic"]}
-                          onSharedChargeModeChange={(value) => setElbSharedChargeMode(value as ElbInternetChargeMode)}
-                          showSharedChargeMode={showElbSharedChargeMode}
-                          sharedBandwidthMbit={elbSharedBandwidthMbit}
-                          onSharedBandwidthMbitChange={setElbSharedBandwidthMbit}
-                          showSharedBandwidth={showElbSharedBandwidth}
-                          sharedTrafficAmount={elbSharedTrafficAmount}
-                          sharedTrafficUnit={elbSharedTrafficUnit}
-                          sharedTrafficUnitOptions={elbTrafficUnitOptions}
-                          onSharedTrafficAmountChange={setElbSharedTrafficAmount}
-                          onSharedTrafficUnitChange={(value) => setElbSharedTrafficUnit(value as ElbTrafficUnit)}
-                          showSharedTraffic={showElbSharedTraffic}
-                          requiredDurationHours={usageHours}
-                          onRequiredDurationHoursChange={setUsageHours}
-                          showRequiredDuration={elbType === "Shared load balancer"}
-                          specificationType={elbSpecificationType}
-                          specificationTypeOptions={["Fixed", "Elastic"]}
-                          onSpecificationTypeChange={(value) => setElbSpecificationType(value as ElbSpecificationType)}
-                          fixedAvailabilityAzCount={String(elbFixedAvailabilityAzCount)}
-                          fixedAvailabilityAzCountOptions={elbFixedAvailabilityAzCountOptions}
-                          onFixedAvailabilityAzCountChange={(value) => setElbFixedAvailabilityAzCount(Math.max(1, Number(value) || 1))}
-                          fixedTypeSections={elbFixedTypeSections}
-                          protocolSections={elbProtocolSections}
-                          metricModeOptions={["By traffic", "By bandwidth"]}
-                          estimatedNetworkLcus={selectedElbPricing?.estimatedLcus.network ?? 0}
-                          estimatedApplicationLcus={selectedElbPricing?.estimatedLcus.application ?? 0}
-                          estimatedTotalLcus={selectedElbPricing?.estimatedLcus.total ?? 0}
-                          selectedNetworkSpecLcus={selectedElbPricing?.selectedSpecLcus.network ?? 0}
-                          selectedApplicationSpecLcus={selectedElbPricing?.selectedSpecLcus.application ?? 0}
-                          pricingError={elbPricingError || undefined}
-                          pricingLoadingMessage={elbPricingLoading ? "Loading ELB pricing..." : null}
-                          selectionSummary={calculatorSelectionSummary}
-                          selectionNotes={calculatorSelectionNotes}
-                          referenceNote={`Pricing sourced from Huawei Cloud ELB calculator API for ${elbCatalogRegionId ?? (huaweiRegions[regionValue].catalogRegionId ?? regionValue)}. Sources: ${elbPricingReference.pricingUrl}, ${elbPricingReference.fixedDrawerNetworkUrl}, and ${elbPricingReference.fixedDrawerAppUrl}`}
-                        />
-                      ) : isNatCalculator ? (
-                        isConfigurableNatCalculator && selectedServiceDefinition ? (
-                          <ConfigurableServicePanel
-                            definition={selectedServiceDefinition}
-                            fields={natConfiguredFields}
-                            pricingError={natPricingError || undefined}
-                            pricingLoadingMessage={natPricingLoading ? "Loading NAT pricing..." : null}
-                            notes={selectedServiceDefinition.summary?.notes ?? []}
-                            selectionSummary={calculatorSelectionSummary}
-                            selectionNotes={calculatorSelectionNotes}
-                            referenceNote={`Pricing sourced from Huawei Cloud NAT calculator API for ${natCatalogRegionId ?? (huaweiRegions[regionValue].catalogRegionId ?? regionValue)}. Sources: ${natPricingReference.pricingUrl} and ${natPricingReference.specsUrl}`}
-                          />
-                        ) : (
-                          <NatCalculatorPanel
-                            natType={natType}
-                            natTypeOptions={natTypeOptions}
-                            onNatTypeChange={(value) => setNatType(value as NatGatewayType)}
-                            natSize={natSize}
-                            natSizeOptions={natSizeOptions}
-                            onNatSizeChange={(value) => setNatSize(value as NatGatewaySize)}
-                            pricingError={natPricingError || undefined}
-                            pricingLoadingMessage={natPricingLoading ? "Loading NAT pricing..." : null}
-                            selectionSummary={calculatorSelectionSummary}
-                            selectionNotes={calculatorSelectionNotes}
-                            referenceNote={`Pricing sourced from Huawei Cloud NAT calculator API for ${natCatalogRegionId ?? (huaweiRegions[regionValue].catalogRegionId ?? regionValue)}. Sources: ${natPricingReference.pricingUrl} and ${natPricingReference.specsUrl}`}
-                          />
-                        )
-                      ) : isVpnCalculator ? (
-                        isConfigurableVpnCalculator && selectedServiceDefinition ? (
-                          <ConfigurableServicePanel
-                            definition={selectedServiceDefinition}
-                            fields={vpnConfiguredFields}
-                            pricingError={vpnPricingError || undefined}
-                            pricingLoadingMessage={vpnPricingLoading ? "Loading VPN pricing..." : null}
-                            notes={[vpnDescriptionNote, ...(selectedServiceDefinition.summary?.notes ?? [])]}
-                            selectionSummary={calculatorSelectionSummary}
-                            selectionNotes={calculatorSelectionNotes}
-                            referenceNote={`Pricing sourced from Huawei Cloud VPN calculator API for ${vpnCatalogRegionId ?? (huaweiRegions[regionValue].catalogRegionId ?? regionValue)}. Sources: ${vpnPricingReference.pricingUrl}, ${vpnPricingReference.productUrl}, and ${vpnPricingReference.specsUrl}`}
-                          />
-                        ) : (
-                          <VpnCalculatorPanel
-                            edition={vpnEdition}
-                            editionOptions={vpnEditionOptionsToShow}
-                            onEditionChange={(value) => setVpnEdition(value as VpnEdition)}
-                            showEnterpriseFields={vpnEdition === "Enterprise"}
-                            mode={vpnMode}
-                            modeOptions={vpnModeOptions}
-                            onModeChange={(value) => setVpnMode(value as VpnMode)}
-                            networkType={vpnNetworkType}
-                            networkTypeOptions={vpnNetworkTypeOptions}
-                            onNetworkTypeChange={(value) => setVpnNetworkType(value as VpnNetworkType)}
-                            specification={vpnSelectedSpecification}
-                            specificationOptions={vpnSpecificationOptions}
-                            showEipGroup={showVpnPublicBandwidth}
-                            useSharedBandwidth={vpnUseSharedBandwidth}
-                            onUseSharedBandwidthChange={setVpnUseSharedBandwidth}
-                            eipBandwidthMbit1={vpnEipBandwidthMbit1}
-                            onEipBandwidthMbit1Change={setVpnEipBandwidthMbit1}
-                            eipBandwidthMbit2={vpnEipBandwidthMbit2}
-                            onEipBandwidthMbit2Change={setVpnEipBandwidthMbit2}
-                            durationMonths={vpnDurationMonths}
-                            durationMonthOptions={vpnDurationOptions}
-                            onDurationMonthsChange={setVpnDurationMonths}
-                            showDurationMonths={billingMode === "Yearly/Monthly"}
-                            pricingError={vpnPricingError || undefined}
-                            pricingLoadingMessage={vpnPricingLoading ? "Loading VPN pricing..." : null}
-                            selectionSummary={calculatorSelectionSummary}
-                            selectionNotes={calculatorSelectionNotes}
-                            referenceNote={`Pricing sourced from Huawei Cloud VPN calculator API for ${vpnCatalogRegionId ?? (huaweiRegions[regionValue].catalogRegionId ?? regionValue)}. Sources: ${vpnPricingReference.pricingUrl}, ${vpnPricingReference.productUrl}, and ${vpnPricingReference.specsUrl}`}
-                            descriptionNote={vpnDescriptionNote}
-                          />
-                        )
-                      ) : isModelArtsCalculator ? (
-                        isConfigurableModelArtsCalculator && selectedServiceDefinition ? (
-                          <ConfigurableServicePanel
-                            definition={selectedServiceDefinition}
-                            fields={modelArtsConfiguredFields}
-                            pricingError={modelArtsPricingError || undefined}
-                            pricingLoadingMessage={modelArtsPricingLoading ? "Loading ModelArts pricing..." : null}
-                            notes={selectedServiceDefinition.summary?.notes ?? []}
-                            selectionSummary={calculatorSelectionSummary}
-                            selectionNotes={calculatorSelectionNotes}
-                            referenceNote={`Pricing sourced from Huawei Cloud ModelArts calculator API for ${modelArtsCatalogRegionId ?? (huaweiRegions[regionValue].catalogRegionId ?? regionValue)}. Sources: ${modelArtsPricingReference.pricingUrl} and ${modelArtsPricingReference.productUrl}`}
-                          />
-                        ) : null
-                      ) : isCceCalculator ? (
-                        isConfigurableCceCalculator && selectedServiceDefinition ? (
-                          <ConfigurableServicePanel
-                            definition={selectedServiceDefinition}
-                            fields={cceConfiguredFields}
-                            pricingError={ccePricingError || undefined}
-                            pricingLoadingMessage={ccePricingLoading ? "Loading CCE pricing..." : null}
-                            notes={selectedServiceDefinition.summary?.notes ?? []}
-                            selectionSummary={calculatorSelectionSummary}
-                            selectionNotes={calculatorSelectionNotes}
-                            referenceNote={`Pricing sourced from Huawei Cloud CCE calculator API for ${cceCatalogRegionId ?? (huaweiRegions[regionValue].catalogRegionId ?? regionValue)}. Source: ${ccePricingReference.pricingUrl}`}
-                          />
-                        ) : (
-                          <CceCalculatorPanel
-                            clusterScale={cceClusterScale}
-                            clusterScaleOptions={cceClusterScaleOptions}
-                            onClusterScaleChange={(value) => setCceClusterScale(value as CceClusterScale)}
-                            masterNodes={cceMasterNodes}
-                            masterNodesOptions={cceMasterNodesOptions}
-                            onMasterNodesChange={(value) => setCceMasterNodes(value as CceMasterNodes)}
-                            pricingError={ccePricingError || undefined}
-                            pricingLoadingMessage={ccePricingLoading ? "Loading CCE pricing..." : null}
-                            selectionSummary={calculatorSelectionSummary}
-                            selectionNotes={calculatorSelectionNotes}
-                            referenceNote={`Pricing sourced from Huawei Cloud CCE calculator API for ${cceCatalogRegionId ?? (huaweiRegions[regionValue].catalogRegionId ?? regionValue)}. Source: ${ccePricingReference.pricingUrl}`}
-                          />
-                        )
-                      ) : isCciCalculator ? (
-                        isConfigurableCciCalculator && selectedServiceDefinition ? (
-                          <ConfigurableServicePanel
-                            definition={selectedServiceDefinition}
-                            fields={cciConfiguredFields}
-                            pricingError={undefined}
-                            pricingLoadingMessage={null}
-                            notes={selectedServiceDefinition.summary?.notes ?? []}
-                            selectionSummary={`${cciCpu} vCPU, ${cciMemory} GiB RAM`}
-                            selectionNotes={[]}
-                            referenceNote="Reference pricing based on Huawei Cloud CCI calculator."
-                          />
-                        ) : (
-                          <CciCalculatorPanel
-                            cpu={cciCpu}
-                            onCpuChange={setCciCpu}
-                            onCpuBlur={() => setCciCpu(String(Math.max(1, Number(cciCpu) || 1)))}
-                            onCpuStep={(delta) => setCciCpu(String(Math.max(1, Number(cciCpu) + delta)))}
-                            memory={cciMemory}
-                            onMemoryChange={setCciMemory}
-                            onMemoryBlur={() => setCciMemory(String(Math.max(1, Number(cciMemory) || 1)))}
-                            onMemoryStep={(delta) => setCciMemory(String(Math.max(1, Number(cciMemory) + delta)))}
-                            pricingError={undefined}
-                            pricingLoadingMessage={null}
-                            selectionSummary={`${cciCpu} vCPU, ${cciMemory} GiB RAM`}
-                            selectionNotes={[]}
-                            referenceNote="Reference pricing based on Huawei Cloud CCI calculator."
-                          />
-                        )
-                      ) : null}
+                      <CalculatorPanelRouter
+                        activeServiceCode={selectedServiceCode}
+                        configurablePanels={configurablePanels}
+                        ecsPanel={ecsPanelProps}
+                        flexusLPanel={flexusLPanelProps}
+                        obsFallbackPanel={obsFallbackPanelProps}
+                        evsFallbackPanel={evsFallbackPanelProps}
+                        eipFallbackPanel={eipFallbackPanelProps}
+                        elbPanel={elbPanelProps}
+                        natFallbackPanel={natFallbackPanelProps}
+                        vpnFallbackPanel={vpnFallbackPanelProps}
+                        cceFallbackPanel={cceFallbackPanelProps}
+                        cciFallbackPanel={cciFallbackPanelProps}
+                      />
                     </CardContent>
                   </>
                 ) : (
@@ -8282,7 +7397,7 @@ export default function Home() {
               <TabsContent value="batch-add">
                 {isSelectedServiceBatchAddImplemented ? (
                   <ServiceBatchAddPanel
-                    mode={isEcsCalculator ? "ecs" : isFlexusLCalculator ? "flexus-l" : isObsCalculator ? "obs" : isEvsCalculator ? "evs" : "ecs"}
+                    mode={activeRuntimeMeta.batchMode ?? "ecs"}
                     regionValue={regionValue}
                     regionOptions={calculatorRegionOptions}
                     onRegionChange={(value) => setRegionValue(value as HuaweiRegionKey)}
