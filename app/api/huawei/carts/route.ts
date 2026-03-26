@@ -1,23 +1,17 @@
-import { auth } from "@/lib/auth";
+import { getSessionFromHeaders, jsonError, readJsonBody } from "@/lib/api-route";
 import { db } from "@/lib/db";
 import { HuaweiSessionError, listHuaweiCarts } from "@/lib/huawei-calculator";
 
 export const runtime = "nodejs";
 
-async function getSession(headers: Headers) {
-  return auth.api.getSession({
-    headers,
-  });
-}
-
 export async function POST(request: Request) {
-  const session = await getSession(request.headers);
+  const session = await getSessionFromHeaders(request.headers);
 
-  const body = (await request.json().catch(() => null)) as { cookie?: string } | null;
+  const body = await readJsonBody<{ cookie?: string }>(request);
   const cookie = body?.cookie?.trim() ?? "";
 
   if (!cookie) {
-    return Response.json({ error: "Huawei Cloud cookie is required" }, { status: 400 });
+    return jsonError("Huawei Cloud cookie is required");
   }
 
   try {
@@ -41,12 +35,9 @@ export async function POST(request: Request) {
     });
   } catch (error) {
     if (error instanceof HuaweiSessionError) {
-      return Response.json({ error: error.message }, { status: 401 });
+      return jsonError(error.message, 401);
     }
 
-    return Response.json(
-      { error: error instanceof Error ? error.message : "Unable to load Huawei carts" },
-      { status: 500 },
-    );
+    return jsonError(error instanceof Error ? error.message : "Unable to load Huawei carts", 500);
   }
 }

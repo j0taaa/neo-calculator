@@ -1,0 +1,181 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://neocalculator.local/schemas/service-definition.schema.json",
+  "title": "NeoCalculator Service Definition",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["version", "definitionId", "serviceCode", "serviceName", "icon", "implementation", "billingOptions", "defaults", "fields"],
+  "properties": {
+    "$schema": {
+      "type": "string"
+    },
+    "version": {
+      "type": "integer",
+      "const": 1
+    },
+    "definitionId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "serviceCode": {
+      "type": "string",
+      "minLength": 1
+    },
+    "serviceName": {
+      "type": "string",
+      "minLength": 1
+    },
+    "icon": {
+      "type": "string",
+      "format": "uri"
+    },
+    "implementation": {
+      "type": "string",
+      "enum": ["config-pilot", "configurable"]
+    },
+    "billingOptions": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "string",
+        "enum": ["Pay-per-use", "RI", "Yearly/Monthly"]
+      },
+      "uniqueItems": true
+    },
+    "defaults": {
+      "type": "object",
+      "additionalProperties": {
+        "type": ["string", "number", "boolean", "null"]
+      }
+    },
+    "fields": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "type", "label"],
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "type": {
+            "type": "string",
+            "enum": ["select", "number"]
+          },
+          "label": {
+            "type": "string",
+            "minLength": 1
+          },
+          "description": {
+            "type": "string"
+          },
+          "required": {
+            "type": "boolean"
+          },
+          "unit": {
+            "type": "string"
+          },
+          "inputMode": {
+            "type": "string",
+            "enum": ["numeric", "decimal"]
+          },
+          "step": {
+            "type": "number"
+          },
+          "min": {
+            "type": "number"
+          },
+          "max": {
+            "type": "number"
+          },
+          "minSource": {
+            "type": "string"
+          },
+          "maxSource": {
+            "type": "string"
+          },
+          "options": {
+            "type": "array",
+            "items": {
+              "type": ["string", "number"]
+            },
+            "uniqueItems": true
+          },
+          "optionsSource": {
+            "type": "string"
+          },
+          "visibleWhen": {
+            "$ref": "#/$defs/condition"
+          },
+          "visibleWhenAll": {
+            "type": "array",
+            "items": {
+              "$ref": "#/$defs/condition"
+            }
+          }
+        }
+      }
+    },
+    "summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "selectionTemplate": {
+          "type": "string"
+        },
+        "notes": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "batchAdd": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "supported": {
+          "type": "boolean"
+        },
+        "example": {
+          "type": "array"
+        },
+        "notes": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "condition": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["field"],
+      "properties": {
+        "field": {
+          "type": "string",
+          "minLength": 1
+        },
+        "equals": {
+          "type": ["string", "number", "boolean"]
+        },
+        "notEquals": {
+          "type": ["string", "number", "boolean"]
+        },
+        "in": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": ["string", "number", "boolean"]
+          }
+        }
+      }
+    }
+  }
+}

@@ -1,14 +1,9 @@
-import { auth } from "@/lib/auth";
+import { getSessionFromHeaders, jsonError, readJsonBody } from "@/lib/api-route";
 import { db } from "@/lib/db";
 import { getListAccessForUser } from "@/lib/resource-access";
+import { insertListProducts, mapStoredProductRow, touchProject, type StoredProductRow } from "@/lib/resource-persistence";
 
 export const runtime = "nodejs";
-
-async function getSession(headers: Headers) {
-  return auth.api.getSession({
-    headers,
-  });
-}
 
 type CreateListProductBody = {
   serviceCode?: string;
@@ -24,17 +19,17 @@ export async function GET(
   request: Request,
   context: { params: Promise<{ listId: string }> },
 ) {
-  const session = await getSession(request.headers);
+  const session = await getSessionFromHeaders(request.headers);
 
   if (!session) {
-    return Response.json({ error: "Unauthorized" }, { status: 401 });
+    return jsonError("Unauthorized", 401);
   }
 
   const { listId } = await context.params;
   const list = getListAccessForUser(session.user.id, listId);
 
   if (!list) {
-    return Response.json({ error: "List not found" }, { status: 404 });
+    return jsonError("List not found", 404);
   }
 
   const products = db
@@ -46,126 +41,84 @@ export async function GET(
         ORDER BY updated_at DESC
       `,
     )
-    .all(listId) as Array<{
-      id: string;
-      service_code: string;
-      service_name: string;
-      product_type: string;
-      title: string;
-      quantity: number;
-      config_json: string;
-      pricing_json: string | null;
-      created_at: string;
-      updated_at: string;
-    }>;
+    .all(listId) as StoredProductRow[];
 
-  return Response.json(
-    products.map((product) => ({
-      id: product.id,
-      serviceCode: product.service_code,
-      serviceName: product.service_name,
-      productType: product.product_type,
-      title: product.title,
-      quantity: product.quantity,
-      config: JSON.parse(product.config_json) as unknown,
-      pricing: product.pricing_json ? (JSON.parse(product.pricing_json) as unknown) : null,
-      createdAt: product.created_at,
-      updatedAt: product.updated_at,
-    })),
-  );
+  return Response.json(products.map(mapStoredProductRow));
 }
 
 export async function POST(
   request: Request,
   context: { params: Promise<{ listId: string }> },
 ) {
-  const session = await getSession(request.headers);
+  const session = await getSessionFromHeaders(request.headers);
 
   if (!session) {
-    return Response.json({ error: "Unauthorized" }, { status: 401 });
+    return jsonError("Unauthorized", 401);
   }
 
   const { listId } = await context.params;
-  const body = (await request.json()) as CreateListProductBody;
+  const body = await readJsonBody<CreateListProductBody>(request);
 
-  const serviceCode = body.serviceCode?.trim();
-  const serviceName = body.serviceName?.trim();
-  const productType = body.productType?.trim();
-  const title = body.title?.trim();
-  const quantity = Math.max(1, Math.floor(body.quantity ?? 1));
+  const serviceCode = body?.serviceCode?.trim();
+  const serviceName = body?.serviceName?.trim();
+  const productType = body?.productType?.trim();
+  const title = body?.title?.trim();
+  const quantity = Math.max(1, Math.floor(body?.quantity ?? 1));
 
   if (!serviceCode || !serviceName || !productType || !title) {
-    return Response.json({ error: "serviceCode, serviceName, productType, and title are required" }, { status: 400 });
+    return jsonError("serviceCode, serviceName, productType, and title are required");
   }
 
   const list = getListAccessForUser(session.user.id, listId);
 
   if (!list) {
-    return Response.json({ error: "List not found" }, { status: 404 });
+    return jsonError("List not found", 404);
   }
   if (!list.canEditProducts) {
-    return Response.json({ error: "You do not have permission to edit this cart" }, { status: 403 });
+    return jsonError("You do not have permission to edit this cart", 403);
   }
 
   const now = new Date().toISOString();
-  const id = crypto.randomUUID();
-  const configJson = JSON.stringify(body.config ?? {});
-  const pricingJson = body.pricing === undefined ? null : JSON.stringify(body.pricing);
+  let createdProduct = {
+    id: crypto.randomUUID(),
+    serviceCode,
+    serviceName,
+    productType,
+    title,
+    quantity,
+    config: body?.config ?? {},
+    pricing: body?.pricing ?? null,
+    createdAt: now,
+    updatedAt: now,
+  };
 
   db.transaction(() => {
-    db.query(
-      `
-        INSERT INTO list_product (
-          id,
-          list_id,
-          project_id,
-          user_id,
-          service_code,
-          service_name,
-          product_type,
-          title,
-          quantity,
-          config_json,
-          pricing_json,
-          created_at,
-          updated_at
-        )
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-      `,
-    ).run(
-      id,
+    [createdProduct] = insertListProducts({
       listId,
-      list.projectId,
-      session.user.id,
-      serviceCode,
-      serviceName,
-      productType,
-      title,
-      quantity,
-      configJson,
-      pricingJson,
+      projectId: list.projectId,
+      userId: session.user.id,
       now,
-      now,
-    );
+      products: [{ serviceCode, serviceName, productType, title, quantity, config: body?.config, pricing: body?.pricing }],
+    });
 
     db.query("UPDATE project_list SET updated_at = ? WHERE id = ?").run(now, listId);
-    db.query("UPDATE project SET updated_at = ? WHERE id = ?").run(now, list.projectId);
+    touchProject(list.projectId, now);
   })();
 
   return Response.json(
     {
-      id,
+      id: createdProduct.id,
       listId,
       projectId: list.projectId,
       serviceCode,
       serviceName,
       productType,
       title,
-      quantity,
-      config: body.config ?? {},
-      pricing: body.pricing ?? null,
-      createdAt: now,
-      updatedAt: now,
+      quantity: createdProduct.quantity,
+      config: createdProduct.config,
+      pricing: createdProduct.pricing,
+      createdAt: createdProduct.createdAt,
+      updatedAt: createdProduct.updatedAt,
     },
     { status: 201 },
   );

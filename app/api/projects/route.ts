@@ -1,48 +1,36 @@
-import { auth } from "@/lib/auth";
-import { db } from "@/lib/db";
+import { createProjectRecord } from "@/lib/resource-persistence";
+import { getSessionFromHeaders, getTrimmedString, jsonError, readJsonBody } from "@/lib/api-route";
 import { buildAccessibleProjectsPayload } from "@/lib/resource-access";
 
 export const runtime = "nodejs";
 
-async function getSession(headers: Headers) {
-  return auth.api.getSession({
-    headers,
-  });
-}
-
 export async function GET(request: Request) {
-  const session = await getSession(request.headers);
+  const session = await getSessionFromHeaders(request.headers);
 
   if (!session) {
-    return Response.json({ error: "Unauthorized" }, { status: 401 });
+    return jsonError("Unauthorized", 401);
   }
 
   return Response.json(buildAccessibleProjectsPayload(session.user.id));
 }
 
 export async function POST(request: Request) {
-  const session = await getSession(request.headers);
+  const session = await getSessionFromHeaders(request.headers);
 
   if (!session) {
-    return Response.json({ error: "Unauthorized" }, { status: 401 });
+    return jsonError("Unauthorized", 401);
   }
 
-  const body = (await request.json()) as { name?: string; description?: string };
-  const name = body.name?.trim();
+  const body = await readJsonBody<{ name?: string; description?: string | null }>(request);
+  const name = getTrimmedString(body?.name);
 
   if (!name) {
-    return Response.json({ error: "Project name is required" }, { status: 400 });
+    return jsonError("Project name is required");
   }
 
   const now = new Date().toISOString();
-  const id = crypto.randomUUID();
-
-  db.query(
-    `
-      INSERT INTO project (id, user_id, name, description, created_at, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?)
-    `,
-  ).run(id, session.user.id, name, body.description?.trim() || null, now, now);
+  const description = getTrimmedString(body?.description) ?? null;
+  const id = createProjectRecord({ userId: session.user.id, name, description, now });
 
   return Response.json(
     {
@@ -51,7 +39,7 @@ export async function POST(request: Request) {
       ownerUserId: session.user.id,
       accessLevel: "owner",
       canShare: true,
-      description: body.description?.trim() || null,
+      description,
       createdAt: now,
       updatedAt: now,
     },

@@ -1,4 +1,5 @@
 import { db } from "@/lib/db";
+import { mapStoredProductsByListId, type StoredProductRow } from "@/lib/resource-persistence";
 
 export type ProjectAccessLevel = "owner" | "project_collaborator" | "list_collaborator";
 export type ListAccessLevel = "owner" | "project_collaborator" | "list_collaborator";
@@ -22,22 +23,6 @@ type ListRow = {
   huawei_last_synced_at: string | null;
   huawei_last_error: string | null;
   huawei_last_remote_updated_at: number | null;
-  created_at: string;
-  updated_at: string;
-};
-
-type ProductRow = {
-  id: string;
-  list_id: string;
-  project_id: string;
-  user_id: string;
-  service_code: string;
-  service_name: string;
-  product_type: string;
-  title: string;
-  quantity: number;
-  config_json: string;
-  pricing_json: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -78,6 +63,7 @@ export type ListAccess = {
   canClone: boolean;
   canShare: boolean;
   canSyncHuawei: boolean;
+  canManageHuaweiLink: boolean;
 };
 
 export type AccessibleProductPayload = {
@@ -126,6 +112,7 @@ function mapProjectAccess(project: ProjectRow, userId: string, accessLevel: Proj
 
 function mapListAccess(list: ListRow, userId: string, accessLevel: ListAccessLevel): ListAccess {
   const isOwner = list.user_id === userId;
+  const hasProjectLevelAccess = accessLevel !== "list_collaborator";
 
   return {
     id: list.id,
@@ -140,13 +127,14 @@ function mapListAccess(list: ListRow, userId: string, accessLevel: ListAccessLev
     createdAt: list.created_at,
     updatedAt: list.updated_at,
     accessLevel,
-    canRename: true,
+    canRename: hasProjectLevelAccess,
     canDelete: isOwner,
     canMove: isOwner,
     canEditProducts: true,
-    canClone: true,
+    canClone: hasProjectLevelAccess,
     canShare: isOwner,
-    canSyncHuawei: true,
+    canSyncHuawei: hasProjectLevelAccess,
+    canManageHuaweiLink: hasProjectLevelAccess,
   };
 }
 
@@ -349,7 +337,7 @@ export function buildAccessibleProjectsPayload(userId: string): AccessibleProjec
   const products = accessibleListIds.length === 0
     ? []
     : db
-        .query<ProductRow, string[]>(
+        .query<StoredProductRow, string[]>(
           `
             SELECT
               id,
@@ -372,11 +360,14 @@ export function buildAccessibleProjectsPayload(userId: string): AccessibleProjec
         )
         .all(...accessibleListIds);
 
+  const productsByListId = mapStoredProductsByListId(products);
+
   return projects.map((project) => {
     const projectAccess = projectAccessById.get(project.id)!;
     const lists = accessibleLists
       .filter((list) => list.project_id === project.id)
       .map((list) => {
+        const listProducts = productsByListId.get(list.id) ?? [];
         const accessLevel: ListAccessLevel = list.user_id === userId
           ? "owner"
           : projectAccess.accessLevel !== "list_collaborator"
@@ -387,21 +378,8 @@ export function buildAccessibleProjectsPayload(userId: string): AccessibleProjec
 
         return {
           ...mapListAccess(list, userId, accessLevel),
-          productCount: products.filter((product) => product.list_id === list.id).length,
-          products: products
-            .filter((product) => product.list_id === list.id)
-            .map((product) => ({
-              id: product.id,
-              serviceCode: product.service_code,
-              serviceName: product.service_name,
-              productType: product.product_type,
-              title: product.title,
-              quantity: product.quantity,
-              config: JSON.parse(product.config_json) as unknown,
-              pricing: product.pricing_json ? (JSON.parse(product.pricing_json) as unknown) : null,
-              createdAt: product.created_at,
-              updatedAt: product.updated_at,
-            })),
+          productCount: listProducts.length,
+          products: listProducts,
         };
       });
 

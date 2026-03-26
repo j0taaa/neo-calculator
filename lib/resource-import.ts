@@ -1,4 +1,5 @@
 import { db } from "@/lib/db";
+import { createListRecord, createProjectRecord, insertListProducts, touchProject } from "@/lib/resource-persistence";
 
 type ImportedProduct = {
   serviceCode: string;
@@ -143,94 +144,24 @@ export function parseImportedResourcePayload(payload: unknown): ImportedResource
 
 export function importProjectPayload(userId: string, payload: ImportedProjectPayload): ImportedProjectResult {
   const now = new Date().toISOString();
-  const projectId = crypto.randomUUID();
+  let projectId = crypto.randomUUID();
   const createdListIds: string[] = [];
   let importedProductCount = 0;
 
   db.transaction(() => {
-    db.query(
-      `
-        INSERT INTO project (id, user_id, name, description, created_at, updated_at)
-        VALUES (?, ?, ?, ?, ?, ?)
-      `,
-    ).run(projectId, userId, payload.name, payload.description, now, now);
-
-    const insertList = db.query(
-      `
-        INSERT INTO project_list (
-          id,
-          project_id,
-          user_id,
-          name,
-          huawei_cart_key,
-          huawei_cart_name,
-          huawei_last_synced_at,
-          huawei_last_error,
-          huawei_last_remote_updated_at,
-          created_at,
-          updated_at
-        )
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-      `,
-    );
-
-    const insertProduct = db.query(
-      `
-        INSERT INTO list_product (
-          id,
-          list_id,
-          project_id,
-          user_id,
-          service_code,
-          service_name,
-          product_type,
-          title,
-          quantity,
-          config_json,
-          pricing_json,
-          created_at,
-          updated_at
-        )
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-      `,
-    );
+    projectId = createProjectRecord({ id: projectId, userId, name: payload.name, description: payload.description, now });
 
     payload.lists.forEach((list) => {
-      const listId = crypto.randomUUID();
+      const listId = createListRecord({ projectId, userId, name: list.name, now });
       createdListIds.push(listId);
 
-      insertList.run(
+      importedProductCount += insertListProducts({
         listId,
         projectId,
         userId,
-        list.name,
-        null,
-        null,
-        null,
-        null,
-        null,
         now,
-        now,
-      );
-
-      list.products.forEach((product) => {
-        importedProductCount += 1;
-        insertProduct.run(
-          crypto.randomUUID(),
-          listId,
-          projectId,
-          userId,
-          product.serviceCode,
-          product.serviceName,
-          product.productType,
-          product.title,
-          product.quantity,
-          JSON.stringify(product.config ?? {}),
-          product.pricing == null ? null : JSON.stringify(product.pricing),
-          now,
-          now,
-        );
-      });
+        products: list.products,
+      }).length;
     });
   })();
 
@@ -245,80 +176,12 @@ export function importProjectPayload(userId: string, payload: ImportedProjectPay
 
 export function importCartPayload(userId: string, projectId: string, payload: ImportedCartPayload): ImportedCartResult {
   const now = new Date().toISOString();
-  const listId = crypto.randomUUID();
+  let listId = crypto.randomUUID();
 
   db.transaction(() => {
-    db.query(
-      `
-        INSERT INTO project_list (
-          id,
-          project_id,
-          user_id,
-          name,
-          huawei_cart_key,
-          huawei_cart_name,
-          huawei_last_synced_at,
-          huawei_last_error,
-          huawei_last_remote_updated_at,
-          created_at,
-          updated_at
-        )
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-      `,
-    ).run(
-      listId,
-      projectId,
-      userId,
-      payload.name,
-      null,
-      null,
-      null,
-      null,
-      null,
-      now,
-      now,
-    );
-
-    const insertProduct = db.query(
-      `
-        INSERT INTO list_product (
-          id,
-          list_id,
-          project_id,
-          user_id,
-          service_code,
-          service_name,
-          product_type,
-          title,
-          quantity,
-          config_json,
-          pricing_json,
-          created_at,
-          updated_at
-        )
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-      `,
-    );
-
-    payload.products.forEach((product) => {
-      insertProduct.run(
-        crypto.randomUUID(),
-        listId,
-        projectId,
-        userId,
-        product.serviceCode,
-        product.serviceName,
-        product.productType,
-        product.title,
-        product.quantity,
-        JSON.stringify(product.config ?? {}),
-        product.pricing == null ? null : JSON.stringify(product.pricing),
-        now,
-        now,
-      );
-    });
-
-    db.query("UPDATE project SET updated_at = ? WHERE id = ?").run(now, projectId);
+    listId = createListRecord({ id: listId, projectId, userId, name: payload.name, now });
+    insertListProducts({ listId, projectId, userId, now, products: payload.products });
+    touchProject(projectId, now);
   })();
 
   return {

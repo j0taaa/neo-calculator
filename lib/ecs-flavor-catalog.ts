@@ -99,7 +99,7 @@ const REGION_DISCOVERY_URL =
 const PRODUCT_INFO_URL =
   "https://portal-intl.huaweicloud.com/api/calculator/rest/cbc/portalcalculatornodeservice/v4/api/productInfo";
 const PRICE_URL =
-  "https://portal-intl.huaweicloud.com/api/cbc/global/rest/BSS/billing/ratingservice/v2/inquiry/resource?servieName=ecs";
+  "https://portal-intl.huaweicloud.com/api/cbc/global/rest/BSS/billing/ratingservice/v2/inquiry/resource?serviceName=ecs";
 const GPSSD_CODE = "GPSSD";
 const META_LAST_STARTED = "ecsCatalogLastStartedAt";
 const META_LAST_COMPLETED = "ecsCatalogLastCompletedAt";

@@ -1,0 +1,72 @@
+{
+  "$schema": "../../schemas/pricing-definition.schema.json",
+  "version": 1,
+  "definitionId": "eip",
+  "serviceCode": "EIP",
+  "serviceName": "Elastic IP",
+  "catalogAdapter": "eip",
+  "rateSources": {
+    "address": {
+      "catalogKey": "eip.addressRate"
+    },
+    "bandwidth": {
+      "catalogKey": "eip.bandwidthRate"
+    },
+    "traffic": {
+      "catalogKey": "eip.trafficRate"
+    },
+    "enhanced95": {
+      "catalogKey": "eip.enhanced95Rate"
+    }
+  },
+  "metrics": [
+    {
+      "id": "address",
+      "label": "Address",
+      "rateSource": "address",
+      "quantity": {
+        "source": "expression",
+        "expression": "1"
+      }
+    },
+    {
+      "id": "bandwidth",
+      "label": "Bandwidth",
+      "rateSource": "bandwidth",
+      "quantity": {
+        "source": "field",
+        "field": "bandwidthMbit"
+      },
+      "enabledWhen": {
+        "field": "showBandwidth",
+        "equals": true
+      }
+    },
+    {
+      "id": "traffic",
+      "label": "Traffic",
+      "rateSource": "traffic",
+      "quantity": {
+        "source": "field",
+        "field": "trafficAmount"
+      },
+      "enabledWhen": {
+        "field": "chargeMode",
+        "equals": "By traffic"
+      }
+    },
+    {
+      "id": "enhanced95",
+      "label": "Enhanced 95",
+      "rateSource": "enhanced95",
+      "quantity": {
+        "source": "expression",
+        "expression": "1"
+      },
+      "enabledWhen": {
+        "field": "chargeMode",
+        "equals": "Enhanced 95"
+      }
+    }
+  ]
+}

@@ -1,4 +1,5 @@
 import { db } from "@/lib/db";
+import { createListRecord, createProjectRecord, insertListProducts, mapStoredProductRow, type StoredProductRow } from "@/lib/resource-persistence";
 
 export type ShareResourceType = "project" | "list";
 export type ShareMode = "copy" | "collaborate";
@@ -103,18 +104,7 @@ export type SharedResourceSnapshot =
     };
 
 function mapProduct(product: ProductRow): SharedProductSnapshot {
-  return {
-    id: product.id,
-    serviceCode: product.service_code,
-    serviceName: product.service_name,
-    productType: product.product_type,
-    title: product.title,
-    quantity: product.quantity,
-    config: JSON.parse(product.config_json) as unknown,
-    pricing: product.pricing_json ? (JSON.parse(product.pricing_json) as unknown) : null,
-    createdAt: product.created_at,
-    updatedAt: product.updated_at,
-  };
+  return mapStoredProductRow(product as StoredProductRow);
 }
 
 function getOwnedProject(ownerUserId: string, projectId: string) {
@@ -344,74 +334,11 @@ export function importSharedCopyToUser(shareId: string, userId: string) {
     const newProjectName = `${snapshot.project.name} (Copy)`;
 
     db.transaction(() => {
-      db.query(
-        `
-          INSERT INTO project (id, user_id, name, description, created_at, updated_at)
-          VALUES (?, ?, ?, ?, ?, ?)
-        `,
-      ).run(newProjectId, userId, newProjectName, snapshot.project.description, now, now);
-
-      const insertList = db.query(
-        `
-          INSERT INTO project_list (
-            id,
-            project_id,
-            user_id,
-            name,
-            huawei_cart_key,
-            huawei_cart_name,
-            huawei_last_synced_at,
-            huawei_last_error,
-            huawei_last_remote_updated_at,
-            created_at,
-            updated_at
-          )
-          VALUES (?, ?, ?, ?, NULL, NULL, NULL, NULL, NULL, ?, ?)
-        `,
-      );
-
-      const insertProduct = db.query(
-        `
-          INSERT INTO list_product (
-            id,
-            list_id,
-            project_id,
-            user_id,
-            service_code,
-            service_name,
-            product_type,
-            title,
-            quantity,
-            config_json,
-            pricing_json,
-            created_at,
-            updated_at
-          )
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        `,
-      );
+      createProjectRecord({ id: newProjectId, userId, name: newProjectName, description: snapshot.project.description, now });
 
       for (const list of snapshot.project.lists) {
-        const newListId = crypto.randomUUID();
-        insertList.run(newListId, newProjectId, userId, list.name, now, now);
-
-        for (const product of list.products) {
-          insertProduct.run(
-            crypto.randomUUID(),
-            newListId,
-            newProjectId,
-            userId,
-            product.serviceCode,
-            product.serviceName,
-            product.productType,
-            product.title,
-            product.quantity,
-            JSON.stringify(product.config ?? {}),
-            product.pricing === undefined ? null : JSON.stringify(product.pricing),
-            now,
-            now,
-          );
-        }
+        const newListId = createListRecord({ projectId: newProjectId, userId, name: list.name, now });
+        insertListProducts({ listId: newListId, projectId: newProjectId, userId, now, products: list.products });
       }
     })();
 
@@ -427,70 +354,9 @@ export function importSharedCopyToUser(shareId: string, userId: string) {
   const projectName = `${snapshot.list.projectName} (Shared Copy)`;
 
   db.transaction(() => {
-    db.query(
-      `
-        INSERT INTO project (id, user_id, name, description, created_at, updated_at)
-        VALUES (?, ?, ?, NULL, ?, ?)
-      `,
-    ).run(newProjectId, userId, projectName, now, now);
-
-    db.query(
-      `
-        INSERT INTO project_list (
-          id,
-          project_id,
-          user_id,
-          name,
-          huawei_cart_key,
-          huawei_cart_name,
-          huawei_last_synced_at,
-          huawei_last_error,
-          huawei_last_remote_updated_at,
-          created_at,
-          updated_at
-        )
-        VALUES (?, ?, ?, ?, NULL, NULL, NULL, NULL, NULL, ?, ?)
-      `,
-    ).run(newListId, newProjectId, userId, `${snapshot.list.name} (Copy)`, now, now);
-
-    const insertProduct = db.query(
-      `
-        INSERT INTO list_product (
-          id,
-          list_id,
-          project_id,
-          user_id,
-          service_code,
-          service_name,
-          product_type,
-          title,
-          quantity,
-          config_json,
-          pricing_json,
-          created_at,
-          updated_at
-        )
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-      `,
-    );
-
-    for (const product of snapshot.list.products) {
-      insertProduct.run(
-        crypto.randomUUID(),
-        newListId,
-        newProjectId,
-        userId,
-        product.serviceCode,
-        product.serviceName,
-        product.productType,
-        product.title,
-        product.quantity,
-        JSON.stringify(product.config ?? {}),
-        product.pricing === undefined ? null : JSON.stringify(product.pricing),
-        now,
-        now,
-      );
-    }
+    createProjectRecord({ id: newProjectId, userId, name: projectName, description: null, now });
+    createListRecord({ id: newListId, projectId: newProjectId, userId, name: `${snapshot.list.name} (Copy)`, now });
+    insertListProducts({ listId: newListId, projectId: newProjectId, userId, now, products: snapshot.list.products });
   })();
 
   return {

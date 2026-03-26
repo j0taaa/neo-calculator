@@ -14,6 +14,7 @@ type ObsCalculatorPanelProps = {
   redundancy: string;
   redundancyOptions: string[];
   onRedundancyChange: (value: string) => void;
+  showRedundancySelector: boolean;
   storageAmount: string;
   storageUnit: string;
   storageUnitOptions: readonly string[];
@@ -34,14 +35,25 @@ type ObsCalculatorPanelProps = {
   onWriteRequestsChange: (value: string) => void;
   deleteRequests: string;
   onDeleteRequestsChange: (value: string) => void;
+  showPullTraffic: boolean;
   pullTrafficAmount: string;
   pullTrafficUnit: string;
   onPullTrafficAmountChange: (value: string) => void;
   onPullTrafficUnitChange: (value: string) => void;
+  restorationType: string | null;
+  restorationTypeOptions: string[];
+  onRestorationTypeChange: (value: string) => void;
+  readTrafficAmount: string;
+  readTrafficUnit: string;
+  onReadTrafficAmountChange: (value: string) => void;
+  onReadTrafficUnitChange: (value: string) => void;
+  showReplicationTraffic: boolean;
   replicationTrafficAmount: string;
   replicationTrafficUnit: string;
   onReplicationTrafficAmountChange: (value: string) => void;
   onReplicationTrafficUnitChange: (value: string) => void;
+  lifecycleTransitionRequests: string;
+  onLifecycleTransitionRequestsChange: (value: string) => void;
   pricingError?: string;
   pricingLoadingMessage?: string | null;
   selectionSummary: string;
@@ -86,6 +98,7 @@ export function ObsCalculatorPanel({
   redundancy,
   redundancyOptions,
   onRedundancyChange,
+  showRedundancySelector,
   storageAmount,
   storageUnit,
   storageUnitOptions,
@@ -106,14 +119,25 @@ export function ObsCalculatorPanel({
   onWriteRequestsChange,
   deleteRequests,
   onDeleteRequestsChange,
+  showPullTraffic,
   pullTrafficAmount,
   pullTrafficUnit,
   onPullTrafficAmountChange,
   onPullTrafficUnitChange,
+  restorationType,
+  restorationTypeOptions,
+  onRestorationTypeChange,
+  readTrafficAmount,
+  readTrafficUnit,
+  onReadTrafficAmountChange,
+  onReadTrafficUnitChange,
+  showReplicationTraffic,
   replicationTrafficAmount,
   replicationTrafficUnit,
   onReplicationTrafficAmountChange,
   onReplicationTrafficUnitChange,
+  lifecycleTransitionRequests,
+  onLifecycleTransitionRequestsChange,
   pricingError,
   pricingLoadingMessage,
   selectionSummary,
@@ -155,21 +179,28 @@ export function ObsCalculatorPanel({
           </Select>
         </div>
 
-        <div className="space-y-2">
-          <p className="text-sm font-medium">Data redundancy policy</p>
-          <Select value={redundancy} onValueChange={(value) => value && onRedundancyChange(value)}>
-            <SelectTrigger className="bg-white">
-              <SelectValue>{redundancy}</SelectValue>
-            </SelectTrigger>
-            <SelectContent>
-              {redundancyOptions.map((option) => (
-                <SelectItem key={option} value={option}>
-                  {option}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
+        {showRedundancySelector ? (
+          <div className="space-y-2">
+            <p className="text-sm font-medium">Data redundancy policy</p>
+            <Select value={redundancy} onValueChange={(value) => value && onRedundancyChange(value)}>
+              <SelectTrigger className="bg-white">
+                <SelectValue>{redundancy}</SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                {redundancyOptions.map((option) => (
+                  <SelectItem key={option} value={option}>
+                    {option}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        ) : (
+          <div className="space-y-2">
+            <p className="text-sm font-medium">Data redundancy policy</p>
+            <div className="rounded-lg border bg-zinc-50 px-3 py-2 text-sm text-zinc-600">{redundancy}</div>
+          </div>
+        )}
       </section>
 
       <section className="grid gap-4 md:grid-cols-[minmax(0,1fr)_180px_180px]">
@@ -236,35 +267,36 @@ export function ObsCalculatorPanel({
           </div>
         </div>
 
-        <div className="space-y-2">
-          <p className="text-sm font-medium">Pull traffic</p>
-          <div className="flex items-center gap-2">
-            <Input value={pullTrafficAmount} onChange={(event) => onPullTrafficAmountChange(event.target.value)} inputMode="decimal" className="bg-white" />
-            <Select value={pullTrafficUnit} onValueChange={(value) => value && onPullTrafficUnitChange(value)}>
-              <SelectTrigger className="w-24 bg-white">
-                <SelectValue>{pullTrafficUnit}</SelectValue>
-              </SelectTrigger>
-              <SelectContent>
-                {storageUnitOptions.map((option) => (
-                  <SelectItem key={option} value={option}>
-                    {option}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+        {showPullTraffic ? (
+          <div className="space-y-2">
+            <p className="text-sm font-medium">Pull traffic</p>
+            <div className="flex items-center gap-2">
+              <Input value={pullTrafficAmount} onChange={(event) => onPullTrafficAmountChange(event.target.value)} inputMode="decimal" className="bg-white" />
+              <Select value={pullTrafficUnit} onValueChange={(value) => value && onPullTrafficUnitChange(value)}>
+                <SelectTrigger className="w-24 bg-white">
+                  <SelectValue>{pullTrafficUnit}</SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  {storageUnitOptions.map((option) => (
+                    <SelectItem key={option} value={option}>
+                      {option}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
-        </div>
+        ) : null}
 
-        <div className="space-y-2">
-          <p className="text-sm font-medium">Cross-region replication traffic</p>
-          <div className="flex items-center gap-2">
-            <Input value={replicationTrafficAmount} onChange={(event) => onReplicationTrafficAmountChange(event.target.value)} inputMode="decimal" className="bg-white" />
-            <Select value={replicationTrafficUnit} onValueChange={(value) => value && onReplicationTrafficUnitChange(value)}>
-              <SelectTrigger className="w-24 bg-white">
-                <SelectValue>{replicationTrafficUnit}</SelectValue>
+        {restorationTypeOptions.length > 0 ? (
+          <div className="space-y-2">
+            <p className="text-sm font-medium">Restoration type</p>
+            <Select value={restorationType ?? ""} onValueChange={(value) => value && onRestorationTypeChange(value)}>
+              <SelectTrigger className="bg-white">
+                <SelectValue>{restorationType ?? restorationTypeOptions[0]}</SelectValue>
               </SelectTrigger>
               <SelectContent>
-                {storageUnitOptions.map((option) => (
+                {restorationTypeOptions.map((option) => (
                   <SelectItem key={option} value={option}>
                     {option}
                   </SelectItem>
@@ -272,7 +304,58 @@ export function ObsCalculatorPanel({
               </SelectContent>
             </Select>
           </div>
-        </div>
+        ) : null}
+
+        {restorationTypeOptions.length > 0 ? (
+          <div className="space-y-2">
+            <p className="text-sm font-medium">Read traffic</p>
+            <div className="flex items-center gap-2">
+              <Input value={readTrafficAmount} onChange={(event) => onReadTrafficAmountChange(event.target.value)} inputMode="decimal" className="bg-white" />
+              <Select value={readTrafficUnit} onValueChange={(value) => value && onReadTrafficUnitChange(value)}>
+                <SelectTrigger className="w-24 bg-white">
+                  <SelectValue>{readTrafficUnit}</SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  {storageUnitOptions.map((option) => (
+                    <SelectItem key={option} value={option}>
+                      {option}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+        ) : null}
+
+        {restorationTypeOptions.length > 0 ? (
+          <NumericField
+            label="Lifecycle transition requests"
+            value={lifecycleTransitionRequests}
+            onChange={onLifecycleTransitionRequestsChange}
+            suffix="x10,000"
+          />
+        ) : null}
+
+        {showReplicationTraffic ? (
+          <div className="space-y-2">
+            <p className="text-sm font-medium">Cross-region replication traffic</p>
+            <div className="flex items-center gap-2">
+              <Input value={replicationTrafficAmount} onChange={(event) => onReplicationTrafficAmountChange(event.target.value)} inputMode="decimal" className="bg-white" />
+              <Select value={replicationTrafficUnit} onValueChange={(value) => value && onReplicationTrafficUnitChange(value)}>
+                <SelectTrigger className="w-24 bg-white">
+                  <SelectValue>{replicationTrafficUnit}</SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  {storageUnitOptions.map((option) => (
+                    <SelectItem key={option} value={option}>
+                      {option}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+        ) : null}
 
         <div className="rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-3 text-sm text-zinc-600">
           Huawei charges requests in different blocks by storage class. Enter request counts in units of 10,000 below, so

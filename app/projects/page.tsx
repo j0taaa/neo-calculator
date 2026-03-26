@@ -1,16 +1,17 @@
 "use client";
 
 import Link from "next/link";
-import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
-import { authClient } from "@/lib/auth-client";
+import { formatDate, formatDateTime, formatNumber } from "@/lib/utils";
+import { useSessionContext } from "@/components/session-provider";
 import { huaweiRegions, type HuaweiRegionKey } from "@/lib/huawei-regions";
 import {
   buildListExportPayload,
@@ -59,8 +60,8 @@ function formatObsRequestSummary(value: number, label: string) {
 
   const normalized = value / 10_000;
   const displayValue = Number.isInteger(normalized)
-    ? normalized.toLocaleString()
-    : Number(normalized.toFixed(4)).toLocaleString();
+    ? formatNumber(normalized)
+    : formatNumber(Number(normalized.toFixed(4)));
   return `${displayValue} x 10k ${label}`;
 }
 
@@ -190,16 +191,262 @@ function getProductSpecsSummary(product: AppProduct) {
   const pullTrafficUnit = typeof product.config.pullTrafficUnit === "string"
     ? product.config.pullTrafficUnit
     : "GB";
+  const showPullTraffic = typeof product.config.productType === "string"
+    ? product.config.productType === "Object storage"
+    : true;
+  const readTrafficAmount = typeof product.config.readTrafficAmount === "number"
+    ? product.config.readTrafficAmount
+    : null;
+  const readTrafficUnit = typeof product.config.readTrafficUnit === "string"
+    ? product.config.readTrafficUnit
+    : "GB";
+  const restorationType = typeof product.config.restorationType === "string"
+    ? product.config.restorationType
+    : null;
   const replicationTrafficAmount = typeof product.config.replicationTrafficAmount === "number"
     ? product.config.replicationTrafficAmount
     : null;
   const replicationTrafficUnit = typeof product.config.replicationTrafficUnit === "string"
     ? product.config.replicationTrafficUnit
     : "GB";
+  const lifecycleTransitionRequests = typeof product.config.lifecycleTransitionRequests === "number"
+    ? product.config.lifecycleTransitionRequests
+    : null;
+  const elbType = typeof product.config.type === "string"
+    ? product.config.type
+    : null;
+  const elbSpecificationType = typeof product.config.specificationType === "string"
+    ? product.config.specificationType
+    : null;
+  const elbNetworkType = typeof product.config.networkType === "string"
+    ? product.config.networkType
+    : null;
+  const elbFixedAvailabilityAzCount = typeof product.config.fixedAvailabilityAzCount === "number"
+    ? product.config.fixedAvailabilityAzCount
+    : null;
+  const elbFixedSelectedTypes = Array.isArray(product.config.fixedSelectedTypes)
+    ? product.config.fixedSelectedTypes.filter((value): value is string => typeof value === "string")
+    : [];
+  const elbFixedTypeSpecs = isRecord(product.config.fixedTypeSpecs)
+    ? product.config.fixedTypeSpecs
+    : null;
+  const elbSharedChargeMode = typeof product.config.sharedChargeMode === "string"
+    ? product.config.sharedChargeMode
+    : null;
+  const elbSharedBandwidthMbit = typeof product.config.sharedBandwidthMbit === "number"
+    ? product.config.sharedBandwidthMbit
+    : null;
+  const elbSharedTrafficAmount = typeof product.config.sharedTrafficAmount === "number"
+    ? product.config.sharedTrafficAmount
+    : null;
+  const elbSharedTrafficUnit = typeof product.config.sharedTrafficUnit === "string"
+    ? product.config.sharedTrafficUnit
+    : null;
+  const elbSelectedProtocols = Array.isArray(product.config.selectedProtocols)
+    ? product.config.selectedProtocols.filter((value): value is string => typeof value === "string")
+    : [];
+  const elbEstimatedNetworkLcus = typeof product.config.estimatedNetworkLcus === "number"
+    ? product.config.estimatedNetworkLcus
+    : null;
+  const elbEstimatedApplicationLcus = typeof product.config.estimatedApplicationLcus === "number"
+    ? product.config.estimatedApplicationLcus
+    : null;
+  const elbEstimatedTotalLcus = typeof product.config.estimatedTotalLcus === "number"
+    ? product.config.estimatedTotalLcus
+    : null;
+  const elbSelectedNetworkSpecLcus = typeof product.config.selectedNetworkSpecLcus === "number"
+    ? product.config.selectedNetworkSpecLcus
+    : null;
+  const elbSelectedApplicationSpecLcus = typeof product.config.selectedApplicationSpecLcus === "number"
+    ? product.config.selectedApplicationSpecLcus
+    : null;
+  const eipType = typeof product.config.eipType === "string"
+    ? product.config.eipType
+    : null;
+  const eipAllocationType = typeof product.config.type === "string"
+    ? product.config.type
+    : null;
+  const natSize = typeof product.config.size === "string"
+    ? product.config.size
+    : null;
+  const natBillableDays = typeof product.config.billableDays === "number"
+    ? product.config.billableDays
+    : null;
+  const natUsageHours = typeof product.config.usageHours === "number"
+    ? product.config.usageHours
+    : null;
+  const vpnMode = typeof product.config.mode === "string"
+    ? product.config.mode
+    : null;
+  const vpnSpecification = typeof product.config.specification === "string"
+    ? product.config.specification
+    : null;
+  const vpnConnectionGroups = typeof product.config.connectionGroups === "number"
+    ? product.config.connectionGroups
+    : null;
+  const vpnDurationMonths = typeof product.config.durationMonths === "number"
+    ? product.config.durationMonths
+    : null;
+  const vpnUseSharedBandwidth = typeof product.config.useSharedBandwidth === "boolean"
+    ? product.config.useSharedBandwidth
+    : null;
+  const vpnEipBandwidthMbit1 = typeof product.config.eipBandwidthMbit1 === "number"
+    ? product.config.eipBandwidthMbit1
+    : null;
+  const vpnEipBandwidthMbit2 = typeof product.config.eipBandwidthMbit2 === "number"
+    ? product.config.eipBandwidthMbit2
+    : null;
+  const eipChargeMode = typeof product.config.chargeMode === "string"
+    ? product.config.chargeMode
+    : null;
+  const eipBandwidthMbit = typeof product.config.bandwidthMbit === "number"
+    ? product.config.bandwidthMbit
+    : null;
+  const eipDurationMonths = typeof product.config.durationMonths === "number"
+    ? product.config.durationMonths
+    : null;
+  const eipSharedBandwidthQuantity = typeof product.config.sharedBandwidthQuantity === "number"
+    ? product.config.sharedBandwidthQuantity
+    : null;
+  const eipTrafficAmount = typeof product.config.trafficAmount === "number"
+    ? product.config.trafficAmount
+    : null;
+  const eipTrafficUnit = typeof product.config.trafficUnit === "string"
+    ? product.config.trafficUnit
+    : "GB";
   const parts: string[] = [];
 
   if (obsProductType) {
     parts.push(obsProductType);
+  }
+
+  if (elbType) {
+    parts.push(elbType);
+  }
+
+  if (eipType) {
+    parts.push(eipType);
+  }
+
+  if (eipAllocationType) {
+    parts.push(eipAllocationType);
+  }
+
+  if (product.productType === "nat" && natSize) {
+    parts.push(natSize);
+  }
+
+  if (product.productType === "vpn" && vpnMode) {
+    parts.push(vpnMode);
+  }
+
+  if (product.productType === "vpn" && vpnSpecification) {
+    parts.push(vpnSpecification);
+  }
+
+  if (elbSpecificationType && elbType === "Dedicated load balancer") {
+    parts.push(elbSpecificationType);
+  }
+
+  if (elbType === "Dedicated load balancer" && elbSpecificationType === "Fixed" && typeof elbFixedAvailabilityAzCount === "number" && elbFixedAvailabilityAzCount > 0) {
+    parts.push(`${elbFixedAvailabilityAzCount} AZs`);
+  }
+
+  if (elbNetworkType) {
+    parts.push(elbNetworkType);
+  }
+
+  if (elbType === "Dedicated load balancer" && elbSpecificationType === "Fixed" && elbFixedSelectedTypes.length > 0) {
+    parts.push(
+      elbFixedSelectedTypes.map((type) => {
+        const spec = elbFixedTypeSpecs && typeof elbFixedTypeSpecs[type] === "string" ? elbFixedTypeSpecs[type] : null;
+        return spec ? `${type}: ${spec}` : type;
+      }).join(", "),
+    );
+  }
+
+  if (elbType === "Shared load balancer" && elbSharedChargeMode) {
+    parts.push(elbSharedChargeMode);
+  }
+
+  if (elbType === "Shared load balancer" && typeof elbSharedBandwidthMbit === "number" && Number.isFinite(elbSharedBandwidthMbit) && elbSharedBandwidthMbit > 0) {
+    parts.push(`${elbSharedBandwidthMbit} Mbit/s`);
+  }
+
+  if (elbType === "Shared load balancer" && typeof elbSharedTrafficAmount === "number" && Number.isFinite(elbSharedTrafficAmount) && elbSharedTrafficAmount > 0) {
+    parts.push(`${elbSharedTrafficAmount} ${elbSharedTrafficUnit ?? "GB"}`);
+  }
+
+  if (elbType === "Dedicated load balancer" && elbSpecificationType !== "Fixed" && elbSelectedProtocols.length > 0) {
+    parts.push(elbSelectedProtocols.join(", "));
+  }
+
+  if (typeof elbEstimatedTotalLcus === "number" && Number.isFinite(elbEstimatedTotalLcus) && elbEstimatedTotalLcus > 0) {
+    parts.push(`${elbEstimatedTotalLcus} LCU`);
+  }
+
+  if (typeof elbEstimatedNetworkLcus === "number" && Number.isFinite(elbEstimatedNetworkLcus) && elbEstimatedNetworkLcus > 0) {
+    parts.push(`Network ${elbEstimatedNetworkLcus} LCU`);
+  }
+
+  if (typeof elbEstimatedApplicationLcus === "number" && Number.isFinite(elbEstimatedApplicationLcus) && elbEstimatedApplicationLcus > 0) {
+    parts.push(`Application ${elbEstimatedApplicationLcus} LCU`);
+  }
+
+  if (typeof elbSelectedNetworkSpecLcus === "number" && Number.isFinite(elbSelectedNetworkSpecLcus) && elbSelectedNetworkSpecLcus > 0) {
+    parts.push(`Fixed network spec ${elbSelectedNetworkSpecLcus} LCU`);
+  }
+
+  if (typeof elbSelectedApplicationSpecLcus === "number" && Number.isFinite(elbSelectedApplicationSpecLcus) && elbSelectedApplicationSpecLcus > 0) {
+    parts.push(`Fixed application spec ${elbSelectedApplicationSpecLcus} LCU`);
+  }
+
+  if (eipChargeMode) {
+    parts.push(eipChargeMode);
+  }
+
+  if (typeof eipBandwidthMbit === "number" && Number.isFinite(eipBandwidthMbit) && eipBandwidthMbit > 0) {
+    parts.push(`${eipBandwidthMbit} Mbit/s`);
+  }
+
+  if (typeof eipDurationMonths === "number" && Number.isFinite(eipDurationMonths) && eipDurationMonths > 0) {
+    parts.push(`${eipDurationMonths}mo`);
+  }
+
+  if (typeof eipSharedBandwidthQuantity === "number" && Number.isFinite(eipSharedBandwidthQuantity) && eipSharedBandwidthQuantity > 0) {
+    parts.push(`${eipSharedBandwidthQuantity} shared bandwidth${eipSharedBandwidthQuantity === 1 ? "" : "s"}`);
+  }
+
+  if (typeof eipTrafficAmount === "number" && Number.isFinite(eipTrafficAmount) && eipTrafficAmount > 0) {
+    parts.push(`${eipTrafficAmount} ${eipTrafficUnit}`);
+  }
+
+  if (product.productType === "nat" && typeof natBillableDays === "number" && Number.isFinite(natBillableDays) && natBillableDays > 0) {
+    parts.push(`${natBillableDays}d`);
+  }
+
+  if (product.productType === "nat" && typeof natUsageHours === "number" && Number.isFinite(natUsageHours) && natUsageHours > 0) {
+    parts.push(`${natUsageHours}h`);
+  }
+
+  if (product.productType === "vpn" && typeof vpnConnectionGroups === "number" && Number.isFinite(vpnConnectionGroups) && vpnConnectionGroups > 0) {
+    parts.push(`${vpnConnectionGroups} groups`);
+  }
+
+  if (product.productType === "vpn" && vpnUseSharedBandwidth != null) {
+    parts.push(vpnUseSharedBandwidth ? "Shared bandwidth" : "Dedicated bandwidth");
+  }
+
+  if (product.productType === "vpn" && typeof vpnEipBandwidthMbit1 === "number" && Number.isFinite(vpnEipBandwidthMbit1) && vpnEipBandwidthMbit1 > 0) {
+    parts.push(`EIP1 ${vpnEipBandwidthMbit1} Mbit/s`);
+  }
+
+  if (product.productType === "vpn" && typeof vpnEipBandwidthMbit2 === "number" && Number.isFinite(vpnEipBandwidthMbit2) && vpnEipBandwidthMbit2 > 0) {
+    parts.push(`EIP2 ${vpnEipBandwidthMbit2} Mbit/s`);
+  }
+
+  if (product.productType === "vpn" && typeof vpnDurationMonths === "number" && Number.isFinite(vpnDurationMonths) && vpnDurationMonths > 0) {
+    parts.push(`${vpnDurationMonths}mo`);
   }
 
   if (storageClass) {
@@ -260,8 +507,16 @@ function getProductSpecsSummary(product: AppProduct) {
     parts.push(`Outbound ${outboundTrafficAmount} ${outboundTrafficUnit}`);
   }
 
-  if (typeof pullTrafficAmount === "number" && Number.isFinite(pullTrafficAmount) && pullTrafficAmount > 0) {
+  if (showPullTraffic && typeof pullTrafficAmount === "number" && Number.isFinite(pullTrafficAmount) && pullTrafficAmount > 0) {
     parts.push(`Pull ${pullTrafficAmount} ${pullTrafficUnit}`);
+  }
+
+  if (restorationType) {
+    parts.push(restorationType);
+  }
+
+  if (typeof readTrafficAmount === "number" && Number.isFinite(readTrafficAmount) && readTrafficAmount > 0) {
+    parts.push(`Read ${readTrafficAmount} ${readTrafficUnit}`);
   }
 
   if (typeof replicationTrafficAmount === "number" && Number.isFinite(replicationTrafficAmount) && replicationTrafficAmount > 0) {
@@ -281,6 +536,13 @@ function getProductSpecsSummary(product: AppProduct) {
   const deleteRequestSummary = typeof deleteRequests === "number" ? formatObsRequestSummary(deleteRequests, "deletes") : null;
   if (deleteRequestSummary) {
     parts.push(deleteRequestSummary);
+  }
+
+  const lifecycleTransitionSummary = typeof lifecycleTransitionRequests === "number"
+    ? formatObsRequestSummary(lifecycleTransitionRequests, "lifecycle transitions")
+    : null;
+  if (lifecycleTransitionSummary) {
+    parts.push(lifecycleTransitionSummary);
   }
 
   if (typeof minimumStorageDays === "number" && Number.isFinite(minimumStorageDays) && minimumStorageDays > 0) {
@@ -458,7 +720,12 @@ function ActionModal({
 }
 
 export default function ProjectsPage() {
-  const { data: session, isPending: isSessionPending } = authClient.useSession();
+  const { session, isPending: isSessionPending } = useSessionContext();
+  const hasMounted = useSyncExternalStore(
+    () => () => undefined,
+    () => true,
+    () => false,
+  );
   const [projects, setProjects] = useState<AppProject[]>([]);
   const [projectsLoading, setProjectsLoading] = useState(false);
   const [projectsError, setProjectsError] = useState("");
@@ -1777,7 +2044,24 @@ export default function ProjectsPage() {
     setProjectExportMessageErrors((current) => ({ ...current, [project.id]: false }));
 
     try {
-      const downloaded = await downloadProjectWorkbookFile(project);
+      // First, create a share link for the project
+      const shareResponse = await fetch("/api/share", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ 
+          resourceType: "project", 
+          resourceId: project.id, 
+          mode: "copy" 
+        }),
+      });
+      const sharePayload = (await shareResponse.json().catch(() => null)) as { shareUrl?: string; error?: string } | null;
+
+      // Get the full share URL or undefined if creation failed
+      const shareUrl = shareResponse.ok && sharePayload?.shareUrl
+        ? new URL(sharePayload.shareUrl, window.location.origin).toString()
+        : undefined;
+
+      const downloaded = await downloadProjectWorkbookFile(project, shareUrl);
       setProjectExportMessages((current) => ({
         ...current,
         [project.id]: downloaded ? "Excel export download started." : "Unable to start the Excel download in this browser.",
@@ -1856,24 +2140,25 @@ export default function ProjectsPage() {
   const isActiveListMoving = activeList ? movingListId === activeList.id : false;
   const isActiveListLinking = activeList ? linkingHuaweiListId === activeList.id : false;
   const isActiveListCloning = activeList ? cloningListId === activeList.id : false;
+  const showSessionState = hasMounted && !isSessionPending;
 
   return (
     <main className="min-h-screen bg-zinc-100 px-4 py-8 sm:px-6 lg:px-8">
       <div className="mx-auto max-w-6xl space-y-6">
-        {isSessionPending ? (
+        {!showSessionState ? (
           <Card>
             <CardContent className="py-12 text-center text-zinc-500">Checking session...</CardContent>
           </Card>
         ) : null}
-        {!isSessionPending && !session ? (
+        {showSessionState && !session ? (
           <Card className="mx-auto max-w-xl">
             <CardHeader>
               <CardTitle>Sign In To Save And Share</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4 text-sm text-zinc-500">
               <p>The calculator is available without an account, but saved carts, saved projects, and share links require sign-in.</p>
-              <Link href="/" className="inline-flex">
-                <Button type="button">Open Calculator</Button>
+              <Link href="/" className={buttonVariants()}>
+                Open Calculator
               </Link>
             </CardContent>
           </Card>
@@ -1886,7 +2171,7 @@ export default function ProjectsPage() {
               {projects.length} projects, {totals.listCount} carts, {totals.productCount} products.
             </p>
             {huaweiCartsSyncedAt ? (
-              <p className="mt-1 text-xs text-zinc-400">Huawei carts synced {new Date(huaweiCartsSyncedAt).toLocaleString()}</p>
+              <p className="mt-1 text-xs text-zinc-400">Huawei carts synced {formatDateTime(huaweiCartsSyncedAt)}</p>
             ) : null}
             {huaweiCartsError ? <p className="mt-1 text-xs text-red-600">{huaweiCartsError}</p> : null}
           </div>
@@ -1920,7 +2205,7 @@ export default function ProjectsPage() {
           }}
         />
 
-        {session ? (
+        {showSessionState && session ? (
         <Card className="overflow-hidden">
           <CardHeader className="pb-3">
             <div className="flex items-center justify-between gap-3">
@@ -2048,7 +2333,7 @@ export default function ProjectsPage() {
                               <p className="text-lg font-semibold text-zinc-950">{project.name}</p>
                               <p className="mt-1 text-sm text-zinc-500">
                                 {project.lists.length} carts · {project.lists.reduce((sum, list) => sum + list.productCount, 0)} products · Updated{" "}
-                                {new Date(project.updatedAt).toLocaleDateString()}
+                                {formatDate(project.updatedAt)}
                               </p>
                             </button>
                           )}
@@ -2255,7 +2540,7 @@ export default function ProjectsPage() {
                                                   {list.huaweiCartKey ? <Badge variant="secondary">Huawei linked</Badge> : null}
                                                 </div>
                                                 <p className="mt-1 text-sm text-zinc-500">
-                                                  {list.productCount} products · Created {new Date(list.createdAt).toLocaleDateString()}
+                                                  {list.productCount} products · Created {formatDate(list.createdAt)}
                                                 </p>
                                                 {list.huaweiCartName ? <p className="mt-1 text-xs text-zinc-400">{list.huaweiCartName}</p> : null}
                                               </div>
@@ -2320,7 +2605,7 @@ export default function ProjectsPage() {
                                                 ) : null}
                                                 {list.huaweiLastSyncedAt ? (
                                                   <p className="text-zinc-500">
-                                                    Last Huawei sync: {new Date(list.huaweiLastSyncedAt).toLocaleString()}
+                                                    Last Huawei sync: {formatDateTime(list.huaweiLastSyncedAt)}
                                                   </p>
                                                 ) : null}
                                                 {list.huaweiLastError ? <p className="text-red-600">{list.huaweiLastError}</p> : null}
@@ -2397,7 +2682,7 @@ export default function ProjectsPage() {
           />
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <p className="text-sm text-zinc-500">
-              {resourceExportActionMessage || `${resourceExportModal.json.split("\n").length.toLocaleString()} lines ready to copy or download.`}
+              {resourceExportActionMessage || `${formatNumber(resourceExportModal.json.split("\n").length)} lines ready to copy or download.`}
             </p>
             <div className="flex flex-wrap gap-2">
               <Button type="button" variant="outline" onClick={() => void handleCopyResourceExport()}>
@@ -2612,7 +2897,7 @@ export default function ProjectsPage() {
                 <p className="text-sm text-zinc-600">Linked to {activeList.huaweiCartName || activeList.huaweiCartKey}</p>
               ) : null}
               {activeList.huaweiLastSyncedAt ? (
-                <p className="text-sm text-zinc-500">Last Huawei sync: {new Date(activeList.huaweiLastSyncedAt).toLocaleString()}</p>
+                <p className="text-sm text-zinc-500">Last Huawei sync: {formatDateTime(activeList.huaweiLastSyncedAt)}</p>
               ) : null}
               {activeList.huaweiLastError ? <p className="text-sm text-red-600">{activeList.huaweiLastError}</p> : null}
               {activeListHuaweiMessage ? (

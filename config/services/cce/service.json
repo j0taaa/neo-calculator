@@ -1,0 +1,33 @@
+{
+  "$schema": "../../schemas/service-definition.schema.json",
+  "version": 1,
+  "definitionId": "cce",
+  "serviceCode": "CCE",
+  "serviceName": "Cloud Container Engine",
+  "icon": "https://res-static.hc-cdn.cn/cloudbu-site/public/product-banner-icon/Containers/CCE.png",
+  "implementation": "configurable",
+  "billingOptions": ["Pay-per-use", "Yearly/Monthly"],
+  "defaults": {
+    "clusterScale": "50 nodes",
+    "masterNodes": "3 Masters"
+  },
+  "fields": [
+    {
+      "id": "clusterScale",
+      "type": "select",
+      "label": "Cluster Scale",
+      "required": true,
+      "optionsSource": "catalog.clusterScales"
+    },
+    {
+      "id": "masterNodes",
+      "type": "select",
+      "label": "Master Nodes",
+      "required": true,
+      "optionsSource": "catalog.masterNodeCounts"
+    }
+  ],
+  "summary": {
+    "selectionTemplate": "{clusterScale} | {masterNodes}"
+  }
+}

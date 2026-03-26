@@ -1,49 +1,37 @@
-import { auth } from "@/lib/auth";
+import { getSessionFromHeaders, getTrimmedString, jsonError, readJsonBody } from "@/lib/api-route";
 import { db } from "@/lib/db";
 import { getProjectAccessForUser } from "@/lib/resource-access";
 
 export const runtime = "nodejs";
 
-async function getSession(headers: Headers) {
-  return auth.api.getSession({
-    headers,
-  });
-}
-
 export async function PATCH(
   request: Request,
   context: { params: Promise<{ projectId: string }> },
 ) {
-  const session = await getSession(request.headers);
+  const session = await getSessionFromHeaders(request.headers);
 
   if (!session) {
-    return Response.json({ error: "Unauthorized" }, { status: 401 });
+    return jsonError("Unauthorized", 401);
   }
 
   const { projectId } = await context.params;
-  const body = (await request.json().catch(() => null)) as
-    | {
-        name?: string;
-        description?: string | null;
-      }
-    | null;
+  const body = await readJsonBody<{ name?: string; description?: string | null }>(request);
+  const name = getTrimmedString(body?.name);
 
-  const name = body?.name?.trim();
-
-  if (!name) {
-    return Response.json({ error: "Project name is required" }, { status: 400 });
+  if (!body || !name) {
+    return jsonError("Project name is required");
   }
 
   const existingProject = getProjectAccessForUser(session.user.id, projectId);
   if (!existingProject) {
-    return Response.json({ error: "Project not found" }, { status: 404 });
+    return jsonError("Project not found", 404);
   }
   if (!existingProject.canRename) {
-    return Response.json({ error: "Only the project owner can rename this project" }, { status: 403 });
+    return jsonError("Only the project owner can rename this project", 403);
   }
 
   const now = new Date().toISOString();
-  const description = body?.description?.trim() || null;
+  const description = getTrimmedString(body.description) ?? null;
 
   db.query(
     `
@@ -65,20 +53,20 @@ export async function DELETE(
   request: Request,
   context: { params: Promise<{ projectId: string }> },
 ) {
-  const session = await getSession(request.headers);
+  const session = await getSessionFromHeaders(request.headers);
 
   if (!session) {
-    return Response.json({ error: "Unauthorized" }, { status: 401 });
+    return jsonError("Unauthorized", 401);
   }
 
   const { projectId } = await context.params;
 
   const existingProject = getProjectAccessForUser(session.user.id, projectId);
   if (!existingProject) {
-    return Response.json({ error: "Project not found" }, { status: 404 });
+    return jsonError("Project not found", 404);
   }
   if (!existingProject.canDelete) {
-    return Response.json({ error: "Only the project owner can delete this project" }, { status: 403 });
+    return jsonError("Only the project owner can delete this project", 403);
   }
 
   db.query("DELETE FROM project WHERE id = ?").run(projectId);

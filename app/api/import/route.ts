@@ -1,28 +1,20 @@
-import { auth } from "@/lib/auth";
+import { getSessionFromHeaders, jsonError, readJsonBody } from "@/lib/api-route";
 import { getProjectAccessForUser } from "@/lib/resource-access";
 import { importCartPayload, importProjectPayload, parseImportedResourcePayload } from "@/lib/resource-import";
 
 export const runtime = "nodejs";
 
-async function getSession(headers: Headers) {
-  return auth.api.getSession({
-    headers,
-  });
-}
-
 export async function POST(request: Request) {
-  const session = await getSession(request.headers);
+  const session = await getSessionFromHeaders(request.headers);
 
   if (!session) {
-    return Response.json({ error: "Unauthorized" }, { status: 401 });
+    return jsonError("Unauthorized", 401);
   }
 
-  const body = (await request.json().catch(() => null)) as
-    | { payload?: unknown; targetProjectId?: string }
-    | null;
+  const body = await readJsonBody<{ payload?: unknown; targetProjectId?: string }>(request);
 
   if (!body || body.payload === undefined) {
-    return Response.json({ error: "Import payload is required" }, { status: 400 });
+    return jsonError("Import payload is required");
   }
 
   try {
@@ -42,15 +34,15 @@ export async function POST(request: Request) {
 
     const targetProjectId = body.targetProjectId?.trim();
     if (!targetProjectId) {
-      return Response.json({ error: "targetProjectId is required when importing a cart" }, { status: 400 });
+      return jsonError("targetProjectId is required when importing a cart");
     }
 
     const project = getProjectAccessForUser(session.user.id, targetProjectId);
     if (!project) {
-      return Response.json({ error: "Project not found" }, { status: 404 });
+      return jsonError("Project not found", 404);
     }
     if (!project.canCreateLists) {
-      return Response.json({ error: "You do not have permission to import carts into this project" }, { status: 403 });
+      return jsonError("You do not have permission to import carts into this project", 403);
     }
 
     const result = importCartPayload(session.user.id, targetProjectId, payload);

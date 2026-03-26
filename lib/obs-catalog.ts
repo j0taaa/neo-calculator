@@ -24,6 +24,12 @@ export const obsRedundancyLabels = {
   dataInfo_5_: "Multi-AZ storage",
 } as const;
 
+export const obsRestorationTypeOptions = {
+  "Infrequent Access": ["Urgent: 1-5 minutes"],
+  Archive: ["Urgent: 1-5 minutes", "Standard: 3-5 hours", "Direct Reading"],
+  "Deep Archive": ["Urgent: 3-5 hours", "Standard: 5-12 hours"],
+} as const;
+
 export const obsMinimumStorageDays = {
   Standard: 0,
   "Infrequent Access": 30,
@@ -38,6 +44,10 @@ export type ObsProductType = (typeof obsProductTypeLabels)[keyof typeof obsProdu
 export type ObsStorageClass = (typeof obsStorageClassLabels)[keyof typeof obsStorageClassLabels];
 export type ObsRedundancy = (typeof obsRedundancyLabels)[keyof typeof obsRedundancyLabels];
 export type ObsCapacityUnit = (typeof obsCapacityUnits)[number];
+export type ObsRestorationType =
+  | (typeof obsRestorationTypeOptions)["Infrequent Access"][number]
+  | (typeof obsRestorationTypeOptions)["Archive"][number]
+  | (typeof obsRestorationTypeOptions)["Deep Archive"][number];
 
 export type ObsConditionalRate = {
   amount: number;
@@ -86,6 +96,8 @@ export type ObsPricingCatalog = {
   }>>;
   pullTrafficRate: ObsRateCard | null;
   replicationRate: ObsRateCard | null;
+  readTrafficRates: Partial<Record<ObsStorageClass, Partial<Record<ObsRestorationType, ObsRateCard>>>>;
+  lifecycleTransitionRates: Partial<Record<ObsStorageClass, ObsRateCard>>;
 };
 
 export type ObsEstimateInput = {
@@ -104,10 +116,14 @@ export type ObsEstimateInput = {
   pullTrafficUnit: ObsCapacityUnit;
   replicationTrafficAmount: number;
   replicationTrafficUnit: ObsCapacityUnit;
+  restorationType: ObsRestorationType | null;
+  readTrafficAmount: number;
+  readTrafficUnit: ObsCapacityUnit;
+  lifecycleTransitionRequests: number;
 };
 
 export type ObsEstimateBreakdownItem = {
-  key: "storage" | "outbound" | "read" | "write" | "delete" | "pull" | "replication";
+  key: "storage" | "outbound" | "read" | "write" | "delete" | "pull" | "replication" | "readTraffic" | "lifecycleTransition";
   label: string;
   amount: number;
 };
@@ -138,6 +154,38 @@ export function isObsRedundancy(value: unknown): value is ObsRedundancy {
 
 export function isObsCapacityUnit(value: unknown): value is ObsCapacityUnit {
   return typeof value === "string" && obsCapacityUnits.includes(value as ObsCapacityUnit);
+}
+
+export function isObsRestorationType(value: unknown): value is ObsRestorationType {
+  return typeof value === "string" && Object.values(obsRestorationTypeOptions).flat().includes(value as ObsRestorationType);
+}
+
+export function listObsRestorationTypes(storageClass: ObsStorageClass) {
+  return [...(obsRestorationTypeOptions[storageClass as keyof typeof obsRestorationTypeOptions] ?? [])];
+}
+
+export function getObsStorageClassOptions(productType: ObsProductType): ObsStorageClass[] {
+  if (productType === "Parallel file system") {
+    return ["Standard", "Archive"];
+  }
+
+  return ["Standard", "Infrequent Access", "Archive", "Deep Archive"];
+}
+
+export function shouldShowObsRedundancySelector(productType: ObsProductType, storageClass: ObsStorageClass) {
+  return productType === "Object storage" && (storageClass === "Standard" || storageClass === "Infrequent Access");
+}
+
+export function shouldShowObsPullTraffic(productType: ObsProductType) {
+  return productType === "Object storage";
+}
+
+export function getObsRedundancyOptions(productType: ObsProductType, storageClass: ObsStorageClass): ObsRedundancy[] {
+  if (shouldShowObsRedundancySelector(productType, storageClass)) {
+    return ["Single-AZ storage", "Multi-AZ storage"];
+  }
+
+  return ["Single-AZ storage"];
 }
 
 export function normalizeObsPositiveNumber(value: unknown, fallback: number, minimum = 0) {
@@ -236,15 +284,25 @@ export function listObsProductTypes(catalog: ObsPricingCatalog) {
 }
 
 export function listObsStorageClasses(catalog: ObsPricingCatalog, productType: ObsProductType) {
-  return [...new Set(catalog.variants.filter((variant) => variant.productType === productType).map((variant) => variant.storageClass))];
+  if (productType === "Parallel file system") {
+    return getObsStorageClassOptions(productType);
+  }
+
+  const fromCatalog = [...new Set(catalog.variants.filter((variant) => variant.productType === productType).map((variant) => variant.storageClass))];
+  const preferred = getObsStorageClassOptions(productType);
+
+  return preferred.filter((option) => fromCatalog.includes(option));
 }
 
 export function listObsRedundancies(catalog: ObsPricingCatalog, productType: ObsProductType, storageClass: ObsStorageClass) {
-  return [...new Set(
+  const fromCatalog = [...new Set(
     catalog.variants
       .filter((variant) => variant.productType === productType && variant.storageClass === storageClass)
       .map((variant) => variant.redundancy),
   )];
+  const preferred = getObsRedundancyOptions(productType, storageClass);
+
+  return preferred.filter((option) => fromCatalog.includes(option));
 }
 
 export function findObsPricingVariant(
@@ -272,8 +330,11 @@ export function estimateObsConfiguration(catalog: ObsPricingCatalog, input: ObsE
   const storageRateAmount = pickObsRateAmount(variant.storageRate);
   const storageCost = storageRateAmount == null ? 0 : storageRateAmount * storageAmountGb * durationHours;
   const outboundTrafficGb = convertObsCapacityToGb(input.outboundTrafficAmount, input.outboundTrafficUnit);
-  const pullTrafficGb = convertObsCapacityToGb(input.pullTrafficAmount, input.pullTrafficUnit);
+  const pullTrafficGb = shouldShowObsPullTraffic(input.productType)
+    ? convertObsCapacityToGb(input.pullTrafficAmount, input.pullTrafficUnit)
+    : 0;
   const replicationTrafficGb = convertObsCapacityToGb(input.replicationTrafficAmount, input.replicationTrafficUnit);
+  const readTrafficGb = convertObsCapacityToGb(input.readTrafficAmount, input.readTrafficUnit);
   const outboundCost = estimateTieredTrafficCost(catalog.outboundRates[input.storageClass] ?? {
     billingEvent: "",
     productId: null,
@@ -292,7 +353,25 @@ export function estimateObsConfiguration(catalog: ObsPricingCatalog, input: ObsE
   const pullCost = pullRateAmount == null ? 0 : pullRateAmount * pullTrafficGb;
   const replicationRateAmount = pickObsRateAmount(catalog.replicationRate ?? undefined);
   const replicationCost = replicationRateAmount == null ? 0 : replicationRateAmount * replicationTrafficGb;
-  const totalAmount = roundObsAmount(storageCost + outboundCost + readCost + writeCost + deleteCost + pullCost + replicationCost);
+  const readTrafficRateAmount = input.restorationType
+    ? pickObsRateAmount(catalog.readTrafficRates[input.storageClass]?.[input.restorationType])
+    : null;
+  const readTrafficCost = readTrafficRateAmount == null ? 0 : readTrafficRateAmount * readTrafficGb;
+  const lifecycleTransitionCost = estimateRequestCost(
+    catalog.lifecycleTransitionRates[input.storageClass],
+    input.lifecycleTransitionRequests,
+  );
+  const totalAmount = roundObsAmount(
+    storageCost
+      + outboundCost
+      + readCost
+      + writeCost
+      + deleteCost
+      + pullCost
+      + replicationCost
+      + readTrafficCost
+      + lifecycleTransitionCost,
+  );
   const notes: string[] = [];
 
   const outboundRate = catalog.outboundRates[input.storageClass];
@@ -314,6 +393,8 @@ export function estimateObsConfiguration(catalog: ObsPricingCatalog, input: ObsE
     { key: "delete", label: "Delete requests", amount: roundObsAmount(deleteCost) } satisfies ObsEstimateBreakdownItem,
     { key: "pull", label: "Pull traffic", amount: roundObsAmount(pullCost) } satisfies ObsEstimateBreakdownItem,
     { key: "replication", label: "Cross-region replication", amount: roundObsAmount(replicationCost) } satisfies ObsEstimateBreakdownItem,
+    { key: "readTraffic", label: "Read traffic", amount: roundObsAmount(readTrafficCost) } satisfies ObsEstimateBreakdownItem,
+    { key: "lifecycleTransition", label: "Lifecycle transition requests", amount: roundObsAmount(lifecycleTransitionCost) } satisfies ObsEstimateBreakdownItem,
   ].filter((item) => item.amount > 0);
 
   return {
@@ -362,7 +443,9 @@ export function buildObsHuaweiPayload(options: {
   const durationMonths = estimate.durationMonths;
   const storageAmountGb = estimate.storageAmountGb;
   const outboundTrafficGb = convertObsCapacityToGb(input.outboundTrafficAmount, input.outboundTrafficUnit);
-  const pullTrafficGb = convertObsCapacityToGb(input.pullTrafficAmount, input.pullTrafficUnit);
+  const pullTrafficGb = shouldShowObsPullTraffic(input.productType)
+    ? convertObsCapacityToGb(input.pullTrafficAmount, input.pullTrafficUnit)
+    : 0;
   const replicationTrafficGb = convertObsCapacityToGb(input.replicationTrafficAmount, input.replicationTrafficUnit);
   const requestRates = {
     read: buildObsRateCardIdentity(catalog?.requestRates[input.storageClass]?.read),

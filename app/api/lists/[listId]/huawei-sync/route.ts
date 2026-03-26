@@ -1,44 +1,27 @@
-import { auth } from "@/lib/auth";
+import { getSessionFromHeaders, jsonError, readJsonBody } from "@/lib/api-route";
 import { db } from "@/lib/db";
 import { HuaweiSessionError, pushLocalProductsToHuaweiCart } from "@/lib/huawei-calculator";
 import { getListAccessForUser } from "@/lib/resource-access";
+import { mapStoredProductRow, touchProject, type StoredProductRow } from "@/lib/resource-persistence";
 
 export const runtime = "nodejs";
-
-async function getSession(headers: Headers) {
-  return auth.api.getSession({
-    headers,
-  });
-}
-
-type ProductRow = {
-  id: string;
-  user_id: string;
-  service_code: string;
-  service_name: string;
-  product_type: string;
-  title: string;
-  quantity: number;
-  config_json: string;
-  pricing_json: string | null;
-};
 
 export async function POST(
   request: Request,
   context: { params: Promise<{ listId: string }> },
 ) {
-  const session = await getSession(request.headers);
+  const session = await getSessionFromHeaders(request.headers);
 
   if (!session) {
-    return Response.json({ error: "Unauthorized" }, { status: 401 });
+    return jsonError("Unauthorized", 401);
   }
 
   const { listId } = await context.params;
-  const body = (await request.json().catch(() => null)) as { cookie?: string } | null;
+  const body = await readJsonBody<{ cookie?: string }>(request);
   const cookie = body?.cookie?.trim() ?? "";
 
   if (!cookie) {
-    return Response.json({ error: "Huawei Cloud cookie is required" }, { status: 400 });
+    return jsonError("Huawei Cloud cookie is required");
   }
 
   const access = getListAccessForUser(session.user.id, listId);
@@ -55,7 +38,10 @@ export async function POST(
     | null;
 
   if (!list || !access) {
-    return Response.json({ error: "List not found" }, { status: 404 });
+    return jsonError("List not found", 404);
+  }
+  if (!access.canSyncHuawei) {
+    return jsonError("You do not have permission to sync this cart with Huawei Cloud", 403);
   }
 
   const productRows = db
@@ -67,18 +53,9 @@ export async function POST(
         ORDER BY updated_at DESC
       `,
     )
-    .all(listId) as ProductRow[];
+    .all(listId) as StoredProductRow[];
 
-  const products = productRows.map((product) => ({
-    id: product.id,
-    serviceCode: product.service_code,
-    serviceName: product.service_name,
-    productType: product.product_type,
-    title: product.title,
-    quantity: product.quantity,
-    config: JSON.parse(product.config_json) as unknown,
-    pricing: product.pricing_json ? (JSON.parse(product.pricing_json) as unknown) : null,
-  }));
+  const products = productRows.map(mapStoredProductRow);
 
   const now = new Date().toISOString();
 
@@ -104,7 +81,7 @@ export async function POST(
         `,
       ).run(syncedCart.key, syncedCart.name, now, now, listId);
 
-      db.query("UPDATE project SET updated_at = ? WHERE id = ?").run(now, list.project_id);
+      touchProject(list.project_id, now);
     })();
 
     return Response.json({
@@ -127,9 +104,9 @@ export async function POST(
     ).run(message, now, listId);
 
     if (error instanceof HuaweiSessionError) {
-      return Response.json({ error: message }, { status: 401 });
+      return jsonError(message, 401);
     }
 
-    return Response.json({ error: message }, { status: 400 });
+    return jsonError(message);
   }
 }

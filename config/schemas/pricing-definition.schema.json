@@ -1,0 +1,103 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://neocalculator.local/schemas/pricing-definition.schema.json",
+  "title": "NeoCalculator Pricing Definition",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["version", "definitionId", "serviceCode", "serviceName", "catalogAdapter", "rateSources", "metrics"],
+  "properties": {
+    "$schema": {
+      "type": "string"
+    },
+    "version": {
+      "type": "integer",
+      "const": 1
+    },
+    "definitionId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "serviceCode": {
+      "type": "string",
+      "minLength": 1
+    },
+    "serviceName": {
+      "type": "string",
+      "minLength": 1
+    },
+    "catalogAdapter": {
+      "type": "string",
+      "minLength": 1
+    },
+    "rateSources": {
+      "type": "object",
+      "minProperties": 1,
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["catalogKey"],
+        "properties": {
+          "catalogKey": {
+            "type": "string",
+            "minLength": 1
+          },
+          "description": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "metrics": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "label", "quantity", "rateSource"],
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "label": {
+            "type": "string",
+            "minLength": 1
+          },
+          "rateSource": {
+            "type": "string",
+            "minLength": 1
+          },
+          "quantity": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["source"],
+            "properties": {
+              "source": {
+                "type": "string",
+                "enum": ["field", "expression"]
+              },
+              "field": {
+                "type": "string"
+              },
+              "expression": {
+                "type": "string"
+              }
+            }
+          },
+          "unit": {
+            "type": "string"
+          },
+          "enabledWhen": {
+            "$ref": "service-definition.schema.json#/$defs/condition"
+          },
+          "notes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    }
+  }
+}

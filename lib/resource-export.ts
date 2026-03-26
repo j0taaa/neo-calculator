@@ -1,3 +1,5 @@
+import { huaweiRegions } from "@/lib/huawei-regions";
+
 type ExportProductLike = {
   serviceCode: string;
   serviceName: string;
@@ -27,32 +29,6 @@ type ExportProjectLike = {
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
-}
-
-function stringifyJson(value: unknown) {
-  if (value == null) {
-    return "";
-  }
-
-  try {
-    return JSON.stringify(value, null, 2);
-  } catch {
-    return String(value);
-  }
-}
-
-function getPricingSummary(pricing: unknown) {
-  if (isRecord(pricing) && typeof pricing.total === "string" && pricing.total.trim()) {
-    return pricing.total.trim();
-  }
-
-  if (isRecord(pricing) && typeof pricing.amount === "number" && Number.isFinite(pricing.amount)) {
-    const currency = typeof pricing.currency === "string" && pricing.currency.trim() ? pricing.currency.trim() : "USD";
-    const suffix = typeof pricing.suffix === "string" ? pricing.suffix : "";
-    return `${currency} ${pricing.amount.toFixed(4)}${suffix}`;
-  }
-
-  return "";
 }
 
 function getConfigSpecsSummary(config: unknown) {
@@ -95,6 +71,119 @@ function getConfigSpecsSummary(config: unknown) {
   }
 
   return parts.join(" | ");
+}
+
+function getRegionFromConfig(config: unknown): string {
+  if (!isRecord(config)) {
+    return "";
+  }
+  const region = config.region;
+  if (typeof region === "string") {
+    // Use proper capitalization from huaweiRegions if available
+    if (region in huaweiRegions) {
+      return huaweiRegions[region as keyof typeof huaweiRegions].short;
+    }
+    // Fallback: format the region key properly
+    return region
+      .split("-")
+      .map((part) => {
+        if (part.length <= 2) {
+          return part.toUpperCase();
+        }
+        return part.charAt(0).toUpperCase() + part.slice(1).toLowerCase();
+      })
+      .join("-");
+  }
+  return "";
+}
+
+function getDescriptionFromConfig(config: unknown, fallback: string): string {
+  if (!isRecord(config)) {
+    return fallback;
+  }
+  const description = config.description;
+  if (typeof description === "string" && description.trim()) {
+    return description.trim();
+  }
+  return fallback;
+}
+
+function parsePricingValue(pricing: unknown): { amount: number; hours: number | null; period: "hourly" | "monthly" | "yearly" | "total" } | null {
+  if (!isRecord(pricing)) {
+    return null;
+  }
+
+  // Try to get amount directly
+  let amount: number | null = null;
+  let hours: number | null = null;
+  let period: "hourly" | "monthly" | "yearly" | "total" = "total";
+
+  if (typeof pricing.amount === "number" && Number.isFinite(pricing.amount)) {
+    amount = pricing.amount;
+    const suffix = typeof pricing.suffix === "string" ? pricing.suffix : "";
+    if (suffix.includes("mo")) {
+      period = "monthly";
+    } else if (suffix.includes("yr")) {
+      period = "yearly";
+    } else if (suffix.includes("h")) {
+      // Check if it's a specific hour count like "744h" or just "h" for hourly
+      const hourMatch = suffix.match(/(\d+)h/);
+      if (hourMatch) {
+        hours = parseInt(hourMatch[1], 10);
+        period = "total"; // Amount is for the specified hours, not hourly rate
+      } else {
+        period = "hourly"; // True hourly rate
+      }
+    }
+  } else if (typeof pricing.total === "string") {
+    // Parse from total string like "USD 19.00/mo" or "USD 3.33/744h"
+    const match = pricing.total.match(/USD\s+([\d.]+)(?:\/(mo|yr|(\d+)h|h))?/);
+    if (match) {
+      amount = parseFloat(match[1]);
+      const suffix = match[2] || "";
+      if (suffix === "mo") {
+        period = "monthly";
+      } else if (suffix === "yr") {
+        period = "yearly";
+      } else if (suffix === "h") {
+        period = "hourly";
+      } else if (match[3]) {
+        // Matched specific hour count like "744"
+        hours = parseInt(match[3], 10);
+        period = "total";
+      }
+    }
+  }
+
+  if (amount === null || !Number.isFinite(amount)) {
+    return null;
+  }
+
+  return { amount, hours, period };
+}
+
+function getMonthlyPrice(pricing: unknown): number | null {
+  const parsed = parsePricingValue(pricing);
+  if (!parsed) return null;
+
+  switch (parsed.period) {
+    case "monthly":
+      return parsed.amount;
+    case "yearly":
+      return parsed.amount / 12;
+    case "hourly":
+      // Convert hourly rate to monthly (hourly * 744 hours)
+      return parsed.amount * 744;
+    case "total":
+      // If we have specific hours, calculate monthly based on that
+      if (parsed.hours && parsed.hours > 0) {
+        // Scale to monthly (744 hours)
+        return (parsed.amount / parsed.hours) * 744;
+      }
+      return parsed.amount;
+    default:
+      return parsed.amount;
+  }
 }
 
 function sanitizeSheetName(name: string) {
@@ -206,86 +295,298 @@ export function buildListExportPayload(project: ExportProjectLike, list: ExportL
   };
 }
 
-export async function buildProjectWorkbookBuffer(project: ExportProjectLike) {
-  const XLSX = await import("xlsx");
-  const workbook = XLSX.utils.book_new();
+export async function buildProjectWorkbookBuffer(project: ExportProjectLike, shareUrl?: string) {
+  const ExcelJS = await import("exceljs");
+  const workbook = new ExcelJS.Workbook();
   const usedNames = new Set<string>();
 
   if (!project.lists.length) {
-    const emptySheet = XLSX.utils.json_to_sheet([
-      {
-        Project: project.name,
-        Note: "This project has no carts to export.",
-      },
-    ]);
-    XLSX.utils.book_append_sheet(workbook, emptySheet, getUniqueSheetName("Project", usedNames));
-    return XLSX.write(workbook, { bookType: "xlsx", type: "array" }) as ArrayBuffer;
+    const worksheet = workbook.addWorksheet(getUniqueSheetName("Project", usedNames));
+    worksheet.addRow(["Project", project.name]);
+    worksheet.addRow(["Note", "This project has no carts to export."]);
+    const buffer = await workbook.xlsx.writeBuffer();
+    return buffer as ArrayBuffer;
   }
 
-  project.lists.forEach((list) => {
-    const rows = list.products.length
-      ? list.products.map((product, index) => ({
-          Index: index + 1,
-          Project: project.name,
-          Cart: list.name,
-          Service: product.serviceName,
-          ServiceCode: product.serviceCode,
-          ProductType: product.productType,
-          Title: product.title,
-          Quantity: product.quantity,
-          Specs: getConfigSpecsSummary(product.config),
-          PricingSummary: getPricingSummary(product.pricing),
-          ConfigJson: stringifyJson(product.config),
-          PricingJson: stringifyJson(product.pricing),
-          CreatedAt: product.createdAt ?? "",
-          UpdatedAt: product.updatedAt ?? "",
-        }))
-      : [
-          {
-            Index: 1,
-            Project: project.name,
-            Cart: list.name,
-            Service: "",
-            ServiceCode: "",
-            ProductType: "",
-            Title: "",
-            Quantity: 0,
-            Specs: "",
-            PricingSummary: "",
-            ConfigJson: "",
-            PricingJson: "",
-            CreatedAt: "",
-            UpdatedAt: "",
-            Note: "This cart has no saved resources.",
-          },
-        ];
+  // Create Summary sheet first
+  const summarySheet = workbook.addWorksheet("Summary");
+  summarySheet.views = [{ showGridLines: false }];
 
-    const sheet = XLSX.utils.json_to_sheet(rows);
-    sheet["!cols"] = [
-      { wch: 8 },
-      { wch: 24 },
-      { wch: 24 },
-      { wch: 24 },
-      { wch: 16 },
-      { wch: 18 },
-      { wch: 30 },
-      { wch: 10 },
-      { wch: 30 },
-      { wch: 20 },
-      { wch: 36 },
-      { wch: 36 },
-      { wch: 24 },
-      { wch: 24 },
-      { wch: 28 },
-    ];
-    XLSX.utils.book_append_sheet(workbook, sheet, getUniqueSheetName(list.name, usedNames));
+  // Summary sheet column widths
+  summarySheet.columns = [
+    { width: 8 },       // A: No
+    { width: 32 },      // B: Name
+    { width: 25.85 },   // C: Yearly Price (US$) - 345 pixels
+    { width: 25.85 },   // D: Monthly Price (US$) - 345 pixels
+  ];
+
+  // Summary title row
+  const summaryTitleRow = summarySheet.addRow([`${project.name} - Huawei Cloud`]);
+  summaryTitleRow.height = 34.80;
+  summarySheet.mergeCells("A1:D1");
+  summaryTitleRow.getCell(1).font = { name: "Arial", size: 20, bold: true };
+  summaryTitleRow.getCell(1).alignment = { horizontal: "center", vertical: "middle" };
+  summaryTitleRow.getCell(1).border = {
+    top: { style: "thin", color: { argb: "000000" } },
+    bottom: { style: "thin", color: { argb: "000000" } },
+    left: { style: "thin", color: { argb: "000000" } },
+    right: { style: "thin", color: { argb: "000000" } },
+  };
+
+  // Summary header row
+  const summaryHeaders = ["No", "Name", "Yearly Price (US$)", "Monthly Price (US$)"];
+  const summaryHeaderRow = summarySheet.addRow(summaryHeaders);
+  summaryHeaderRow.height = 34.80;
+  summaryHeaderRow.eachCell((cell) => {
+    cell.font = { name: "Arial", size: 14, bold: true, color: { argb: "FFFFFF" } };
+    cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "003366" } };
+    cell.border = {
+      top: { style: "thin", color: { argb: "000000" } },
+      bottom: { style: "thin", color: { argb: "000000" } },
+      left: { style: "thin", color: { argb: "000000" } },
+      right: { style: "thin", color: { argb: "000000" } },
+    };
+    cell.alignment = { horizontal: "center", vertical: "middle" };
   });
 
-  return XLSX.write(workbook, { bookType: "xlsx", type: "array" }) as ArrayBuffer;
+  // Summary data rows - we'll add formulas after creating individual sheets
+  const summaryDataRowCount = project.lists.length;
+  project.lists.forEach((list, index) => {
+    const row = summarySheet.addRow([
+      index + 1,
+      list.name,
+      0, // Placeholder, will be replaced with formula
+      0, // Placeholder, will be replaced with formula
+    ]);
+    row.height = 34.80;
+
+    row.eachCell((cell, colNum) => {
+      cell.font = { name: "Arial", size: 14 };
+      cell.border = {
+        top: { style: "thin", color: { argb: "000000" } },
+        bottom: { style: "thin", color: { argb: "000000" } },
+        left: { style: "thin", color: { argb: "000000" } },
+        right: { style: "thin", color: { argb: "000000" } },
+      };
+
+      if (colNum === 1) { // No
+        cell.alignment = { horizontal: "center", vertical: "middle" };
+      } else if (colNum === 2) { // Name
+        cell.alignment = { horizontal: "center", vertical: "middle" };
+      } else if (colNum === 3 || colNum === 4) { // Prices - accounting format
+        cell.alignment = { horizontal: "right", vertical: "middle" };
+        cell.numFmt = '"$"* #,##0.00';
+      }
+    });
+  });
+
+  // Add hyperlink row
+  const linkRowNum = summaryDataRowCount + 3;
+  const linkRow = summarySheet.addRow(["Open project in calculator"]);
+  linkRow.height = 34.80;
+  summarySheet.mergeCells(`A${linkRowNum}:D${linkRowNum}`);
+  const linkCell = linkRow.getCell(1);
+  linkCell.font = { name: "Arial", size: 14, color: { argb: "0563C1" }, underline: "single" };
+  linkCell.alignment = { horizontal: "center", vertical: "middle" };
+  linkCell.border = {
+    top: { style: "thin", color: { argb: "000000" } },
+    bottom: { style: "thin", color: { argb: "000000" } },
+    left: { style: "thin", color: { argb: "000000" } },
+    right: { style: "thin", color: { argb: "000000" } },
+  };
+  // Hyperlink will be set after we know the sheet names
+
+  // First pass: create all worksheets and track their info
+  const listSheetInfo: Array<{ name: string; totalRowNum: number | null }> = [];
+
+  project.lists.forEach((list) => {
+    const sheetName = getUniqueSheetName(list.name, usedNames);
+    const worksheet = workbook.addWorksheet(sheetName);
+    listSheetInfo.push({ name: sheetName, totalRowNum: null });
+
+    // Hide gridlines by default
+    worksheet.views = [{ showGridLines: false }];
+
+    if (!list.products.length) {
+      const emptyHeaderRow = worksheet.addRow(["No", "Service", "Region", "Specifications", "Quantity", "Monthly Price", "Yearly Price", "Comments"]);
+      emptyHeaderRow.height = 34.80;
+      const emptyRow1 = worksheet.addRow(["", "", "", "", "", "", "", ""]);
+      emptyRow1.height = 34.80;
+      const emptyRow2 = worksheet.addRow(["", "This cart has no saved resources.", "", "", "", "", "", ""]);
+      emptyRow2.height = 34.80;
+      return;
+    }
+
+    const dataRowCount = list.products.length;
+    const totalRowNum = 3 + dataRowCount; // Row 1=title, Row 2=header, Row 3+ = data, last row = total
+
+    // Track this sheet's info for Summary formulas
+    listSheetInfo[listSheetInfo.length - 1] = { name: sheetName, totalRowNum };
+
+    // Set column widths
+    worksheet.columns = [
+      { width: 6 },       // A: No
+      { width: 32 },      // B: Service
+      { width: 14 },      // C: Region
+      { width: 45 },      // D: Specifications
+      { width: 11.31 },   // E: Quantity (156 pixels)
+      { width: 20.31 },   // F: Monthly Price (231 pixels)
+      { width: 20.31 },   // G: Yearly Price (273 pixels)
+      { width: 20 },      // H: Comments
+    ];
+
+    // Title row (row 1) - merged A1:H1
+    const titleRow = worksheet.addRow([list.name]);
+    titleRow.height = 34.80;
+    worksheet.mergeCells("A1:H1");
+    titleRow.getCell(1).font = { name: "Arial", size: 20, bold: true };
+    titleRow.getCell(1).alignment = { horizontal: "center", vertical: "middle" };
+    titleRow.getCell(1).border = {
+      top: { style: "thin", color: { argb: "000000" } },
+      bottom: { style: "thin", color: { argb: "000000" } },
+      left: { style: "thin", color: { argb: "000000" } },
+      right: { style: "thin", color: { argb: "000000" } },
+    };
+
+    // Header row (row 2) - blue background, white bold text
+    const headers = ["No", "Service", "Region", "Specifications", "Quantity", "Monthly Price", "Yearly Price", "Comments"];
+    const headerRow = worksheet.addRow(headers);
+    headerRow.height = 34.80;
+    headerRow.eachCell((cell) => {
+      cell.font = { name: "Arial", size: 14, bold: true, color: { argb: "FFFFFF" } };
+      cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "003366" } };
+      cell.border = {
+        top: { style: "thin", color: { argb: "000000" } },
+        bottom: { style: "thin", color: { argb: "000000" } },
+        left: { style: "thin", color: { argb: "000000" } },
+        right: { style: "thin", color: { argb: "000000" } },
+      };
+      cell.alignment = { horizontal: "center", vertical: "middle" };
+    });
+
+    // Data rows (row 3 onwards)
+    list.products.forEach((product, index) => {
+      const monthlyPrice = getMonthlyPrice(product.pricing);
+      const specs = getConfigSpecsSummary(product.config);
+      const title = product.title || "";
+      const specifications = title + (specs ? ` | ${specs}` : "");
+      const quantity = product.quantity || 1;
+      const excelRowNum = index + 3;
+
+      const row = worksheet.addRow([
+        index + 1,                                          // No
+        getDescriptionFromConfig(product.config, product.serviceName), // Service (description or service name)
+        getRegionFromConfig(product.config),                // Region
+        specifications,                                     // Specifications
+        quantity,                                           // Quantity
+        monthlyPrice ?? 0,                                  // Monthly Price
+        { formula: `F${excelRowNum}*12` },                  // Yearly Price formula
+        "",                                                 // Comments
+      ]);
+      row.height = 34.80;
+
+      // Apply styling to each cell
+      row.eachCell((cell, colNum) => {
+        cell.font = { name: "Arial", size: 14 };
+        cell.border = {
+          top: { style: "thin", color: { argb: "000000" } },
+          bottom: { style: "thin", color: { argb: "000000" } },
+          left: { style: "thin", color: { argb: "000000" } },
+          right: { style: "thin", color: { argb: "000000" } },
+        };
+
+        // Column-specific styling
+        if (colNum === 1 || colNum === 5) { // No, Quantity
+          cell.alignment = { horizontal: "center", vertical: "middle" };
+        } else if (colNum === 3) { // Region - centered with wrap text
+          cell.alignment = { horizontal: "center", vertical: "middle", wrapText: true };
+        } else if (colNum === 4) { // Specifications - left with wrap text
+          cell.alignment = { horizontal: "left", vertical: "middle", wrapText: true };
+        } else if (colNum === 6 || colNum === 7) { // Monthly Price, Yearly Price - accounting format
+          cell.alignment = { horizontal: "right", vertical: "middle" };
+          cell.numFmt = '"$"* #,##0.00';
+        } else {
+          cell.alignment = { horizontal: "left", vertical: "middle" };
+        }
+      });
+    });
+
+    // Total row
+    const totalRow = worksheet.addRow([
+      "Total", // No column (will be merged with B, C, D, E)
+      "",      // Service
+      "",      // Region
+      "",      // Specifications
+      "",      // Quantity
+      { formula: `SUM(F3:F${totalRowNum - 1})` }, // Monthly Price Total
+      { formula: `SUM(G3:G${totalRowNum - 1})` }, // Yearly Price Total
+      "",      // Comments
+    ]);
+    totalRow.height = 34.80;
+
+    // Merge cells A:E in Total row
+    worksheet.mergeCells(`A${totalRowNum}:E${totalRowNum}`);
+
+    // Style Total row
+    totalRow.eachCell((cell, colNum) => {
+      cell.border = {
+        top: { style: "thin", color: { argb: "000000" } },
+        bottom: { style: "thin", color: { argb: "000000" } },
+        left: { style: "thin", color: { argb: "000000" } },
+        right: { style: "thin", color: { argb: "000000" } },
+      };
+
+      if (colNum === 1) { // Total label (now in column A)
+        cell.font = { name: "Arial", size: 14, bold: true };
+        cell.alignment = { horizontal: "center", vertical: "middle" };
+      } else if (colNum === 6 || colNum === 7) { // Totals - accounting format
+        cell.font = { name: "Arial", size: 14, bold: true };
+        cell.alignment = { horizontal: "right", vertical: "middle" };
+        cell.numFmt = '"$"* #,##0.00';
+      }
+    });
+  });
+
+  // Second pass: Update Summary sheet with formulas referencing individual sheets
+  const summaryDataStartRow = 3;
+  project.lists.forEach((list, index) => {
+    const sheetInfo = listSheetInfo[index];
+    if (sheetInfo?.totalRowNum != null) {
+      const summaryRowNum = summaryDataStartRow + index;
+      // Yearly Price formula: ='SheetName'!G{totalRowNum}
+      const yearlyPriceCell = summarySheet.getCell(summaryRowNum, 3);
+      yearlyPriceCell.value = { formula: `'${sheetInfo.name}'!G${sheetInfo.totalRowNum}` };
+      yearlyPriceCell.numFmt = '"$"* #,##0.00';
+
+      // Monthly Price formula: ='SheetName'!F{totalRowNum}
+      const monthlyPriceCell = summarySheet.getCell(summaryRowNum, 4);
+      monthlyPriceCell.value = { formula: `'${sheetInfo.name}'!F${sheetInfo.totalRowNum}` };
+      monthlyPriceCell.numFmt = '"$"* #,##0.00';
+    } else {
+      const summaryRowNum = summaryDataStartRow + index;
+      summarySheet.getCell(summaryRowNum, 3).value = 0;
+      summarySheet.getCell(summaryRowNum, 4).value = 0;
+    }
+  });
+
+  // Update hyperlink cell (cell was already created earlier)
+  const finalLinkRowNum = project.lists.length + 3;
+  const finalLinkCell = summarySheet.getCell(finalLinkRowNum, 1);
+  // Use the provided shareUrl or fallback to a placeholder message
+  if (shareUrl) {
+    finalLinkCell.value = { text: "Open project in calculator", hyperlink: shareUrl };
+  } else {
+    // If no share URL provided, just show text without hyperlink
+    finalLinkCell.value = "Open project in calculator";
+    finalLinkCell.font = { name: "Arial", size: 14, color: { argb: "666666" } };
+  }
+
+  const buffer = await workbook.xlsx.writeBuffer();
+  return buffer as ArrayBuffer;
 }
 
-export async function downloadProjectWorkbookFile(project: ExportProjectLike) {
-  const buffer = await buildProjectWorkbookBuffer(project);
+export async function downloadProjectWorkbookFile(project: ExportProjectLike, shareUrl?: string) {
+  const buffer = await buildProjectWorkbookBuffer(project, shareUrl);
   const blob = new Blob(
     [buffer],
     { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" },

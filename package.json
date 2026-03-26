@@ -7,15 +7,17 @@
     "build": "bunx --bun next build",
     "start": "bunx --bun next start",
     "lint": "eslint",
+    "test": "bun test",
     "db:migrate": "bunx --bun @better-auth/cli migrate --config ./lib/auth.ts --yes",
     "test:ecs-sync": "bun run scripts/test-ecs-flavor-sync.ts",
-    "test:huawei-sync": "bun run scripts/test-huawei-cart-sync.ts"
+    "test:huawei-sync": "HWC_DISABLE_PROXY=1 bun run scripts/test-huawei-cart-sync.ts"
   },
   "dependencies": {
     "@base-ui/react": "^1.2.0",
     "better-auth": "^1.5.4",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
+    "exceljs": "^4.4.0",
     "lucide-react": "^0.577.0",
     "next": "16.1.6",
     "react": "19.2.3",

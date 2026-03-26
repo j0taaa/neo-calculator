@@ -1,14 +1,9 @@
-import { auth } from "@/lib/auth";
+import { getSessionFromHeaders, jsonError, readJsonBody } from "@/lib/api-route";
 import { db } from "@/lib/db";
 import { getListAccessForUser } from "@/lib/resource-access";
+import { touchProject } from "@/lib/resource-persistence";
 
 export const runtime = "nodejs";
-
-async function getSession(headers: Headers) {
-  return auth.api.getSession({
-    headers,
-  });
-}
 
 type UpdateListProductBody = {
   serviceCode?: string;
@@ -24,30 +19,30 @@ export async function PATCH(
   request: Request,
   context: { params: Promise<{ listId: string; productId: string }> },
 ) {
-  const session = await getSession(request.headers);
+  const session = await getSessionFromHeaders(request.headers);
 
   if (!session) {
-    return Response.json({ error: "Unauthorized" }, { status: 401 });
+    return jsonError("Unauthorized", 401);
   }
 
   const { listId, productId } = await context.params;
-  const body = (await request.json()) as UpdateListProductBody;
+  const body = await readJsonBody<UpdateListProductBody>(request);
   const listAccess = getListAccessForUser(session.user.id, listId);
 
-  const serviceCode = body.serviceCode?.trim();
-  const serviceName = body.serviceName?.trim();
-  const productType = body.productType?.trim();
-  const title = body.title?.trim();
-  const quantity = Math.max(1, Math.floor(body.quantity ?? 1));
+  const serviceCode = body?.serviceCode?.trim();
+  const serviceName = body?.serviceName?.trim();
+  const productType = body?.productType?.trim();
+  const title = body?.title?.trim();
+  const quantity = Math.max(1, Math.floor(body?.quantity ?? 1));
 
   if (!serviceCode || !serviceName || !productType || !title) {
-    return Response.json({ error: "serviceCode, serviceName, productType, and title are required" }, { status: 400 });
+    return jsonError("serviceCode, serviceName, productType, and title are required");
   }
   if (!listAccess) {
-    return Response.json({ error: "List not found" }, { status: 404 });
+    return jsonError("List not found", 404);
   }
   if (!listAccess.canEditProducts) {
-    return Response.json({ error: "You do not have permission to edit this cart" }, { status: 403 });
+    return jsonError("You do not have permission to edit this cart", 403);
   }
 
   const product = db
@@ -61,12 +56,12 @@ export async function PATCH(
     .get(productId, listId) as { list_id: string; project_id: string } | null;
 
   if (!product) {
-    return Response.json({ error: "Product not found" }, { status: 404 });
+    return jsonError("Product not found", 404);
   }
 
   const now = new Date().toISOString();
-  const configJson = JSON.stringify(body.config ?? {});
-  const pricingJson = body.pricing === undefined ? null : JSON.stringify(body.pricing);
+  const configJson = JSON.stringify(body?.config ?? {});
+  const pricingJson = body?.pricing === undefined ? null : JSON.stringify(body.pricing);
 
   db.transaction(() => {
     db.query(
@@ -97,7 +92,7 @@ export async function PATCH(
     );
 
     db.query("UPDATE project_list SET updated_at = ? WHERE id = ?").run(now, listId);
-    db.query("UPDATE project SET updated_at = ? WHERE id = ?").run(now, product.project_id);
+    touchProject(product.project_id, now);
   })();
 
   return Response.json({
@@ -106,32 +101,32 @@ export async function PATCH(
     projectId: product.project_id,
     serviceCode,
     serviceName,
-    productType,
-    title,
-    quantity,
-    config: body.config ?? {},
-    pricing: body.pricing ?? null,
-    updatedAt: now,
-  });
+      productType,
+      title,
+      quantity,
+      config: body?.config ?? {},
+      pricing: body?.pricing ?? null,
+      updatedAt: now,
+    });
 }
 
 export async function DELETE(
   request: Request,
   context: { params: Promise<{ listId: string; productId: string }> },
 ) {
-  const session = await getSession(request.headers);
+  const session = await getSessionFromHeaders(request.headers);
 
   if (!session) {
-    return Response.json({ error: "Unauthorized" }, { status: 401 });
+    return jsonError("Unauthorized", 401);
   }
 
   const { listId, productId } = await context.params;
   const listAccess = getListAccessForUser(session.user.id, listId);
   if (!listAccess) {
-    return Response.json({ error: "List not found" }, { status: 404 });
+    return jsonError("List not found", 404);
   }
   if (!listAccess.canEditProducts) {
-    return Response.json({ error: "You do not have permission to edit this cart" }, { status: 403 });
+    return jsonError("You do not have permission to edit this cart", 403);
   }
   const product = db
     .query(
@@ -144,7 +139,7 @@ export async function DELETE(
     .get(productId, listId) as { id: string; project_id: string } | null;
 
   if (!product) {
-    return Response.json({ error: "Product not found" }, { status: 404 });
+    return jsonError("Product not found", 404);
   }
 
   const now = new Date().toISOString();
@@ -152,7 +147,7 @@ export async function DELETE(
   db.transaction(() => {
     db.query("DELETE FROM list_product WHERE id = ? AND list_id = ?").run(productId, listId);
     db.query("UPDATE project_list SET updated_at = ? WHERE id = ?").run(now, listId);
-    db.query("UPDATE project SET updated_at = ? WHERE id = ?").run(now, product.project_id);
+    touchProject(product.project_id, now);
   })();
 
   return Response.json({

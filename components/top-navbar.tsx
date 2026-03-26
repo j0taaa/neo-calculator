@@ -2,6 +2,9 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useSyncExternalStore } from "react";
+import { authClient } from "@/lib/auth-client";
+import { useSessionContext } from "@/components/session-provider";
 
 function isActive(pathname: string, href: string) {
   if (href === "/") {
@@ -13,6 +16,14 @@ function isActive(pathname: string, href: string) {
 
 export function TopNavbar() {
   const pathname = usePathname();
+  const { session, isPending } = useSessionContext();
+  const hasMounted = useSyncExternalStore(
+    () => () => undefined,
+    () => true,
+    () => false,
+  );
+
+  const showSessionUi = hasMounted && !isPending;
 
   if (pathname === "/") {
     return null;
@@ -22,20 +33,12 @@ export function TopNavbar() {
     <header className="sticky top-0 z-50 border-b border-zinc-200 bg-white/90 backdrop-blur">
       <div className="mx-auto grid max-w-[1600px] grid-cols-[1fr_auto_1fr] items-center px-4 py-3 lg:px-6">
         <div className="justify-self-start">
-          <p className="text-xs font-medium tracking-[0.22em] text-zinc-500 uppercase">NeoCalculator</p>
-          <p className="text-sm text-zinc-600">Calculator, carts, and projects.</p>
+          <Link href="/" className="block">
+            <p className="text-xs font-medium tracking-[0.22em] text-zinc-500 uppercase">NeoCalculator</p>
+            <p className="text-sm text-zinc-600">Calculator, carts, and projects.</p>
+          </Link>
         </div>
         <nav className="justify-self-center flex items-center gap-2">
-          <Link
-            href="/projects"
-            className={`rounded-full px-4 py-2 text-sm font-medium transition ${
-              isActive(pathname, "/projects")
-                ? "bg-zinc-950 text-white"
-                : "text-zinc-600 hover:bg-zinc-100 hover:text-zinc-950"
-            }`}
-          >
-            Projects
-          </Link>
           <Link
             href="/"
             className={`rounded-full px-4 py-2 text-sm font-medium transition ${
@@ -46,8 +49,46 @@ export function TopNavbar() {
           >
             Dashboard
           </Link>
+          {showSessionUi && session && (
+            <Link
+              href="/projects"
+              className={`rounded-full px-4 py-2 text-sm font-medium transition ${
+                isActive(pathname, "/projects")
+                  ? "bg-zinc-950 text-white"
+                  : "text-zinc-600 hover:bg-zinc-100 hover:text-zinc-950"
+              }`}
+            >
+              Projects
+            </Link>
+          )}
         </nav>
-        <div aria-hidden="true" />
+        <div className="justify-self-end flex items-center gap-2">
+          {!showSessionUi ? (
+            <div className="h-9 w-52" aria-hidden="true" />
+          ) : session ? (
+            <button
+              onClick={() => authClient.signOut()}
+              className="rounded-full px-4 py-2 text-sm font-medium text-zinc-600 transition hover:bg-zinc-100 hover:text-zinc-950"
+            >
+              Sign Out
+            </button>
+          ) : (
+            <>
+              <Link
+                href="/sign-in"
+                className="rounded-full px-4 py-2 text-sm font-medium text-zinc-600 transition hover:bg-zinc-100 hover:text-zinc-950"
+              >
+                Sign In
+              </Link>
+              <Link
+                href="/sign-up"
+                className="rounded-full bg-zinc-950 px-4 py-2 text-sm font-medium text-white transition hover:bg-zinc-800"
+              >
+                Create Account
+              </Link>
+            </>
+          )}
+        </div>
       </div>
     </header>
   );

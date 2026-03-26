@@ -1,0 +1,24 @@
+{
+  "$schema": "../../schemas/pricing-definition.schema.json",
+  "version": 1,
+  "definitionId": "cce",
+  "serviceCode": "CCE",
+  "serviceName": "Cloud Container Engine",
+  "catalogAdapter": "cce",
+  "rateSources": {
+    "cluster": {
+      "catalogKey": "cluster.managementRate"
+    }
+  },
+  "metrics": [
+    {
+      "id": "clusterManagement",
+      "label": "Cluster management",
+      "rateSource": "cluster",
+      "quantity": {
+        "source": "expression",
+        "expression": "1"
+      }
+    }
+  ]
+}

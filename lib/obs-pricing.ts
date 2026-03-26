@@ -4,6 +4,7 @@ import {
   obsPricingReference,
   obsProductTypeLabels,
   obsRedundancyLabels,
+  obsRestorationTypeOptions,
   obsStorageClassLabels,
   type ObsConditionalRate,
   type ObsPricingCatalog,
@@ -270,5 +271,24 @@ export async function fetchObsPricingCatalog(regionId: string): Promise<ObsPrici
     },
     pullTrafficRate: buildRateCard(groupedPlans.get("event.type.obs.obs.download.cdn") ?? []),
     replicationRate: buildRateCard(groupedPlans.get("event.type.obs.download_crr") ?? []),
+    readTrafficRates: {
+      "Infrequent Access": {
+        [obsRestorationTypeOptions["Infrequent Access"][0]]: buildRateCard(groupedPlans.get("event.type.obs.retrieval_size_warm") ?? []) ?? undefined,
+      },
+      Archive: {
+        [obsRestorationTypeOptions.Archive[0]]: buildRateCard(groupedPlans.get("event.type.obs.restore_size_ex") ?? []) ?? undefined,
+        [obsRestorationTypeOptions.Archive[1]]: buildRateCard(groupedPlans.get("event.type.obs.restore_size_sd") ?? []) ?? undefined,
+        [obsRestorationTypeOptions.Archive[2]]: buildRateCard(groupedPlans.get("event.type.obs.obs.retrieval_size_cold") ?? []) ?? undefined,
+      },
+      "Deep Archive": {
+        [obsRestorationTypeOptions["Deep Archive"][0]]: buildRateCard(groupedPlans.get("event.type.obs.obs.restore_size_ex_da") ?? []) ?? undefined,
+        [obsRestorationTypeOptions["Deep Archive"][1]]: buildRateCard(groupedPlans.get("event.type.obs.obs.restore_size_sd_da") ?? []) ?? undefined,
+      },
+    },
+    lifecycleTransitionRates: {
+      "Infrequent Access": buildRateCard(groupedPlans.get("event.type.obs.transitionwarm") ?? []) ?? undefined,
+      Archive: buildRateCard(groupedPlans.get("event.type.obs.transitioncold") ?? []) ?? undefined,
+      "Deep Archive": buildRateCard(groupedPlans.get("event.type.obs.obs.transition_da") ?? []) ?? undefined,
+    },
   };
 }

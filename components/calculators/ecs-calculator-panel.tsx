@@ -6,6 +6,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { formatDateTime } from "@/lib/utils";
 
 import { CalculatorDiskConfigSection, type CalculatorDiskConfigSectionProps } from "./calculator-disk-config-section";
 
@@ -174,7 +175,7 @@ export function EcsCalculatorPanel({
         <div className="rounded-xl border bg-zinc-50 p-3">
           {catalogFlavorsError ? <p className="mb-3 text-sm text-red-600">{catalogFlavorsError}</p> : null}
           {catalogFlavorsLastCompletedAt ? (
-            <p className="mb-3 text-xs text-zinc-500">Last synced: {new Date(catalogFlavorsLastCompletedAt).toLocaleString()}</p>
+            <p className="mb-3 text-xs text-zinc-500">Last synced: {formatDateTime(catalogFlavorsLastCompletedAt)}</p>
           ) : null}
           <div className="space-y-2">
             {catalogFlavorsLoading ? (

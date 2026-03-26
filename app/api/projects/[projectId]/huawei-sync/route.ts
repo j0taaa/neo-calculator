@@ -1,15 +1,10 @@
-import { auth } from "@/lib/auth";
+import { getSessionFromHeaders, jsonError, readJsonBody } from "@/lib/api-route";
 import { db } from "@/lib/db";
 import { HuaweiSessionError, listHuaweiCarts, pushLocalProductsToHuaweiCart } from "@/lib/huawei-calculator";
 import { getProjectAccessForUser } from "@/lib/resource-access";
+import { mapStoredProductsByListId, touchProject, type StoredProductRow } from "@/lib/resource-persistence";
 
 export const runtime = "nodejs";
-
-async function getSession(headers: Headers) {
-  return auth.api.getSession({
-    headers,
-  });
-}
 
 type ListRow = {
   id: string;
@@ -21,35 +16,22 @@ type ListRow = {
   huawei_last_synced_at: string | null;
 };
 
-type ProductRow = {
-  id: string;
-  list_id: string;
-  user_id: string;
-  service_code: string;
-  service_name: string;
-  product_type: string;
-  title: string;
-  quantity: number;
-  config_json: string;
-  pricing_json: string | null;
-};
-
 export async function POST(
   request: Request,
   context: { params: Promise<{ projectId: string }> },
 ) {
-  const session = await getSession(request.headers);
+  const session = await getSessionFromHeaders(request.headers);
 
   if (!session) {
-    return Response.json({ error: "Unauthorized" }, { status: 401 });
+    return jsonError("Unauthorized", 401);
   }
 
   const { projectId } = await context.params;
-  const body = (await request.json().catch(() => null)) as { cookie?: string } | null;
+  const body = await readJsonBody<{ cookie?: string }>(request);
   const cookie = body?.cookie?.trim() ?? "";
 
   if (!cookie) {
-    return Response.json({ error: "Huawei Cloud cookie is required" }, { status: 400 });
+    return jsonError("Huawei Cloud cookie is required");
   }
 
   const access = getProjectAccessForUser(session.user.id, projectId);
@@ -58,7 +40,10 @@ export async function POST(
     .get(projectId) as { id: string; name: string } | null;
 
   if (!project || !access) {
-    return Response.json({ error: "Project not found" }, { status: 404 });
+    return jsonError("Project not found", 404);
+  }
+  if (!access.canSyncHuawei) {
+    return jsonError("You do not have permission to sync this project with Huawei Cloud", 403);
   }
 
   const lists = db
@@ -74,20 +59,17 @@ export async function POST(
     .all(projectId) as ListRow[];
 
   if (lists.length === 0) {
-    return Response.json({ error: "This project does not have carts to sync." }, { status: 400 });
+    return jsonError("This project does not have carts to sync.");
   }
 
   try {
     await listHuaweiCarts(cookie);
   } catch (error) {
     if (error instanceof HuaweiSessionError) {
-      return Response.json({ error: error.message }, { status: 401 });
+      return jsonError(error.message, 401);
     }
 
-    return Response.json(
-      { error: error instanceof Error ? error.message : "Unable to validate Huawei Cloud session" },
-      { status: 400 },
-    );
+    return jsonError(error instanceof Error ? error.message : "Unable to validate Huawei Cloud session");
   }
 
   const productRows = db
@@ -99,14 +81,9 @@ export async function POST(
         ORDER BY updated_at DESC
       `,
     )
-    .all(projectId) as ProductRow[];
+    .all(projectId) as StoredProductRow[];
 
-  const productsByListId = new Map<string, ProductRow[]>();
-  for (const row of productRows) {
-    const current = productsByListId.get(row.list_id) ?? [];
-    current.push(row);
-    productsByListId.set(row.list_id, current);
-  }
+  const productsByListId = mapStoredProductsByListId(productRows);
 
   const touchedAt = new Date().toISOString();
   const results: Array<{
@@ -121,16 +98,7 @@ export async function POST(
   let failedCount = 0;
 
   for (const list of lists) {
-    const listProducts = (productsByListId.get(list.id) ?? []).map((product) => ({
-      id: product.id,
-      serviceCode: product.service_code,
-      serviceName: product.service_name,
-      productType: product.product_type,
-      title: product.title,
-      quantity: product.quantity,
-      config: JSON.parse(product.config_json) as unknown,
-      pricing: product.pricing_json ? (JSON.parse(product.pricing_json) as unknown) : null,
-    }));
+    const listProducts = productsByListId.get(list.id) ?? [];
     const now = new Date().toISOString();
 
     try {
@@ -186,7 +154,7 @@ export async function POST(
     }
   }
 
-  db.query("UPDATE project SET updated_at = ? WHERE id = ?").run(touchedAt, projectId);
+  touchProject(projectId, touchedAt);
 
   return Response.json({
     projectId,

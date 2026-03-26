@@ -1,8 +1,9 @@
+import { getSessionFromHeaders, jsonError, readJsonBody } from "@/lib/api-route";
 import { cloneListProducts, type CloneableProduct, type NeoBillingOption, NEO_BILLING_OPTIONS } from "@/lib/cart-clone";
-import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { huaweiRegions, type HuaweiRegionKey } from "@/lib/huawei-regions";
 import { getProjectAccessForUser } from "@/lib/resource-access";
+import { createListRecord, createProjectRecord, insertListProducts, mapStoredProductsByListId, type StoredProductRow } from "@/lib/resource-persistence";
 
 export const runtime = "nodejs";
 
@@ -21,32 +22,11 @@ type SourceListRow = {
   updated_at: string;
 };
 
-type SourceProductRow = {
-  id: string;
-  list_id: string;
-  user_id: string;
-  service_code: string;
-  service_name: string;
-  product_type: string;
-  title: string;
-  quantity: number;
-  config_json: string;
-  pricing_json: string | null;
-  created_at: string;
-  updated_at: string;
-};
-
 type CloneProjectBody = {
   name?: string | null;
   targetRegion?: string | null;
   targetBillingMode?: string | null;
 };
-
-async function getSession(headers: Headers) {
-  return auth.api.getSession({
-    headers,
-  });
-}
 
 function isTargetRegion(value: unknown): value is HuaweiRegionKey {
   return typeof value === "string" && value in huaweiRegions;
@@ -81,23 +61,23 @@ export async function POST(
   request: Request,
   context: { params: Promise<{ projectId: string }> },
 ) {
-  const session = await getSession(request.headers);
+  const session = await getSessionFromHeaders(request.headers);
 
   if (!session) {
-    return Response.json({ error: "Unauthorized" }, { status: 401 });
+    return jsonError("Unauthorized", 401);
   }
 
   const { projectId } = await context.params;
-  const body = (await request.json().catch(() => null)) as CloneProjectBody | null;
+  const body = await readJsonBody<CloneProjectBody>(request);
   const requestedTargetRegion = body?.targetRegion?.trim() ? body.targetRegion.trim() : null;
   const requestedTargetBillingMode = body?.targetBillingMode?.trim() ? body.targetBillingMode.trim() : null;
 
   if (requestedTargetRegion && !isTargetRegion(requestedTargetRegion)) {
-    return Response.json({ error: "Invalid target region" }, { status: 400 });
+    return jsonError("Invalid target region");
   }
 
   if (requestedTargetBillingMode && !isNeoBillingOption(requestedTargetBillingMode)) {
-    return Response.json({ error: "Invalid target billing mode" }, { status: 400 });
+    return jsonError("Invalid target billing mode");
   }
 
   const targetRegion = requestedTargetRegion && isTargetRegion(requestedTargetRegion) ? requestedTargetRegion : null;
@@ -117,7 +97,10 @@ export async function POST(
 
   const access = getProjectAccessForUser(session.user.id, projectId);
   if (!sourceProject || !access) {
-    return Response.json({ error: "Project not found" }, { status: 404 });
+    return jsonError("Project not found", 404);
+  }
+  if (!access.canClone) {
+    return jsonError("You do not have permission to clone this project", 403);
   }
 
   const sourceLists = db
@@ -140,7 +123,9 @@ export async function POST(
         ORDER BY created_at ASC
       `,
     )
-    .all(projectId) as SourceProductRow[];
+    .all(projectId) as StoredProductRow[];
+
+  const sourceProductsByListId = mapStoredProductsByListId(sourceProducts);
 
   const nextProjectName = buildClonedProjectName(sourceProject.name, {
     name: body?.name ?? null,
@@ -156,16 +141,8 @@ export async function POST(
 
   const clonedLists = await Promise.all(
     sourceLists.map(async (sourceList) => {
-      const listProducts = sourceProducts.filter((product) => product.list_id === sourceList.id);
-      const cloneInputProducts: CloneableProduct[] = listProducts.map((product) => ({
-        serviceCode: product.service_code,
-        serviceName: product.service_name,
-        productType: product.product_type,
-        title: product.title,
-        quantity: Math.max(1, Math.floor(product.quantity)),
-        config: JSON.parse(product.config_json) as unknown,
-        pricing: product.pricing_json ? (JSON.parse(product.pricing_json) as unknown) : null,
-      }));
+      const listProducts = sourceProductsByListId.get(sourceList.id) ?? [];
+      const cloneInputProducts: CloneableProduct[] = listProducts;
 
       const cloned = await cloneListProducts(sourceList.name, cloneInputProducts, {
         name: sourceList.name,
@@ -175,8 +152,6 @@ export async function POST(
       const newListId = crypto.randomUUID();
       const responseProducts = cloned.products.map((product) => ({
         id: crypto.randomUUID(),
-        listId: newListId,
-        projectId: newProjectId,
         serviceCode: product.serviceCode,
         serviceName: product.serviceName,
         productType: product.productType,
@@ -210,73 +185,24 @@ export async function POST(
   );
 
   db.transaction(() => {
-    db.query(
-      `
-        INSERT INTO project (id, user_id, name, description, created_at, updated_at)
-        VALUES (?, ?, ?, ?, ?, ?)
-      `,
-    ).run(newProjectId, session.user.id, nextProjectName, sourceProject.description, now, now);
-
-    const insertList = db.query(
-      `
-        INSERT INTO project_list (
-          id,
-          project_id,
-          user_id,
-          name,
-          huawei_cart_key,
-          huawei_cart_name,
-          huawei_last_synced_at,
-          huawei_last_error,
-          huawei_last_remote_updated_at,
-          created_at,
-          updated_at
-        )
-        VALUES (?, ?, ?, ?, NULL, NULL, NULL, NULL, NULL, ?, ?)
-      `,
-    );
-
-    const insertProduct = db.query(
-      `
-        INSERT INTO list_product (
-          id,
-          list_id,
-          project_id,
-          user_id,
-          service_code,
-          service_name,
-          product_type,
-          title,
-          quantity,
-          config_json,
-          pricing_json,
-          created_at,
-          updated_at
-        )
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-      `,
-    );
+    createProjectRecord({
+      id: newProjectId,
+      userId: session.user.id,
+      name: nextProjectName,
+      description: sourceProject.description,
+      now,
+    });
 
     for (const list of clonedLists) {
-      insertList.run(list.id, newProjectId, session.user.id, list.name, now, now);
+      createListRecord({ id: list.id, projectId: newProjectId, userId: session.user.id, name: list.name, now });
 
-      for (const product of list.products) {
-        insertProduct.run(
-          product.id,
-          list.id,
-          newProjectId,
-          session.user.id,
-          product.serviceCode,
-          product.serviceName,
-          product.productType,
-          product.title,
-          product.quantity,
-          JSON.stringify(product.config),
-          product.pricing === undefined ? null : JSON.stringify(product.pricing),
-          now,
-          now,
-        );
-      }
+      list.products = insertListProducts({
+        listId: list.id,
+        projectId: newProjectId,
+        userId: session.user.id,
+        now,
+        products: list.products,
+      });
     }
   })();
 
@@ -287,7 +213,14 @@ export async function POST(
       description: sourceProject.description,
       createdAt: now,
       updatedAt: now,
-      lists: clonedLists,
+      lists: clonedLists.map((list) => ({
+        ...list,
+        products: list.products.map((product) => ({
+          ...product,
+          listId: list.id,
+          projectId: newProjectId,
+        })),
+      })),
       cloneSummary: {
         totalLists: clonedLists.length,
         totalProducts,

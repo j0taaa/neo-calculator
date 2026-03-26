@@ -3,10 +3,10 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { authClient } from "@/lib/auth-client";
+import { useSessionContext } from "@/components/session-provider";
 
 type SharedProduct = {
   id: string;
@@ -49,7 +49,7 @@ function getResponseError(payload: unknown, fallback: string) {
 }
 
 export default function SharePage({ params }: { params: Promise<{ shareId: string }> }) {
-  const { data: session, isPending: isSessionPending } = authClient.useSession();
+  const { session, isPending: isSessionPending } = useSessionContext();
   const [shareId, setShareId] = useState("");
   const [payload, setPayload] = useState<SharePayload | null>(null);
   const [loading, setLoading] = useState(true);
@@ -144,8 +144,8 @@ export default function SharePage({ params }: { params: Promise<{ shareId: strin
             <h1 className="mt-2 text-3xl font-semibold tracking-tight text-zinc-950">{title}</h1>
             {subtitle ? <p className="mt-2 text-sm text-zinc-500">{subtitle}</p> : null}
           </div>
-          <Link href="/" className="inline-flex">
-            <Button type="button" variant="outline">Open Calculator</Button>
+          <Link href="/" className={buttonVariants({ variant: "outline" })}>
+            Open Calculator
           </Link>
         </div>
 
@@ -170,8 +170,8 @@ export default function SharePage({ params }: { params: Promise<{ shareId: strin
                     ? "Save Copy To My Account"
                     : "Join Collaboration"}
                 </Button>
-                <Link href="/projects" className="inline-flex">
-                  <Button type="button" variant="outline">Open Projects</Button>
+                <Link href="/projects" className={buttonVariants({ variant: "outline" })}>
+                  Open Projects
                 </Link>
               </div>
             ) : null}

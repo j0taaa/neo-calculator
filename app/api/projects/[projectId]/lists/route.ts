@@ -1,30 +1,25 @@
-import { auth } from "@/lib/auth";
+import { getSessionFromHeaders, jsonError, readJsonBody } from "@/lib/api-route";
 import { db } from "@/lib/db";
 import { buildLocalProductsFromHuaweiCart, HuaweiSessionError } from "@/lib/huawei-calculator";
 import { getProjectAccessForUser } from "@/lib/resource-access";
+import { createListRecord, insertListProducts, touchProject } from "@/lib/resource-persistence";
 
 export const runtime = "nodejs";
-
-async function getSession(headers: Headers) {
-  return auth.api.getSession({
-    headers,
-  });
-}
 
 export async function POST(
   request: Request,
   context: { params: Promise<{ projectId: string }> },
 ) {
-  const session = await getSession(request.headers);
+  const session = await getSessionFromHeaders(request.headers);
 
   if (!session) {
-    return Response.json({ error: "Unauthorized" }, { status: 401 });
+    return jsonError("Unauthorized", 401);
   }
 
   const { projectId } = await context.params;
-  const body = (await request.json()) as { name?: string; huaweiCartKey?: string; cookie?: string };
-  const remoteCartKey = body.huaweiCartKey?.trim() ?? "";
-  let name = body.name?.trim() ?? "";
+  const body = await readJsonBody<{ name?: string; huaweiCartKey?: string; cookie?: string }>(request);
+  const remoteCartKey = body?.huaweiCartKey?.trim() ?? "";
+  let name = body?.name?.trim() ?? "";
   let remoteCartName: string | null = null;
   let importedProducts: Array<{
     id?: string;
@@ -39,7 +34,7 @@ export async function POST(
 
   if (remoteCartKey) {
     try {
-      const remoteCart = await buildLocalProductsFromHuaweiCart(remoteCartKey, body.cookie ?? "");
+      const remoteCart = await buildLocalProductsFromHuaweiCart(remoteCartKey, body?.cookie ?? "");
       remoteCartName = remoteCart.detail.name?.trim() || remoteCartKey;
       importedProducts = remoteCart.products;
       if (!name) {
@@ -47,103 +42,61 @@ export async function POST(
       }
     } catch (error) {
       if (error instanceof HuaweiSessionError) {
-        return Response.json({ error: error.message }, { status: 401 });
+        return jsonError(error.message, 401);
       }
 
-      return Response.json(
-        { error: error instanceof Error ? error.message : "Unable to import Huawei cart" },
-        { status: 400 },
-      );
+      return jsonError(error instanceof Error ? error.message : "Unable to import Huawei cart");
     }
   }
 
   if (!name) {
-    return Response.json({ error: "List name is required" }, { status: 400 });
+    return jsonError("List name is required");
   }
 
   const existingProject = getProjectAccessForUser(session.user.id, projectId);
   if (!existingProject) {
-    return Response.json({ error: "Project not found" }, { status: 404 });
+    return jsonError("Project not found", 404);
   }
   if (!existingProject.canCreateLists) {
-    return Response.json({ error: "You do not have permission to create carts in this project" }, { status: 403 });
+    return jsonError("You do not have permission to create carts in this project", 403);
   }
 
   const now = new Date().toISOString();
   const id = crypto.randomUUID();
+  let persistedProducts = importedProducts.map((product, index) => ({
+    id: product.id ?? `imported-${index}`,
+    serviceCode: product.serviceCode,
+    serviceName: product.serviceName,
+    productType: product.productType,
+    title: product.title,
+    quantity: product.quantity,
+    config: product.config,
+    pricing: product.pricing ?? null,
+    createdAt: now,
+    updatedAt: now,
+  }));
 
   db.transaction(() => {
-    db.query(
-      `
-        INSERT INTO project_list (
-          id,
-          project_id,
-          user_id,
-          name,
-          huawei_cart_key,
-          huawei_cart_name,
-          huawei_last_synced_at,
-          huawei_last_error,
-          created_at,
-          updated_at
-        )
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-      `,
-    ).run(
+    createListRecord({
       id,
       projectId,
-      session.user.id,
+      userId: session.user.id,
       name,
-      remoteCartKey || null,
-      remoteCartName,
-      remoteCartKey ? now : null,
-      null,
       now,
+      huaweiCartKey: remoteCartKey || null,
+      huaweiCartName: remoteCartName,
+      huaweiLastSyncedAt: remoteCartKey ? now : null,
+    });
+
+    persistedProducts = insertListProducts({
+      listId: id,
+      projectId,
+      userId: session.user.id,
       now,
-    );
+      products: importedProducts,
+    });
 
-    const insertProduct = db.query(
-      `
-        INSERT INTO list_product (
-          id,
-          list_id,
-          project_id,
-          user_id,
-          service_code,
-          service_name,
-          product_type,
-          title,
-          quantity,
-          config_json,
-          pricing_json,
-          created_at,
-          updated_at
-        )
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-      `,
-    );
-
-    for (const product of importedProducts) {
-      const productId = crypto.randomUUID();
-      product.id = productId;
-      insertProduct.run(
-        productId,
-        id,
-        projectId,
-        session.user.id,
-        product.serviceCode,
-        product.serviceName,
-        product.productType,
-        product.title,
-        Math.max(1, Math.floor(product.quantity)),
-        JSON.stringify(product.config ?? {}),
-        product.pricing === undefined ? null : JSON.stringify(product.pricing),
-        now,
-        now,
-      );
-    }
-
-    db.query("UPDATE project SET updated_at = ? WHERE id = ?").run(now, projectId);
+    touchProject(projectId, now);
   })();
 
   return Response.json(
@@ -161,18 +114,18 @@ export async function POST(
       huaweiLastRemoteUpdatedAt: null,
       createdAt: now,
       updatedAt: now,
-      productCount: importedProducts.length,
-      products: importedProducts.map((product, index) => ({
-        id: product.id ?? `imported-${index}`,
+      productCount: persistedProducts.length,
+      products: persistedProducts.map((product) => ({
+        id: product.id,
         serviceCode: product.serviceCode,
         serviceName: product.serviceName,
         productType: product.productType,
         title: product.title,
         quantity: product.quantity,
         config: product.config,
-        pricing: product.pricing ?? null,
-        createdAt: now,
-        updatedAt: now,
+        pricing: product.pricing,
+        createdAt: product.createdAt,
+        updatedAt: product.updatedAt,
       })),
     },
     { status: 201 },

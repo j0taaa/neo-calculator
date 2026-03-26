@@ -1,34 +1,27 @@
-import { auth } from "@/lib/auth";
+import { getSessionFromHeaders, getTrimmedString, jsonError, readJsonBody } from "@/lib/api-route";
 import { db } from "@/lib/db";
 import { getListAccessForUser, getProjectAccessForUser } from "@/lib/resource-access";
+import { touchProject } from "@/lib/resource-persistence";
 
 export const runtime = "nodejs";
-
-async function getSession(headers: Headers) {
-  return auth.api.getSession({
-    headers,
-  });
-}
 
 export async function PATCH(
   request: Request,
   context: { params: Promise<{ listId: string }> },
 ) {
-  const session = await getSession(request.headers);
+  const session = await getSessionFromHeaders(request.headers);
 
   if (!session) {
-    return Response.json({ error: "Unauthorized" }, { status: 401 });
+    return jsonError("Unauthorized", 401);
   }
 
   const { listId } = await context.params;
-  const body = (await request.json().catch(() => null)) as
-    | {
-        name?: string | null;
-        huaweiCartKey?: string | null;
-        huaweiCartName?: string | null;
-        projectId?: string | null;
-      }
-    | null;
+  const body = await readJsonBody<{
+    name?: string | null;
+    huaweiCartKey?: string | null;
+    huaweiCartName?: string | null;
+    projectId?: string | null;
+  }>(request);
 
   const listAccess = getListAccessForUser(session.user.id, listId);
   const list = db
@@ -42,27 +35,53 @@ export async function PATCH(
     } | null;
 
   if (!list || !listAccess) {
-    return Response.json({ error: "List not found" }, { status: 404 });
-  }
-  if (!listAccess.canRename) {
-    return Response.json({ error: "You do not have permission to edit this cart" }, { status: 403 });
+    return jsonError("List not found", 404);
   }
 
-  const nextListName = body?.name?.trim() || list.name;
-  const nextKey = body && "huaweiCartKey" in body ? body.huaweiCartKey?.trim() || null : list.huawei_cart_key;
-  const nextHuaweiName = body && "huaweiCartName" in body ? body.huaweiCartName?.trim() || null : list.huawei_cart_name;
-  const nextProjectId = body && "projectId" in body ? body.projectId?.trim() || list.project_id : list.project_id;
+  if (!body) {
+    return jsonError("Request body is required");
+  }
+
+  const hasNameUpdate = Object.prototype.hasOwnProperty.call(body, "name");
+  const hasHuaweiKeyUpdate = Object.prototype.hasOwnProperty.call(body, "huaweiCartKey");
+  const hasHuaweiNameUpdate = Object.prototype.hasOwnProperty.call(body, "huaweiCartName");
+  const hasProjectUpdate = Object.prototype.hasOwnProperty.call(body, "projectId");
+
+  if (!hasNameUpdate && !hasHuaweiKeyUpdate && !hasHuaweiNameUpdate && !hasProjectUpdate) {
+    return jsonError("At least one field must be provided");
+  }
+
+  if (hasNameUpdate && !listAccess.canRename) {
+    return jsonError("You do not have permission to rename this cart", 403);
+  }
+
+  if ((hasHuaweiKeyUpdate || hasHuaweiNameUpdate) && !listAccess.canManageHuaweiLink) {
+    return jsonError("You do not have permission to manage Huawei cart links for this cart", 403);
+  }
+
+  const nextListName = hasNameUpdate ? getTrimmedString(body.name) : list.name;
+  const nextKey = hasHuaweiKeyUpdate ? getTrimmedString(body.huaweiCartKey) : list.huawei_cart_key;
+  const nextHuaweiName = hasHuaweiNameUpdate ? getTrimmedString(body.huaweiCartName) : list.huawei_cart_name;
+  const nextProjectId = hasProjectUpdate ? getTrimmedString(body.projectId) : list.project_id;
+
+  if (!nextListName) {
+    return jsonError("List name is required");
+  }
+  if (!nextProjectId) {
+    return jsonError("Target project is required");
+  }
+
   const now = new Date().toISOString();
 
   if (nextProjectId !== list.project_id) {
     if (!listAccess.canMove) {
-      return Response.json({ error: "Only the cart owner can move this cart" }, { status: 403 });
+      return jsonError("Only the cart owner can move this cart", 403);
     }
 
     const targetProject = getProjectAccessForUser(session.user.id, nextProjectId);
 
     if (!targetProject || !targetProject.canCreateLists) {
-      return Response.json({ error: "Target project not found" }, { status: 404 });
+      return jsonError("Target project not found", 404);
     }
   }
 
@@ -90,14 +109,14 @@ export async function PATCH(
         );
       }
 
-      db.query("UPDATE project SET updated_at = ? WHERE id = ?").run(now, list.project_id);
+      touchProject(list.project_id, now);
       if (nextProjectId !== list.project_id) {
-        db.query("UPDATE project SET updated_at = ? WHERE id = ?").run(now, nextProjectId);
+        touchProject(nextProjectId, now);
       }
     })();
   } catch (error) {
     if (error instanceof Error && error.message.includes("UNIQUE constraint failed")) {
-      return Response.json({ error: "That Huawei cart is already linked to another list." }, { status: 409 });
+      return jsonError("That Huawei cart is already linked to another list.", 409);
     }
 
     throw error;
@@ -119,10 +138,10 @@ export async function DELETE(
   request: Request,
   context: { params: Promise<{ listId: string }> },
 ) {
-  const session = await getSession(request.headers);
+  const session = await getSessionFromHeaders(request.headers);
 
   if (!session) {
-    return Response.json({ error: "Unauthorized" }, { status: 401 });
+    return jsonError("Unauthorized", 401);
   }
 
   const { listId } = await context.params;
@@ -132,17 +151,17 @@ export async function DELETE(
     .get(listId) as { id: string; project_id: string } | null;
 
   if (!list || !listAccess) {
-    return Response.json({ error: "List not found" }, { status: 404 });
+    return jsonError("List not found", 404);
   }
   if (!listAccess.canDelete) {
-    return Response.json({ error: "Only the cart owner can delete this cart" }, { status: 403 });
+    return jsonError("Only the cart owner can delete this cart", 403);
   }
 
   const now = new Date().toISOString();
 
   db.transaction(() => {
     db.query("DELETE FROM project_list WHERE id = ?").run(listId);
-    db.query("UPDATE project SET updated_at = ? WHERE id = ?").run(now, list.project_id);
+    touchProject(list.project_id, now);
   })();
 
   return Response.json({

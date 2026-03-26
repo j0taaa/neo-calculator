@@ -163,6 +163,7 @@ export function ServiceBatchAddPanel({
   {
     "type": "Ultra-high I/O",
     "size": 50000,
+    "durationMonths": 6,
     "quantity": 2,
     "description": "Database disks"
   },
@@ -199,7 +200,8 @@ export function ServiceBatchAddPanel({
             ) : (
               <>
                 Paste a JSON array of EVS volumes. Optional fields: <code>type</code>, <code>size</code>,
-                <code>quantity</code>, <code>description</code>, <code>iops</code>, and <code>throughput</code>.
+                <code>durationMonths</code>, <code>quantity</code>, <code>description</code>, <code>iops</code>, and
+                <code>throughput</code>.
               </>
             )}
           </p>
@@ -232,7 +234,8 @@ export function ServiceBatchAddPanel({
               ) : (
                 <>
                   If omitted, <code>type</code> defaults to <code>{systemDiskType}</code> and
-                  <code>size</code> defaults to <code>{systemDiskSizeValue}</code> GiB. Sizes above
+                  <code>size</code> defaults to <code>{systemDiskSizeValue}</code> GiB. When using yearly/monthly EVS,
+                  <code>durationMonths</code> falls back to the active calculator value. Sizes above
                   <code>{` ${evsSingleDiskMaxGiB}`}</code> are split into multiple disks when saved. For General Purpose SSD V2,
                   omitted <code>iops</code> and <code>throughput</code> use the minimum valid values.
                 </>

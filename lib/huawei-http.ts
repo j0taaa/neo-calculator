@@ -60,6 +60,10 @@ function parseHeaderBlocks(rawHeaders: string): {
 }
 
 function getHuaweiProxy(): string {
+  if (process.env.HWC_DISABLE_PROXY === "1") {
+    return "";
+  }
+
   const configured = process.env.HWC_SOCKS5_PROXY?.trim();
   if (configured) {
     return configured;
@@ -166,6 +170,10 @@ async function sendFetchRequest(input: HttpRequestInput): Promise<HttpResponseSn
 }
 
 export async function sendHttpRequest(input: HttpRequestInput): Promise<HttpResponseSnapshot> {
+  if (process.env.HWC_FORCE_FETCH === "1") {
+    return sendFetchRequest(input);
+  }
+
   if (shouldProxyRequest(input.url)) {
     return sendCurlRequest(input);
   }
