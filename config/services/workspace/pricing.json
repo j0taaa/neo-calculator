@@ -1,0 +1,39 @@
+{
+  "$schema": "../../schemas/pricing-definition.schema.json",
+  "version": 1,
+  "definitionId": "workspace",
+  "serviceCode": "Workspace",
+  "serviceName": "Workspace",
+  "catalogAdapter": "workspace",
+  "rateSources": {
+    "desktop": {
+      "catalogKey": "desktopTiers.prices",
+      "description": "Normalized Workspace desktop hourly rates from the productInfo catalog."
+    },
+    "systemDisk": {
+      "catalogKey": "diskTiers.prices",
+      "description": "Normalized Workspace system disk hourly rates from the productInfo catalog."
+    }
+  },
+  "metrics": [
+    {
+      "id": "desktop",
+      "label": "Desktop packages",
+      "rateSource": "desktop",
+      "quantity": {
+        "source": "field",
+        "field": "quantity"
+      }
+    },
+    {
+      "id": "systemDisk",
+      "label": "System disk capacity",
+      "rateSource": "systemDisk",
+      "quantity": {
+        "source": "field",
+        "field": "diskSizeGb"
+      },
+      "unit": "GB"
+    }
+  ]
+}

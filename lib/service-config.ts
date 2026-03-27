@@ -3,6 +3,10 @@ import ccePricingDefinitionJson from "@/config/services/cce/pricing.json";
 import cceServiceDefinitionJson from "@/config/services/cce/service.json";
 import cciPricingDefinitionJson from "@/config/services/cci/pricing.json";
 import cciServiceDefinitionJson from "@/config/services/cci/service.json";
+import dcsPricingDefinitionJson from "@/config/services/dcs/pricing.json";
+import dcsServiceDefinitionJson from "@/config/services/dcs/service.json";
+import elbPricingDefinitionJson from "@/config/services/elb/pricing.json";
+import elbServiceDefinitionJson from "@/config/services/elb/service.json";
 import eipPricingDefinitionJson from "@/config/services/eip/pricing.json";
 import eipServiceDefinitionJson from "@/config/services/eip/service.json";
 import evsPricingDefinitionJson from "@/config/services/evs/pricing.json";
@@ -15,10 +19,12 @@ import obsPricingDefinitionJson from "@/config/services/obs/pricing.json";
 import obsServiceDefinitionJson from "@/config/services/obs/service.json";
 import vpnPricingDefinitionJson from "@/config/services/vpn/pricing.json";
 import vpnServiceDefinitionJson from "@/config/services/vpn/service.json";
+import workspacePricingDefinitionJson from "@/config/services/workspace/pricing.json";
+import workspaceServiceDefinitionJson from "@/config/services/workspace/service.json";
 
 const billingOptions = ["Pay-per-use", "RI", "Yearly/Monthly"] as const;
 const definitionStatuses = ["pilot", "active", "deprecated"] as const;
-const fieldTypes = ["select", "number"] as const;
+const fieldTypes = ["select", "number", "checkbox"] as const;
 const fieldInputModes = ["numeric", "decimal"] as const;
 const metricQuantitySources = ["field", "expression"] as const;
 const serviceImplementations = ["config-pilot", "configurable"] as const;
@@ -506,6 +512,14 @@ const definitionDocuments = {
     service: parseServiceDefinition(cciServiceDefinitionJson),
     pricing: parsePricingDefinition(cciPricingDefinitionJson),
   },
+  dcs: {
+    service: parseServiceDefinition(dcsServiceDefinitionJson),
+    pricing: parsePricingDefinition(dcsPricingDefinitionJson),
+  },
+  elb: {
+    service: parseServiceDefinition(elbServiceDefinitionJson),
+    pricing: parsePricingDefinition(elbPricingDefinitionJson),
+  },
   eip: {
     service: parseServiceDefinition(eipServiceDefinitionJson),
     pricing: parsePricingDefinition(eipPricingDefinitionJson),
@@ -529,6 +543,10 @@ const definitionDocuments = {
   vpn: {
     service: parseServiceDefinition(vpnServiceDefinitionJson),
     pricing: parsePricingDefinition(vpnPricingDefinitionJson),
+  },
+  workspace: {
+    service: parseServiceDefinition(workspaceServiceDefinitionJson),
+    pricing: parsePricingDefinition(workspacePricingDefinitionJson),
   },
 } as const;
 

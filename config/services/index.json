@@ -1,7 +1,7 @@
 {
   "$schema": "../schemas/service-registry.schema.json",
   "version": 1,
-  "supportedCalculatorServiceCodes": ["ECS", "Flexus L", "EVS", "OBS", "ELB", "EIP", "NAT", "VPN", "CCE", "CCI", "ModelArts"],
+  "supportedCalculatorServiceCodes": ["ECS", "Flexus L", "EVS", "OBS", "ELB", "EIP", "NAT", "VPN", "CCE", "CCI", "ModelArts", "Workspace", "DCS"],
   "supportedBatchAddServiceCodes": ["ECS", "Flexus L", "EVS", "OBS", "CCE", "CCI"],
   "definitions": [
     {
@@ -23,6 +23,13 @@
       "definitionId": "eip",
       "serviceDefinitionPath": "./eip/service.json",
       "pricingDefinitionPath": "./eip/pricing.json",
+      "status": "active"
+    },
+    {
+      "serviceCode": "ELB",
+      "definitionId": "elb",
+      "serviceDefinitionPath": "./elb/service.json",
+      "pricingDefinitionPath": "./elb/pricing.json",
       "status": "active"
     },
     {
@@ -58,6 +65,20 @@
       "definitionId": "modelarts",
       "serviceDefinitionPath": "./modelarts/service.json",
       "pricingDefinitionPath": "./modelarts/pricing.json",
+      "status": "active"
+    },
+    {
+      "serviceCode": "Workspace",
+      "definitionId": "workspace",
+      "serviceDefinitionPath": "./workspace/service.json",
+      "pricingDefinitionPath": "./workspace/pricing.json",
+      "status": "active"
+    },
+    {
+      "serviceCode": "DCS",
+      "definitionId": "dcs",
+      "serviceDefinitionPath": "./dcs/service.json",
+      "pricingDefinitionPath": "./dcs/pricing.json",
       "status": "active"
     }
   ],

@@ -55,7 +55,7 @@ const calculatorRuntimeRegistry: Record<string, CalculatorRuntimeMeta> = {
     showGlobalQuantityControl: true,
     batchMode: null,
     usesSharedBillingHeader: true,
-    shouldShowSharedUsageHours: () => true,
+    shouldShowSharedUsageHours: () => false,
   },
   NAT: {
     quantityLabel: "Gateway",
@@ -87,6 +87,20 @@ const calculatorRuntimeRegistry: Record<string, CalculatorRuntimeMeta> = {
   },
   ModelArts: {
     quantityLabel: "Configuration",
+    showGlobalQuantityControl: false,
+    batchMode: null,
+    usesSharedBillingHeader: true,
+    shouldShowSharedUsageHours: () => false,
+  },
+  Workspace: {
+    quantityLabel: "Desktop",
+    showGlobalQuantityControl: false,
+    batchMode: null,
+    usesSharedBillingHeader: true,
+    shouldShowSharedUsageHours: () => false,
+  },
+  DCS: {
+    quantityLabel: "Instance",
     showGlobalQuantityControl: false,
     batchMode: null,
     usesSharedBillingHeader: true,

@@ -62,7 +62,7 @@
           },
           "type": {
             "type": "string",
-            "enum": ["select", "number"]
+            "enum": ["select", "number", "checkbox"]
           },
           "label": {
             "type": "string",

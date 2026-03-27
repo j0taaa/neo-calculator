@@ -1,0 +1,858 @@
+{
+  "$schema": "../../schemas/service-definition.schema.json",
+  "version": 1,
+  "definitionId": "elb",
+  "serviceCode": "ELB",
+  "serviceName": "Elastic Load Balance",
+  "icon": "https://res-static.hc-cdn.cn/cloudbu-site/public/product-banner-icon/Networking/ELB.png",
+  "implementation": "configurable",
+  "billingOptions": [
+    "Pay-per-use",
+    "Yearly/Monthly"
+  ],
+  "defaults": {
+    "type": "Shared load balancer",
+    "networkType": "Public network",
+    "sharedChargeMode": "By traffic",
+    "usageHours": 744,
+    "sharedBandwidthMbit": 10,
+    "sharedTrafficAmount": 10,
+    "sharedTrafficUnit": "GB",
+    "specificationType": "Fixed",
+    "fixedAvailabilityAzCount": 2,
+    "fixedNetworkEnabled": true,
+    "fixedNetworkSpec": "Small I",
+    "fixedApplicationEnabled": false,
+    "fixedApplicationSpec": "Small I",
+    "tcpEnabled": true,
+    "tcpNewConnections": 0,
+    "tcpMaxConcurrentConnections": 0,
+    "tcpMetricMode": "By traffic",
+    "tcpProcessedTrafficGbPerHour": 0,
+    "tcpAverageBandwidthMbit": 0,
+    "udpEnabled": false,
+    "udpNewConnections": 0,
+    "udpMaxConcurrentConnections": 0,
+    "udpMetricMode": "By traffic",
+    "udpProcessedTrafficGbPerHour": 0,
+    "udpAverageBandwidthMbit": 0,
+    "tlsEnabled": false,
+    "tlsNewConnections": 0,
+    "tlsMaxConcurrentConnections": 0,
+    "tlsMetricMode": "By traffic",
+    "tlsProcessedTrafficGbPerHour": 0,
+    "tlsAverageBandwidthMbit": 0,
+    "httpEnabled": false,
+    "httpNewConnections": 0,
+    "httpMaxConcurrentConnections": 0,
+    "httpMetricMode": "By traffic",
+    "httpProcessedTrafficGbPerHour": 0,
+    "httpAverageBandwidthMbit": 0,
+    "httpQueriesPerSecond": 0,
+    "httpForwardingRules": 0
+  },
+  "fields": [
+    {
+      "id": "type",
+      "type": "select",
+      "label": "Type",
+      "required": true,
+      "options": [
+        "Shared load balancer",
+        "Dedicated load balancer"
+      ]
+    },
+    {
+      "id": "networkType",
+      "type": "select",
+      "label": "Network Type",
+      "required": true,
+      "options": [
+        "Public network",
+        "Private network"
+      ]
+    },
+    {
+      "id": "sharedChargeMode",
+      "type": "select",
+      "label": "Billing By",
+      "required": true,
+      "options": [
+        "By traffic",
+        "By bandwidth"
+      ],
+      "visibleWhen": {
+        "field": "networkType",
+        "equals": "Public network"
+      }
+    },
+    {
+      "id": "usageHours",
+      "type": "number",
+      "label": "Required Duration",
+      "required": true,
+      "unit": "hours",
+      "min": 1,
+      "step": 1,
+      "visibleWhen": {
+        "field": "showUsageHours",
+        "equals": true
+      }
+    },
+    {
+      "id": "sharedBandwidthMbit",
+      "type": "number",
+      "label": "Bandwidth",
+      "required": true,
+      "unit": "Mbit/s",
+      "inputMode": "decimal",
+      "min": 0,
+      "visibleWhen": {
+        "field": "showSharedBandwidth",
+        "equals": true
+      }
+    },
+    {
+      "id": "sharedTrafficAmount",
+      "type": "number",
+      "label": "Traffic",
+      "required": true,
+      "inputMode": "decimal",
+      "min": 0,
+      "visibleWhen": {
+        "field": "showSharedTraffic",
+        "equals": true
+      }
+    },
+    {
+      "id": "sharedTrafficUnit",
+      "type": "select",
+      "label": "Traffic Unit",
+      "required": true,
+      "options": [
+        "GB",
+        "TB"
+      ],
+      "visibleWhen": {
+        "field": "showSharedTraffic",
+        "equals": true
+      }
+    },
+    {
+      "id": "specificationType",
+      "type": "select",
+      "label": "Specifications",
+      "required": true,
+      "options": [
+        "Fixed",
+        "Elastic"
+      ],
+      "visibleWhen": {
+        "field": "type",
+        "equals": "Dedicated load balancer"
+      }
+    },
+    {
+      "id": "fixedAvailabilityAzCount",
+      "type": "select",
+      "label": "Availability AZs",
+      "required": true,
+      "optionsSource": "catalog.fixedAvailabilityAzCountOptions",
+      "visibleWhenAll": [
+        {
+          "field": "type",
+          "equals": "Dedicated load balancer"
+        },
+        {
+          "field": "specificationType",
+          "equals": "Fixed"
+        }
+      ]
+    },
+    {
+      "id": "fixedNetworkEnabled",
+      "type": "checkbox",
+      "label": "Network Load Balancing",
+      "visibleWhenAll": [
+        {
+          "field": "type",
+          "equals": "Dedicated load balancer"
+        },
+        {
+          "field": "specificationType",
+          "equals": "Fixed"
+        }
+      ]
+    },
+    {
+      "id": "fixedNetworkSpec",
+      "type": "select",
+      "label": "Network Spec",
+      "required": true,
+      "options": [
+        "Small I",
+        "Small II",
+        "Medium I",
+        "Medium II",
+        "Large I",
+        "Large II"
+      ],
+      "visibleWhenAll": [
+        {
+          "field": "type",
+          "equals": "Dedicated load balancer"
+        },
+        {
+          "field": "specificationType",
+          "equals": "Fixed"
+        },
+        {
+          "field": "fixedNetworkEnabled",
+          "equals": true
+        }
+      ]
+    },
+    {
+      "id": "fixedApplicationEnabled",
+      "type": "checkbox",
+      "label": "Application Load Balancing",
+      "visibleWhenAll": [
+        {
+          "field": "type",
+          "equals": "Dedicated load balancer"
+        },
+        {
+          "field": "specificationType",
+          "equals": "Fixed"
+        }
+      ]
+    },
+    {
+      "id": "fixedApplicationSpec",
+      "type": "select",
+      "label": "Application Spec",
+      "required": true,
+      "options": [
+        "Small I",
+        "Small II",
+        "Medium I",
+        "Medium II",
+        "Large I",
+        "Large II"
+      ],
+      "visibleWhenAll": [
+        {
+          "field": "type",
+          "equals": "Dedicated load balancer"
+        },
+        {
+          "field": "specificationType",
+          "equals": "Fixed"
+        },
+        {
+          "field": "fixedApplicationEnabled",
+          "equals": true
+        }
+      ]
+    },
+    {
+      "id": "tcpEnabled",
+      "type": "checkbox",
+      "label": "TCP Protocol",
+      "visibleWhenAll": [
+        {
+          "field": "type",
+          "equals": "Dedicated load balancer"
+        },
+        {
+          "field": "specificationType",
+          "equals": "Elastic"
+        }
+      ]
+    },
+    {
+      "id": "tcpNewConnections",
+      "type": "number",
+      "label": "TCP New Connections",
+      "required": true,
+      "unit": "per second",
+      "min": 0,
+      "visibleWhenAll": [
+        {
+          "field": "type",
+          "equals": "Dedicated load balancer"
+        },
+        {
+          "field": "specificationType",
+          "equals": "Elastic"
+        },
+        {
+          "field": "tcpEnabled",
+          "equals": true
+        }
+      ]
+    },
+    {
+      "id": "tcpMaxConcurrentConnections",
+      "type": "number",
+      "label": "TCP Max Concurrent Connections",
+      "required": true,
+      "unit": "connections",
+      "min": 0,
+      "visibleWhenAll": [
+        {
+          "field": "type",
+          "equals": "Dedicated load balancer"
+        },
+        {
+          "field": "specificationType",
+          "equals": "Elastic"
+        },
+        {
+          "field": "tcpEnabled",
+          "equals": true
+        }
+      ]
+    },
+    {
+      "id": "tcpMetricMode",
+      "type": "select",
+      "label": "TCP Metric",
+      "required": true,
+      "options": [
+        "By traffic",
+        "By bandwidth"
+      ],
+      "visibleWhenAll": [
+        {
+          "field": "type",
+          "equals": "Dedicated load balancer"
+        },
+        {
+          "field": "specificationType",
+          "equals": "Elastic"
+        },
+        {
+          "field": "tcpEnabled",
+          "equals": true
+        }
+      ]
+    },
+    {
+      "id": "tcpProcessedTrafficGbPerHour",
+      "type": "number",
+      "label": "TCP Processed Traffic",
+      "required": true,
+      "unit": "GB/hour",
+      "inputMode": "decimal",
+      "min": 0,
+      "visibleWhenAll": [
+        {
+          "field": "type",
+          "equals": "Dedicated load balancer"
+        },
+        {
+          "field": "specificationType",
+          "equals": "Elastic"
+        },
+        {
+          "field": "tcpEnabled",
+          "equals": true
+        },
+        {
+          "field": "tcpMetricMode",
+          "equals": "By traffic"
+        }
+      ]
+    },
+    {
+      "id": "tcpAverageBandwidthMbit",
+      "type": "number",
+      "label": "TCP Average Bandwidth",
+      "required": true,
+      "unit": "Mbit/s",
+      "inputMode": "decimal",
+      "min": 0,
+      "visibleWhenAll": [
+        {
+          "field": "type",
+          "equals": "Dedicated load balancer"
+        },
+        {
+          "field": "specificationType",
+          "equals": "Elastic"
+        },
+        {
+          "field": "tcpEnabled",
+          "equals": true
+        },
+        {
+          "field": "tcpMetricMode",
+          "equals": "By bandwidth"
+        }
+      ]
+    },
+    {
+      "id": "udpEnabled",
+      "type": "checkbox",
+      "label": "UDP Protocol",
+      "visibleWhenAll": [
+        {
+          "field": "type",
+          "equals": "Dedicated load balancer"
+        },
+        {
+          "field": "specificationType",
+          "equals": "Elastic"
+        }
+      ]
+    },
+    {
+      "id": "udpNewConnections",
+      "type": "number",
+      "label": "UDP New Connections",
+      "required": true,
+      "unit": "per second",
+      "min": 0,
+      "visibleWhenAll": [
+        {
+          "field": "type",
+          "equals": "Dedicated load balancer"
+        },
+        {
+          "field": "specificationType",
+          "equals": "Elastic"
+        },
+        {
+          "field": "udpEnabled",
+          "equals": true
+        }
+      ]
+    },
+    {
+      "id": "udpMaxConcurrentConnections",
+      "type": "number",
+      "label": "UDP Max Concurrent Connections",
+      "required": true,
+      "unit": "connections",
+      "min": 0,
+      "visibleWhenAll": [
+        {
+          "field": "type",
+          "equals": "Dedicated load balancer"
+        },
+        {
+          "field": "specificationType",
+          "equals": "Elastic"
+        },
+        {
+          "field": "udpEnabled",
+          "equals": true
+        }
+      ]
+    },
+    {
+      "id": "udpMetricMode",
+      "type": "select",
+      "label": "UDP Metric",
+      "required": true,
+      "options": [
+        "By traffic",
+        "By bandwidth"
+      ],
+      "visibleWhenAll": [
+        {
+          "field": "type",
+          "equals": "Dedicated load balancer"
+        },
+        {
+          "field": "specificationType",
+          "equals": "Elastic"
+        },
+        {
+          "field": "udpEnabled",
+          "equals": true
+        }
+      ]
+    },
+    {
+      "id": "udpProcessedTrafficGbPerHour",
+      "type": "number",
+      "label": "UDP Processed Traffic",
+      "required": true,
+      "unit": "GB/hour",
+      "inputMode": "decimal",
+      "min": 0,
+      "visibleWhenAll": [
+        {
+          "field": "type",
+          "equals": "Dedicated load balancer"
+        },
+        {
+          "field": "specificationType",
+          "equals": "Elastic"
+        },
+        {
+          "field": "udpEnabled",
+          "equals": true
+        },
+        {
+          "field": "udpMetricMode",
+          "equals": "By traffic"
+        }
+      ]
+    },
+    {
+      "id": "udpAverageBandwidthMbit",
+      "type": "number",
+      "label": "UDP Average Bandwidth",
+      "required": true,
+      "unit": "Mbit/s",
+      "inputMode": "decimal",
+      "min": 0,
+      "visibleWhenAll": [
+        {
+          "field": "type",
+          "equals": "Dedicated load balancer"
+        },
+        {
+          "field": "specificationType",
+          "equals": "Elastic"
+        },
+        {
+          "field": "udpEnabled",
+          "equals": true
+        },
+        {
+          "field": "udpMetricMode",
+          "equals": "By bandwidth"
+        }
+      ]
+    },
+    {
+      "id": "tlsEnabled",
+      "type": "checkbox",
+      "label": "TLS Protocol",
+      "visibleWhenAll": [
+        {
+          "field": "type",
+          "equals": "Dedicated load balancer"
+        },
+        {
+          "field": "specificationType",
+          "equals": "Elastic"
+        }
+      ]
+    },
+    {
+      "id": "tlsNewConnections",
+      "type": "number",
+      "label": "TLS New Connections",
+      "required": true,
+      "unit": "per second",
+      "min": 0,
+      "visibleWhenAll": [
+        {
+          "field": "type",
+          "equals": "Dedicated load balancer"
+        },
+        {
+          "field": "specificationType",
+          "equals": "Elastic"
+        },
+        {
+          "field": "tlsEnabled",
+          "equals": true
+        }
+      ]
+    },
+    {
+      "id": "tlsMaxConcurrentConnections",
+      "type": "number",
+      "label": "TLS Max Concurrent Connections",
+      "required": true,
+      "unit": "connections",
+      "min": 0,
+      "visibleWhenAll": [
+        {
+          "field": "type",
+          "equals": "Dedicated load balancer"
+        },
+        {
+          "field": "specificationType",
+          "equals": "Elastic"
+        },
+        {
+          "field": "tlsEnabled",
+          "equals": true
+        }
+      ]
+    },
+    {
+      "id": "tlsMetricMode",
+      "type": "select",
+      "label": "TLS Metric",
+      "required": true,
+      "options": [
+        "By traffic",
+        "By bandwidth"
+      ],
+      "visibleWhenAll": [
+        {
+          "field": "type",
+          "equals": "Dedicated load balancer"
+        },
+        {
+          "field": "specificationType",
+          "equals": "Elastic"
+        },
+        {
+          "field": "tlsEnabled",
+          "equals": true
+        }
+      ]
+    },
+    {
+      "id": "tlsProcessedTrafficGbPerHour",
+      "type": "number",
+      "label": "TLS Processed Traffic",
+      "required": true,
+      "unit": "GB/hour",
+      "inputMode": "decimal",
+      "min": 0,
+      "visibleWhenAll": [
+        {
+          "field": "type",
+          "equals": "Dedicated load balancer"
+        },
+        {
+          "field": "specificationType",
+          "equals": "Elastic"
+        },
+        {
+          "field": "tlsEnabled",
+          "equals": true
+        },
+        {
+          "field": "tlsMetricMode",
+          "equals": "By traffic"
+        }
+      ]
+    },
+    {
+      "id": "tlsAverageBandwidthMbit",
+      "type": "number",
+      "label": "TLS Average Bandwidth",
+      "required": true,
+      "unit": "Mbit/s",
+      "inputMode": "decimal",
+      "min": 0,
+      "visibleWhenAll": [
+        {
+          "field": "type",
+          "equals": "Dedicated load balancer"
+        },
+        {
+          "field": "specificationType",
+          "equals": "Elastic"
+        },
+        {
+          "field": "tlsEnabled",
+          "equals": true
+        },
+        {
+          "field": "tlsMetricMode",
+          "equals": "By bandwidth"
+        }
+      ]
+    },
+    {
+      "id": "httpEnabled",
+      "type": "checkbox",
+      "label": "HTTP/HTTPS Protocol",
+      "visibleWhenAll": [
+        {
+          "field": "type",
+          "equals": "Dedicated load balancer"
+        },
+        {
+          "field": "specificationType",
+          "equals": "Elastic"
+        }
+      ]
+    },
+    {
+      "id": "httpNewConnections",
+      "type": "number",
+      "label": "HTTP New Connections",
+      "required": true,
+      "unit": "per second",
+      "min": 0,
+      "visibleWhenAll": [
+        {
+          "field": "type",
+          "equals": "Dedicated load balancer"
+        },
+        {
+          "field": "specificationType",
+          "equals": "Elastic"
+        },
+        {
+          "field": "httpEnabled",
+          "equals": true
+        }
+      ]
+    },
+    {
+      "id": "httpMaxConcurrentConnections",
+      "type": "number",
+      "label": "HTTP Max Concurrent Connections",
+      "required": true,
+      "unit": "connections",
+      "min": 0,
+      "visibleWhenAll": [
+        {
+          "field": "type",
+          "equals": "Dedicated load balancer"
+        },
+        {
+          "field": "specificationType",
+          "equals": "Elastic"
+        },
+        {
+          "field": "httpEnabled",
+          "equals": true
+        }
+      ]
+    },
+    {
+      "id": "httpMetricMode",
+      "type": "select",
+      "label": "HTTP Metric",
+      "required": true,
+      "options": [
+        "By traffic",
+        "By bandwidth"
+      ],
+      "visibleWhenAll": [
+        {
+          "field": "type",
+          "equals": "Dedicated load balancer"
+        },
+        {
+          "field": "specificationType",
+          "equals": "Elastic"
+        },
+        {
+          "field": "httpEnabled",
+          "equals": true
+        }
+      ]
+    },
+    {
+      "id": "httpProcessedTrafficGbPerHour",
+      "type": "number",
+      "label": "HTTP Processed Traffic",
+      "required": true,
+      "unit": "GB/hour",
+      "inputMode": "decimal",
+      "min": 0,
+      "visibleWhenAll": [
+        {
+          "field": "type",
+          "equals": "Dedicated load balancer"
+        },
+        {
+          "field": "specificationType",
+          "equals": "Elastic"
+        },
+        {
+          "field": "httpEnabled",
+          "equals": true
+        },
+        {
+          "field": "httpMetricMode",
+          "equals": "By traffic"
+        }
+      ]
+    },
+    {
+      "id": "httpAverageBandwidthMbit",
+      "type": "number",
+      "label": "HTTP Average Bandwidth",
+      "required": true,
+      "unit": "Mbit/s",
+      "inputMode": "decimal",
+      "min": 0,
+      "visibleWhenAll": [
+        {
+          "field": "type",
+          "equals": "Dedicated load balancer"
+        },
+        {
+          "field": "specificationType",
+          "equals": "Elastic"
+        },
+        {
+          "field": "httpEnabled",
+          "equals": true
+        },
+        {
+          "field": "httpMetricMode",
+          "equals": "By bandwidth"
+        }
+      ]
+    },
+    {
+      "id": "httpQueriesPerSecond",
+      "type": "number",
+      "label": "Queries Per Second",
+      "required": true,
+      "unit": "QPS",
+      "min": 0,
+      "visibleWhenAll": [
+        {
+          "field": "type",
+          "equals": "Dedicated load balancer"
+        },
+        {
+          "field": "specificationType",
+          "equals": "Elastic"
+        },
+        {
+          "field": "httpEnabled",
+          "equals": true
+        }
+      ]
+    },
+    {
+      "id": "httpForwardingRules",
+      "type": "number",
+      "label": "Forwarding Rules",
+      "required": true,
+      "unit": "rules",
+      "min": 0,
+      "visibleWhenAll": [
+        {
+          "field": "type",
+          "equals": "Dedicated load balancer"
+        },
+        {
+          "field": "specificationType",
+          "equals": "Elastic"
+        },
+        {
+          "field": "httpEnabled",
+          "equals": true
+        }
+      ]
+    }
+  ],
+  "summary": {
+    "selectionTemplate": "{type} | {networkType}",
+    "notes": [
+      "ELB is now rendered from the shared JSON-backed calculator runtime.",
+      "Dedicated elastic pricing combines base load balancer cost with protocol-specific LCU usage."
+    ]
+  }
+}

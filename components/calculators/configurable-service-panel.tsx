@@ -1,6 +1,7 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { type ServiceDefinition, type ServiceFieldDefinition } from "@/lib/service-config";
@@ -27,6 +28,10 @@ type ConfigurableServicePanelProps = {
   selectionNotes: string[];
   referenceNote?: string;
 };
+
+type GroupedPanelField =
+  | { kind: "single"; field: ConfigurableServicePanelField }
+  | { kind: "number-with-unit-select"; field: ConfigurableServicePanelField; unitField: ConfigurableServicePanelField };
 
 function sanitizeNumberInput(value: string, inputMode: ServiceFieldDefinition["inputMode"]) {
   if (inputMode === "decimal") {
@@ -60,6 +65,19 @@ function getFieldHint(field: ConfigurableServicePanelField) {
   return parts.join(". ");
 }
 
+function matchesUnitFieldPair(field: ConfigurableServicePanelField, unitField: ConfigurableServicePanelField) {
+  if (field.definition.type !== "number" || unitField.definition.type !== "select") {
+    return false;
+  }
+
+  const candidates = [
+    field.definition.id.replace(/Amount$/, "Unit"),
+    `${field.definition.id}Unit`,
+  ];
+
+  return candidates.includes(unitField.definition.id);
+}
+
 export function ConfigurableServicePanel({
   definition,
   fields,
@@ -70,6 +88,21 @@ export function ConfigurableServicePanel({
   selectionNotes,
   referenceNote,
 }: ConfigurableServicePanelProps) {
+  const groupedFields: GroupedPanelField[] = [];
+
+  for (let index = 0; index < fields.length; index += 1) {
+    const field = fields[index];
+    const nextField = fields[index + 1];
+
+    if (nextField && matchesUnitFieldPair(field, nextField)) {
+      groupedFields.push({ kind: "number-with-unit-select", field, unitField: nextField });
+      index += 1;
+      continue;
+    }
+
+    groupedFields.push({ kind: "single", field });
+  }
+
   return (
     <>
       <section className="space-y-3">
@@ -78,68 +111,109 @@ export function ConfigurableServicePanel({
           <p className="mt-1 text-sm text-zinc-500">Rendered from the JSON service definition for this calculator.</p>
         </div>
         <div className="grid gap-4 md:grid-cols-2">
-          {fields.map((field) => {
+          {groupedFields.map((group) => {
+            const field = group.field;
             const hint = getFieldHint(field);
 
             return (
-              <div key={field.definition.id} className="space-y-2">
-                <p className="text-sm font-medium">{field.definition.label}</p>
-                {field.definition.type === "select" ? (
-                  <Select
-                    value={field.value}
-                    disabled={field.disabled}
-                    onValueChange={(value) => {
-                      if (value) {
-                        field.onChange(value);
-                      }
-                    }}
-                  >
-                    <SelectTrigger className="bg-white">
-                      <SelectValue>{field.options?.find((option) => option.value === field.value)?.label ?? field.value}</SelectValue>
-                    </SelectTrigger>
-                    <SelectContent>
-                      {(field.options ?? []).map((option) => (
-                        <SelectItem key={option.value} value={option.value}>
-                          {option.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+              <div key={field.definition.id} className={field.definition.type === "checkbox" ? "space-y-2 md:col-span-2" : "space-y-2"}>
+                {field.definition.type === "checkbox" ? (
+                  <label className="flex items-start gap-3 rounded-lg border border-zinc-200 bg-white px-3 py-3 text-sm text-zinc-700">
+                    <Checkbox
+                      checked={field.value === "true"}
+                      disabled={field.disabled}
+                      onCheckedChange={(checked) => field.onChange(checked === true ? "true" : "false")}
+                    />
+                    <span className="space-y-1">
+                      <span className="block font-medium text-zinc-900">{field.definition.label}</span>
+                      {hint ? <span className="block text-xs text-zinc-500">{hint}</span> : null}
+                    </span>
+                  </label>
                 ) : (
-                  <div className="flex items-center gap-3">
-                    <div className="flex items-center overflow-hidden rounded-lg border border-zinc-200 bg-white">
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        className="h-11 rounded-none px-3"
-                        onClick={() => field.onStep?.(-(field.definition.step ?? 1))}
-                        disabled={!field.onStep}
-                      >
-                        -
-                      </Button>
-                      <Input
+                  <>
+                    <p className="text-sm font-medium">{field.definition.label}</p>
+                    {field.definition.type === "select" ? (
+                      <Select
                         value={field.value}
-                        onChange={(event) => field.onChange(sanitizeNumberInput(event.target.value, field.definition.inputMode))}
-                        onBlur={field.onBlur}
-                        inputMode={field.definition.inputMode ?? "numeric"}
-                        placeholder={field.min != null && field.max != null ? `${field.min}-${field.max}` : undefined}
-                        className="h-11 w-24 rounded-none border-0 text-center shadow-none focus-visible:ring-0"
                         disabled={field.disabled}
-                      />
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        className="h-11 rounded-none px-3"
-                        onClick={() => field.onStep?.(field.definition.step ?? 1)}
-                        disabled={!field.onStep}
+                        onValueChange={(value) => {
+                          if (value) {
+                            field.onChange(value);
+                          }
+                        }}
                       >
-                        +
-                      </Button>
-                    </div>
-                    {field.definition.unit ? <span className="text-sm font-medium text-zinc-500">{field.definition.unit}</span> : null}
-                  </div>
+                        <SelectTrigger className="bg-white">
+                          <SelectValue>{field.options?.find((option) => option.value === field.value)?.label ?? field.value}</SelectValue>
+                        </SelectTrigger>
+                        <SelectContent>
+                          {(field.options ?? []).map((option) => (
+                            <SelectItem key={option.value} value={option.value}>
+                              {option.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    ) : (
+                      <div className="flex items-center gap-3">
+                        <div className="flex items-center overflow-hidden rounded-lg border border-zinc-200 bg-white">
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            className="h-11 rounded-none px-3"
+                            onClick={() => field.onStep?.(-(field.definition.step ?? 1))}
+                            disabled={!field.onStep}
+                          >
+                            -
+                          </Button>
+                          <Input
+                            value={field.value}
+                            onChange={(event) => field.onChange(sanitizeNumberInput(event.target.value, field.definition.inputMode))}
+                            onBlur={field.onBlur}
+                            inputMode={field.definition.inputMode ?? "numeric"}
+                            placeholder={field.min != null && field.max != null ? `${field.min}-${field.max}` : undefined}
+                            className="h-11 w-24 rounded-none border-0 text-center shadow-none focus-visible:ring-0"
+                            disabled={field.disabled}
+                          />
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            className="h-11 rounded-none px-3"
+                            onClick={() => field.onStep?.(field.definition.step ?? 1)}
+                            disabled={!field.onStep}
+                          >
+                            +
+                          </Button>
+                          {group.kind === "number-with-unit-select" ? (
+                            <Select
+                              value={group.unitField.value}
+                              disabled={group.unitField.disabled}
+                              onValueChange={(value) => {
+                                if (value) {
+                                  group.unitField.onChange(value);
+                                }
+                              }}
+                            >
+                              <SelectTrigger className="h-11 w-[92px] rounded-none border-0 border-l border-zinc-200 bg-white shadow-none focus:ring-0">
+                                <SelectValue>
+                                  {group.unitField.options?.find((option) => option.value === group.unitField.value)?.label ?? group.unitField.value}
+                                </SelectValue>
+                              </SelectTrigger>
+                              <SelectContent>
+                                {(group.unitField.options ?? []).map((option) => (
+                                  <SelectItem key={option.value} value={option.value}>
+                                    {option.label}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          ) : null}
+                        </div>
+                        {group.kind === "single" && field.definition.unit ? <span className="text-sm font-medium text-zinc-500">{field.definition.unit}</span> : null}
+                      </div>
+                    )}
+                    {hint ? <p className="text-xs text-zinc-500">{hint}</p> : null}
+                  </>
                 )}
-                {hint ? <p className="text-xs text-zinc-500">{hint}</p> : null}
               </div>
             );
           })}

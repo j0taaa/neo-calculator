@@ -49,9 +49,12 @@ test("EVS pilot pricing definition links metrics to normalized catalog rate sour
 });
 
 test("additional configurable service definitions load from JSON", () => {
-  expect(configurableServiceCodes).toEqual(expect.arrayContaining(["OBS", "EIP", "NAT", "VPN", "CCE", "CCI", "ModelArts"]));
+  expect(configurableServiceCodes).toEqual(expect.arrayContaining(["OBS", "EIP", "ELB", "NAT", "VPN", "CCE", "CCI", "ModelArts", "Workspace", "DCS"]));
 
   expect(getConfigurableServiceDefinitionByCode("OBS")?.implementation).toBe("configurable");
+  expect(getConfigurableServiceDefinitionByCode("ELB")?.implementation).toBe("configurable");
+  expect(getConfigurableServiceDefinitionByCode("ELB")?.fields.map((field) => field.id)).toEqual(expect.arrayContaining(["type", "fixedAvailabilityAzCount", "tcpEnabled"]));
+  expect(getConfigurablePricingDefinitionByCode("ELB")?.catalogAdapter).toBe("elb");
   expect(getConfigurableServiceDefinitionByCode("NAT")?.fields.map((field) => field.id)).toEqual(["natType", "natSize"]);
   expect(getConfigurableServiceDefinitionByCode("CCI")?.fields.find((field) => field.id === "cpu")?.min).toBe(1);
   expect(getConfigurableServiceDefinitionByCode("EIP")?.fields.find((field) => field.id === "trafficAmount")?.inputMode).toBe("decimal");
@@ -66,4 +69,29 @@ test("additional configurable service definitions load from JSON", () => {
     "durationMonths",
   ]);
   expect(getConfigurablePricingDefinitionByCode("ModelArts")?.catalogAdapter).toBe("modelarts");
+  expect(getConfigurableServiceDefinitionByCode("Workspace")?.fields.map((field) => field.id)).toEqual([
+    "architecture",
+    "specification",
+    "cpu",
+    "memory",
+    "cpuUsageHours",
+    "diskType",
+    "diskSizeGb",
+    "diskUsageHours",
+    "quantity",
+  ]);
+  expect(getConfigurablePricingDefinitionByCode("Workspace")?.catalogAdapter).toBe("workspace");
+  expect(getConfigurableServiceDefinitionByCode("DCS")?.fields.map((field) => field.id)).toEqual([
+    "edition",
+    "version",
+    "instanceType",
+    "architecture",
+    "replicas",
+    "specification",
+    "quantity",
+    "elasticBandwidth",
+    "bandwidthMbit",
+    "usageHours",
+  ]);
+  expect(getConfigurablePricingDefinitionByCode("DCS")?.catalogAdapter).toBe("dcs");
 });
