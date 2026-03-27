@@ -1,12 +1,16 @@
-{
-  "$schema": "../../schemas/service-definition.schema.json",
+import type { ServiceDefinition } from "@/lib/service-config-types";
+
+export const serviceDefinition = {
   "version": 1,
   "definitionId": "eip",
   "serviceCode": "EIP",
   "serviceName": "Elastic IP",
   "icon": "https://res-static.hc-cdn.cn/cloudbu-site/public/product-banner-icon/Networking/EIP.png",
   "implementation": "configurable",
-  "billingOptions": ["Pay-per-use", "Yearly/Monthly"],
+  "billingOptions": [
+    "Pay-per-use",
+    "Yearly/Monthly"
+  ],
   "defaults": {
     "type": "Dedicated EIP",
     "chargeMode": "By bandwidth",
@@ -22,7 +26,10 @@
       "type": "select",
       "label": "Type",
       "required": true,
-      "options": ["Dedicated EIP", "Shared EIP"]
+      "options": [
+        "Dedicated EIP",
+        "Shared EIP"
+      ]
     },
     {
       "id": "chargeMode",
@@ -104,7 +111,10 @@
       "type": "select",
       "label": "Traffic Unit",
       "required": true,
-      "options": ["GB", "TB"],
+      "options": [
+        "GB",
+        "TB"
+      ],
       "visibleWhenAll": [
         {
           "field": "type",
@@ -123,4 +133,4 @@
       "The Huawei calculator currently uses Dynamic BGP for this workflow."
     ]
   }
-}
+} satisfies ServiceDefinition;

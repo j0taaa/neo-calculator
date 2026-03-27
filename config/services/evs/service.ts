@@ -1,12 +1,16 @@
-{
-  "$schema": "../../schemas/service-definition.schema.json",
+import type { ServiceDefinition } from "@/lib/service-config-types";
+
+export const serviceDefinition = {
   "version": 1,
   "definitionId": "evs",
   "serviceCode": "EVS",
   "serviceName": "Elastic Volume Service",
   "icon": "https://res-static.hc-cdn.cn/cloudbu-site/public/product-banner-icon/Storage/EVS.png",
   "implementation": "config-pilot",
-  "billingOptions": ["Pay-per-use", "Yearly/Monthly"],
+  "billingOptions": [
+    "Pay-per-use",
+    "Yearly/Monthly"
+  ],
   "defaults": {
     "billingMode": "Pay-per-use",
     "diskType": "General Purpose SSD",
@@ -22,7 +26,10 @@
       "type": "select",
       "label": "Billing",
       "required": true,
-      "options": ["Pay-per-use", "Yearly/Monthly"]
+      "options": [
+        "Pay-per-use",
+        "Yearly/Monthly"
+      ]
     },
     {
       "id": "diskType",
@@ -143,4 +150,4 @@
       "This JSON is a pilot definition only; the current EVS UI remains custom for now."
     ]
   }
-}
+} satisfies ServiceDefinition;

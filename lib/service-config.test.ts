@@ -19,7 +19,7 @@ test("service registry exposes the legacy service catalog and supported service 
   expect(supportedBatchAddServiceCodes).toContain("EVS");
 });
 
-test("EVS pilot definition loads from JSON with declarative conditional fields", () => {
+test("EVS pilot definition loads from typed TS config with declarative conditional fields", () => {
   expect(configurableServiceCodes).toContain("EVS");
 
   const definition = getConfigurableServiceDefinitionByCode("EVS");
@@ -48,7 +48,7 @@ test("EVS pilot pricing definition links metrics to normalized catalog rate sour
   expect(getConfiguredBillingOptions("EVS")).toEqual(["Pay-per-use", "Yearly/Monthly"]);
 });
 
-test("additional configurable service definitions load from JSON", () => {
+test("additional configurable service definitions load from typed TS config", () => {
   expect(configurableServiceCodes).toEqual(expect.arrayContaining(["OBS", "EIP", "ELB", "NAT", "VPN", "CCE", "CCI", "ModelArts", "Workspace", "DCS"]));
 
   expect(getConfigurableServiceDefinitionByCode("OBS")?.implementation).toBe("configurable");

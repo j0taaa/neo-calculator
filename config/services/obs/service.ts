@@ -1,12 +1,15 @@
-{
-  "$schema": "../../schemas/service-definition.schema.json",
+import type { ServiceDefinition } from "@/lib/service-config-types";
+
+export const serviceDefinition = {
   "version": 1,
   "definitionId": "obs",
   "serviceCode": "OBS",
   "serviceName": "Object Storage Service",
   "icon": "https://res-static.hc-cdn.cn/cloudbu-site/public/product-banner-icon/Storage/OBS.png",
   "implementation": "configurable",
-  "billingOptions": ["Pay-per-use"],
+  "billingOptions": [
+    "Pay-per-use"
+  ],
   "defaults": {
     "productType": "Object storage",
     "storageClass": "Standard",
@@ -64,7 +67,11 @@
       "type": "select",
       "label": "Storage Unit",
       "required": true,
-      "options": ["GB", "TB", "PB"]
+      "options": [
+        "GB",
+        "TB",
+        "PB"
+      ]
     },
     {
       "id": "durationMonths",
@@ -88,7 +95,11 @@
       "type": "select",
       "label": "Outbound Traffic Unit",
       "required": true,
-      "options": ["GB", "TB", "PB"]
+      "options": [
+        "GB",
+        "TB",
+        "PB"
+      ]
     },
     {
       "id": "pullTrafficAmount",
@@ -107,7 +118,11 @@
       "type": "select",
       "label": "Pull Traffic Unit",
       "required": true,
-      "options": ["GB", "TB", "PB"],
+      "options": [
+        "GB",
+        "TB",
+        "PB"
+      ],
       "visibleWhen": {
         "field": "productType",
         "equals": "Object storage"
@@ -141,7 +156,11 @@
       "type": "select",
       "label": "Read Traffic Unit",
       "required": true,
-      "options": ["GB", "TB", "PB"],
+      "options": [
+        "GB",
+        "TB",
+        "PB"
+      ],
       "visibleWhen": {
         "field": "showRestorationFields",
         "equals": true
@@ -175,7 +194,11 @@
       "type": "select",
       "label": "Replication Traffic Unit",
       "required": true,
-      "options": ["GB", "TB", "PB"],
+      "options": [
+        "GB",
+        "TB",
+        "PB"
+      ],
       "visibleWhen": {
         "field": "showReplicationTraffic",
         "equals": true
@@ -215,4 +238,4 @@
   "batchAdd": {
     "supported": true
   }
-}
+} satisfies ServiceDefinition;

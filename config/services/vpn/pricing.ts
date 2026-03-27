@@ -1,5 +1,6 @@
-{
-  "$schema": "../../schemas/pricing-definition.schema.json",
+import type { PricingDefinition } from "@/lib/service-config-types";
+
+export const pricingDefinition = {
   "version": 1,
   "definitionId": "vpn",
   "serviceCode": "VPN",
@@ -50,4 +51,4 @@
       }
     }
   ]
-}
+} satisfies PricingDefinition;

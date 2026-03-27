@@ -1,12 +1,16 @@
-{
-  "$schema": "../../schemas/service-definition.schema.json",
+import type { ServiceDefinition } from "@/lib/service-config-types";
+
+export const serviceDefinition = {
   "version": 1,
   "definitionId": "modelarts",
   "serviceCode": "ModelArts",
   "serviceName": "ModelArts",
   "icon": "https://res-static.hc-cdn.cn/cloudbu-site/public/product-banner-icon/AI/ModelArts.png",
   "implementation": "configurable",
-  "billingOptions": ["Pay-per-use", "Yearly/Monthly"],
+  "billingOptions": [
+    "Pay-per-use",
+    "Yearly/Monthly"
+  ],
   "defaults": {
     "serviceType": "AI Development Lifecycle",
     "resourceType": "Public Resource Pool",
@@ -22,7 +26,9 @@
       "type": "select",
       "label": "Service Type",
       "required": true,
-      "options": ["AI Development Lifecycle"]
+      "options": [
+        "AI Development Lifecycle"
+      ]
     },
     {
       "id": "resourceType",
@@ -81,7 +87,18 @@
       "type": "select",
       "label": "Required Duration",
       "required": true,
-      "options": [1, 2, 3, 4, 5, 6, 7, 8, 9, 12],
+      "options": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        12
+      ],
       "visibleWhen": {
         "field": "billingMode",
         "equals": "Yearly/Monthly"
@@ -95,4 +112,4 @@
       "The generated form keeps Service Type fixed to the AI Development Lifecycle flow."
     ]
   }
-}
+} satisfies ServiceDefinition;

@@ -1,5 +1,6 @@
-{
-  "$schema": "../../schemas/service-definition.schema.json",
+import type { ServiceDefinition } from "@/lib/service-config-types";
+
+export const serviceDefinition = {
   "version": 1,
   "definitionId": "elb",
   "serviceCode": "ELB",
@@ -855,4 +856,4 @@
       "Dedicated elastic pricing combines base load balancer cost with protocol-specific LCU usage."
     ]
   }
-}
+} satisfies ServiceDefinition;

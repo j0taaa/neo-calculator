@@ -1,12 +1,15 @@
-{
-  "$schema": "../../schemas/service-definition.schema.json",
+import type { ServiceDefinition } from "@/lib/service-config-types";
+
+export const serviceDefinition = {
   "version": 1,
   "definitionId": "workspace",
   "serviceCode": "Workspace",
   "serviceName": "Workspace",
   "icon": "https://res-static.hc-cdn.cn/cloudbu-site/public/product-banner-icon/BusinessApplications/Workspace.png",
   "implementation": "configurable",
-  "billingOptions": ["Pay-per-use"],
+  "billingOptions": [
+    "Pay-per-use"
+  ],
   "defaults": {
     "architecture": "x86 desktop",
     "specification": "Ultimate",
@@ -24,14 +27,18 @@
       "type": "select",
       "label": "Architecture",
       "required": true,
-      "options": ["x86 desktop"]
+      "options": [
+        "x86 desktop"
+      ]
     },
     {
       "id": "specification",
       "type": "select",
       "label": "Specifications",
       "required": true,
-      "options": ["Ultimate"]
+      "options": [
+        "Ultimate"
+      ]
     },
     {
       "id": "cpu",
@@ -101,4 +108,4 @@
       "The calculator models the system disk only. Up to 10 additional EVS disks can be attached separately."
     ]
   }
-}
+} satisfies ServiceDefinition;

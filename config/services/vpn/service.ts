@@ -1,12 +1,16 @@
-{
-  "$schema": "../../schemas/service-definition.schema.json",
+import type { ServiceDefinition } from "@/lib/service-config-types";
+
+export const serviceDefinition = {
   "version": 1,
   "definitionId": "vpn",
   "serviceCode": "VPN",
   "serviceName": "Virtual Private Network",
   "icon": "https://res-static.hc-cdn.cn/cloudbu-site/public/product-banner-icon/Networking/VPN.png",
   "implementation": "configurable",
-  "billingOptions": ["Pay-per-use", "Yearly/Monthly"],
+  "billingOptions": [
+    "Pay-per-use",
+    "Yearly/Monthly"
+  ],
   "defaults": {
     "edition": "Classic",
     "mode": "Site-to-Cloud",
@@ -23,7 +27,10 @@
       "type": "select",
       "label": "VPN Edition",
       "required": true,
-      "options": ["Classic", "Enterprise"]
+      "options": [
+        "Classic",
+        "Enterprise"
+      ]
     },
     {
       "id": "mode",
@@ -41,7 +48,10 @@
       "type": "select",
       "label": "Network Type",
       "required": true,
-      "options": ["Public network", "Private network"],
+      "options": [
+        "Public network",
+        "Private network"
+      ],
       "visibleWhen": {
         "field": "edition",
         "equals": "Enterprise"
@@ -63,7 +73,10 @@
       "type": "select",
       "label": "Using Shared Bandwidth",
       "required": true,
-      "options": ["Yes", "No"],
+      "options": [
+        "Yes",
+        "No"
+      ],
       "visibleWhenAll": [
         {
           "field": "edition",
@@ -118,7 +131,20 @@
       "type": "select",
       "label": "Required Duration",
       "required": true,
-      "options": [1, 2, 3, 4, 5, 6, 7, 8, 9, 12, 24, 36],
+      "options": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        12,
+        24,
+        36
+      ],
       "visibleWhen": {
         "field": "billingMode",
         "equals": "Yearly/Monthly"
@@ -131,4 +157,4 @@
       "Specification options are derived from the current calculator catalog and remain read-only in the generated form."
     ]
   }
-}
+} satisfies ServiceDefinition;

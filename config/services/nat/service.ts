@@ -1,12 +1,16 @@
-{
-  "$schema": "../../schemas/service-definition.schema.json",
+import type { ServiceDefinition } from "@/lib/service-config-types";
+
+export const serviceDefinition = {
   "version": 1,
   "definitionId": "nat",
   "serviceCode": "NAT",
   "serviceName": "NAT Gateway",
   "icon": "https://res-static.hc-cdn.cn/cloudbu-site/public/product-banner-icon/Networking/NAT.png",
   "implementation": "configurable",
-  "billingOptions": ["Pay-per-use", "Yearly/Monthly"],
+  "billingOptions": [
+    "Pay-per-use",
+    "Yearly/Monthly"
+  ],
   "defaults": {
     "natType": "Public NAT Gateway",
     "natSize": "Small"
@@ -33,4 +37,4 @@
       "Billing mode remains controlled by the shared calculator header because NAT availability depends on the selected gateway type."
     ]
   }
-}
+} satisfies ServiceDefinition;

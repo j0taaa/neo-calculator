@@ -1,12 +1,15 @@
-{
-  "$schema": "../../schemas/service-definition.schema.json",
+import type { ServiceDefinition } from "@/lib/service-config-types";
+
+export const serviceDefinition = {
   "version": 1,
   "definitionId": "dcs",
   "serviceCode": "DCS",
   "serviceName": "Distributed Cache Service (for Redis)",
   "icon": "https://res-static.hc-cdn.cn/cloudbu-site/public/product-banner-icon/Middleware/Memcached.png",
   "implementation": "configurable",
-  "billingOptions": ["Pay-per-use"],
+  "billingOptions": [
+    "Pay-per-use"
+  ],
   "defaults": {
     "edition": "Basic",
     "version": "7.0",
@@ -25,7 +28,9 @@
       "type": "select",
       "label": "Edition",
       "required": true,
-      "options": ["Basic"]
+      "options": [
+        "Basic"
+      ]
     },
     {
       "id": "version",
@@ -79,7 +84,10 @@
       "type": "select",
       "label": "Elastic Bandwidth",
       "required": true,
-      "options": ["Buy now", "Buy later"]
+      "options": [
+        "Buy now",
+        "Buy later"
+      ]
     },
     {
       "id": "bandwidthMbit",
@@ -112,4 +120,4 @@
       "Bandwidth charges are included only when Elastic Bandwidth is set to Buy now."
     ]
   }
-}
+} satisfies ServiceDefinition;

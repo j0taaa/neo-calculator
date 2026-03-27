@@ -1,5 +1,6 @@
-{
-  "$schema": "../../schemas/pricing-definition.schema.json",
+import type { PricingDefinition } from "@/lib/service-config-types";
+
+export const pricingDefinition = {
   "version": 1,
   "definitionId": "elb",
   "serviceCode": "ELB",
@@ -103,4 +104,4 @@
       }
     }
   ]
-}
+} satisfies PricingDefinition;

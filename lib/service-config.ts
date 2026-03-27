@@ -1,143 +1,71 @@
-import registryDocumentJson from "@/config/services/index.json";
-import ccePricingDefinitionJson from "@/config/services/cce/pricing.json";
-import cceServiceDefinitionJson from "@/config/services/cce/service.json";
-import cciPricingDefinitionJson from "@/config/services/cci/pricing.json";
-import cciServiceDefinitionJson from "@/config/services/cci/service.json";
-import dcsPricingDefinitionJson from "@/config/services/dcs/pricing.json";
-import dcsServiceDefinitionJson from "@/config/services/dcs/service.json";
-import elbPricingDefinitionJson from "@/config/services/elb/pricing.json";
-import elbServiceDefinitionJson from "@/config/services/elb/service.json";
-import eipPricingDefinitionJson from "@/config/services/eip/pricing.json";
-import eipServiceDefinitionJson from "@/config/services/eip/service.json";
-import evsPricingDefinitionJson from "@/config/services/evs/pricing.json";
-import evsServiceDefinitionJson from "@/config/services/evs/service.json";
-import natPricingDefinitionJson from "@/config/services/nat/pricing.json";
-import natServiceDefinitionJson from "@/config/services/nat/service.json";
-import modelartsPricingDefinitionJson from "@/config/services/modelarts/pricing.json";
-import modelartsServiceDefinitionJson from "@/config/services/modelarts/service.json";
-import obsPricingDefinitionJson from "@/config/services/obs/pricing.json";
-import obsServiceDefinitionJson from "@/config/services/obs/service.json";
-import vpnPricingDefinitionJson from "@/config/services/vpn/pricing.json";
-import vpnServiceDefinitionJson from "@/config/services/vpn/service.json";
-import workspacePricingDefinitionJson from "@/config/services/workspace/pricing.json";
-import workspaceServiceDefinitionJson from "@/config/services/workspace/service.json";
+import { serviceRegistryDocument } from "@/config/services/index";
+import { pricingDefinition as ccePricingDefinitionDocument } from "@/config/services/cce/pricing";
+import { serviceDefinition as cceServiceDefinitionDocument } from "@/config/services/cce/service";
+import { pricingDefinition as cciPricingDefinitionDocument } from "@/config/services/cci/pricing";
+import { serviceDefinition as cciServiceDefinitionDocument } from "@/config/services/cci/service";
+import { pricingDefinition as dcsPricingDefinitionDocument } from "@/config/services/dcs/pricing";
+import { serviceDefinition as dcsServiceDefinitionDocument } from "@/config/services/dcs/service";
+import { pricingDefinition as eipPricingDefinitionDocument } from "@/config/services/eip/pricing";
+import { serviceDefinition as eipServiceDefinitionDocument } from "@/config/services/eip/service";
+import { pricingDefinition as elbPricingDefinitionDocument } from "@/config/services/elb/pricing";
+import { serviceDefinition as elbServiceDefinitionDocument } from "@/config/services/elb/service";
+import { pricingDefinition as evsPricingDefinitionDocument } from "@/config/services/evs/pricing";
+import { serviceDefinition as evsServiceDefinitionDocument } from "@/config/services/evs/service";
+import { pricingDefinition as modelartsPricingDefinitionDocument } from "@/config/services/modelarts/pricing";
+import { serviceDefinition as modelartsServiceDefinitionDocument } from "@/config/services/modelarts/service";
+import { pricingDefinition as natPricingDefinitionDocument } from "@/config/services/nat/pricing";
+import { serviceDefinition as natServiceDefinitionDocument } from "@/config/services/nat/service";
+import { pricingDefinition as obsPricingDefinitionDocument } from "@/config/services/obs/pricing";
+import { serviceDefinition as obsServiceDefinitionDocument } from "@/config/services/obs/service";
+import { pricingDefinition as vpnPricingDefinitionDocument } from "@/config/services/vpn/pricing";
+import { serviceDefinition as vpnServiceDefinitionDocument } from "@/config/services/vpn/service";
+import { pricingDefinition as workspacePricingDefinitionDocument } from "@/config/services/workspace/pricing";
+import { serviceDefinition as workspaceServiceDefinitionDocument } from "@/config/services/workspace/service";
+import {
+  billingOptions,
+  definitionStatuses,
+  fieldInputModes,
+  fieldTypes,
+  metricQuantitySources,
+  serviceImplementations,
+  type BillingOption,
+  type ConfigScalar,
+  type ConfigurableServiceBundle,
+  type DefinitionStatus,
+  type MetricQuantitySource,
+  type PricingDefinition,
+  type PricingMetricDefinition,
+  type ServiceCatalogEntry,
+  type ServiceDefinition,
+  type ServiceDefinitionRegistryEntry,
+  type ServiceFieldCondition,
+  type ServiceFieldDefinition,
+  type ServiceFieldInputMode,
+  type ServiceFieldRuntimeValues,
+  type ServiceFieldType,
+  type ServiceImplementation,
+  type ServiceRegistryDocument,
+} from "@/lib/service-config-types";
 
-const billingOptions = ["Pay-per-use", "RI", "Yearly/Monthly"] as const;
-const definitionStatuses = ["pilot", "active", "deprecated"] as const;
-const fieldTypes = ["select", "number", "checkbox"] as const;
-const fieldInputModes = ["numeric", "decimal"] as const;
-const metricQuantitySources = ["field", "expression"] as const;
-const serviceImplementations = ["config-pilot", "configurable"] as const;
-
-type ConfigScalar = string | number | boolean | null;
-
-export type BillingOption = (typeof billingOptions)[number];
-export type DefinitionStatus = (typeof definitionStatuses)[number];
-export type ServiceFieldType = (typeof fieldTypes)[number];
-export type ServiceFieldInputMode = (typeof fieldInputModes)[number];
-export type MetricQuantitySource = (typeof metricQuantitySources)[number];
-export type ServiceImplementation = (typeof serviceImplementations)[number];
-
-export type ServiceCatalogEntry = {
-  name: string;
-  code: string;
-  icon: string;
-};
-
-export type ServiceDefinitionRegistryEntry = {
-  serviceCode: string;
-  definitionId: string;
-  serviceDefinitionPath: string;
-  pricingDefinitionPath: string;
-  status: DefinitionStatus;
-};
-
-export type ServiceRegistryDocument = {
-  version: 1;
-  services: ServiceCatalogEntry[];
-  supportedCalculatorServiceCodes: string[];
-  supportedBatchAddServiceCodes: string[];
-  definitions: ServiceDefinitionRegistryEntry[];
-};
-
-export type ServiceFieldCondition = {
-  field: string;
-  equals?: Exclude<ConfigScalar, null>;
-  notEquals?: Exclude<ConfigScalar, null>;
-  in?: Array<Exclude<ConfigScalar, null>>;
-};
-
-export type ServiceFieldDefinition = {
-  id: string;
-  type: ServiceFieldType;
-  label: string;
-  description?: string;
-  required?: boolean;
-  unit?: string;
-  inputMode?: ServiceFieldInputMode;
-  step?: number;
-  min?: number;
-  max?: number;
-  minSource?: string;
-  maxSource?: string;
-  options?: Array<string | number>;
-  optionsSource?: string;
-  visibleWhen?: ServiceFieldCondition;
-  visibleWhenAll?: ServiceFieldCondition[];
-};
-
-export type ServiceDefinition = {
-  version: 1;
-  definitionId: string;
-  serviceCode: string;
-  serviceName: string;
-  icon: string;
-  implementation: ServiceImplementation;
-  billingOptions: BillingOption[];
-  defaults: Record<string, ConfigScalar>;
-  fields: ServiceFieldDefinition[];
-  summary?: {
-    selectionTemplate?: string;
-    notes?: string[];
-  };
-  batchAdd?: {
-    supported?: boolean;
-    example?: unknown[];
-    notes?: string[];
-  };
-};
-
-export type PricingMetricDefinition = {
-  id: string;
-  label: string;
-  rateSource: string;
-  quantity: {
-    source: MetricQuantitySource;
-    field?: string;
-    expression?: string;
-  };
-  unit?: string;
-  enabledWhen?: ServiceFieldCondition;
-  notes?: string[];
-};
-
-export type PricingDefinition = {
-  version: 1;
-  definitionId: string;
-  serviceCode: string;
-  serviceName: string;
-  catalogAdapter: string;
-  rateSources: Record<string, { catalogKey: string; description?: string }>;
-  metrics: PricingMetricDefinition[];
-};
-
-export type ConfigurableServiceBundle = {
-  metadata: ServiceDefinitionRegistryEntry;
-  service: ServiceDefinition;
-  pricing: PricingDefinition;
-};
-
-export type ServiceFieldRuntimeValues = Record<string, ConfigScalar | undefined>;
+export type {
+  BillingOption,
+  ConfigScalar,
+  ConfigurableServiceBundle,
+  DefinitionStatus,
+  MetricQuantitySource,
+  PricingDefinition,
+  PricingMetricDefinition,
+  ServiceCatalogEntry,
+  ServiceDefinition,
+  ServiceDefinitionRegistryEntry,
+  ServiceFieldCondition,
+  ServiceFieldDefinition,
+  ServiceFieldInputMode,
+  ServiceFieldRuntimeValues,
+  ServiceFieldType,
+  ServiceImplementation,
+  ServiceRegistryDocument,
+} from "@/lib/service-config-types";
 
 function invariant(condition: unknown, message: string): asserts condition {
   if (!condition) {
@@ -501,52 +429,52 @@ function parsePricingDefinition(value: unknown): PricingDefinition {
   };
 }
 
-const serviceRegistry = parseServiceRegistryDocument(registryDocumentJson);
+const serviceRegistry = parseServiceRegistryDocument(serviceRegistryDocument);
 
 const definitionDocuments = {
   cce: {
-    service: parseServiceDefinition(cceServiceDefinitionJson),
-    pricing: parsePricingDefinition(ccePricingDefinitionJson),
+    service: parseServiceDefinition(cceServiceDefinitionDocument),
+    pricing: parsePricingDefinition(ccePricingDefinitionDocument),
   },
   cci: {
-    service: parseServiceDefinition(cciServiceDefinitionJson),
-    pricing: parsePricingDefinition(cciPricingDefinitionJson),
+    service: parseServiceDefinition(cciServiceDefinitionDocument),
+    pricing: parsePricingDefinition(cciPricingDefinitionDocument),
   },
   dcs: {
-    service: parseServiceDefinition(dcsServiceDefinitionJson),
-    pricing: parsePricingDefinition(dcsPricingDefinitionJson),
+    service: parseServiceDefinition(dcsServiceDefinitionDocument),
+    pricing: parsePricingDefinition(dcsPricingDefinitionDocument),
   },
   elb: {
-    service: parseServiceDefinition(elbServiceDefinitionJson),
-    pricing: parsePricingDefinition(elbPricingDefinitionJson),
+    service: parseServiceDefinition(elbServiceDefinitionDocument),
+    pricing: parsePricingDefinition(elbPricingDefinitionDocument),
   },
   eip: {
-    service: parseServiceDefinition(eipServiceDefinitionJson),
-    pricing: parsePricingDefinition(eipPricingDefinitionJson),
+    service: parseServiceDefinition(eipServiceDefinitionDocument),
+    pricing: parsePricingDefinition(eipPricingDefinitionDocument),
   },
   evs: {
-    service: parseServiceDefinition(evsServiceDefinitionJson),
-    pricing: parsePricingDefinition(evsPricingDefinitionJson),
+    service: parseServiceDefinition(evsServiceDefinitionDocument),
+    pricing: parsePricingDefinition(evsPricingDefinitionDocument),
   },
   nat: {
-    service: parseServiceDefinition(natServiceDefinitionJson),
-    pricing: parsePricingDefinition(natPricingDefinitionJson),
+    service: parseServiceDefinition(natServiceDefinitionDocument),
+    pricing: parsePricingDefinition(natPricingDefinitionDocument),
   },
   modelarts: {
-    service: parseServiceDefinition(modelartsServiceDefinitionJson),
-    pricing: parsePricingDefinition(modelartsPricingDefinitionJson),
+    service: parseServiceDefinition(modelartsServiceDefinitionDocument),
+    pricing: parsePricingDefinition(modelartsPricingDefinitionDocument),
   },
   obs: {
-    service: parseServiceDefinition(obsServiceDefinitionJson),
-    pricing: parsePricingDefinition(obsPricingDefinitionJson),
+    service: parseServiceDefinition(obsServiceDefinitionDocument),
+    pricing: parsePricingDefinition(obsPricingDefinitionDocument),
   },
   vpn: {
-    service: parseServiceDefinition(vpnServiceDefinitionJson),
-    pricing: parsePricingDefinition(vpnPricingDefinitionJson),
+    service: parseServiceDefinition(vpnServiceDefinitionDocument),
+    pricing: parsePricingDefinition(vpnPricingDefinitionDocument),
   },
   workspace: {
-    service: parseServiceDefinition(workspaceServiceDefinitionJson),
-    pricing: parsePricingDefinition(workspacePricingDefinitionJson),
+    service: parseServiceDefinition(workspaceServiceDefinitionDocument),
+    pricing: parsePricingDefinition(workspacePricingDefinitionDocument),
   },
 } as const;
 

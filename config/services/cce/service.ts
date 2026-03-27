@@ -1,12 +1,16 @@
-{
-  "$schema": "../../schemas/service-definition.schema.json",
+import type { ServiceDefinition } from "@/lib/service-config-types";
+
+export const serviceDefinition = {
   "version": 1,
   "definitionId": "cce",
   "serviceCode": "CCE",
   "serviceName": "Cloud Container Engine",
   "icon": "https://res-static.hc-cdn.cn/cloudbu-site/public/product-banner-icon/Containers/CCE.png",
   "implementation": "configurable",
-  "billingOptions": ["Pay-per-use", "Yearly/Monthly"],
+  "billingOptions": [
+    "Pay-per-use",
+    "Yearly/Monthly"
+  ],
   "defaults": {
     "clusterScale": "50 nodes",
     "masterNodes": "3 Masters"
@@ -30,4 +34,4 @@
   "summary": {
     "selectionTemplate": "{clusterScale} | {masterNodes}"
   }
-}
+} satisfies ServiceDefinition;
