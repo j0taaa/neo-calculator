@@ -1,13 +1,13 @@
+import type { PricingRateSet, RegionalPricingCatalog, ResourcePricingTierWithProducts } from "@/lib/pricing-catalog-types";
+
 export type DcsVersion = "7.0" | "6.0" | "5.0" | "4.0";
 export type DcsInstanceType = "Single-node" | "Master/Standby" | "Redis Cluster";
 export type DcsArchitecture = "x86 | DRAM" | "ARM | DRAM";
 export type DcsBandwidthMode = "Buy now" | "Buy later";
 
-export type DcsRateSet = {
-  ONDEMAND?: number;
-};
+export type DcsRateSet = PricingRateSet<"ONDEMAND">;
 
-export interface DcsInstanceTier {
+export interface DcsInstanceTier extends ResourcePricingTierWithProducts<"ONDEMAND"> {
   edition: "Basic";
   version: DcsVersion;
   instanceType: DcsInstanceType;
@@ -15,14 +15,9 @@ export interface DcsInstanceTier {
   replicas: number | null;
   specification: string;
   memoryGiB: number;
-  resourceSpecCode: string;
-  prices: DcsRateSet;
-  productIds: Partial<Record<"ONDEMAND", string>>;
 }
 
-export interface DcsPricingCatalog {
-  currency: string;
-  regionId: string;
+export interface DcsPricingCatalog extends RegionalPricingCatalog {
   edition: "Basic";
   instanceTiers: DcsInstanceTier[];
   bandwidthRatePerMbitHour: number | null;

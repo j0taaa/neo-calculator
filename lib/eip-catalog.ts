@@ -1,14 +1,14 @@
+import type { CapacityRateTier, PricingRateSet, RegionalPricingCatalog } from "@/lib/pricing-catalog-types";
+
 export type EipType = "Dedicated EIP" | "Shared EIP";
 export type EipChargeMode = "By bandwidth" | "By traffic" | "Enhanced 95";
 export type EipTrafficUnit = "GB" | "TB";
 
-export type EipCatalogRateSet = Partial<Record<"ONDEMAND" | "MONTHLY" | "YEARLY", number>>;
+export type EipCatalogRateSet = PricingRateSet<"ONDEMAND" | "MONTHLY" | "YEARLY">;
 
-export type EipTrafficTier = {
+export interface EipTrafficTier extends CapacityRateTier {
   startGb: number;
-  upToGb: number | null;
-  amountPerGb: number;
-};
+}
 
 export type EipTrafficPackage = {
   billingMode: "MONTHLY" | "YEARLY";
@@ -18,9 +18,7 @@ export type EipTrafficPackage = {
   productId: string | null;
 };
 
-export type EipPricingCatalog = {
-  currency: string;
-  regionId: string;
+export type EipPricingCatalog = RegionalPricingCatalog & {
   dedicated: {
     eipRates: EipCatalogRateSet;
     bandwidthRates: EipCatalogRateSet;

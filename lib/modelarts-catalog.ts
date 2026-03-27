@@ -1,31 +1,25 @@
+import type { PricingRateSet, RegionalPricingCatalog, ResourcePricingTierWithProducts } from "@/lib/pricing-catalog-types";
+
 export type ModelArtsBillingMode = "Pay-per-use" | "Yearly/Monthly";
 export type ModelArtsPricingMode = "ONDEMAND" | "MONTHLY" | "YEARLY";
 export type ModelArtsServiceType = "AI Development Lifecycle";
 export type ModelArtsResourceType = "Public Resource Pool" | "Dedicated Resource Pool" | "EVS Storage";
 
-export type ModelArtsRateSet = Partial<Record<ModelArtsPricingMode, number>>;
+export type ModelArtsRateSet = PricingRateSet<ModelArtsPricingMode>;
 
-export interface ModelArtsComputeTier {
+export interface ModelArtsComputeTier extends ResourcePricingTierWithProducts<ModelArtsPricingMode> {
   resourceType: Extract<ModelArtsResourceType, "Public Resource Pool" | "Dedicated Resource Pool">;
   specification: string;
-  resourceSpecCode: string;
   cpuUnits: number;
   memoryGiB: number | null;
-  prices: ModelArtsRateSet;
-  productIds: Partial<Record<ModelArtsPricingMode, string>>;
 }
 
-export interface ModelArtsStorageTier {
+export interface ModelArtsStorageTier extends ResourcePricingTierWithProducts<ModelArtsPricingMode> {
   resourceType: "EVS Storage";
   specification: "Instance storage";
-  resourceSpecCode: string;
-  prices: ModelArtsRateSet;
-  productIds: Partial<Record<ModelArtsPricingMode, string>>;
 }
 
-export interface ModelArtsPricingCatalog {
-  currency: string;
-  regionId: string;
+export interface ModelArtsPricingCatalog extends RegionalPricingCatalog {
   serviceType: ModelArtsServiceType;
   computeTiers: ModelArtsComputeTier[];
   storageTier: ModelArtsStorageTier | null;

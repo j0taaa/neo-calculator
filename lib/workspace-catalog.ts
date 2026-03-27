@@ -1,33 +1,25 @@
+import type { PricingRateSet, RegionalPricingCatalog, ResourcePricingTierWithProducts } from "@/lib/pricing-catalog-types";
+
 export type WorkspaceCpuOption = "2 vCPUs" | "4 vCPUs" | "8 vCPUs";
 export type WorkspaceMemoryOption = "4 GB" | "8 GB" | "16 GB" | "32 GB";
 export type WorkspaceDiskType = "High I/O" | "Ultra-high I/O" | "General purpose SSD";
 
-export type WorkspaceRateSet = {
-  ONDEMAND?: number;
-};
+export type WorkspaceRateSet = PricingRateSet<"ONDEMAND">;
 
-export interface WorkspaceDesktopTier {
+export interface WorkspaceDesktopTier extends ResourcePricingTierWithProducts<"ONDEMAND"> {
   architecture: "x86 desktop";
   specification: "Ultimate";
   cpu: WorkspaceCpuOption;
   memory: WorkspaceMemoryOption;
   cpuCount: number;
   memoryGiB: number;
-  resourceSpecCode: string;
-  prices: WorkspaceRateSet;
-  productIds: Partial<Record<"ONDEMAND", string>>;
 }
 
-export interface WorkspaceDiskTier {
+export interface WorkspaceDiskTier extends ResourcePricingTierWithProducts<"ONDEMAND"> {
   diskType: WorkspaceDiskType;
-  resourceSpecCode: string;
-  prices: WorkspaceRateSet;
-  productIds: Partial<Record<"ONDEMAND", string>>;
 }
 
-export interface WorkspacePricingCatalog {
-  currency: string;
-  regionId: string;
+export interface WorkspacePricingCatalog extends RegionalPricingCatalog {
   architecture: "x86 desktop";
   specification: "Ultimate";
   desktopTiers: WorkspaceDesktopTier[];

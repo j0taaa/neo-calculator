@@ -1,3 +1,5 @@
+import type { PricingRateSet, RegionalPricingCatalog } from "@/lib/pricing-catalog-types";
+
 export type ElbType = "Shared load balancer" | "Dedicated load balancer";
 export type ElbSpecificationType = "Fixed" | "Elastic";
 export type ElbSubAz = "General AZ" | "Edge AZ";
@@ -22,11 +24,9 @@ export type ElbDedicatedProtocol =
   | "Network load balancing (TLS)"
   | "Application load balancing (HTTP/HTTPS)";
 
-export type ElbRateSet = Partial<Record<"ONDEMAND" | "MONTHLY" | "YEARLY", number>>;
+export type ElbRateSet = PricingRateSet<"ONDEMAND" | "MONTHLY" | "YEARLY">;
 
-export type ElbPricingCatalog = {
-  currency: string;
-  regionId: string;
+export interface ElbPricingCatalog extends RegionalPricingCatalog {
   sharedRates: ElbRateSet;
   dedicatedRates: {
     fixed: Partial<Record<ElbSubAz, Partial<Record<number, Partial<Record<ElbDedicatedProtocol, number>>>>>>;
@@ -39,7 +39,7 @@ export type ElbPricingCatalog = {
     bandwidthPerMbitHour: number | null;
     trafficPerGb: number | null;
   };
-};
+}
 
 export type ElbProtocolSectionInput = {
   newConnections: number;

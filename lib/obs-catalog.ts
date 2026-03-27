@@ -1,3 +1,5 @@
+import type { CapacityRateTier, RegionalPricingCatalog } from "@/lib/pricing-catalog-types";
+
 export const obsPricingReference = {
   productUrl: "https://www.huaweicloud.com/intl/en-us/product/obs.html",
   billingUrl: "https://support.huaweicloud.com/intl/en-us/price-obs/obs_42_0009.html",
@@ -55,10 +57,7 @@ export type ObsConditionalRate = {
   conditionName: string | null;
 };
 
-export type ObsTieredRate = {
-  upToGb: number | null;
-  amountPerGb: number;
-};
+export type ObsTieredRate = CapacityRateTier;
 
 export type ObsRateCard = {
   billingEvent: string;
@@ -84,9 +83,7 @@ export type ObsPricingVariant = {
   isFallback: boolean;
 };
 
-export type ObsPricingCatalog = {
-  currency: string;
-  regionId: string;
+export interface ObsPricingCatalog extends RegionalPricingCatalog {
   variants: ObsPricingVariant[];
   outboundRates: Partial<Record<ObsStorageClass, ObsRateCard>>;
   requestRates: Partial<Record<ObsStorageClass, {
@@ -98,7 +95,7 @@ export type ObsPricingCatalog = {
   replicationRate: ObsRateCard | null;
   readTrafficRates: Partial<Record<ObsStorageClass, Partial<Record<ObsRestorationType, ObsRateCard>>>>;
   lifecycleTransitionRates: Partial<Record<ObsStorageClass, ObsRateCard>>;
-};
+}
 
 export type ObsEstimateInput = {
   productType: ObsProductType;

@@ -1,19 +1,17 @@
+import type { PricingRateSet, RegionalPricingCatalog, ResourcePricingTier } from "@/lib/pricing-catalog-types";
+
 export type NatGatewayType = "Public NAT Gateway" | "Private NAT Gateway";
 export type NatGatewaySize = "Small" | "Medium" | "Large" | "Extra-large";
 export type NatPricingMode = "ONDEMAND" | "MONTHLY" | "YEARLY";
 
-export type NatRateSet = Partial<Record<NatPricingMode, number>>;
+export type NatRateSet = PricingRateSet<NatPricingMode>;
 
-export interface NatPricingTier {
+export interface NatPricingTier extends ResourcePricingTier<NatPricingMode> {
   type: NatGatewayType;
   size: NatGatewaySize;
-  resourceSpecCode: string;
-  prices: NatRateSet;
 }
 
-export interface NatPricingCatalog {
-  currency: string;
-  regionId: string;
+export interface NatPricingCatalog extends RegionalPricingCatalog {
   tiers: NatPricingTier[];
 }
 

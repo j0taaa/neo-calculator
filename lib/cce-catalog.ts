@@ -1,19 +1,16 @@
+import type { RegionalPricingCatalog, ResourcePricingTierWithProducts } from "@/lib/pricing-catalog-types";
+
 export type CceClusterScale = "50 nodes" | "200 nodes" | "1000 nodes" | "2000 nodes";
 export type CceMasterNodes = "3 Masters" | "Single";
 export type CceProductCategory = "CCE cluster" | "CCE Autopilot cluster";
 export type CcePricingMode = "ONDEMAND" | "MONTHLY" | "YEARLY";
 
-export interface CcePricingTier {
+export interface CcePricingTier extends ResourcePricingTierWithProducts<CcePricingMode> {
   scale: CceClusterScale;
   masterNodes: CceMasterNodes;
-  resourceSpecCode: string;
-  prices: Partial<Record<CcePricingMode, number>>;
-  productIds: Partial<Record<CcePricingMode, string>>;
 }
 
-export interface CcePricingCatalog {
-  currency: string;
-  regionId: string;
+export interface CcePricingCatalog extends RegionalPricingCatalog {
   tiers: CcePricingTier[];
 }
 

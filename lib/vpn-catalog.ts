@@ -1,3 +1,5 @@
+import type { AmountPlan, BillingPeriodPlan, RegionalPricingCatalog, UsageDivisionRate } from "@/lib/pricing-catalog-types";
+
 export type VpnEdition = "Classic" | "Enterprise";
 export type VpnMode = "Site-to-Cloud" | "Point-to-Cloud";
 export type VpnNetworkType = "Public network" | "Private network";
@@ -7,17 +9,11 @@ export type VpnBillingMode = "Pay-per-use" | "Yearly/Monthly";
 export type VpnBandwidthAllocation = "Dedicated bandwidth" | "Shared bandwidth";
 export type VpnCatalogBillingMode = "ONDEMAND" | "MONTHLY" | "YEARLY";
 
-export type VpnDivisionRate = {
-  start: number;
-  end: number | null;
-  amount: number;
-};
+export type VpnDivisionRate = UsageDivisionRate;
 
-export type VpnGatewayPlan = {
-  billingMode: VpnCatalogBillingMode;
-  periodNum: number | null;
+export interface VpnGatewayPlan extends BillingPeriodPlan<VpnCatalogBillingMode> {
   tiers: VpnDivisionRate[];
-};
+}
 
 export type VpnGatewayTier = {
   mode: VpnMode;
@@ -27,11 +23,7 @@ export type VpnGatewayTier = {
   plans: VpnGatewayPlan[];
 };
 
-export type VpnBandwidthPlan = {
-  billingMode: VpnCatalogBillingMode;
-  periodNum: number | null;
-  amount: number;
-};
+export type VpnBandwidthPlan = AmountPlan<VpnCatalogBillingMode>;
 
 export type VpnBandwidthTier = {
   allocation: VpnBandwidthAllocation;
@@ -39,9 +31,7 @@ export type VpnBandwidthTier = {
   plans: VpnBandwidthPlan[];
 };
 
-export type VpnPricingCatalog = {
-  currency: string;
-  regionId: string;
+export type VpnPricingCatalog = RegionalPricingCatalog & {
   gateways: VpnGatewayTier[];
   publicBandwidth: VpnBandwidthTier[];
 };
