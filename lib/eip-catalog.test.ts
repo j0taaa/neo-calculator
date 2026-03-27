@@ -6,6 +6,7 @@ import {
   selectEipTrafficPackageCombination,
   type EipPricingCatalog,
 } from "@/lib/eip-catalog";
+import { parseEipPricingCatalogResponse } from "@/lib/eip-pricing";
 
 test("estimateEipTieredTrafficCost applies each usage tier in order", () => {
   const amount = estimateEipTieredTrafficCost([
@@ -141,4 +142,94 @@ test("estimateEipConfiguration prices enhanced 95 by month without hourly reserv
   expect(estimate?.breakdown).toEqual([
     { key: "enhanced95", label: "Enhanced 95", amount: 6075 },
   ]);
+});
+
+test("parseEipPricingCatalogResponse extracts dedicated and shared rate cards", () => {
+  const catalog = parseEipPricingCatalogResponse({
+    product: {
+      vpc_ip: [
+        {
+          resourceSpecCode: "5_bgp",
+          planList: [
+            { billingMode: "ONDEMAND", amount: 0.005 },
+            { billingMode: "MONTHLY", amount: 1.5 },
+            { billingMode: "YEARLY", amount: 15 },
+          ],
+        },
+      ],
+      vpc_bandwidth: [
+        {
+          resourceSpecCode: "19_bgp",
+          shareType: "dataInfo_3_",
+          eipType: "dataInfo_5_",
+          planList: [
+            { billingMode: "ONDEMAND", amount: 0.0281 },
+            { billingMode: "MONTHLY", amount: 9 },
+            { billingMode: "YEARLY", amount: 90 },
+          ],
+        },
+        {
+          resourceSpecCode: "19_share",
+          shareType: "dataInfo_4_",
+          eipType: "dataInfo_5_",
+          planList: [
+            { billingMode: "ONDEMAND", amount: 0.0281 },
+          ],
+        },
+        {
+          resourceSpecCode: "19_share",
+          shareType: "dataInfo_4_",
+          eipType: "dataInfo_17_",
+          planList: [
+            { billingMode: "ONDEMAND", amount: 20.25 },
+          ],
+        },
+        {
+          resourceSpecCode: "12_bgp",
+          shareType: "dataInfo_3_",
+          planList: [
+            {
+              billingMode: "ONDEMAND",
+              billingEvent: "event.type.bandwidthupflow",
+              amount: 0.135,
+              divisionList: [
+                { amount: 0.135, division: { beginValue: 0, endValue: 10 } },
+                { amount: 0.124, division: { beginValue: 10, endValue: 50 } },
+              ],
+            },
+          ],
+        },
+        {
+          resourceSpecCode: "12_bgp_100GB",
+          shareType: "dataInfo_13_",
+          planList: [
+            { billingMode: "MONTHLY", productId: "pkg-100m", amount: 8 },
+            { billingMode: "YEARLY", productId: "pkg-100y", amount: 80 },
+          ],
+        },
+      ],
+    },
+  }, "ap-southeast-1");
+
+  expect(catalog).toEqual({
+    currency: "USD",
+    regionId: "ap-southeast-1",
+    dedicated: {
+      eipRates: { ONDEMAND: 0.005, MONTHLY: 1.5, YEARLY: 15 },
+      bandwidthRates: { ONDEMAND: 0.0281, MONTHLY: 9, YEARLY: 90 },
+      trafficRatePerGb: 0.135,
+      trafficRateTiers: [
+        { startGb: 0, upToGb: 10, amountPerGb: 0.135 },
+        { startGb: 10, upToGb: 50, amountPerGb: 0.124 },
+      ],
+      trafficPackages: {
+        MONTHLY: [{ billingMode: "MONTHLY", sizeGb: 100, amount: 8, resourceSpecCode: "12_bgp_100GB", productId: "pkg-100m" }],
+        YEARLY: [{ billingMode: "YEARLY", sizeGb: 100, amount: 80, resourceSpecCode: "12_bgp_100GB", productId: "pkg-100y" }],
+      },
+    },
+    shared: {
+      bandwidthRates: { ONDEMAND: 0.0281, MONTHLY: undefined, YEARLY: undefined },
+      enhanced95MonthlyBaseRate: 20.25,
+    },
+  });
 });
