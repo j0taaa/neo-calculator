@@ -20,6 +20,24 @@ function optionList(values: readonly (string | number)[] | null | undefined) {
   return asArray(values).map((value) => ({ value: String(value), label: String(value) }));
 }
 
+function resolveOption<T extends string | number>(value: unknown, options: readonly T[] | null | undefined, fallback: T) {
+  const normalizedOptions = asArray(options);
+  const resolved = normalizedOptions.find((entry) => entry === value);
+  if (resolved != null) {
+    return resolved;
+  }
+  return normalizedOptions[0] ?? fallback;
+}
+
+function resolveNumberOption(value: unknown, options: readonly number[] | null | undefined, fallback: number) {
+  const parsed = typeof value === "number" ? value : Number(value);
+  const normalizedOptions = asArray(options).filter((entry): entry is number => typeof entry === "number" && Number.isFinite(entry));
+  if (Number.isFinite(parsed) && normalizedOptions.includes(parsed)) {
+    return parsed;
+  }
+  return normalizedOptions[0] ?? fallback;
+}
+
 function clampNumber(value: unknown, minimum: number, maximum?: number) {
   const parsed = typeof value === "number" ? value : Number(value);
   if (!Number.isFinite(parsed)) {
@@ -54,6 +72,44 @@ function byLabelAmount(currency: string, suffix: string, breakdown: Array<{ labe
 
 function formatBreakdownNotes(currency: string, suffix: string, breakdown: Array<{ label: string; amount: number }> | null | undefined) {
   return byLabelAmount(currency, suffix, breakdown).map((entry) => `${entry.label}: ${entry.value}`);
+}
+
+function concatArrays<T>(...values: Array<readonly T[] | T[] | null | undefined>) {
+  return values.flatMap((value) => asArray(value));
+}
+
+function joinSelectionParts(values: Array<string | number | null | undefined>) {
+  return values
+    .filter((value): value is string | number => value != null && String(value).trim().length > 0)
+    .map(String)
+    .join(" | ");
+}
+
+function firstMeaningfulText(...values: Array<string | null | undefined>) {
+  for (const value of values) {
+    if (typeof value === "string" && value.trim().length > 0) {
+      return value;
+    }
+  }
+
+  return null;
+}
+
+function integerString(value: unknown, fallback: unknown, minimum = 1, maximum?: number) {
+  const fallbackValue = clampInteger(fallback, minimum, maximum);
+  return String(clampInteger(value, minimum, maximum) || fallbackValue);
+}
+
+function multiplyNumbers(...values: Array<number | null | undefined>) {
+  return values.reduce<number>((product, value) => product * (typeof value === "number" && Number.isFinite(value) ? value : 1), 1);
+}
+
+function getCatalogRegionId(regionValue: keyof typeof huaweiRegions | string) {
+  if (typeof regionValue === "string" && regionValue in huaweiRegions) {
+    return huaweiRegions[regionValue as keyof typeof huaweiRegions].catalogRegionId ?? regionValue;
+  }
+
+  return regionValue;
 }
 
 export const declarativeRuntimeHelpers = {
@@ -131,10 +187,18 @@ export const declarativeRuntimeHelpers = {
   getNestedRecord,
   parseBatchQuantity,
   optionList,
+  resolveOption,
+  resolveNumberOption,
   clampNumber,
   clampInteger,
   boolString,
   firstDefined,
+  firstMeaningfulText,
+  concatArrays,
+  joinSelectionParts,
+  integerString,
+  multiplyNumbers,
+  getCatalogRegionId,
   byLabelAmount,
   formatBreakdownNotes,
   obsPricingReference,

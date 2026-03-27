@@ -2,10 +2,10 @@ import { useCallback, useEffect, useMemo, useState, type ComponentProps } from "
 
 import { ConfigurableServicePanel } from "@/components/calculators/configurable-service-panel";
 import { buildConfiguredFields } from "@/lib/configurable-service-fields";
-import { getDeclarativeRuntimeDefinitionByCode } from "@/lib/declarative-service-runtime-registry";
-import { evaluateDefinitionExpression } from "@/lib/declarative-runtime-evaluator";
+import { getDeclarativeRuntimeDefinitionByCode, getTypedDeclarativeRuntimeDefinitionByCode } from "@/lib/declarative-service-runtime-registry";
+import { evaluateDeclarativeDerivedValues, evaluateDeclarativeValue, evaluateDefinitionExpression } from "@/lib/declarative-runtime-evaluator";
 import { declarativeRuntimeHelpers } from "@/lib/declarative-runtime-helpers";
-import type { DeclarativeEstimateRecord } from "@/lib/declarative-service-runtime-types";
+import type { DeclarativeCatalogSource, DeclarativeEstimateRecord } from "@/lib/declarative-service-runtime-types";
 import { formatFlavorAmount, type AppProduct, type BillingOption, type ProductMutationBody } from "@/lib/calculator-page-helpers";
 import { huaweiRegions, type HuaweiRegionKey } from "@/lib/huawei-regions";
 import {
@@ -13,6 +13,7 @@ import {
   type ServiceDefinition,
   type ServiceFieldRuntimeValues,
 } from "@/lib/service-config";
+import type { TypedDeclarativeValue } from "@/lib/typed-declarative-runtime-types";
 
 type ConfigurablePanelProps = ComponentProps<typeof ConfigurableServicePanel>;
 
@@ -149,7 +150,10 @@ function buildRuntimeScope(input: {
   extraRequestBodiesCount?: number;
   createdCount?: number;
   expandedCount?: number;
+  derived?: unknown;
 }) {
+  const runtimeDerived = input.derived ?? input.catalogView ?? null;
+
   return {
     helpers: declarativeRuntimeHelpers,
     definition: input.definition,
@@ -166,7 +170,8 @@ function buildRuntimeScope(input: {
     instanceCountValue: input.instanceCountValue,
     item: input.item,
     product: input.product,
-    catalogView: input.catalogView,
+    catalogView: runtimeDerived,
+    derived: runtimeDerived,
     estimate: input.estimate,
     requestBodiesCount: input.requestBodiesCount,
     extraRequestBodiesCount: input.extraRequestBodiesCount,
@@ -193,6 +198,22 @@ function normalizeHydrationResult(value: unknown): EditHydrationResult {
   };
 }
 
+function evaluateConfiguredValue<T>(
+  typedRuntimeDefinition: ReturnType<typeof getTypedDeclarativeRuntimeDefinitionByCode>,
+  legacyExpression: string | null | undefined,
+  typedValue: TypedDeclarativeValue | undefined,
+  scope: Record<string, unknown>,
+) {
+  if (typedRuntimeDefinition) {
+    if (typedValue === undefined) {
+      return null;
+    }
+    return evaluateDeclarativeValue<T | null>(typedValue, scope);
+  }
+
+  return evaluateDefinitionExpression<T>(legacyExpression, scope);
+}
+
 export function useConfigurableServiceRuntime({
   selectedServiceCode,
   selectedService,
@@ -212,6 +233,7 @@ export function useConfigurableServiceRuntime({
   const [pricingErrorByService, setPricingErrorByService] = useState<Partial<Record<string, string>>>({});
 
   const runtimeDefinition = getDeclarativeRuntimeDefinitionByCode(selectedServiceCode);
+  const typedRuntimeDefinition = getTypedDeclarativeRuntimeDefinitionByCode(selectedServiceCode);
   const isConfigurableService = selectedServiceDefinition?.implementation === "configurable" || selectedServiceDefinition?.implementation === "config-pilot";
 
   const replaceServiceValues = useCallback((serviceCode: string, values: Record<string, string>) => {
@@ -229,11 +251,14 @@ export function useConfigurableServiceRuntime({
   }, [selectedServiceCode, selectedServiceDefinition]);
 
   useEffect(() => {
-    if (!isConfigurableService || !runtimeDefinition?.catalog) {
+    const catalogSource = (typedRuntimeDefinition?.catalog ?? runtimeDefinition?.catalog) as DeclarativeCatalogSource | undefined;
+
+    if (!isConfigurableService || !catalogSource) {
       return;
     }
 
-    const catalogSource = runtimeDefinition.catalog;
+    const activeCatalogSource = catalogSource;
+
     let cancelled = false;
 
     async function loadCatalog() {
@@ -241,12 +266,12 @@ export function useConfigurableServiceRuntime({
       setPricingErrorByService((current) => ({ ...current, [selectedServiceCode]: "" }));
 
       try {
-        const response = await fetch(`/api/catalog/${catalogSource.route}?region=${encodeURIComponent(regionValue)}`, { cache: "no-store" });
+        const response = await fetch(`/api/catalog/${activeCatalogSource.route}?region=${encodeURIComponent(regionValue)}`, { cache: "no-store" });
         const rawBody = await response.text();
         const payload = rawBody ? JSON.parse(rawBody) as Record<string, unknown> : {};
-        const catalogPath = catalogSource.catalogPath ?? "catalog";
-        const regionIdPath = catalogSource.regionIdPath ?? "catalogRegionId";
-        const errorPath = catalogSource.errorPath ?? "error";
+        const catalogPath = activeCatalogSource.catalogPath ?? "catalog";
+        const regionIdPath = activeCatalogSource.regionIdPath ?? "catalogRegionId";
+        const errorPath = activeCatalogSource.errorPath ?? "error";
         const catalog = readPath(payload, catalogPath);
         const catalogRegionId = readPath(payload, regionIdPath);
         const error = readPath(payload, errorPath);
@@ -283,7 +308,7 @@ export function useConfigurableServiceRuntime({
     return () => {
       cancelled = true;
     };
-  }, [isConfigurableService, regionValue, runtimeDefinition?.catalog, selectedServiceCode]);
+  }, [isConfigurableService, regionValue, runtimeDefinition?.catalog, selectedServiceCode, typedRuntimeDefinition?.catalog]);
 
   const activeValues = useMemo(
     () => selectedServiceDefinition ? (serviceValuesByCode[selectedServiceCode] ?? buildDefaultValues(selectedServiceDefinition)) : {},
@@ -295,27 +320,39 @@ export function useConfigurableServiceRuntime({
   const catalogRegionId = catalogRegionIdByService[selectedServiceCode] ?? null;
 
   const catalogView = useMemo(
-    () => (
-      selectedServiceDefinition && runtimeDefinition?.catalogViewExpression
-        ? evaluateDefinitionExpression(
-            runtimeDefinition.catalogViewExpression,
-            buildRuntimeScope({
-              definition: selectedServiceDefinition,
-              selectedServiceCode,
-              selectedService,
-              values: activeValues,
-              catalog,
-              catalogRegionId,
-              pricingError,
-              regionValue,
-              billingMode,
-              usageHours,
-              usageHoursValue,
-              instanceCountValue,
-            }),
-          )
-        : null
-    ),
+    () => {
+      if (!selectedServiceDefinition) {
+        return null;
+      }
+
+      const baseScope = buildRuntimeScope({
+        definition: selectedServiceDefinition,
+        selectedServiceCode,
+        selectedService,
+        values: activeValues,
+        catalog,
+        catalogRegionId,
+        pricingError,
+        regionValue,
+        billingMode,
+        usageHours,
+        usageHoursValue,
+        instanceCountValue,
+      });
+
+      if (typedRuntimeDefinition) {
+        return evaluateDeclarativeDerivedValues(typedRuntimeDefinition.derived, baseScope);
+      }
+
+      if (!runtimeDefinition?.catalogViewExpression) {
+        return null;
+      }
+
+      return evaluateDefinitionExpression(
+        runtimeDefinition.catalogViewExpression,
+        baseScope,
+      );
+    },
     [
       activeValues,
       billingMode,
@@ -328,18 +365,21 @@ export function useConfigurableServiceRuntime({
       selectedService,
       selectedServiceCode,
       selectedServiceDefinition,
+      typedRuntimeDefinition,
       usageHours,
       usageHoursValue,
     ],
   );
 
   useEffect(() => {
-    if (!selectedServiceDefinition || !runtimeDefinition?.syncValuesExpression) {
+    if (!selectedServiceDefinition || (!runtimeDefinition?.syncValuesExpression && !typedRuntimeDefinition?.syncValues)) {
       return;
     }
 
-    const nextValues = evaluateDefinitionExpression<Record<string, unknown>>(
-      runtimeDefinition.syncValuesExpression,
+    const nextValues = evaluateConfiguredValue<Record<string, unknown>>(
+      typedRuntimeDefinition,
+      runtimeDefinition?.syncValuesExpression,
+      typedRuntimeDefinition?.syncValues,
       buildRuntimeScope({
         definition: selectedServiceDefinition,
         selectedServiceCode,
@@ -353,7 +393,7 @@ export function useConfigurableServiceRuntime({
         usageHours,
         usageHoursValue,
         instanceCountValue,
-        catalogView,
+        derived: catalogView,
       }),
     );
 
@@ -390,33 +430,38 @@ export function useConfigurableServiceRuntime({
     selectedService,
     selectedServiceCode,
     selectedServiceDefinition,
+    typedRuntimeDefinition?.syncValues,
     usageHours,
     usageHoursValue,
   ]);
 
   const estimate = useMemo(
-    () => (
-      selectedServiceDefinition && runtimeDefinition?.estimateExpression
-        ? evaluateDefinitionExpression<DeclarativeEstimateRecord>(
-            runtimeDefinition.estimateExpression,
-            buildRuntimeScope({
-              definition: selectedServiceDefinition,
-              selectedServiceCode,
-              selectedService,
-              values: activeValues,
-              catalog,
-              catalogRegionId,
-              pricingError,
-              regionValue,
-              billingMode,
-              usageHours,
-              usageHoursValue,
-              instanceCountValue,
-              catalogView,
-            }),
-          )
-        : null
-    ),
+    () => {
+      if (!selectedServiceDefinition) {
+        return null;
+      }
+
+      return evaluateConfiguredValue<DeclarativeEstimateRecord>(
+        typedRuntimeDefinition,
+        runtimeDefinition?.estimateExpression,
+        typedRuntimeDefinition?.estimate,
+        buildRuntimeScope({
+          definition: selectedServiceDefinition,
+          selectedServiceCode,
+          selectedService,
+          values: activeValues,
+          catalog,
+          catalogRegionId,
+          pricingError,
+          regionValue,
+          billingMode,
+          usageHours,
+          usageHoursValue,
+          instanceCountValue,
+          derived: catalogView,
+        }),
+      );
+    },
     [
       activeValues,
       billingMode,
@@ -430,6 +475,7 @@ export function useConfigurableServiceRuntime({
       selectedService,
       selectedServiceCode,
       selectedServiceDefinition,
+      typedRuntimeDefinition?.estimate,
       usageHours,
       usageHoursValue,
     ],
@@ -439,27 +485,27 @@ export function useConfigurableServiceRuntime({
     if (!selectedServiceDefinition) {
       return null;
     }
-    const computed = runtimeDefinition?.activeBillingOptionsExpression
-      ? evaluateDefinitionExpression<unknown[]>(
-          runtimeDefinition.activeBillingOptionsExpression,
-          buildRuntimeScope({
-            definition: selectedServiceDefinition,
-            selectedServiceCode,
-            selectedService,
-            values: activeValues,
-            catalog,
-            catalogRegionId,
-            pricingError,
-            regionValue,
-            billingMode,
-            usageHours,
-            usageHoursValue,
-            instanceCountValue,
-            catalogView,
-            estimate,
-          }),
-        )
-      : null;
+    const computed = evaluateConfiguredValue<unknown[]>(
+      typedRuntimeDefinition,
+      runtimeDefinition?.activeBillingOptionsExpression,
+      typedRuntimeDefinition?.activeBillingOptions,
+      buildRuntimeScope({
+        definition: selectedServiceDefinition,
+        selectedServiceCode,
+        selectedService,
+        values: activeValues,
+        catalog,
+        catalogRegionId,
+        pricingError,
+        regionValue,
+        billingMode,
+        usageHours,
+        usageHoursValue,
+        instanceCountValue,
+        derived: catalogView,
+        estimate,
+      }),
+    );
     if (Array.isArray(computed) && computed.every((entry) => entry === "Pay-per-use" || entry === "RI" || entry === "Yearly/Monthly")) {
       return computed as BillingOption[];
     }
@@ -478,6 +524,7 @@ export function useConfigurableServiceRuntime({
     selectedService,
     selectedServiceCode,
     selectedServiceDefinition,
+    typedRuntimeDefinition?.activeBillingOptions,
     usageHours,
     usageHoursValue,
   ]);
@@ -492,27 +539,27 @@ export function useConfigurableServiceRuntime({
     if (!selectedServiceDefinition) {
       return true;
     }
-    const computed = runtimeDefinition?.showSharedUsageHoursExpression
-      ? evaluateDefinitionExpression<boolean>(
-          runtimeDefinition.showSharedUsageHoursExpression,
-          buildRuntimeScope({
-            definition: selectedServiceDefinition,
-            selectedServiceCode,
-            selectedService,
-            values: activeValues,
-            catalog,
-            catalogRegionId,
-            pricingError,
-            regionValue,
-            billingMode,
-            usageHours,
-            usageHoursValue,
-            instanceCountValue,
-            catalogView,
-            estimate,
-          }),
-        )
-      : null;
+    const computed = evaluateConfiguredValue<boolean>(
+      typedRuntimeDefinition,
+      runtimeDefinition?.showSharedUsageHoursExpression,
+      typedRuntimeDefinition?.showSharedUsageHours,
+      buildRuntimeScope({
+        definition: selectedServiceDefinition,
+        selectedServiceCode,
+        selectedService,
+        values: activeValues,
+        catalog,
+        catalogRegionId,
+        pricingError,
+        regionValue,
+        billingMode,
+        usageHours,
+        usageHoursValue,
+        instanceCountValue,
+        derived: catalogView,
+        estimate,
+      }),
+    );
     return computed == null ? true : Boolean(computed);
   }, [
     activeValues,
@@ -528,6 +575,7 @@ export function useConfigurableServiceRuntime({
     selectedService,
     selectedServiceCode,
     selectedServiceDefinition,
+    typedRuntimeDefinition?.showSharedUsageHours,
     usageHours,
     usageHoursValue,
   ]);
@@ -536,27 +584,27 @@ export function useConfigurableServiceRuntime({
     if (!selectedServiceDefinition) {
       return {};
     }
-    const computed = runtimeDefinition?.visibilityContextExpression
-      ? evaluateDefinitionExpression<ServiceFieldRuntimeValues>(
-          runtimeDefinition.visibilityContextExpression,
-          buildRuntimeScope({
-            definition: selectedServiceDefinition,
-            selectedServiceCode,
-            selectedService,
-            values: activeValues,
-            catalog,
-            catalogRegionId,
-            pricingError,
-            regionValue,
-            billingMode,
-            usageHours,
-            usageHoursValue,
-            instanceCountValue,
-            catalogView,
-            estimate,
-          }),
-        )
-      : {};
+    const computed = evaluateConfiguredValue<ServiceFieldRuntimeValues>(
+      typedRuntimeDefinition,
+      runtimeDefinition?.visibilityContextExpression,
+      typedRuntimeDefinition?.visibilityContext,
+      buildRuntimeScope({
+        definition: selectedServiceDefinition,
+        selectedServiceCode,
+        selectedService,
+        values: activeValues,
+        catalog,
+        catalogRegionId,
+        pricingError,
+        regionValue,
+        billingMode,
+        usageHours,
+        usageHoursValue,
+        instanceCountValue,
+        derived: catalogView,
+        estimate,
+      }),
+    ) ?? {};
     return {
       ...Object.fromEntries(Object.entries(activeValues).map(([key, value]) => [key, value])),
       ...(isRecord(computed) ? computed : {}),
@@ -576,6 +624,7 @@ export function useConfigurableServiceRuntime({
     selectedService,
     selectedServiceCode,
     selectedServiceDefinition,
+    typedRuntimeDefinition?.visibilityContext,
     usageHours,
     usageHoursValue,
   ]);
@@ -598,29 +647,30 @@ export function useConfigurableServiceRuntime({
     return Object.fromEntries(
       selectedServiceDefinition.fields.map((field) => {
         const runtimeField = runtimeDefinition?.fieldRuntime?.[field.id];
-        const computed = runtimeField?.optionsExpression
-          ? evaluateDefinitionExpression(
-              runtimeField.optionsExpression,
-              buildRuntimeScope({
-                definition: selectedServiceDefinition,
-                selectedServiceCode,
-                selectedService,
-                values: activeValues,
-                catalog,
-                catalogRegionId,
-                pricingError,
-                regionValue,
-                billingMode,
-                usageHours,
-                usageHoursValue,
-                instanceCountValue,
-                catalogView,
-                estimate,
-              }),
-            )
-          : field.optionsSource
+        const typedRuntimeField = typedRuntimeDefinition?.fieldRuntime?.[field.id];
+        const computed = evaluateConfiguredValue<unknown>(
+          typedRuntimeDefinition,
+          runtimeField?.optionsExpression,
+          typedRuntimeField?.options,
+          buildRuntimeScope({
+            definition: selectedServiceDefinition,
+            selectedServiceCode,
+            selectedService,
+            values: activeValues,
+            catalog,
+            catalogRegionId,
+            pricingError,
+            regionValue,
+            billingMode,
+            usageHours,
+            usageHoursValue,
+            instanceCountValue,
+            derived: catalogView,
+            estimate,
+          }),
+        ) ?? (field.optionsSource
           ? readPath({ catalog, catalogView, values: activeValues, helpers: declarativeRuntimeHelpers }, field.optionsSource)
-          : field.options;
+          : field.options);
 
         return [field.id, normalizeOptionList(computed)];
       }),
@@ -639,6 +689,7 @@ export function useConfigurableServiceRuntime({
     selectedService,
     selectedServiceCode,
     selectedServiceDefinition,
+    typedRuntimeDefinition?.fieldRuntime,
     usageHours,
     usageHoursValue,
   ]);
@@ -651,29 +702,30 @@ export function useConfigurableServiceRuntime({
     return Object.fromEntries(
       selectedServiceDefinition.fields.map((field) => {
         const runtimeField = runtimeDefinition?.fieldRuntime?.[field.id];
-        const computed = runtimeField?.minExpression
-          ? evaluateDefinitionExpression<number>(
-              runtimeField.minExpression,
-              buildRuntimeScope({
-                definition: selectedServiceDefinition,
-                selectedServiceCode,
-                selectedService,
-                values: activeValues,
-                catalog,
-                catalogRegionId,
-                pricingError,
-                regionValue,
-                billingMode,
-                usageHours,
-                usageHoursValue,
-                instanceCountValue,
-                catalogView,
-                estimate,
-              }),
-            )
-          : field.minSource
+        const typedRuntimeField = typedRuntimeDefinition?.fieldRuntime?.[field.id];
+        const computed = evaluateConfiguredValue<number>(
+          typedRuntimeDefinition,
+          runtimeField?.minExpression,
+          typedRuntimeField?.min,
+          buildRuntimeScope({
+            definition: selectedServiceDefinition,
+            selectedServiceCode,
+            selectedService,
+            values: activeValues,
+            catalog,
+            catalogRegionId,
+            pricingError,
+            regionValue,
+            billingMode,
+            usageHours,
+            usageHoursValue,
+            instanceCountValue,
+            derived: catalogView,
+            estimate,
+          }),
+        ) ?? (field.minSource
           ? readPath({ catalog, catalogView, values: activeValues, helpers: declarativeRuntimeHelpers }, field.minSource)
-          : field.min;
+          : field.min);
         return [field.id, typeof computed === "number" ? computed : field.min];
       }),
     ) as Record<string, number | undefined>;
@@ -691,6 +743,7 @@ export function useConfigurableServiceRuntime({
     selectedService,
     selectedServiceCode,
     selectedServiceDefinition,
+    typedRuntimeDefinition?.fieldRuntime,
     usageHours,
     usageHoursValue,
   ]);
@@ -703,29 +756,30 @@ export function useConfigurableServiceRuntime({
     return Object.fromEntries(
       selectedServiceDefinition.fields.map((field) => {
         const runtimeField = runtimeDefinition?.fieldRuntime?.[field.id];
-        const computed = runtimeField?.maxExpression
-          ? evaluateDefinitionExpression<number>(
-              runtimeField.maxExpression,
-              buildRuntimeScope({
-                definition: selectedServiceDefinition,
-                selectedServiceCode,
-                selectedService,
-                values: activeValues,
-                catalog,
-                catalogRegionId,
-                pricingError,
-                regionValue,
-                billingMode,
-                usageHours,
-                usageHoursValue,
-                instanceCountValue,
-                catalogView,
-                estimate,
-              }),
-            )
-          : field.maxSource
+        const typedRuntimeField = typedRuntimeDefinition?.fieldRuntime?.[field.id];
+        const computed = evaluateConfiguredValue<number>(
+          typedRuntimeDefinition,
+          runtimeField?.maxExpression,
+          typedRuntimeField?.max,
+          buildRuntimeScope({
+            definition: selectedServiceDefinition,
+            selectedServiceCode,
+            selectedService,
+            values: activeValues,
+            catalog,
+            catalogRegionId,
+            pricingError,
+            regionValue,
+            billingMode,
+            usageHours,
+            usageHoursValue,
+            instanceCountValue,
+            derived: catalogView,
+            estimate,
+          }),
+        ) ?? (field.maxSource
           ? readPath({ catalog, catalogView, values: activeValues, helpers: declarativeRuntimeHelpers }, field.maxSource)
-          : field.max;
+          : field.max);
         return [field.id, typeof computed === "number" ? computed : field.max];
       }),
     ) as Record<string, number | undefined>;
@@ -743,6 +797,7 @@ export function useConfigurableServiceRuntime({
     selectedService,
     selectedServiceCode,
     selectedServiceDefinition,
+    typedRuntimeDefinition?.fieldRuntime,
     usageHours,
     usageHoursValue,
   ]);
@@ -755,27 +810,28 @@ export function useConfigurableServiceRuntime({
     return Object.fromEntries(
       selectedServiceDefinition.fields.map((field) => {
         const runtimeField = runtimeDefinition?.fieldRuntime?.[field.id];
-        const computed = runtimeField?.disabledExpression
-          ? evaluateDefinitionExpression<boolean>(
-              runtimeField.disabledExpression,
-              buildRuntimeScope({
-                definition: selectedServiceDefinition,
-                selectedServiceCode,
-                selectedService,
-                values: activeValues,
-                catalog,
-                catalogRegionId,
-                pricingError,
-                regionValue,
-                billingMode,
-                usageHours,
-                usageHoursValue,
-                instanceCountValue,
-                catalogView,
-                estimate,
-              }),
-            )
-          : false;
+        const typedRuntimeField = typedRuntimeDefinition?.fieldRuntime?.[field.id];
+        const computed = evaluateConfiguredValue<boolean>(
+          typedRuntimeDefinition,
+          runtimeField?.disabledExpression,
+          typedRuntimeField?.disabled,
+          buildRuntimeScope({
+            definition: selectedServiceDefinition,
+            selectedServiceCode,
+            selectedService,
+            values: activeValues,
+            catalog,
+            catalogRegionId,
+            pricingError,
+            regionValue,
+            billingMode,
+            usageHours,
+            usageHoursValue,
+            instanceCountValue,
+            derived: catalogView,
+            estimate,
+          }),
+        ) ?? false;
         return [field.id, Boolean(computed)];
       }),
     ) as Record<string, boolean | undefined>;
@@ -793,6 +849,7 @@ export function useConfigurableServiceRuntime({
     selectedService,
     selectedServiceCode,
     selectedServiceDefinition,
+    typedRuntimeDefinition?.fieldRuntime,
     usageHours,
     usageHoursValue,
   ]);
@@ -817,11 +874,14 @@ export function useConfigurableServiceRuntime({
           field.id,
           () => {
             const runtimeField = runtimeDefinition?.fieldRuntime?.[field.id];
-            if (!runtimeField?.normalizeExpression) {
+            const typedRuntimeField = typedRuntimeDefinition?.fieldRuntime?.[field.id];
+            if (!runtimeField?.normalizeExpression && !typedRuntimeField?.normalize) {
               return;
             }
-            const normalized = evaluateDefinitionExpression<string | number | boolean | null>(
-              runtimeField.normalizeExpression,
+            const normalized = evaluateConfiguredValue<string | number | boolean | null>(
+              typedRuntimeDefinition,
+              runtimeField?.normalizeExpression,
+              typedRuntimeField?.normalize,
               buildRuntimeScope({
                 definition: selectedServiceDefinition,
                 selectedServiceCode,
@@ -835,7 +895,7 @@ export function useConfigurableServiceRuntime({
                 usageHours,
                 usageHoursValue,
                 instanceCountValue,
-                catalogView,
+                derived: catalogView,
                 estimate,
               }),
             );
@@ -856,102 +916,113 @@ export function useConfigurableServiceRuntime({
       ),
     });
 
-    const notes = runtimeDefinition?.panelNotesExpression
-      ? normalizeStringList(evaluateDefinitionExpression<unknown>(
-          runtimeDefinition.panelNotesExpression,
-          buildRuntimeScope({
-            definition: selectedServiceDefinition,
-            selectedServiceCode,
-            selectedService,
-            values: activeValues,
-            catalog,
-            catalogRegionId,
-            pricingError,
-            regionValue,
-            billingMode,
-            usageHours,
-            usageHoursValue,
-            instanceCountValue,
-            catalogView,
-            estimate,
-          }),
-        ))
+    const notes = normalizeStringList(
+      evaluateConfiguredValue<unknown>(
+        typedRuntimeDefinition,
+        runtimeDefinition?.panelNotesExpression,
+        typedRuntimeDefinition?.panelNotes,
+        buildRuntimeScope({
+          definition: selectedServiceDefinition,
+          selectedServiceCode,
+          selectedService,
+          values: activeValues,
+          catalog,
+          catalogRegionId,
+          pricingError,
+          regionValue,
+          billingMode,
+          usageHours,
+          usageHoursValue,
+          instanceCountValue,
+          derived: catalogView,
+          estimate,
+        }),
+      ),
+    );
+    const effectiveNotes = notes.length > 0
+      ? notes
       : [...(selectedServiceDefinition.summary?.notes ?? [])];
 
-    const selectionSummary = runtimeDefinition?.selectionSummaryExpression
-      ? evaluateDefinitionExpression<string>(
-          runtimeDefinition.selectionSummaryExpression,
-          buildRuntimeScope({
-            definition: selectedServiceDefinition,
-            selectedServiceCode,
-            selectedService,
-            values: activeValues,
-            catalog,
-            catalogRegionId,
-            pricingError,
-            regionValue,
-            billingMode,
-            usageHours,
-            usageHoursValue,
-            instanceCountValue,
-            catalogView,
-            estimate,
-          }),
-        ) ?? "Selected specifications:"
-      : buildSelectionTemplate(selectedServiceDefinition.summary?.selectionTemplate, activeValues);
+    const selectionSummary = evaluateConfiguredValue<string>(
+      typedRuntimeDefinition,
+      runtimeDefinition?.selectionSummaryExpression,
+      typedRuntimeDefinition?.selectionSummary,
+      buildRuntimeScope({
+        definition: selectedServiceDefinition,
+        selectedServiceCode,
+        selectedService,
+        values: activeValues,
+        catalog,
+        catalogRegionId,
+        pricingError,
+        regionValue,
+        billingMode,
+        usageHours,
+        usageHoursValue,
+        instanceCountValue,
+        derived: catalogView,
+        estimate,
+      }),
+    ) ?? (
+      selectedServiceDefinition.summary?.selectionTemplate
+        ? buildSelectionTemplate(selectedServiceDefinition.summary.selectionTemplate, activeValues)
+        : "Selected specifications:"
+    );
 
-    const selectionNotes = runtimeDefinition?.selectionNotesExpression
-      ? normalizeStringList(evaluateDefinitionExpression<unknown>(
-          runtimeDefinition.selectionNotesExpression,
-          buildRuntimeScope({
-            definition: selectedServiceDefinition,
-            selectedServiceCode,
-            selectedService,
-            values: activeValues,
-            catalog,
-            catalogRegionId,
-            pricingError,
-            regionValue,
-            billingMode,
-            usageHours,
-            usageHoursValue,
-            instanceCountValue,
-            catalogView,
-            estimate,
-          }),
-        ))
-      : [];
+    const selectionNotes = normalizeStringList(
+      evaluateConfiguredValue<unknown>(
+        typedRuntimeDefinition,
+        runtimeDefinition?.selectionNotesExpression,
+        typedRuntimeDefinition?.selectionNotes,
+        buildRuntimeScope({
+          definition: selectedServiceDefinition,
+          selectedServiceCode,
+          selectedService,
+          values: activeValues,
+          catalog,
+          catalogRegionId,
+          pricingError,
+          regionValue,
+          billingMode,
+          usageHours,
+          usageHoursValue,
+          instanceCountValue,
+          derived: catalogView,
+          estimate,
+        }),
+      ),
+    );
 
-    const referenceNote = runtimeDefinition?.referenceNoteExpression
-      ? evaluateDefinitionExpression<string>(
-          runtimeDefinition.referenceNoteExpression,
-          buildRuntimeScope({
-            definition: selectedServiceDefinition,
-            selectedServiceCode,
-            selectedService,
-            values: activeValues,
-            catalog,
-            catalogRegionId,
-            pricingError,
-            regionValue,
-            billingMode,
-            usageHours,
-            usageHoursValue,
-            instanceCountValue,
-            catalogView,
-            estimate,
-          }),
-        ) ?? undefined
-      : undefined;
+    const referenceNote = evaluateConfiguredValue<string>(
+      typedRuntimeDefinition,
+      runtimeDefinition?.referenceNoteExpression,
+      typedRuntimeDefinition?.referenceNote,
+      buildRuntimeScope({
+        definition: selectedServiceDefinition,
+        selectedServiceCode,
+        selectedService,
+        values: activeValues,
+        catalog,
+        catalogRegionId,
+        pricingError,
+        regionValue,
+        billingMode,
+        usageHours,
+        usageHoursValue,
+        instanceCountValue,
+        derived: catalogView,
+        estimate,
+      }),
+    ) ?? undefined;
 
     return {
       definition: selectedServiceDefinition,
       fields,
       pricingError: pricingError || undefined,
       pricingLoadingMessage: pricingLoadingByService[selectedServiceCode]
-        ? (runtimeDefinition?.catalog?.loadingMessage ?? `Loading ${selectedServiceCode} pricing...`)
+        ? ((typedRuntimeDefinition?.catalog?.loadingMessage ?? runtimeDefinition?.catalog?.loadingMessage) ?? `Loading ${selectedServiceCode} pricing...`)
         : null,
-      notes,
+      notes: effectiveNotes,
       selectionSummary,
       selectionNotes,
       referenceNote,
@@ -978,6 +1049,7 @@ export function useConfigurableServiceRuntime({
     selectedServiceCode,
     selectedServiceDefinition,
     setActiveFieldValue,
+    typedRuntimeDefinition,
     usageHours,
     usageHoursValue,
   ]);
@@ -993,27 +1065,27 @@ export function useConfigurableServiceRuntime({
     if (!selectedServiceDefinition) {
       return null;
     }
-    const computed = runtimeDefinition?.addToListErrorExpression
-      ? evaluateDefinitionExpression<string | null>(
-          runtimeDefinition.addToListErrorExpression,
-          buildRuntimeScope({
-            definition: selectedServiceDefinition,
-            selectedServiceCode,
-            selectedService,
-            values: activeValues,
-            catalog,
-            catalogRegionId,
-            pricingError,
-            regionValue,
-            billingMode,
-            usageHours,
-            usageHoursValue,
-            instanceCountValue,
-            catalogView,
-            estimate,
-          }),
-        )
-      : null;
+    const computed = evaluateConfiguredValue<string | null>(
+      typedRuntimeDefinition,
+      runtimeDefinition?.addToListErrorExpression,
+      typedRuntimeDefinition?.addToListError,
+      buildRuntimeScope({
+        definition: selectedServiceDefinition,
+        selectedServiceCode,
+        selectedService,
+        values: activeValues,
+        catalog,
+        catalogRegionId,
+        pricingError,
+        regionValue,
+        billingMode,
+        usageHours,
+        usageHoursValue,
+        instanceCountValue,
+        derived: catalogView,
+        estimate,
+      }),
+    );
     return typeof computed === "string" ? computed : null;
   }, [
     activeValues,
@@ -1029,6 +1101,7 @@ export function useConfigurableServiceRuntime({
     selectedService,
     selectedServiceCode,
     selectedServiceDefinition,
+    typedRuntimeDefinition?.addToListError,
     usageHours,
     usageHoursValue,
   ]);
@@ -1049,12 +1122,14 @@ export function useConfigurableServiceRuntime({
   }, [replaceServiceValues, setBillingMode, updateUsageHours]);
 
   const buildRequestBodies = useCallback((): ProductMutationBody | ProductMutationBody[] | null => {
-    if (!selectedServiceDefinition || !runtimeDefinition?.buildRequestBodiesExpression) {
+    if (!selectedServiceDefinition || (!runtimeDefinition?.buildRequestBodiesExpression && !typedRuntimeDefinition?.buildRequestBodies)) {
       return null;
     }
 
-    return evaluateDefinitionExpression<ProductMutationBody | ProductMutationBody[] | null>(
-      runtimeDefinition.buildRequestBodiesExpression,
+    return evaluateConfiguredValue<ProductMutationBody | ProductMutationBody[] | null>(
+      typedRuntimeDefinition,
+      runtimeDefinition?.buildRequestBodiesExpression,
+      typedRuntimeDefinition?.buildRequestBodies,
       buildRuntimeScope({
         definition: selectedServiceDefinition,
         selectedServiceCode,
@@ -1068,7 +1143,7 @@ export function useConfigurableServiceRuntime({
         usageHours,
         usageHoursValue,
         instanceCountValue,
-        catalogView,
+        derived: catalogView,
         estimate,
       }),
     );
@@ -1086,17 +1161,20 @@ export function useConfigurableServiceRuntime({
     selectedService,
     selectedServiceCode,
     selectedServiceDefinition,
+    typedRuntimeDefinition?.buildRequestBodies,
     usageHours,
     usageHoursValue,
   ]);
 
   const buildBatchRequestBodies = useCallback((item: unknown): ProductMutationBody[] | null => {
-    if (!selectedServiceDefinition || !runtimeDefinition?.buildBatchRequestBodiesExpression) {
+    if (!selectedServiceDefinition || (!runtimeDefinition?.buildBatchRequestBodiesExpression && !typedRuntimeDefinition?.buildBatchRequestBodies)) {
       return null;
     }
 
-    const result = evaluateDefinitionExpression<ProductMutationBody[] | ProductMutationBody | null>(
-      runtimeDefinition.buildBatchRequestBodiesExpression,
+    const result = evaluateConfiguredValue<ProductMutationBody[] | ProductMutationBody | null>(
+      typedRuntimeDefinition,
+      runtimeDefinition?.buildBatchRequestBodiesExpression,
+      typedRuntimeDefinition?.buildBatchRequestBodies,
       buildRuntimeScope({
         definition: selectedServiceDefinition,
         selectedServiceCode,
@@ -1111,7 +1189,7 @@ export function useConfigurableServiceRuntime({
         usageHoursValue,
         instanceCountValue,
         item,
-        catalogView,
+        derived: catalogView,
         estimate,
       }),
     );
@@ -1134,17 +1212,20 @@ export function useConfigurableServiceRuntime({
     selectedService,
     selectedServiceCode,
     selectedServiceDefinition,
+    typedRuntimeDefinition?.buildBatchRequestBodies,
     usageHours,
     usageHoursValue,
   ]);
 
   const getAddSuccessMessage = useCallback((input: { requestBodiesCount: number }) => {
-    if (!selectedServiceDefinition || !runtimeDefinition?.addSuccessMessageExpression) {
+    if (!selectedServiceDefinition || (!runtimeDefinition?.addSuccessMessageExpression && !typedRuntimeDefinition?.addSuccessMessage)) {
       return null;
     }
 
-    const result = evaluateDefinitionExpression<string | null>(
-      runtimeDefinition.addSuccessMessageExpression,
+    const result = evaluateConfiguredValue<string | null>(
+      typedRuntimeDefinition,
+      runtimeDefinition?.addSuccessMessageExpression,
+      typedRuntimeDefinition?.addSuccessMessage,
       buildRuntimeScope({
         definition: selectedServiceDefinition,
         selectedServiceCode,
@@ -1158,7 +1239,7 @@ export function useConfigurableServiceRuntime({
         usageHours,
         usageHoursValue,
         instanceCountValue,
-        catalogView,
+        derived: catalogView,
         estimate,
         requestBodiesCount: input.requestBodiesCount,
       }),
@@ -1179,17 +1260,20 @@ export function useConfigurableServiceRuntime({
     selectedService,
     selectedServiceCode,
     selectedServiceDefinition,
+    typedRuntimeDefinition?.addSuccessMessage,
     usageHours,
     usageHoursValue,
   ]);
 
   const getUpdateSuccessMessage = useCallback((input: { requestBodiesCount: number; extraRequestBodiesCount: number }) => {
-    if (!selectedServiceDefinition || !runtimeDefinition?.updateSuccessMessageExpression) {
+    if (!selectedServiceDefinition || (!runtimeDefinition?.updateSuccessMessageExpression && !typedRuntimeDefinition?.updateSuccessMessage)) {
       return null;
     }
 
-    const result = evaluateDefinitionExpression<string | null>(
-      runtimeDefinition.updateSuccessMessageExpression,
+    const result = evaluateConfiguredValue<string | null>(
+      typedRuntimeDefinition,
+      runtimeDefinition?.updateSuccessMessageExpression,
+      typedRuntimeDefinition?.updateSuccessMessage,
       buildRuntimeScope({
         definition: selectedServiceDefinition,
         selectedServiceCode,
@@ -1203,7 +1287,7 @@ export function useConfigurableServiceRuntime({
         usageHours,
         usageHoursValue,
         instanceCountValue,
-        catalogView,
+        derived: catalogView,
         estimate,
         requestBodiesCount: input.requestBodiesCount,
         extraRequestBodiesCount: input.extraRequestBodiesCount,
@@ -1225,17 +1309,20 @@ export function useConfigurableServiceRuntime({
     selectedService,
     selectedServiceCode,
     selectedServiceDefinition,
+    typedRuntimeDefinition?.updateSuccessMessage,
     usageHours,
     usageHoursValue,
   ]);
 
   const getBatchSuccessMessage = useCallback((input: { createdCount: number; expandedCount: number }) => {
-    if (!selectedServiceDefinition || !runtimeDefinition?.batchSuccessMessageExpression) {
+    if (!selectedServiceDefinition || (!runtimeDefinition?.batchSuccessMessageExpression && !typedRuntimeDefinition?.batchSuccessMessage)) {
       return null;
     }
 
-    const result = evaluateDefinitionExpression<string | null>(
-      runtimeDefinition.batchSuccessMessageExpression,
+    const result = evaluateConfiguredValue<string | null>(
+      typedRuntimeDefinition,
+      runtimeDefinition?.batchSuccessMessageExpression,
+      typedRuntimeDefinition?.batchSuccessMessage,
       buildRuntimeScope({
         definition: selectedServiceDefinition,
         selectedServiceCode,
@@ -1249,7 +1336,7 @@ export function useConfigurableServiceRuntime({
         usageHours,
         usageHoursValue,
         instanceCountValue,
-        catalogView,
+        derived: catalogView,
         estimate,
         createdCount: input.createdCount,
         expandedCount: input.expandedCount,
@@ -1271,17 +1358,20 @@ export function useConfigurableServiceRuntime({
     selectedService,
     selectedServiceCode,
     selectedServiceDefinition,
+    typedRuntimeDefinition?.batchSuccessMessage,
     usageHours,
     usageHoursValue,
   ]);
 
   const hydrateProduct = useCallback((product: AppProduct): EditHydrationResult => {
-    if (!selectedServiceDefinition || !runtimeDefinition?.hydrateExpression) {
+    if (!selectedServiceDefinition || (!runtimeDefinition?.hydrateExpression && !typedRuntimeDefinition?.hydrate)) {
       return { handled: false, error: "This product cannot be edited from the calculator." };
     }
 
-    const result = evaluateDefinitionExpression<unknown>(
-      runtimeDefinition.hydrateExpression,
+    const result = evaluateConfiguredValue<unknown>(
+      typedRuntimeDefinition,
+      runtimeDefinition?.hydrateExpression,
+      typedRuntimeDefinition?.hydrate,
       buildRuntimeScope({
         definition: selectedServiceDefinition,
         selectedServiceCode,
@@ -1296,7 +1386,7 @@ export function useConfigurableServiceRuntime({
         usageHoursValue,
         instanceCountValue,
         product,
-        catalogView,
+        derived: catalogView,
         estimate,
       }),
     );
@@ -1326,40 +1416,48 @@ export function useConfigurableServiceRuntime({
     selectedService,
     selectedServiceCode,
     selectedServiceDefinition,
+    typedRuntimeDefinition?.hydrate,
     usageHours,
     usageHoursValue,
   ]);
 
   const batchPanel = useMemo(() => {
-    if (!selectedServiceDefinition || !runtimeDefinition?.batchPanel) {
+    if (!selectedServiceDefinition || (!runtimeDefinition?.batchPanel && !typedRuntimeDefinition?.batchPanel)) {
       return null;
     }
 
-    const evaluateBatchExpression = (expression: string) => evaluateDefinitionExpression<string>(
-      expression,
-      buildRuntimeScope({
-        definition: selectedServiceDefinition,
-        selectedServiceCode,
-        selectedService,
-        values: activeValues,
-        catalog,
-        catalogRegionId,
-        pricingError,
-        regionValue,
-        billingMode,
-        usageHours,
-        usageHoursValue,
-        instanceCountValue,
-        catalogView,
-        estimate,
-      }),
-    ) ?? "";
+    const evaluateBatchExpression = (legacyExpression: string | undefined, typedExpression: TypedDeclarativeValue | undefined) => (
+      evaluateConfiguredValue<string>(
+        typedRuntimeDefinition,
+        legacyExpression,
+        typedExpression,
+        buildRuntimeScope({
+          definition: selectedServiceDefinition,
+          selectedServiceCode,
+          selectedService,
+          values: activeValues,
+          catalog,
+          catalogRegionId,
+          pricingError,
+          regionValue,
+          billingMode,
+          usageHours,
+          usageHoursValue,
+          instanceCountValue,
+          derived: catalogView,
+          estimate,
+        }),
+      ) ?? ""
+    );
+
+    const legacyBatchPanel = runtimeDefinition?.batchPanel;
+    const typedBatchPanel = typedRuntimeDefinition?.batchPanel;
 
     return {
-      placeholder: evaluateBatchExpression(runtimeDefinition.batchPanel.placeholderExpression),
-      description: evaluateBatchExpression(runtimeDefinition.batchPanel.descriptionExpression),
-      defaults: evaluateBatchExpression(runtimeDefinition.batchPanel.defaultsExpression),
-      validation: evaluateBatchExpression(runtimeDefinition.batchPanel.validationExpression),
+      placeholder: evaluateBatchExpression(legacyBatchPanel?.placeholderExpression, typedBatchPanel?.placeholder),
+      description: evaluateBatchExpression(legacyBatchPanel?.descriptionExpression, typedBatchPanel?.description),
+      defaults: evaluateBatchExpression(legacyBatchPanel?.defaultsExpression, typedBatchPanel?.defaults),
+      validation: evaluateBatchExpression(legacyBatchPanel?.validationExpression, typedBatchPanel?.validation),
     };
   }, [
     activeValues,
@@ -1375,18 +1473,19 @@ export function useConfigurableServiceRuntime({
     selectedService,
     selectedServiceCode,
     selectedServiceDefinition,
+    typedRuntimeDefinition?.batchPanel,
     usageHours,
     usageHoursValue,
   ]);
 
   return {
     isConfigurableService,
-    usesSharedBillingHeader: runtimeDefinition?.usesSharedBillingHeader ?? true,
+    usesSharedBillingHeader: typedRuntimeDefinition?.usesSharedBillingHeader ?? runtimeDefinition?.usesSharedBillingHeader ?? true,
     activeBillingOptions,
     panelProps: activePanelProps,
     selectedEstimate,
-    quantityLabel: runtimeDefinition?.quantityLabel ?? "Instance",
-    showGlobalQuantityControl: runtimeDefinition?.showGlobalQuantityControl ?? true,
+    quantityLabel: typedRuntimeDefinition?.quantityLabel ?? runtimeDefinition?.quantityLabel ?? "Instance",
+    showGlobalQuantityControl: typedRuntimeDefinition?.showGlobalQuantityControl ?? runtimeDefinition?.showGlobalQuantityControl ?? true,
     showSharedUsageHours,
     addToListError,
     buildRequestBodies,

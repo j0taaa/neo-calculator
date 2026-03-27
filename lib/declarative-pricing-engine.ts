@@ -117,7 +117,7 @@ type RecursiveGroupedParserDefinition = {
   auxiliaryOutputs?: SelectedOutputDefinition[];
 };
 
-type DeclarativePricingDefinition =
+export type DeclarativePricingDefinition =
   & { source: ProductInfoSourceDefinition }
   & (
     | { parser: SectionedRateSetParserDefinition }
@@ -672,7 +672,6 @@ export function parseDeclarativePricingCatalog<T>(definition: DeclarativePricing
 }
 
 export type {
-  DeclarativePricingDefinition,
   DerivedFieldCondition,
   ExtractorDefinition,
   PredicateDefinition,
