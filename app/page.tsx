@@ -30,26 +30,8 @@ import { getCalculatorRuntimeMeta } from "@/lib/calculator-runtime-registry";
 import { useConfigurableServiceRuntime } from "@/lib/use-configurable-service-runtime";
 import { useSessionContext } from "@/components/session-provider";
 import { formatDate, formatDateTime, formatNumber } from "@/lib/utils";
-import { findBestFlexusLPlan, findFlexusLPlan, flexusLPlans, flexusLPricingReference } from "@/lib/flexus-l-catalog";
+import { findFlexusLPlan, flexusLPlans, flexusLPricingReference } from "@/lib/flexus-l-catalog";
 import { huaweiRegions, type HuaweiRegionKey } from "@/lib/huawei-regions";
-import {
-  buildObsHuaweiPayload,
-  convertObsCapacityToGb,
-  convertObsRequestInputToCount,
-  estimateObsConfiguration,
-  isObsCapacityUnit,
-  isObsProductType,
-  isObsRedundancy,
-  isObsRestorationType,
-  isObsStorageClass,
-  obsRequestInputMultiplier,
-  shouldShowObsPullTraffic,
-  type ObsCapacityUnit,
-  type ObsProductType,
-  type ObsRedundancy,
-  type ObsRestorationType,
-  type ObsStorageClass,
-} from "@/lib/obs-catalog";
 import {
   buildListExportPayload,
   buildNamedExportFilename,
@@ -66,8 +48,6 @@ import {
   copyText,
   formatFlavorAmount,
   getCartCloneDefaultName,
-  getDiskPriceForBillingOption,
-  getFlavorPriceForBillingOption,
   getFirstListId,
   getProjectCloneDefaultName,
   getResponseError,
@@ -75,18 +55,29 @@ import {
   parseJsonFile,
   splitPriceDisplay,
   splitProductPriceSummary,
-  toFlavorCard,
-  toFlexusLFlavorCard,
   type AppList,
   type AppProduct,
   type AppProject,
   type BillingOption as PageBillingOption,
-  type CatalogFlavor,
-  type DiskPricing,
-  type FlavorCard,
   type HuaweiCartSummary,
   type ProductMutationBody,
 } from "@/lib/calculator-page-helpers";
+import { getProductConfigSummary } from "@/lib/product-config-summary";
+import { useCustomEcsCalculator } from "@/lib/use-custom-ecs-calculator";
+import { buildCustomBatchRequestBodies, buildCustomProductRequestBody, hydrateCustomProduct } from "@/lib/custom-service-calculator";
+import {
+  buildEvsSplitNotice,
+  ecsDiskSizeBounds,
+  evsSingleDiskMaxGiB,
+  getGpSsd2IopsBounds,
+  getGpSsd2ThroughputBounds,
+  gpSsd2IopsBounds,
+  gpSsd2ThroughputBounds,
+  normalizeGpSsd2Iops,
+  normalizeGpSsd2Throughput,
+  systemDiskOptions,
+  type SystemDiskOption,
+} from "@/lib/configurable-runtime-utils";
 
 const services = serviceCatalog;
 const options = {
@@ -94,16 +85,6 @@ const options = {
 } as const;
 
 type BillingOption = PageBillingOption;
-
-const systemDiskOptions = [
-  "High I/O",
-  "Ultra-high I/O",
-  "Extreme SSD",
-  "General Purpose SSD",
-  "General Purpose SSD V2",
-] as const;
-
-type SystemDiskOption = (typeof systemDiskOptions)[number];
 
 const priceListEntries = [
   { service: "Elastic Cloud Server", sku: "c7.large.2", billing: "Pay-per-use", unit: "per hour", price: "USD 0.122" },
@@ -137,23 +118,6 @@ const evsBillingOptions = (getConfiguredBillingOptions("EVS") ?? ["Pay-per-use",
 const obsBillingOptions: BillingOption[] = ["Pay-per-use"];
 const flavorPageSizeOptions = [1, 3, 5, 10, 20] as const;
 const flavorPageSizeStorageKey = "neoCalculator.flavorPageSize";
-const ecsDiskSizeBounds = { min: 40, max: 1024 } as const;
-const evsDiskSizeBounds = { min: 1, max: 1_000_000 } as const;
-const obsStorageSizeBounds = { min: 1, max: 1_000_000_000 } as const;
-const evsSingleDiskMaxGiB = 32_768;
-const gpSsd2IopsBounds = { min: 3_000, max: 128_000 } as const;
-const gpSsd2ThroughputBounds = { min: 125, max: 1_000 } as const;
-
-type BatchEcsSelection = {
-  flavor: CatalogFlavor;
-  flavorCard: FlavorCard;
-  diskPrice: NonNullable<ReturnType<typeof getDiskPriceForBillingOption>>;
-};
-
-type BatchFlexusLSelection = {
-  plan: (typeof flexusLPlans)[number];
-  flavorCard: FlavorCard;
-};
 
 type ActiveModal =
   | { kind: "project-huawei"; projectId: string }
@@ -244,358 +208,12 @@ function parseDashboardUrlState(search: string): DashboardUrlState {
   };
 }
 
-function buildFlavorAutoSelectKey({
-  minVcpuValue,
-  minRamValue,
-  flavorQuery,
-  flavorSort,
-  regionValue,
-  billingMode,
-  usageHoursValue,
-  systemDiskType,
-  systemDiskSizeValue,
-  includeFlexusL,
-}: {
-  minVcpuValue: string;
-  minRamValue: string;
-  flavorQuery: string;
-  flavorSort: string;
-  regionValue: HuaweiRegionKey;
-  billingMode: BillingOption;
-  usageHoursValue: number;
-  systemDiskType: SystemDiskOption;
-  systemDiskSizeValue: number;
-  includeFlexusL: boolean;
-}) {
-  return [
-    minVcpuValue,
-    minRamValue,
-    flavorQuery.trim().toLowerCase(),
-    flavorSort,
-    regionValue,
-    billingMode,
-    String(usageHoursValue),
-    systemDiskType,
-    String(systemDiskSizeValue),
-    includeFlexusL ? "with-flexus-l" : "ecs-only",
-  ].join("|");
-}
-
-function getProductConfigSummary(product: AppProduct): string {
-  if (!isRecord(product.config)) {
-    return product.serviceName;
-  }
-
-  if (product.productType === "ecs") {
-    const systemDisk = isRecord(product.config.systemDisk) ? product.config.systemDisk : null;
-    const diskIops = systemDisk && typeof systemDisk.iops === "number" ? systemDisk.iops : null;
-    const diskThroughput = systemDisk && typeof systemDisk.throughput === "number" ? systemDisk.throughput : null;
-    const parts = [
-      typeof product.config.region === "string" ? product.config.region : null,
-      typeof product.config.flavor === "string" ? product.config.flavor : null,
-      systemDisk && typeof systemDisk.type === "string" ? systemDisk.type : null,
-      systemDisk && typeof systemDisk.sizeGiB === "number" ? `${systemDisk.sizeGiB} GiB` : null,
-      diskIops ? `${diskIops} IOPS` : null,
-      diskThroughput ? `${diskThroughput} MB/s` : null,
-      typeof product.config.billingMode === "string" ? product.config.billingMode : null,
-      typeof product.config.usageHours === "number" && product.config.billingMode === "Pay-per-use"
-        ? `${product.config.usageHours}h`
-        : null,
-      typeof product.config.durationMonths === "number" && product.config.billingMode === "Yearly/Monthly"
-        ? `${product.config.durationMonths}mo`
-        : null,
-    ].filter(Boolean);
-
-    return parts.join(" · ") || product.serviceName;
-  }
-
-  if (product.productType === "evs") {
-    const diskType = typeof product.config.diskType === "string"
-      ? product.config.diskType
-      : isRecord(product.config.systemDisk) && typeof product.config.systemDisk.type === "string"
-        ? product.config.systemDisk.type
-        : null;
-    const diskSizeGiB = typeof product.config.diskSizeGiB === "number"
-      ? product.config.diskSizeGiB
-      : isRecord(product.config.systemDisk) && typeof product.config.systemDisk.sizeGiB === "number"
-        ? product.config.systemDisk.sizeGiB
-        : null;
-    const diskIops = typeof product.config.iops === "number"
-      ? product.config.iops
-      : isRecord(product.config.systemDisk) && typeof product.config.systemDisk.iops === "number"
-        ? product.config.systemDisk.iops
-        : null;
-    const diskThroughput = typeof product.config.throughput === "number"
-      ? product.config.throughput
-      : isRecord(product.config.systemDisk) && typeof product.config.systemDisk.throughput === "number"
-        ? product.config.systemDisk.throughput
-        : null;
-    const parts = [
-      typeof product.config.region === "string" ? product.config.region : null,
-      diskType && diskSizeGiB ? `${diskType} ${diskSizeGiB} GiB` : diskType ?? (diskSizeGiB ? `${diskSizeGiB} GiB` : null),
-      diskIops ? `${diskIops} IOPS` : null,
-      diskThroughput ? `${diskThroughput} MB/s` : null,
-      typeof product.config.billingMode === "string" ? product.config.billingMode : null,
-      typeof product.config.usageHours === "number" && product.config.billingMode === "Pay-per-use"
-        ? `${product.config.usageHours}h`
-        : null,
-    ].filter(Boolean);
-
-    return parts.join(" · ") || product.serviceName;
-  }
-
-  if (product.productType === "flexus-l") {
-    const parts = [
-      typeof product.config.region === "string" ? product.config.region : null,
-      typeof product.config.planTitle === "string"
-        ? product.config.planTitle
-        : typeof product.config.planId === "string"
-          ? product.config.planId
-          : null,
-      typeof product.config.systemDiskGiB === "number" ? `${product.config.systemDiskGiB} GiB system disk` : null,
-      typeof product.config.peakBandwidthMbit === "number" ? `${product.config.peakBandwidthMbit} Mbit/s` : null,
-      typeof product.config.dataPackageTiB === "number" ? `${product.config.dataPackageTiB} TB/month` : null,
-      typeof product.config.billingMode === "string" ? product.config.billingMode : null,
-    ].filter(Boolean);
-
-    return parts.join(" · ") || product.serviceName;
-  }
-
-  if (product.productType === "obs") {
-    const storageAmount = typeof product.config.storageAmount === "number"
-      ? product.config.storageAmount
-      : typeof product.config.storageGiB === "number"
-        ? product.config.storageGiB
-        : null;
-    const storageUnit = typeof product.config.storageUnit === "string" ? product.config.storageUnit : null;
-    const outboundTrafficAmount = typeof product.config.outboundTrafficAmount === "number" ? product.config.outboundTrafficAmount : null;
-    const outboundTrafficUnit = typeof product.config.outboundTrafficUnit === "string" ? product.config.outboundTrafficUnit : null;
-    const pullTrafficAmount = typeof product.config.pullTrafficAmount === "number" ? product.config.pullTrafficAmount : null;
-    const pullTrafficUnit = typeof product.config.pullTrafficUnit === "string" ? product.config.pullTrafficUnit : null;
-    const showPullTraffic = typeof product.config.productType === "string"
-      ? product.config.productType === "Object storage"
-      : true;
-    const readTrafficAmount = typeof product.config.readTrafficAmount === "number" ? product.config.readTrafficAmount : null;
-    const readTrafficUnit = typeof product.config.readTrafficUnit === "string" ? product.config.readTrafficUnit : null;
-    const restorationType = typeof product.config.restorationType === "string" ? product.config.restorationType : null;
-    const replicationTrafficAmount = typeof product.config.replicationTrafficAmount === "number" ? product.config.replicationTrafficAmount : null;
-    const replicationTrafficUnit = typeof product.config.replicationTrafficUnit === "string" ? product.config.replicationTrafficUnit : null;
-    const parts = [
-      typeof product.config.region === "string" ? product.config.region : null,
-      typeof product.config.productType === "string" ? product.config.productType : null,
-      typeof product.config.storageClass === "string" ? product.config.storageClass : null,
-      typeof product.config.redundancy === "string" ? product.config.redundancy : null,
-      storageAmount != null ? `${storageAmount} ${storageUnit ?? "GB"}` : null,
-      typeof product.config.durationMonths === "number" ? `${product.config.durationMonths}mo` : null,
-      outboundTrafficAmount != null && outboundTrafficAmount > 0 ? `Outbound ${outboundTrafficAmount} ${outboundTrafficUnit ?? "GB"}` : null,
-      showPullTraffic && pullTrafficAmount != null && pullTrafficAmount > 0 ? `Pull ${pullTrafficAmount} ${pullTrafficUnit ?? "GB"}` : null,
-      restorationType ? restorationType : null,
-      readTrafficAmount != null && readTrafficAmount > 0 ? `Read ${readTrafficAmount} ${readTrafficUnit ?? "GB"}` : null,
-      replicationTrafficAmount != null && replicationTrafficAmount > 0 ? `CRR ${replicationTrafficAmount} ${replicationTrafficUnit ?? "GB"}` : null,
-      typeof product.config.readRequests === "number" ? formatObsRequestSummary(product.config.readRequests, "reads") : null,
-      typeof product.config.writeRequests === "number" ? formatObsRequestSummary(product.config.writeRequests, "writes") : null,
-      typeof product.config.deleteRequests === "number" ? formatObsRequestSummary(product.config.deleteRequests, "deletes") : null,
-      typeof product.config.lifecycleTransitionRequests === "number"
-        ? formatObsRequestSummary(product.config.lifecycleTransitionRequests, "lifecycle transitions")
-        : null,
-      typeof product.config.minimumStorageDays === "number" && product.config.minimumStorageDays > 0
-        ? `${product.config.minimumStorageDays}-day minimum`
-        : null,
-      typeof product.config.billingMode === "string" ? product.config.billingMode : null,
-    ].filter(Boolean);
-
-    return parts.join(" · ") || product.serviceName;
-  }
-
-  if (product.productType === "huawei-raw") {
-    const parts = [
-      typeof product.config.region === "string" ? product.config.region : null,
-      typeof product.config.resourceCode === "string" ? product.config.resourceCode : null,
-      typeof product.config.pricingMode === "string" ? product.config.pricingMode : null,
-    ].filter(Boolean);
-
-    return parts.join(" · ") || product.serviceName;
-  }
-
-  if (product.productType === "cce") {
-    const parts = [
-      typeof product.config.region === "string" ? product.config.region : null,
-      typeof product.config.clusterScale === "string" ? product.config.clusterScale : null,
-      typeof product.config.masterNodes === "string" ? product.config.masterNodes : null,
-      typeof product.config.billingMode === "string" ? product.config.billingMode : null,
-      typeof product.config.usageHours === "number" && product.config.billingMode === "Pay-per-use"
-        ? `${product.config.usageHours}h`
-        : null,
-    ].filter(Boolean);
-
-    return parts.join(" · ") || product.serviceName;
-  }
-
-  if (product.productType === "elb") {
-    const selectedProtocols = Array.isArray(product.config.selectedProtocols)
-      ? product.config.selectedProtocols.filter((value): value is string => typeof value === "string")
-      : [];
-    const fixedSelectedTypes = Array.isArray(product.config.fixedSelectedTypes)
-      ? product.config.fixedSelectedTypes.filter((value): value is string => typeof value === "string")
-      : [];
-    const parts = [
-      typeof product.config.region === "string" ? product.config.region : null,
-      typeof product.config.type === "string" ? product.config.type : null,
-      typeof product.config.specificationType === "string" && product.config.type === "Dedicated load balancer"
-        ? product.config.specificationType
-        : null,
-      typeof product.config.fixedAvailabilityAzCount === "number" && product.config.type === "Dedicated load balancer" && product.config.specificationType === "Fixed"
-        ? `${product.config.fixedAvailabilityAzCount} AZs`
-        : null,
-      fixedSelectedTypes.length > 0 && product.config.type === "Dedicated load balancer" && product.config.specificationType === "Fixed"
-        ? fixedSelectedTypes.join(", ")
-        : null,
-      selectedProtocols.length > 0 && product.config.type === "Dedicated load balancer"
-        && product.config.specificationType === "Elastic" ? selectedProtocols.join(", ")
-        : null,
-      typeof product.config.networkType === "string" ? product.config.networkType : null,
-      typeof product.config.billingMode === "string" ? product.config.billingMode : null,
-      typeof product.config.usageHours === "number" && product.config.billingMode === "Pay-per-use"
-        ? `${product.config.usageHours}h`
-        : null,
-    ].filter(Boolean);
-
-    return parts.join(" · ") || product.serviceName;
-  }
-
-  if (product.productType === "eip") {
-    const parts = [
-      typeof product.config.region === "string" ? product.config.region : null,
-      typeof product.config.type === "string" ? product.config.type : null,
-      typeof product.config.eipType === "string" ? product.config.eipType : "Dynamic BGP",
-      typeof product.config.chargeMode === "string" ? product.config.chargeMode : null,
-      typeof product.config.bandwidthMbit === "number" && product.config.chargeMode === "By bandwidth"
-        ? `${product.config.bandwidthMbit} Mbit/s`
-        : null,
-      typeof product.config.bandwidthMbit === "number" && product.config.chargeMode === "Enhanced 95"
-        ? `${product.config.bandwidthMbit} Mbit/s`
-        : null,
-      typeof product.config.durationMonths === "number" && product.config.chargeMode === "Enhanced 95"
-        ? `${product.config.durationMonths}mo`
-        : null,
-      typeof product.config.sharedBandwidthQuantity === "number" && product.config.type === "Shared EIP" && product.config.chargeMode === "By bandwidth"
-        ? `${product.config.sharedBandwidthQuantity} shared bandwidth${product.config.sharedBandwidthQuantity === 1 ? "" : "s"}`
-        : null,
-      typeof product.config.trafficAmount === "number" && product.config.chargeMode === "By traffic"
-        ? `${product.config.trafficAmount} ${typeof product.config.trafficUnit === "string" ? product.config.trafficUnit : "GB"}`
-        : null,
-      typeof product.config.billingMode === "string" ? product.config.billingMode : null,
-      typeof product.config.durationMonths === "number" && product.config.chargeMode === "Enhanced 95"
-        ? null
-        : typeof product.config.usageHours === "number" && product.config.billingMode === "Pay-per-use"
-        ? `${product.config.usageHours}h`
-        : null,
-    ].filter(Boolean);
-
-    return parts.join(" · ") || product.serviceName;
-  }
-
-  if (product.productType === "nat") {
-    const parts = [
-      typeof product.config.region === "string" ? product.config.region : null,
-      typeof product.config.type === "string" ? product.config.type : null,
-      typeof product.config.size === "string" ? product.config.size : null,
-      typeof product.config.billingMode === "string" ? product.config.billingMode : null,
-      typeof product.config.billableDays === "number" && product.config.billingMode === "Pay-per-use"
-        ? `${product.config.billableDays}d`
-        : typeof product.config.usageHours === "number" && product.config.billingMode === "Pay-per-use"
-        ? `${product.config.usageHours}h`
-        : null,
-    ].filter(Boolean);
-
-    return parts.join(" · ") || product.serviceName;
-  }
-
-  if (product.productType === "vpn") {
-    const parts = [
-      typeof product.config.region === "string" ? product.config.region : null,
-      typeof product.config.edition === "string" ? product.config.edition : null,
-      typeof product.config.mode === "string" ? product.config.mode : null,
-      typeof product.config.networkType === "string" ? product.config.networkType : null,
-      typeof product.config.specification === "string" ? product.config.specification : null,
-      typeof product.config.accessViaNonFixedIp === "string" && product.config.mode === "Site-to-Cloud" && product.config.networkType === "Public network"
-        ? `Non-fixed IP ${product.config.accessViaNonFixedIp}`
-        : null,
-      typeof product.config.connectionGroups === "number"
-        ? `${product.config.connectionGroups} groups`
-        : null,
-      typeof product.config.useSharedBandwidth === "boolean" && product.config.networkType === "Public network"
-        ? product.config.useSharedBandwidth ? "Shared bandwidth" : "Dedicated bandwidth"
-        : null,
-      typeof product.config.eipBandwidthMbit1 === "number" && product.config.networkType === "Public network"
-        ? `EIP1 ${product.config.eipBandwidthMbit1} Mbit/s`
-        : null,
-      typeof product.config.eipBandwidthMbit2 === "number" && product.config.networkType === "Public network"
-        ? `EIP2 ${product.config.eipBandwidthMbit2} Mbit/s`
-        : null,
-      typeof product.config.billingMode === "string" ? product.config.billingMode : null,
-      typeof product.config.durationMonths === "number" && product.config.billingMode === "Yearly/Monthly"
-        ? `${product.config.durationMonths}mo`
-        : null,
-      typeof product.config.usageHours === "number" && product.config.billingMode === "Pay-per-use"
-        ? `${product.config.usageHours}h`
-        : null,
-    ].filter(Boolean);
-
-    return parts.join(" · ") || product.serviceName;
-  }
-
-  if (product.productType === "cci") {
-    const parts = [
-      typeof product.config.region === "string" ? product.config.region : null,
-      typeof product.config.cpu === "number" ? `${product.config.cpu} vCPU` : null,
-      typeof product.config.memoryGiB === "number" ? `${product.config.memoryGiB} GiB` : null,
-      typeof product.config.billingMode === "string" ? product.config.billingMode : null,
-      typeof product.config.usageHours === "number" && product.config.billingMode === "Pay-per-use"
-        ? `${product.config.usageHours}h`
-        : null,
-    ].filter(Boolean);
-
-    return parts.join(" · ") || product.serviceName;
-  }
-
-  if (product.productType === "modelarts") {
-    const parts = [
-      typeof product.config.region === "string" ? product.config.region : null,
-      typeof product.config.serviceType === "string" ? product.config.serviceType : null,
-      typeof product.config.resourceType === "string" ? product.config.resourceType : null,
-      typeof product.config.specification === "string" ? product.config.specification : null,
-      typeof product.config.resourceType === "string" && product.config.resourceType === "EVS Storage"
-        && typeof product.config.storageQuotaGb === "number"
-        ? `${product.config.storageQuotaGb} GB`
-        : typeof product.config.quantity === "number"
-        ? `${product.config.quantity} instance${product.config.quantity === 1 ? "" : "s"}`
-        : null,
-      typeof product.config.billingMode === "string" ? product.config.billingMode : null,
-      typeof product.config.durationMonths === "number" && product.config.billingMode === "Yearly/Monthly"
-        ? product.config.durationMonths === 12 ? "1yr" : `${product.config.durationMonths}mo`
-        : null,
-      typeof product.config.usageHours === "number" && product.config.billingMode === "Pay-per-use"
-        ? `${product.config.usageHours}h`
-        : null,
-    ].filter(Boolean);
-
-    return parts.join(" · ") || product.serviceName;
-  }
-
-  return product.serviceName;
-}
-
 function getServiceMeta(serviceCode: string, serviceName: string) {
   return findServiceCatalogEntry(serviceCode, serviceName);
 }
 
 function isBillingOption(value: unknown): value is BillingOption {
   return typeof value === "string" && (options.billing as readonly string[]).includes(value);
-}
-
-function isSystemDiskOption(value: unknown): value is SystemDiskOption {
-  return typeof value === "string" && (systemDiskOptions as readonly string[]).includes(value);
 }
 
 function getCalculatorBillingOptions(
@@ -614,498 +232,6 @@ function getCalculatorBillingOptions(
   }
 
   return [...options.billing];
-}
-
-function parsePositiveNumber(value: unknown) {
-  if (typeof value === "number" && Number.isFinite(value) && value > 0) {
-    return value;
-  }
-
-  if (typeof value === "string" && value.trim()) {
-    const parsed = Number(value);
-    if (Number.isFinite(parsed) && parsed > 0) {
-      return parsed;
-    }
-  }
-
-  return null;
-}
-
-function parseNonNegativeNumber(value: unknown) {
-  if (typeof value === "number" && Number.isFinite(value) && value >= 0) {
-    return value;
-  }
-
-  if (typeof value === "string" && value.trim()) {
-    const parsed = Number(value);
-    if (Number.isFinite(parsed) && parsed >= 0) {
-      return parsed;
-    }
-  }
-
-  return null;
-}
-
-function parseBatchQuantity(value: unknown) {
-  const parsed = parsePositiveNumber(value);
-  if (parsed == null) {
-    return 1;
-  }
-
-  return Math.max(1, Math.floor(parsed));
-}
-
-function getNestedRecord(value: unknown, key: string) {
-  return isRecord(value) && isRecord(value[key]) ? value[key] : null;
-}
-
-function getBatchDiskType(
-  value: unknown,
-  fallback: SystemDiskOption,
-) {
-  const evs = getNestedRecord(value, "evs");
-  const candidates = [
-    isRecord(value) ? value.type : undefined,
-    isRecord(value) ? value.diskType : undefined,
-    isRecord(value) ? value.systemDiskType : undefined,
-    evs?.type,
-    evs?.diskType,
-  ];
-
-  for (const candidate of candidates) {
-    if (isSystemDiskOption(candidate)) {
-      return candidate;
-    }
-  }
-
-  return fallback;
-}
-
-function getBatchDiskSize(
-  value: unknown,
-  fallback: number,
-  bounds: { min: number; max: number },
-) {
-  const evs = getNestedRecord(value, "evs");
-  const candidates = [
-    isRecord(value) ? value.size : undefined,
-    isRecord(value) ? value.sizeGiB : undefined,
-    isRecord(value) ? value.diskSizeGiB : undefined,
-    isRecord(value) ? value.systemDiskSizeGiB : undefined,
-    evs?.size,
-    evs?.sizeGiB,
-    evs?.diskSizeGiB,
-  ];
-
-  for (const candidate of candidates) {
-    const parsed = parsePositiveNumber(candidate);
-    if (parsed != null) {
-      return Math.min(bounds.max, Math.max(bounds.min, Math.floor(parsed)));
-    }
-  }
-
-  return fallback;
-}
-
-function getBatchObsStorageClass(value: unknown, fallback: ObsStorageClass) {
-  const obs = getNestedRecord(value, "obs");
-  const candidates = [
-    isRecord(value) ? value.storageClass : undefined,
-    isRecord(value) ? value.class : undefined,
-    isRecord(value) ? value.tier : undefined,
-    obs?.storageClass,
-    obs?.class,
-    obs?.tier,
-  ];
-
-  for (const candidate of candidates) {
-    if (isObsStorageClass(candidate)) {
-      return candidate;
-    }
-  }
-
-  return fallback;
-}
-
-function getBatchObsProductType(value: unknown, fallback: ObsProductType) {
-  const obs = getNestedRecord(value, "obs");
-  const candidates = [
-    isRecord(value) ? value.productType : undefined,
-    isRecord(value) ? value.type : undefined,
-    obs?.productType,
-    obs?.type,
-  ];
-
-  for (const candidate of candidates) {
-    if (isObsProductType(candidate)) {
-      return candidate;
-    }
-  }
-
-  return fallback;
-}
-
-function getBatchObsRedundancy(value: unknown, fallback: ObsRedundancy) {
-  const obs = getNestedRecord(value, "obs");
-  const candidates = [
-    isRecord(value) ? value.redundancy : undefined,
-    isRecord(value) ? value.redundancyPolicy : undefined,
-    isRecord(value) ? value.dataRedundancyPolicy : undefined,
-    obs?.redundancy,
-    obs?.redundancyPolicy,
-    obs?.dataRedundancyPolicy,
-  ];
-
-  for (const candidate of candidates) {
-    if (isObsRedundancy(candidate)) {
-      return candidate;
-    }
-  }
-
-  return fallback;
-}
-
-function getBatchObsStorageSize(value: unknown, fallback: number) {
-  const obs = getNestedRecord(value, "obs");
-  const candidates = [
-    isRecord(value) ? value.size : undefined,
-    isRecord(value) ? value.sizeGiB : undefined,
-    isRecord(value) ? value.storageGiB : undefined,
-    isRecord(value) ? value.storageAmount : undefined,
-    isRecord(value) ? value.capacityGiB : undefined,
-    obs?.size,
-    obs?.sizeGiB,
-    obs?.storageGiB,
-    obs?.storageAmount,
-    obs?.capacityGiB,
-  ];
-
-  for (const candidate of candidates) {
-    const parsed = parsePositiveNumber(candidate);
-    if (parsed != null) {
-      return Math.min(obsStorageSizeBounds.max, Math.max(obsStorageSizeBounds.min, parsed));
-    }
-  }
-
-  return fallback;
-}
-
-function getBatchObsUnit(value: unknown, fallback: ObsCapacityUnit, keys: string[]) {
-  const obs = getNestedRecord(value, "obs");
-  const candidates = [
-    ...keys.map((key) => (isRecord(value) ? value[key] : undefined)),
-    ...keys.map((key) => obs?.[key]),
-  ];
-
-  for (const candidate of candidates) {
-    if (isObsCapacityUnit(candidate)) {
-      return candidate;
-    }
-  }
-
-  return fallback;
-}
-
-function getBatchObsAmount(value: unknown, fallback: number, keys: string[]) {
-  const obs = getNestedRecord(value, "obs");
-  const candidates = [
-    ...keys.map((key) => (isRecord(value) ? value[key] : undefined)),
-    ...keys.map((key) => obs?.[key]),
-  ];
-
-  for (const candidate of candidates) {
-    const parsed = parseNonNegativeNumber(candidate);
-    if (parsed != null) {
-      return Math.max(0, parsed);
-    }
-  }
-
-  return fallback;
-}
-
-function getObsRequestUnits(step: number | null | undefined, value: number) {
-  return typeof step === "number" && Number.isFinite(step) && step > 0 ? value / step : value;
-}
-
-function formatObsRequestSummary(value: number, label: string) {
-  const normalized = value / 10_000;
-  if (!Number.isFinite(normalized) || normalized <= 0) {
-    return null;
-  }
-
-  const displayValue = Number.isInteger(normalized)
-    ? formatNumber(normalized)
-    : formatNumber(Number(normalized.toFixed(4)));
-  return `${displayValue} x 10k ${label}`;
-}
-
-function getBatchDescription(value: unknown, fallback: string) {
-  if (isRecord(value) && typeof value.description === "string" && value.description.trim()) {
-    return value.description.trim();
-  }
-
-  return fallback;
-}
-
-function hasExplicitBatchDiskConfig(value: unknown) {
-  const evs = getNestedRecord(value, "evs");
-  if (!isRecord(value)) {
-    return false;
-  }
-
-  return (
-    value.type !== undefined
-    || value.diskType !== undefined
-    || value.systemDiskType !== undefined
-    || value.size !== undefined
-    || value.sizeGiB !== undefined
-    || value.diskSizeGiB !== undefined
-    || value.systemDiskSizeGiB !== undefined
-    || evs != null
-  );
-}
-
-function getGpSsd2IopsBounds(sizeGiB: number) {
-  const max = Math.max(1, Math.min(gpSsd2IopsBounds.max, Math.floor(sizeGiB * 500)));
-  return {
-    min: Math.min(gpSsd2IopsBounds.min, max),
-    max,
-  };
-}
-
-function normalizeGpSsd2Iops(value: unknown, sizeGiB: number) {
-  const bounds = getGpSsd2IopsBounds(sizeGiB);
-  const parsed = parsePositiveNumber(value);
-  if (parsed == null) {
-    return bounds.min;
-  }
-
-  return Math.min(bounds.max, Math.max(bounds.min, Math.floor(parsed)));
-}
-
-function getGpSsd2ThroughputBounds(iops: number) {
-  const max = Math.max(1, Math.min(gpSsd2ThroughputBounds.max, Math.floor(iops / 4)));
-  return {
-    min: Math.min(gpSsd2ThroughputBounds.min, max),
-    max,
-  };
-}
-
-function normalizeGpSsd2Throughput(value: unknown, iops: number) {
-  const bounds = getGpSsd2ThroughputBounds(iops);
-  const parsed = parsePositiveNumber(value);
-  if (parsed == null) {
-    return bounds.min;
-  }
-
-  return Math.min(bounds.max, Math.max(bounds.min, Math.floor(parsed)));
-}
-
-function getGpSsd2RequestedIops(value: unknown, fallbackSizeGiB: number) {
-  const evs = getNestedRecord(value, "evs");
-  const systemDisk = getNestedRecord(value, "systemDisk");
-  const candidates = [
-    isRecord(value) ? value.iops : undefined,
-    isRecord(value) ? value.diskIops : undefined,
-    evs?.iops,
-    evs?.diskIops,
-    systemDisk?.iops,
-    systemDisk?.diskIops,
-  ];
-
-  for (const candidate of candidates) {
-    if (parsePositiveNumber(candidate) != null) {
-      return normalizeGpSsd2Iops(candidate, fallbackSizeGiB);
-    }
-  }
-
-  return normalizeGpSsd2Iops(undefined, fallbackSizeGiB);
-}
-
-function getGpSsd2RequestedThroughput(value: unknown, fallbackIops: number) {
-  const evs = getNestedRecord(value, "evs");
-  const systemDisk = getNestedRecord(value, "systemDisk");
-  const candidates = [
-    isRecord(value) ? value.throughput : undefined,
-    isRecord(value) ? value.diskThroughput : undefined,
-    evs?.throughput,
-    evs?.diskThroughput,
-    systemDisk?.throughput,
-    systemDisk?.diskThroughput,
-  ];
-
-  for (const candidate of candidates) {
-    if (parsePositiveNumber(candidate) != null) {
-      return normalizeGpSsd2Throughput(candidate, fallbackIops);
-    }
-  }
-
-  return normalizeGpSsd2Throughput(undefined, fallbackIops);
-}
-
-function splitEvsDiskSizes(totalGiB: number) {
-  const normalizedTotal = Math.max(1, Math.floor(totalGiB));
-  const chunks: number[] = [];
-  let remaining = normalizedTotal;
-
-  while (remaining > evsSingleDiskMaxGiB) {
-    chunks.push(evsSingleDiskMaxGiB);
-    remaining -= evsSingleDiskMaxGiB;
-  }
-
-  chunks.push(remaining);
-  return chunks;
-}
-
-function buildEvsProductMutationBodies(input: {
-  serviceCode: string;
-  serviceName: string;
-  serviceTitle: string;
-  region: HuaweiRegionKey;
-  billingMode: BillingOption;
-  usageHours: number;
-  durationMonths: number;
-  quantity: number;
-  description: string;
-  diskType: SystemDiskOption;
-  diskSizeGiB: number;
-  requestedIops: number | null;
-  requestedThroughput: number | null;
-  diskPricing: DiskPricing<SystemDiskOption> | null;
-}) {
-  const chunkSizes = splitEvsDiskSizes(input.diskSizeGiB);
-
-  return chunkSizes.map((chunkSizeGiB) => {
-    const price = getDiskPriceForBillingOption(
-      input.diskPricing,
-      input.diskType,
-      chunkSizeGiB,
-      input.billingMode,
-      input.usageHours,
-      input.durationMonths,
-    );
-    const chunkIops = input.diskType === "General Purpose SSD V2" && input.requestedIops != null
-      ? normalizeGpSsd2Iops(input.requestedIops, chunkSizeGiB)
-      : null;
-    const chunkThroughput =
-      input.diskType === "General Purpose SSD V2" && input.requestedThroughput != null && chunkIops != null
-        ? normalizeGpSsd2Throughput(input.requestedThroughput, chunkIops)
-        : null;
-
-    if (!price) {
-      throw new Error("Unable to price one of the EVS split disks.");
-    }
-
-    return {
-      serviceCode: input.serviceCode,
-      serviceName: input.serviceName,
-      productType: "evs",
-      title: `${input.serviceTitle} ${input.diskType} ${chunkSizeGiB} GiB`,
-      quantity: input.quantity,
-      config: {
-        region: input.region,
-        billingMode: input.billingMode,
-        usageHours: input.billingMode === "Pay-per-use" ? input.usageHours : null,
-        durationMonths: input.billingMode === "Yearly/Monthly" ? input.durationMonths : null,
-        description: input.description,
-        diskType: input.diskType,
-        diskSizeGiB: chunkSizeGiB,
-        ...(chunkIops != null ? { iops: chunkIops } : {}),
-        ...(chunkThroughput != null ? { throughput: chunkThroughput } : {}),
-        requestedDiskSizeGiB: input.diskSizeGiB,
-        splitDiskCount: chunkSizes.length,
-      },
-      pricing: {
-        total: formatFlavorAmount(price.currency, price.amount * input.quantity, price.suffix),
-        disk: formatFlavorAmount(price.currency, price.amount, price.suffix),
-      },
-    } satisfies ProductMutationBody;
-  });
-}
-
-function buildEvsSplitNotice(totalGiB: number) {
-  if (totalGiB <= evsSingleDiskMaxGiB) {
-    return null;
-  }
-
-  const chunks = splitEvsDiskSizes(totalGiB);
-  return `Totals above ${evsSingleDiskMaxGiB} GiB are saved as multiple disks: ${chunks.join(" GiB + ")} GiB.`;
-}
-
-function findBestBatchEcsSelection(
-  flavors: CatalogFlavor[],
-  diskPricing: DiskPricing<SystemDiskOption> | null,
-  billingOption: BillingOption,
-  usageHours: number,
-  vcpu: number,
-  ramGiB: number,
-  diskType: SystemDiskOption,
-  diskSizeGiB: number,
-  fallbackDescription: string,
-): BatchEcsSelection | null {
-  const candidates = flavors
-    .filter((flavor) => flavor.cpu >= vcpu && flavor.ramGiB >= ramGiB)
-    .map((flavor) => {
-      const diskPrice = getDiskPriceForBillingOption(
-        diskPricing,
-        diskType,
-        diskSizeGiB,
-        billingOption,
-        usageHours,
-      );
-      const flavorCard = toFlavorCard(
-        {
-          ...flavor,
-          description: flavor.description ?? fallbackDescription,
-        },
-        billingOption,
-        usageHours,
-        diskPrice,
-      );
-
-      return diskPrice
-        ? {
-            flavor,
-            flavorCard,
-            diskPrice,
-          }
-        : null;
-    })
-    .filter((candidate): candidate is BatchEcsSelection => candidate != null)
-    .sort((left, right) => {
-      if (left.flavorCard.priceValue !== right.flavorCard.priceValue) {
-        return left.flavorCard.priceValue - right.flavorCard.priceValue;
-      }
-
-      if (left.flavor.cpu !== right.flavor.cpu) {
-        return left.flavor.cpu - right.flavor.cpu;
-      }
-
-      if (left.flavor.ramGiB !== right.flavor.ramGiB) {
-        return left.flavor.ramGiB - right.flavor.ramGiB;
-      }
-
-      return left.flavor.resourceSpecCode.localeCompare(right.flavor.resourceSpecCode);
-    });
-
-  return candidates[0] ?? null;
-}
-
-function findBestBatchFlexusLSelection(
-  billingOption: BillingOption,
-  usageHours: number,
-  vcpu: number,
-  ramGiB: number,
-): BatchFlexusLSelection | null {
-  const plan = findBestFlexusLPlan(vcpu, ramGiB);
-  if (!plan) {
-    return null;
-  }
-
-  return {
-    plan,
-    flavorCard: toFlexusLFlavorCard(plan, billingOption, usageHours),
-  };
 }
 
 function OptionGrid({
@@ -1165,11 +291,6 @@ export default function Home() {
   const [flavorSort, setFlavorSort] = useState("price-asc");
   const [flavorPageSize, setFlavorPageSize] = useState<(typeof flavorPageSizeOptions)[number]>(3);
   const [selectedFlavor, setSelectedFlavor] = useState("");
-  const [catalogFlavors, setCatalogFlavors] = useState<CatalogFlavor[]>([]);
-  const [diskPricing, setDiskPricing] = useState<DiskPricing<SystemDiskOption> | null>(null);
-  const [catalogFlavorsLoading, setCatalogFlavorsLoading] = useState(false);
-  const [catalogFlavorsError, setCatalogFlavorsError] = useState("");
-  const [catalogFlavorsLastCompletedAt, setCatalogFlavorsLastCompletedAt] = useState<string | null>(null);
   const [projects, setProjects] = useState<AppProject[]>([]);
   const [projectsLoading, setProjectsLoading] = useState(false);
   const [projectsError, setProjectsError] = useState("");
@@ -1243,7 +364,6 @@ export default function Home() {
   const projectImportInputRef = useRef<HTMLInputElement>(null);
   const cartImportInputRef = useRef<HTMLInputElement>(null);
   const listboxId = `${useId()}-services`;
-  const lastFlavorAutoSelectKeyRef = useRef("");
   const pendingUrlStateRef = useRef<DashboardUrlState | null>(null);
   const hasInitializedUrlStateRef = useRef(false);
   const isApplyingUrlStateRef = useRef(false);
@@ -1265,7 +385,6 @@ export default function Home() {
   const isEcsCalculator = selectedServiceCode === "ECS";
   const isFlexusLCalculator = selectedServiceCode === "Flexus L";
   const isEvsCalculator = selectedServiceCode === "EVS";
-  const isObsCalculator = selectedServiceCode === "OBS";
   const activeRuntimeMeta = getCalculatorRuntimeMeta(selectedServiceCode);
   const isSelectedServiceImplemented = supportedCalculatorServiceCodes.includes(selectedServiceCode);
   const isSelectedServiceBatchAddImplemented = supportedBatchAddServiceCodes.includes(selectedServiceCode);
@@ -1295,6 +414,7 @@ export default function Home() {
   const cloneableRegions = (Object.entries(huaweiRegions) as Array<[HuaweiRegionKey, (typeof huaweiRegions)[HuaweiRegionKey]]>)
     .filter(([, labels]) => Boolean(labels.catalogRegionId));
   const usageHoursValue = Number.isFinite(Number(usageHours)) ? Math.max(1, Number(usageHours)) : 744;
+  const instanceCountValue = Number.isFinite(Number(instanceCount)) ? Math.max(1, Number(instanceCount)) : 1;
   const configurableRuntime = useConfigurableServiceRuntime({
     selectedServiceCode,
     selectedService,
@@ -1305,7 +425,7 @@ export default function Home() {
     usageHours,
     usageHoursValue,
     updateUsageHours,
-    instanceCountValue: Number.isFinite(Number(instanceCount)) ? Math.max(1, Number(instanceCount)) : 1,
+    instanceCountValue,
   });
   const calculatorBillingOptions = useMemo(
     () => configurableRuntime.activeBillingOptions ?? getCalculatorBillingOptions(selectedServiceCode),
@@ -1313,12 +433,9 @@ export default function Home() {
   );
   const canShowFlexusLInEcs = isEcsCalculator
     && (billingMode === "RI" || billingMode === "Yearly/Monthly" || (billingMode === "Pay-per-use" && (usageHoursValue === 730 || usageHoursValue === 744)));
-  const minVcpuFilter = Number.isFinite(Number(minVcpuValue)) ? Math.max(0, Number(minVcpuValue)) : 0;
-  const minRamFilter = Number.isFinite(Number(minRamValue)) ? Math.max(0, Number(minRamValue)) : 0;
-  const activeDiskSizeBounds = ecsDiskSizeBounds;
   const systemDiskSizeValue = Number.isFinite(Number(systemDiskSize))
-    ? Math.max(activeDiskSizeBounds.min, Number(systemDiskSize))
-    : activeDiskSizeBounds.min;
+    ? Math.max(ecsDiskSizeBounds.min, Number(systemDiskSize))
+    : ecsDiskSizeBounds.min;
   const isGpSsd2Selected = systemDiskType === "General Purpose SSD V2";
   const gpSsd2IopsValue = isGpSsd2Selected ? normalizeGpSsd2Iops(gpSsd2Iops, systemDiskSizeValue) : null;
   const gpSsd2IopsRange = isGpSsd2Selected ? getGpSsd2IopsBounds(systemDiskSizeValue) : null;
@@ -1326,25 +443,43 @@ export default function Home() {
     isGpSsd2Selected && gpSsd2IopsValue != null ? normalizeGpSsd2Throughput(gpSsd2Throughput, gpSsd2IopsValue) : null;
   const gpSsd2ThroughputRange =
     isGpSsd2Selected && gpSsd2IopsValue != null ? getGpSsd2ThroughputBounds(gpSsd2IopsValue) : null;
-  const instanceCountValue = Number.isFinite(Number(instanceCount)) ? Math.max(1, Number(instanceCount)) : 1;
-  const selectedDiskPrice = getDiskPriceForBillingOption(
-    diskPricing,
-    systemDiskType,
-    systemDiskSizeValue,
+  const customEcsRuntime = useCustomEcsCalculator({
+    isEcsCalculator,
+    isFlexusLCalculator,
+    canShowFlexusLInEcs,
+    showFlexusLInEcs,
+    regionValue,
     billingMode,
     usageHoursValue,
-    1,
-  );
-  const ecsFlavorCards = catalogFlavors
-    .filter((flavor) => getFlavorPriceForBillingOption(flavor, billingMode, usageHoursValue))
-    .map((flavor) => toFlavorCard(flavor, billingMode, usageHoursValue, selectedDiskPrice));
-  const flexusLFlavorCards =
-    isEcsCalculator && canShowFlexusLInEcs && showFlexusLInEcs
-      ? flexusLPlans.map((plan) => toFlexusLFlavorCard(plan, billingMode, usageHoursValue))
-      : [];
-  const billableFlavors = [...ecsFlavorCards, ...flexusLFlavorCards];
-  const selectedFlavorCard = billableFlavors.find((flavor) => flavor.name === selectedFlavor) ?? null;
-  const selectedFlexusLPlan = isFlexusLCalculator ? findFlexusLPlan(selectedFlavor) ?? flexusLPlans[0] ?? null : null;
+    minVcpuValue,
+    minRamValue,
+    flavorQuery,
+    flavorSort,
+    flavorPage,
+    flavorPageSize,
+    systemDiskType,
+    systemDiskSizeValue,
+    selectedFlavor,
+    setSelectedFlavor,
+    setVcpuValue,
+    setRamValue,
+    setFlavorPage,
+  });
+  const activeDiskSizeBounds = customEcsRuntime.activeDiskSizeBounds;
+  const {
+    catalogFlavors,
+    diskPricing,
+    catalogFlavorsLoading,
+    catalogFlavorsError,
+    catalogFlavorsLastCompletedAt,
+    selectedDiskPrice,
+    visibleFlavors,
+    currentFlavorPage,
+    totalFlavorPages,
+    selectedFlavorCard,
+    selectedFlexusLPlan,
+    setCustomSelection,
+  } = customEcsRuntime;
   const customCalculatorEstimate = buildCalculatorEstimate(
     {
       serviceCode: selectedServiceCode,
@@ -1368,40 +503,6 @@ export default function Home() {
   const showGlobalQuantityControl = configurableRuntime.isConfigurableService ? configurableRuntime.showGlobalQuantityControl : customCalculatorEstimate.showGlobalQuantityControl;
   const selectedEstimateParts = splitPriceDisplay(selectedEstimate);
   const displayQuantityValue = showGlobalQuantityControl ? instanceCountValue : 1;
-  const filteredFlavors = billableFlavors.filter((flavor) => {
-    if (Number(flavor.vcpu) < minVcpuFilter || Number(flavor.ram) < minRamFilter) {
-      return false;
-    }
-
-    const q = flavorQuery.trim().toLowerCase();
-    if (!q) return true;
-    return (
-      flavor.name.toLowerCase().includes(q) ||
-      flavor.family.toLowerCase().includes(q) ||
-      `${flavor.vcpu} ${flavor.ram}`.includes(q)
-    );
-  });
-  const sortedFlavors = [...filteredFlavors].sort((a, b) => {
-    if (flavorSort === "price-desc") return b.priceValue - a.priceValue;
-    if (flavorSort === "name-asc") return a.name.localeCompare(b.name);
-    if (flavorSort === "vcpu-asc") return Number(a.vcpu) - Number(b.vcpu);
-    return a.priceValue - b.priceValue;
-  });
-  const totalFlavorPages = Math.max(1, Math.ceil(sortedFlavors.length / flavorPageSize));
-  const currentFlavorPage = Math.min(flavorPage, totalFlavorPages);
-  const visibleFlavors = sortedFlavors.slice((currentFlavorPage - 1) * flavorPageSize, currentFlavorPage * flavorPageSize);
-  const flavorAutoSelectKey = buildFlavorAutoSelectKey({
-    minVcpuValue,
-    minRamValue,
-    flavorQuery,
-    flavorSort,
-    regionValue,
-    billingMode,
-    usageHoursValue,
-    systemDiskType,
-    systemDiskSizeValue,
-    includeFlexusL: isEcsCalculator && canShowFlexusLInEcs && showFlexusLInEcs,
-  });
 
   const queueUrlStateFromLocation = useCallback(() => {
     if (typeof window === "undefined") {
@@ -1456,105 +557,6 @@ export default function Home() {
       setGpSsd2Throughput(normalizedThroughput);
     }
   }, [gpSsd2Iops, gpSsd2IopsValue, gpSsd2Throughput, gpSsd2ThroughputValue, isGpSsd2Selected]);
-
-  useEffect(() => {
-    let cancelled = false;
-
-    async function loadCalculatorData() {
-      if (isEcsCalculator) {
-        setCatalogFlavorsLoading(true);
-        setCatalogFlavorsError("");
-
-        try {
-          const response = await fetch(`/api/catalog/ecs-flavors?region=${encodeURIComponent(regionValue)}`, {
-            cache: "no-store",
-          });
-          const rawBody = await response.text();
-          const payload = (rawBody ? JSON.parse(rawBody) : {}) as {
-            flavors?: CatalogFlavor[];
-            diskPricing?: DiskPricing<SystemDiskOption>;
-            error?: string;
-            lastCompletedAt?: string | null;
-          };
-
-          if (!response.ok) {
-            throw new Error(payload.error ?? "Failed to load ECS flavors");
-          }
-
-          if (cancelled) return;
-
-          setCatalogFlavors(payload.flavors ?? []);
-          setDiskPricing(payload.diskPricing ?? null);
-          setCatalogFlavorsLastCompletedAt(payload.lastCompletedAt ?? null);
-          setFlavorPage(1);
-          setCatalogFlavorsError(payload.error ?? "");
-        } catch (error) {
-          if (cancelled) return;
-          setCatalogFlavors([]);
-          setDiskPricing(null);
-          setCatalogFlavorsError(error instanceof Error ? error.message : "Failed to load ECS flavors");
-        } finally {
-          if (!cancelled) {
-            setCatalogFlavorsLoading(false);
-          }
-        }
-        return;
-      }
-
-      setCatalogFlavors([]);
-      setCatalogFlavorsLastCompletedAt(null);
-      setCatalogFlavorsLoading(false);
-      setCatalogFlavorsError("");
-      setDiskPricing(null);
-    }
-
-    void loadCalculatorData();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [isEcsCalculator, regionValue]);
-
-  useEffect(() => {
-    if (!isEcsCalculator) {
-      return;
-    }
-
-    if (!sortedFlavors.length) {
-      if (selectedFlavor !== "") {
-        setSelectedFlavor("");
-      }
-      return;
-    }
-
-    const hasSelectedFlavor = sortedFlavors.some((flavor) => flavor.name === selectedFlavor);
-    if (lastFlavorAutoSelectKeyRef.current === flavorAutoSelectKey && hasSelectedFlavor) {
-      return;
-    }
-
-    const nextFlavor = sortedFlavors[0];
-    setSelectedFlavor(nextFlavor.name);
-    setVcpuValue(nextFlavor.vcpu);
-    setRamValue(nextFlavor.ram);
-    lastFlavorAutoSelectKeyRef.current = flavorAutoSelectKey;
-  }, [flavorAutoSelectKey, isEcsCalculator, selectedFlavor, sortedFlavors]);
-
-  useEffect(() => {
-    if (!isFlexusLCalculator || !flexusLPlans.length) {
-      return;
-    }
-
-    const nextPlan = findFlexusLPlan(selectedFlavor) ?? flexusLPlans[0];
-    if (selectedFlavor !== nextPlan.id) {
-      setSelectedFlavor(nextPlan.id);
-    }
-    if (vcpuValue !== String(nextPlan.vcpu)) {
-      setVcpuValue(String(nextPlan.vcpu));
-    }
-    if (ramValue !== String(nextPlan.ramGiB)) {
-      setRamValue(String(nextPlan.ramGiB));
-    }
-  }, [isFlexusLCalculator, ramValue, selectedFlavor, vcpuValue]);
 
   useEffect(() => {
     const handlePointerDown = (event: MouseEvent) => {
@@ -2731,107 +1733,60 @@ export default function Home() {
   }
 
   const handleEditProduct = useCallback((product: AppProduct, sourceListId = selectedListId) => {
-    if (product.productType === "ecs") {
-      if (!isRecord(product.config)) {
-        setAddToListMessage("This product cannot be edited from the calculator.");
-        return;
-      }
-
-      const nextRegion = typeof product.config.region === "string" && product.config.region in huaweiRegions
-        ? (product.config.region as HuaweiRegionKey)
-        : regionValue;
-      const nextBillingMode = isBillingOption(product.config.billingMode) ? product.config.billingMode : "Pay-per-use";
-      const nextSystemDisk = isRecord(product.config.systemDisk) ? product.config.systemDisk : null;
-      const nextMinVcpuValue = typeof product.config.vcpu === "number" ? String(product.config.vcpu) : minVcpuValue;
-      const nextMinRamValue = typeof product.config.ramGiB === "number" ? String(product.config.ramGiB) : minRamValue;
-      const nextSystemDiskType = isSystemDiskOption(product.config.diskType)
-        ? product.config.diskType
-        : isSystemDiskOption(nextSystemDisk?.type)
-          ? nextSystemDisk.type
-          : "High I/O";
-      const nextSystemDiskSize =
-        typeof nextSystemDisk?.sizeGiB === "number" && Number.isFinite(nextSystemDisk.sizeGiB)
-          ? String(Math.max(ecsDiskSizeBounds.min, Math.floor(nextSystemDisk.sizeGiB)))
-          : String(ecsDiskSizeBounds.min);
-
+    const customHydrated = hydrateCustomProduct(product, {
+      regionValue,
+      flavorQuery,
+      flavorSort,
+      minVcpuValue,
+      minRamValue,
+      vcpuValue,
+      ramValue,
+    });
+    if (customHydrated.handled) {
       setSelectedService(product.serviceName);
       setQuery(product.serviceName);
-      setRegionValue(nextRegion);
-      setBillingMode(nextBillingMode);
-      setUsageHours(
-        typeof product.config.usageHours === "number" && Number.isFinite(product.config.usageHours)
-          ? String(Math.max(1, Math.floor(product.config.usageHours)))
-          : "744",
-      );
-      lastFlavorAutoSelectKeyRef.current = buildFlavorAutoSelectKey({
-        minVcpuValue: nextMinVcpuValue,
-        minRamValue: nextMinRamValue,
-        flavorQuery,
-        flavorSort,
-        regionValue: nextRegion,
-        billingMode: nextBillingMode,
-        usageHoursValue:
-          typeof product.config.usageHours === "number" && Number.isFinite(product.config.usageHours)
-            ? Math.max(1, Math.floor(product.config.usageHours))
-            : 744,
-        systemDiskType: nextSystemDiskType,
-        systemDiskSizeValue: Number(nextSystemDiskSize),
-        includeFlexusL: false,
-      });
-      setSelectedFlavor(typeof product.config.flavor === "string" ? product.config.flavor : "");
-      setVcpuValue(typeof product.config.vcpu === "number" ? String(product.config.vcpu) : vcpuValue);
-      setRamValue(typeof product.config.ramGiB === "number" ? String(product.config.ramGiB) : ramValue);
-      setMinVcpuValue(nextMinVcpuValue);
-      setMinRamValue(nextMinRamValue);
-      const nextGpSsd2Iops = getGpSsd2RequestedIops(product.config, Number(nextSystemDiskSize));
-      const nextGpSsd2Throughput = getGpSsd2RequestedThroughput(product.config, nextGpSsd2Iops);
-      setGpSsd2Iops(String(nextGpSsd2Iops));
-      setGpSsd2Throughput(String(nextGpSsd2Throughput));
-      setSystemDiskType(nextSystemDiskType);
-      setSystemDiskSize(nextSystemDiskSize);
-      setInstanceCount(String(Math.max(1, product.quantity)));
-      setEditingProductId(product.id);
-      setSelectedListId(sourceListId);
-      setEditingProductListId(sourceListId);
-      setActiveTab("calculator");
-      setAddToListMessage("Editing item. Save changes when ready.");
-      return;
-    }
-
-    if (product.productType === "flexus-l") {
-      if (!isRecord(product.config)) {
-        setAddToListMessage("This product cannot be edited from the calculator.");
-        return;
+      if (customHydrated.nextRegion) {
+        setRegionValue(customHydrated.nextRegion);
       }
-
-      const nextRegion = typeof product.config.region === "string" && product.config.region in huaweiRegions
-        ? (product.config.region as HuaweiRegionKey)
-        : regionValue;
-      const nextPlanId = typeof product.config.planId === "string"
-        ? product.config.planId
-        : typeof product.config.flavor === "string"
-          ? product.config.flavor
-          : flexusLPlans[0]?.id ?? "";
-      const nextPlan = findFlexusLPlan(nextPlanId) ?? flexusLPlans[0] ?? null;
-      setSelectedFlavor(nextPlan?.id ?? "");
-      setVcpuValue(
-        typeof product.config.vcpu === "number"
-          ? String(product.config.vcpu)
-          : nextPlan
-            ? String(nextPlan.vcpu)
-            : "",
-      );
-      setRamValue(
-        typeof product.config.ramGiB === "number"
-          ? String(product.config.ramGiB)
-          : nextPlan
-            ? String(nextPlan.ramGiB)
-            : "",
-      );
-      setSelectedService(product.serviceName);
-      setQuery(product.serviceName);
-      setRegionValue(nextRegion);
-      setBillingMode("Yearly/Monthly");
+      if (customHydrated.nextBillingMode) {
+        setBillingMode(customHydrated.nextBillingMode);
+      }
+      if (customHydrated.nextUsageHours) {
+        setUsageHours(customHydrated.nextUsageHours);
+      }
+      if (
+        customHydrated.nextSelectedFlavor !== undefined
+        && customHydrated.nextVcpuValue !== undefined
+        && customHydrated.nextRamValue !== undefined
+      ) {
+        setCustomSelection({
+          selectedFlavor: customHydrated.nextSelectedFlavor,
+          vcpuValue: customHydrated.nextVcpuValue,
+          ramValue: customHydrated.nextRamValue,
+          flavorAutoSelectKey: customHydrated.nextFlavorAutoSelectKey,
+        });
+      }
+      if (customHydrated.nextMinVcpuValue !== undefined) {
+        setMinVcpuValue(customHydrated.nextMinVcpuValue);
+      }
+      if (customHydrated.nextMinRamValue !== undefined) {
+        setMinRamValue(customHydrated.nextMinRamValue);
+      }
+      if (customHydrated.nextGpSsd2Iops !== undefined) {
+        setGpSsd2Iops(customHydrated.nextGpSsd2Iops);
+      }
+      if (customHydrated.nextGpSsd2Throughput !== undefined) {
+        setGpSsd2Throughput(customHydrated.nextGpSsd2Throughput);
+      }
+      if (customHydrated.nextSystemDiskType !== undefined) {
+        setSystemDiskType(customHydrated.nextSystemDiskType);
+      }
+      if (customHydrated.nextSystemDiskSize !== undefined) {
+        setSystemDiskSize(customHydrated.nextSystemDiskSize);
+      }
+      if (customHydrated.nextInstanceCount) {
+        setInstanceCount(customHydrated.nextInstanceCount);
+      }
       setEditingProductId(product.id);
       setSelectedListId(sourceListId);
       setEditingProductListId(sourceListId);
@@ -2874,6 +1829,7 @@ export default function Home() {
     ramValue,
     regionValue,
     selectedListId,
+    setCustomSelection,
     vcpuValue,
   ]);
 
@@ -3220,28 +2176,12 @@ export default function Home() {
 
   const obsBatchSnapshot = configurableRuntime.batchSnapshot.obs;
   const evsBatchSnapshot = configurableRuntime.batchSnapshot.evs;
-  const obsCatalog = obsBatchSnapshot.catalog;
-  const obsCatalogRegionId = obsBatchSnapshot.catalogRegionId;
   const obsProductType = obsBatchSnapshot.productType;
   const obsStorageClass = obsBatchSnapshot.storageClass;
   const obsRedundancy = obsBatchSnapshot.redundancy;
   const obsStorageSizeValue = obsBatchSnapshot.storageSizeValue;
   const obsStorageUnit = obsBatchSnapshot.storageUnit;
   const obsDurationMonthsValue = obsBatchSnapshot.durationMonthsValue;
-  const obsOutboundTrafficValue = obsBatchSnapshot.outboundTrafficValue;
-  const obsOutboundTrafficUnit = obsBatchSnapshot.outboundTrafficUnit;
-  const obsReadRequestsValue = obsBatchSnapshot.readRequestsValue;
-  const obsWriteRequestsValue = obsBatchSnapshot.writeRequestsValue;
-  const obsDeleteRequestsValue = obsBatchSnapshot.deleteRequestsValue;
-  const obsPullTrafficValue = obsBatchSnapshot.pullTrafficValue;
-  const obsPullTrafficUnit = obsBatchSnapshot.pullTrafficUnit;
-  const obsRestorationType = obsBatchSnapshot.restorationType;
-  const obsReadTrafficValue = obsBatchSnapshot.readTrafficValue;
-  const obsReadTrafficUnit = obsBatchSnapshot.readTrafficUnit;
-  const obsReplicationTrafficValue = obsBatchSnapshot.replicationTrafficValue;
-  const obsReplicationTrafficUnit = obsBatchSnapshot.replicationTrafficUnit;
-  const obsLifecycleTransitionRequestsValue = obsBatchSnapshot.lifecycleTransitionRequestsValue;
-  const evsDurationMonthsValue = evsBatchSnapshot.durationMonthsValue;
 
   const handleBatchAdd = async () => {
     if (!session) {
@@ -3277,7 +2217,7 @@ export default function Home() {
       return;
     }
 
-    if (isEvsCalculator && !diskPricing) {
+    if (isEvsCalculator && !evsBatchSnapshot.diskPricing) {
       setBatchAddMessage("EVS pricing is not loaded yet.");
       return;
     }
@@ -3296,342 +2236,29 @@ export default function Home() {
           throw new Error(`Item ${index + 1} must be an object.`);
         }
 
-        const quantity = parseBatchQuantity(item.quantity);
-        const description = getBatchDescription(item, selectedService);
-        const requestBodies = isEcsCalculator
-          ? (() => {
-              const requestedVcpu = parsePositiveNumber(item.vcpu);
-              const requestedRamGiB = parsePositiveNumber(item.ram);
-              if (requestedVcpu == null || requestedRamGiB == null) {
-                throw new Error(`Item ${index + 1} must include numeric vcpu and ram values.`);
-              }
+        const requestBodies = isEcsCalculator || isFlexusLCalculator
+          ? buildCustomBatchRequestBodies({
+              selectedServiceCode,
+              selectedServiceMetaCode: selectedServiceMeta.code,
+              selectedService,
+              regionValue,
+              billingMode,
+              usageHoursValue,
+              catalogFlavors,
+              diskPricing,
+              canShowFlexusLInEcs,
+              showFlexusLInEcs,
+              item,
+            })
+          : configurableRuntime.buildBatchRequestBodies(item);
 
-              const diskType = getBatchDiskType(item, "High I/O");
-              const diskSizeGiB = getBatchDiskSize(item, ecsDiskSizeBounds.min, ecsDiskSizeBounds);
-              const diskIops = diskType === "General Purpose SSD V2"
-                ? getGpSsd2RequestedIops(item, diskSizeGiB)
-                : null;
-              const diskThroughput = diskType === "General Purpose SSD V2" && diskIops != null
-                ? getGpSsd2RequestedThroughput(item, diskIops)
-                : null;
-              const selection = findBestBatchEcsSelection(
-                catalogFlavors,
-                diskPricing,
-                billingMode,
-                usageHoursValue,
-                requestedVcpu,
-                requestedRamGiB,
-                diskType,
-                diskSizeGiB,
-                description,
-              );
-              const flexusSelection =
-                canShowFlexusLInEcs && showFlexusLInEcs && !hasExplicitBatchDiskConfig(item)
-                  ? findBestBatchFlexusLSelection(billingMode, usageHoursValue, requestedVcpu, requestedRamGiB)
-                  : null;
-              const useFlexusSelection = flexusSelection != null
-                && (selection == null || flexusSelection.flavorCard.priceValue < selection.flavorCard.priceValue);
+        if (!requestBodies || requestBodies.length === 0) {
+          throw new Error(`Item ${index + 1} could not be converted into products.`);
+        }
 
-              if (!selection && !flexusSelection) {
-                throw new Error(
-                  `Item ${index + 1} could not find an ECS or Flexus L flavor with at least ${requestedVcpu} vCPUs and ${requestedRamGiB} GiB RAM.`,
-                );
-              }
-
-              if (useFlexusSelection && flexusSelection) {
-                return [{
-                  serviceCode: flexusSelection.flavorCard.serviceCode,
-                  serviceName: flexusSelection.flavorCard.serviceName,
-                  productType: "flexus-l",
-                  title: `${flexusSelection.flavorCard.serviceName} ${flexusSelection.plan.title}`,
-                  quantity,
-                  config: {
-                    region: regionValue,
-                    billingMode,
-                    description,
-                    planId: flexusSelection.plan.id,
-                    planTitle: flexusSelection.plan.title,
-                    vcpu: flexusSelection.plan.vcpu,
-                    ramGiB: flexusSelection.plan.ramGiB,
-                    systemDiskGiB: flexusSelection.plan.systemDiskGiB,
-                    peakBandwidthMbit: flexusSelection.plan.peakBandwidthMbit,
-                    dataPackageTiB: flexusSelection.plan.dataPackageTiB,
-                    referenceRegion: flexusLPricingReference.region,
-                  },
-                  pricing: {
-                    total: formatFlavorAmount(
-                      flexusSelection.flavorCard.priceCurrency,
-                      flexusSelection.flavorCard.priceValue * quantity,
-                      flexusSelection.flavorCard.priceSuffix,
-                    ),
-                    flavor: flexusSelection.flavorCard.flavorPrice,
-                  },
-                }];
-              }
-
-              if (!selection) {
-                throw new Error(`Item ${index + 1} could not find an ECS flavor.`);
-              }
-
-              return [{
-                serviceCode: selection.flavorCard.serviceCode,
-                serviceName: selection.flavorCard.serviceName,
-                productType: "ecs",
-                title: `${selectedService} ${selection.flavor.resourceSpecCode}`,
-                quantity,
-                config: {
-                  region: regionValue,
-                  billingMode,
-                  usageHours: billingMode === "Pay-per-use" ? usageHoursValue : null,
-                  description,
-                  flavor: selection.flavor.resourceSpecCode,
-                  vcpu: selection.flavor.cpu,
-                  ramGiB: selection.flavor.ramGiB,
-                  systemDisk: {
-                    type: diskType,
-                    sizeGiB: diskSizeGiB,
-                    ...(diskIops != null ? { iops: diskIops } : {}),
-                    ...(diskThroughput != null ? { throughput: diskThroughput } : {}),
-                  },
-                },
-                pricing: {
-                  total: formatFlavorAmount(
-                    selection.flavorCard.priceCurrency,
-                    selection.flavorCard.priceValue * quantity,
-                    selection.flavorCard.priceSuffix,
-                  ),
-                  flavor: selection.flavorCard.flavorPrice,
-                  disk: formatFlavorAmount(
-                    selection.diskPrice.currency,
-                    selection.diskPrice.amount,
-                    selection.diskPrice.suffix,
-                  ),
-                },
-              }];
-            })()
-          : isFlexusLCalculator
-          ? (() => {
-              const requestedVcpu = parsePositiveNumber(item.vcpu);
-              const requestedRamGiB = parsePositiveNumber(item.ram);
-              if (requestedVcpu == null || requestedRamGiB == null) {
-                throw new Error(`Item ${index + 1} must include numeric vcpu and ram values.`);
-              }
-
-              const plan = findBestFlexusLPlan(requestedVcpu, requestedRamGiB);
-              if (!plan) {
-                throw new Error(
-                  `Item ${index + 1} could not find a Flexus L plan with at least ${requestedVcpu} vCPUs and ${requestedRamGiB} GiB RAM.`,
-                );
-              }
-
-              return [{
-                serviceCode: selectedServiceMeta.code,
-                serviceName: selectedService,
-                productType: "flexus-l",
-                title: `${selectedService} ${plan.title}`,
-                quantity,
-                config: {
-                  region: regionValue,
-                  billingMode: "Yearly/Monthly",
-                  description,
-                  planId: plan.id,
-                  planTitle: plan.title,
-                  vcpu: plan.vcpu,
-                  ramGiB: plan.ramGiB,
-                  systemDiskGiB: plan.systemDiskGiB,
-                  peakBandwidthMbit: plan.peakBandwidthMbit,
-                  dataPackageTiB: plan.dataPackageTiB,
-                  referenceRegion: flexusLPricingReference.region,
-                },
-                pricing: {
-                  total: formatFlavorAmount("USD", plan.monthlyPriceUsd * quantity, "/mo"),
-                  flavor: formatFlavorAmount("USD", plan.monthlyPriceUsd, "/mo"),
-                },
-              }];
-            })()
-          : isObsCalculator
-          ? (() => {
-              if (!obsCatalog) {
-                throw new Error("OBS pricing is still loading.");
-              }
-
-              const productType = getBatchObsProductType(item, obsProductType);
-              const shouldIncludePullTraffic = shouldShowObsPullTraffic(productType);
-              const storageClass = getBatchObsStorageClass(item, obsStorageClass);
-              const redundancy = getBatchObsRedundancy(item, obsRedundancy);
-              const storageAmount = getBatchObsStorageSize(item, obsStorageSizeValue);
-              const storageUnit = getBatchObsUnit(item, obsStorageUnit, ["sizeUnit", "storageUnit", "unit"]);
-              const durationMonths = Math.max(1, Math.floor(getBatchObsAmount(item, obsDurationMonthsValue, ["durationMonths", "months"])));
-              const outboundTrafficAmount = getBatchObsAmount(item, obsOutboundTrafficValue, ["outboundTraffic", "internetOutboundTraffic"]);
-              const outboundTrafficUnit = getBatchObsUnit(item, obsOutboundTrafficUnit, ["outboundTrafficUnit", "internetOutboundTrafficUnit"]);
-              const readRequestInput = getBatchObsAmount(item, obsReadRequestsValue, ["readRequests", "apiReadRequests"]);
-              const writeRequestInput = getBatchObsAmount(item, obsWriteRequestsValue, ["writeRequests", "apiWriteRequests"]);
-              const deleteRequestInput = getBatchObsAmount(item, obsDeleteRequestsValue, ["deleteRequests", "apiDeleteRequests"]);
-              const readRequests = convertObsRequestInputToCount(readRequestInput);
-              const writeRequests = convertObsRequestInputToCount(writeRequestInput);
-              const deleteRequests = convertObsRequestInputToCount(deleteRequestInput);
-              const pullTrafficAmount = shouldIncludePullTraffic
-                ? getBatchObsAmount(item, obsPullTrafficValue, ["pullTraffic"])
-                : 0;
-              const pullTrafficUnit = getBatchObsUnit(item, obsPullTrafficUnit, ["pullTrafficUnit"]);
-              const restorationType = isObsRestorationType(
-                getNestedRecord(item, "obs")?.restorationType ?? getNestedRecord(item, "obs")?.restoreType,
-              )
-                ? (getNestedRecord(item, "obs")?.restorationType ?? getNestedRecord(item, "obs")?.restoreType) as ObsRestorationType
-                : obsRestorationType;
-              const readTrafficAmount = getBatchObsAmount(item, obsReadTrafficValue, ["readTraffic", "readTrafficAmount", "retrievalTraffic"]);
-              const readTrafficUnit = getBatchObsUnit(item, obsReadTrafficUnit, ["readTrafficUnit", "retrievalTrafficUnit"]);
-              const replicationTrafficAmount = getBatchObsAmount(item, obsReplicationTrafficValue, ["replicationTraffic", "crossRegionReplicationTraffic"]);
-              const replicationTrafficUnit = getBatchObsUnit(item, obsReplicationTrafficUnit, ["replicationTrafficUnit", "crossRegionReplicationTrafficUnit"]);
-              const lifecycleTransitionRequestInput = getBatchObsAmount(item, obsLifecycleTransitionRequestsValue, ["lifecycleTransitionRequests"]);
-              const estimate = estimateObsConfiguration(obsCatalog, {
-                productType,
-                storageClass,
-                redundancy,
-                storageAmount,
-                storageUnit,
-                durationMonths,
-                outboundTrafficAmount,
-                outboundTrafficUnit,
-                readRequests,
-                writeRequests,
-                deleteRequests,
-                pullTrafficAmount,
-                pullTrafficUnit,
-                restorationType,
-                readTrafficAmount,
-                readTrafficUnit,
-                replicationTrafficAmount,
-                replicationTrafficUnit,
-                lifecycleTransitionRequests: convertObsRequestInputToCount(lifecycleTransitionRequestInput),
-              });
-
-              if (!estimate) {
-                throw new Error(`Item ${index + 1} uses an OBS combination that is not available in ${regionValue}.`);
-              }
-
-              const requestRateSet = obsCatalog.requestRates[storageClass];
-              const readRequestUnits = getObsRequestUnits(requestRateSet?.read?.measureUnitStep, readRequests);
-              const writeRequestUnits = getObsRequestUnits(requestRateSet?.write?.measureUnitStep, writeRequests);
-              const deleteRequestUnits = getObsRequestUnits(requestRateSet?.delete?.measureUnitStep, deleteRequests);
-              const storageGiB = convertObsCapacityToGb(storageAmount, storageUnit);
-              const catalogRegionId = obsCatalogRegionId ?? huaweiRegions[regionValue].catalogRegionId ?? regionValue;
-
-              return [{
-                serviceCode: selectedServiceMeta.code,
-                serviceName: selectedService,
-                productType: "obs",
-                title: `${selectedService} ${productType} ${storageClass} ${storageAmount} ${storageUnit}`,
-                quantity,
-                config: {
-                  region: regionValue,
-                  catalogRegionId,
-                  billingMode: "Pay-per-use",
-                  description,
-                  productType,
-                  storageClass,
-                  redundancy,
-                  storageAmount,
-                  storageUnit,
-                  storageGiB,
-                  durationMonths,
-                  outboundTrafficAmount,
-                  outboundTrafficUnit,
-                  readRequests,
-                  writeRequests,
-                  deleteRequests,
-                  pullTrafficAmount,
-                  pullTrafficUnit,
-                  restorationType,
-                  readTrafficAmount,
-                  readTrafficUnit,
-                  replicationTrafficAmount,
-                  replicationTrafficUnit,
-                  lifecycleTransitionRequests: convertObsRequestInputToCount(lifecycleTransitionRequestInput),
-                  minimumStorageDays: estimate.variant.minimumStorageDays,
-                  requestInputMultiplier: obsRequestInputMultiplier,
-                  huaweiPayload: buildObsHuaweiPayload({
-                    regionId: catalogRegionId,
-                    catalog: obsCatalog,
-                    input: {
-                      productType,
-                      storageClass,
-                      redundancy,
-                      storageAmount,
-                      storageUnit,
-                      durationMonths,
-                      outboundTrafficAmount,
-                      outboundTrafficUnit,
-                      readRequests,
-                      writeRequests,
-                      deleteRequests,
-                      pullTrafficAmount,
-                      pullTrafficUnit,
-                      restorationType,
-                      readTrafficAmount,
-                      readTrafficUnit,
-                      replicationTrafficAmount,
-                      replicationTrafficUnit,
-                      lifecycleTransitionRequests: convertObsRequestInputToCount(lifecycleTransitionRequestInput),
-                    },
-                    estimate,
-                    title: `${selectedService} ${productType} ${storageClass} ${storageAmount} ${storageUnit}`,
-                    description: selectedService,
-                    storageRequestUnits: {
-                      read: readRequestUnits,
-                      write: writeRequestUnits,
-                      delete: deleteRequestUnits,
-                    },
-                  }),
-                },
-                pricing: {
-                  total: formatFlavorAmount(estimate.currency, estimate.amount * quantity, estimate.suffix),
-                  estimate: formatFlavorAmount(estimate.currency, estimate.amount, estimate.suffix),
-                  monthlyAverage: formatFlavorAmount(estimate.currency, estimate.monthlyAverageAmount, "/mo"),
-                  breakdown: estimate.breakdown.map((entry) => ({
-                    label: entry.label,
-                    value: formatFlavorAmount(estimate.currency, entry.amount, estimate.suffix),
-                  })),
-                },
-              }];
-            })()
-          : (() => {
-              const diskType = getBatchDiskType(item, systemDiskType);
-              const diskSizeGiB = getBatchDiskSize(item, systemDiskSizeValue, evsDiskSizeBounds);
-              const rawDurationMonths =
-                getNestedRecord(item, "evs")?.durationMonths
-                ?? getNestedRecord(item, "evs")?.months
-                ?? item.durationMonths
-                ?? item.months;
-              const durationMonths = billingMode === "Yearly/Monthly"
-                ? Math.max(1, Math.floor(parsePositiveNumber(rawDurationMonths) ?? evsDurationMonthsValue))
-                : evsDurationMonthsValue;
-              const requestedIops = diskType === "General Purpose SSD V2"
-                ? getGpSsd2RequestedIops(item, diskSizeGiB)
-                : null;
-              const requestedThroughput = diskType === "General Purpose SSD V2" && requestedIops != null
-                ? getGpSsd2RequestedThroughput(item, requestedIops)
-                : null;
-              const requestBodies = buildEvsProductMutationBodies({
-                serviceCode: selectedServiceMeta.code,
-                serviceName: selectedService,
-                serviceTitle: selectedService,
-                region: regionValue,
-                billingMode,
-                usageHours: usageHoursValue,
-                durationMonths,
-                quantity,
-                description,
-                diskType,
-                diskSizeGiB,
-                requestedIops,
-                requestedThroughput,
-                diskPricing,
-              });
-
-              splitDiskCount += Math.max(0, requestBodies.length - 1);
-              return requestBodies;
-            })();
+        if (selectedServiceCode === "EVS") {
+          splitDiskCount += Math.max(0, requestBodies.length - 1);
+        }
 
         for (const [chunkIndex, requestBody] of requestBodies.entries()) {
           const payload = await mutateListProduct(
@@ -3704,92 +2331,27 @@ export default function Home() {
       const quantity = Math.max(1, Number(instanceCount || "1"));
       const requestBodies = configurableRuntime.isConfigurableService
         ? configurableRuntime.buildRequestBodies()
-        : isEcsCalculator
-        ? selectedFlavorCard?.productType === "flexus-l" && selectedFlavorCard.referencePlanId
-          ? (() => {
-              const selectedPlan = findFlexusLPlan(selectedFlavorCard.referencePlanId);
-              if (!selectedPlan) {
-                throw new Error("Select a Flexus L plan first.");
-              }
-
-              return {
-                serviceCode: selectedFlavorCard.serviceCode,
-                serviceName: selectedFlavorCard.serviceName,
-                productType: "flexus-l",
-                title: `${selectedFlavorCard.serviceName} ${selectedPlan.title}`,
-                quantity,
-                config: {
-                  region: regionValue,
-                  billingMode,
-                  description: selectedFlavorCard.description ?? selectedService,
-                  planId: selectedPlan.id,
-                  planTitle: selectedPlan.title,
-                  vcpu: selectedPlan.vcpu,
-                  ramGiB: selectedPlan.ramGiB,
-                  systemDiskGiB: selectedPlan.systemDiskGiB,
-                  peakBandwidthMbit: selectedPlan.peakBandwidthMbit,
-                  dataPackageTiB: selectedPlan.dataPackageTiB,
-                  referenceRegion: flexusLPricingReference.region,
-                },
-                pricing: {
-                  total: selectedEstimate,
-                  flavor: selectedFlavorCard.flavorPrice ?? null,
-                },
-              } satisfies ProductMutationBody;
-            })()
-          : {
-              serviceCode: selectedServiceMeta.code,
-              serviceName: selectedService,
-              productType: "ecs",
-              title: `${selectedService} ${selectedFlavor}`,
-              quantity,
-              config: {
-                region: regionValue,
-                billingMode,
-                usageHours: billingMode === "Pay-per-use" ? usageHoursValue : null,
-                description: selectedFlavorCard?.description ?? selectedService,
-                flavor: selectedFlavor,
-                vcpu: Number(vcpuValue || "0"),
-                ramGiB: Number(ramValue || "0"),
-                systemDisk: {
-                  type: systemDiskType,
-                  sizeGiB: systemDiskSizeValue,
-                  ...(isGpSsd2Selected && gpSsd2IopsValue != null ? { iops: gpSsd2IopsValue } : {}),
-                  ...(isGpSsd2Selected && gpSsd2ThroughputValue != null ? { throughput: gpSsd2ThroughputValue } : {}),
-                },
-              },
-              pricing: {
-                total: selectedEstimate,
-                flavor: selectedFlavorCard?.flavorPrice ?? null,
-                disk: selectedDiskPrice ? formatFlavorAmount(selectedDiskPrice.currency, selectedDiskPrice.amount, selectedDiskPrice.suffix) : null,
-              },
-            }
-        : isFlexusLCalculator && selectedFlexusLPlan
-        ? {
-            serviceCode: selectedServiceMeta.code,
-            serviceName: selectedService,
-            productType: "flexus-l",
-            title: `${selectedService} ${selectedFlexusLPlan.title}`,
+        : buildCustomProductRequestBody({
+            selectedServiceCode,
+            selectedServiceMetaCode: selectedServiceMeta.code,
+            selectedService,
+            selectedEstimate,
             quantity,
-            config: {
-              region: regionValue,
-              billingMode: "Yearly/Monthly",
-              description: selectedService,
-              planId: selectedFlexusLPlan.id,
-              planTitle: selectedFlexusLPlan.title,
-              vcpu: selectedFlexusLPlan.vcpu,
-              ramGiB: selectedFlexusLPlan.ramGiB,
-              systemDiskGiB: selectedFlexusLPlan.systemDiskGiB,
-              peakBandwidthMbit: selectedFlexusLPlan.peakBandwidthMbit,
-              dataPackageTiB: selectedFlexusLPlan.dataPackageTiB,
-              referenceRegion: flexusLPricingReference.region,
-            },
-            pricing: {
-              total: selectedEstimate,
-              flavor: formatFlavorAmount("USD", selectedFlexusLPlan.monthlyPriceUsd, "/mo"),
-            },
-          }
-        : null;
+            regionValue,
+            billingMode,
+            usageHoursValue,
+            selectedFlavor,
+            selectedFlavorCard,
+            selectedFlexusLPlan,
+            vcpuValue,
+            ramValue,
+            systemDiskType,
+            systemDiskSizeValue,
+            isGpSsd2Selected,
+            gpSsd2IopsValue,
+            gpSsd2ThroughputValue,
+            selectedDiskPrice,
+          });
 
       if (!requestBodies) {
         throw new Error("Unable to build the selected product configuration.");
@@ -4157,11 +2719,11 @@ export default function Home() {
     catalogFlavorsLoading,
     visibleFlavors,
     selectedFlavor,
-    onSelectFlavor: (name: string, vcpu: string, ram: string) => {
-      setSelectedFlavor(name);
-      setVcpuValue(vcpu);
-      setRamValue(ram);
-    },
+    onSelectFlavor: (name: string, vcpu: string, ram: string) => setCustomSelection({
+      selectedFlavor: name,
+      vcpuValue: vcpu,
+      ramValue: ram,
+    }),
     currentFlavorPage,
     totalFlavorPages,
     onPreviousFlavorPage: () => setFlavorPage((page) => Math.max(1, page - 1)),
@@ -4188,9 +2750,11 @@ export default function Home() {
       if (!plan) {
         return;
       }
-      setSelectedFlavor(plan.id);
-      setVcpuValue(String(plan.vcpu));
-      setRamValue(String(plan.ramGiB));
+      setCustomSelection({
+        selectedFlavor: plan.id,
+        vcpuValue: String(plan.vcpu),
+        ramValue: String(plan.ramGiB),
+      });
     },
     selectionSummary: calculatorSelectionSummary,
     selectionNotes: calculatorSelectionNotes,

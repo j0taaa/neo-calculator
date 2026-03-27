@@ -168,9 +168,23 @@ import {
   normalizeObsDefinitionDefaults,
   normalizeObsFieldDependencies,
   obsStorageSizeBounds,
+  parsePositiveNumber,
   systemDiskOptions,
   type SystemDiskOption,
 } from "@/lib/configurable-runtime-utils";
+import {
+  getBatchDescription,
+  getBatchDiskSize,
+  getBatchDiskType,
+  getBatchObsAmount,
+  getBatchObsProductType,
+  getBatchObsRedundancy,
+  getBatchObsStorageClass,
+  getBatchObsStorageSize,
+  getBatchObsUnit,
+  getNestedRecord,
+  parseBatchQuantity,
+} from "@/lib/batch-input-utils";
 
 type ConfigurablePanelProps = ComponentProps<typeof ConfigurableServicePanel>;
 
@@ -253,6 +267,7 @@ type UseConfigurableServiceRuntimeResult = {
   showSharedUsageHours: boolean;
   addToListError: string | null;
   buildRequestBodies: () => ProductMutationBody | ProductMutationBody[] | null;
+  buildBatchRequestBodies: (item: unknown) => ProductMutationBody[] | null;
   applyDefaultsForServiceCode: (serviceCode: string) => void;
   hydrateProduct: (product: AppProduct) => EditHydrationResult;
   batchSnapshot: BatchSnapshot;
@@ -2697,6 +2712,233 @@ export function useConfigurableServiceRuntime({
     workspaceQuantityValue,
   ]);
 
+  const buildBatchRequestBodies = useCallback((item: unknown): ProductMutationBody[] | null => {
+    if (!isConfigurableService || !isRecord(item)) {
+      return null;
+    }
+
+    const quantity = parseBatchQuantity(item.quantity);
+    const description = getBatchDescription(item, selectedService);
+
+    switch (selectedServiceCode) {
+      case "OBS": {
+        if (!obsCatalog) {
+          throw new Error("OBS pricing is still loading.");
+        }
+
+        const productType = getBatchObsProductType(item, obsProductType);
+        const shouldIncludePullTraffic = shouldShowObsPullTraffic(productType);
+        const storageClass = getBatchObsStorageClass(item, obsStorageClass);
+        const redundancy = getBatchObsRedundancy(item, obsRedundancy);
+        const storageAmount = getBatchObsStorageSize(item, obsStorageSizeValue);
+        const storageUnit = getBatchObsUnit(item, obsStorageUnit, ["sizeUnit", "storageUnit", "unit"]);
+        const durationMonths = Math.max(1, Math.floor(getBatchObsAmount(item, obsDurationMonthsValue, ["durationMonths", "months"])));
+        const outboundTrafficAmount = getBatchObsAmount(item, obsOutboundTrafficValue, ["outboundTraffic", "internetOutboundTraffic"]);
+        const outboundTrafficUnit = getBatchObsUnit(item, obsOutboundTrafficUnit, ["outboundTrafficUnit", "internetOutboundTrafficUnit"]);
+        const readRequestInput = getBatchObsAmount(item, obsReadRequestsValue, ["readRequests", "apiReadRequests"]);
+        const writeRequestInput = getBatchObsAmount(item, obsWriteRequestsValue, ["writeRequests", "apiWriteRequests"]);
+        const deleteRequestInput = getBatchObsAmount(item, obsDeleteRequestsValue, ["deleteRequests", "apiDeleteRequests"]);
+        const readRequests = convertObsRequestInputToCount(readRequestInput);
+        const writeRequests = convertObsRequestInputToCount(writeRequestInput);
+        const deleteRequests = convertObsRequestInputToCount(deleteRequestInput);
+        const pullTrafficAmount = shouldIncludePullTraffic
+          ? getBatchObsAmount(item, obsPullTrafficValue, ["pullTraffic"])
+          : 0;
+        const pullTrafficUnit = getBatchObsUnit(item, obsPullTrafficUnit, ["pullTrafficUnit"]);
+        const restorationType = isObsRestorationType(
+          getNestedRecord(item, "obs")?.restorationType ?? getNestedRecord(item, "obs")?.restoreType,
+        )
+          ? (getNestedRecord(item, "obs")?.restorationType ?? getNestedRecord(item, "obs")?.restoreType) as ObsRestorationType
+          : obsRestorationType;
+        const readTrafficAmount = getBatchObsAmount(item, obsReadTrafficValue, ["readTraffic", "readTrafficAmount", "retrievalTraffic"]);
+        const readTrafficUnit = getBatchObsUnit(item, obsReadTrafficUnit, ["readTrafficUnit", "retrievalTrafficUnit"]);
+        const replicationTrafficAmount = getBatchObsAmount(item, obsReplicationTrafficValue, ["replicationTraffic", "crossRegionReplicationTraffic"]);
+        const replicationTrafficUnit = getBatchObsUnit(item, obsReplicationTrafficUnit, ["replicationTrafficUnit", "crossRegionReplicationTrafficUnit"]);
+        const lifecycleTransitionRequestInput = getBatchObsAmount(item, obsLifecycleTransitionRequestsValue, ["lifecycleTransitionRequests"]);
+        const estimate = estimateObsConfiguration(obsCatalog, {
+          productType,
+          storageClass,
+          redundancy,
+          storageAmount,
+          storageUnit,
+          durationMonths,
+          outboundTrafficAmount,
+          outboundTrafficUnit,
+          readRequests,
+          writeRequests,
+          deleteRequests,
+          pullTrafficAmount,
+          pullTrafficUnit,
+          restorationType,
+          readTrafficAmount,
+          readTrafficUnit,
+          replicationTrafficAmount,
+          replicationTrafficUnit,
+          lifecycleTransitionRequests: convertObsRequestInputToCount(lifecycleTransitionRequestInput),
+        });
+
+        if (!estimate) {
+          throw new Error(`OBS combination is not available in ${regionValue}.`);
+        }
+
+        const requestRateSet = obsCatalog.requestRates[storageClass];
+        const readRequestUnits = getObsRequestUnits(requestRateSet?.read?.measureUnitStep, readRequests);
+        const writeRequestUnits = getObsRequestUnits(requestRateSet?.write?.measureUnitStep, writeRequests);
+        const deleteRequestUnits = getObsRequestUnits(requestRateSet?.delete?.measureUnitStep, deleteRequests);
+        const storageGiB = convertObsCapacityToGb(storageAmount, storageUnit);
+        const catalogRegionId = catalogRegionIdByService.OBS ?? huaweiRegions[regionValue].catalogRegionId ?? regionValue;
+
+        return [{
+          serviceCode: selectedServiceCode,
+          serviceName: selectedService,
+          productType: "obs",
+          title: `${selectedService} ${productType} ${storageClass} ${storageAmount} ${storageUnit}`,
+          quantity,
+          config: {
+            region: regionValue,
+            catalogRegionId,
+            billingMode: "Pay-per-use",
+            description,
+            productType,
+            storageClass,
+            redundancy,
+            storageAmount,
+            storageUnit,
+            storageGiB,
+            durationMonths,
+            outboundTrafficAmount,
+            outboundTrafficUnit,
+            readRequests,
+            writeRequests,
+            deleteRequests,
+            pullTrafficAmount,
+            pullTrafficUnit,
+            restorationType,
+            readTrafficAmount,
+            readTrafficUnit,
+            replicationTrafficAmount,
+            replicationTrafficUnit,
+            lifecycleTransitionRequests: convertObsRequestInputToCount(lifecycleTransitionRequestInput),
+            minimumStorageDays: estimate.variant.minimumStorageDays,
+            requestInputMultiplier: obsRequestInputMultiplier,
+            huaweiPayload: buildObsHuaweiPayload({
+              regionId: catalogRegionId,
+              catalog: obsCatalog,
+              input: {
+                productType,
+                storageClass,
+                redundancy,
+                storageAmount,
+                storageUnit,
+                durationMonths,
+                outboundTrafficAmount,
+                outboundTrafficUnit,
+                readRequests,
+                writeRequests,
+                deleteRequests,
+                pullTrafficAmount,
+                pullTrafficUnit,
+                restorationType,
+                readTrafficAmount,
+                readTrafficUnit,
+                replicationTrafficAmount,
+                replicationTrafficUnit,
+                lifecycleTransitionRequests: convertObsRequestInputToCount(lifecycleTransitionRequestInput),
+              },
+              estimate,
+              title: `${selectedService} ${productType} ${storageClass} ${storageAmount} ${storageUnit}`,
+              description: selectedService,
+              storageRequestUnits: {
+                read: readRequestUnits,
+                write: writeRequestUnits,
+                delete: deleteRequestUnits,
+              },
+            }),
+          },
+          pricing: {
+            total: formatFlavorAmount(estimate.currency, estimate.amount * quantity, estimate.suffix),
+            estimate: formatFlavorAmount(estimate.currency, estimate.amount, estimate.suffix),
+            monthlyAverage: formatFlavorAmount(estimate.currency, estimate.monthlyAverageAmount, "/mo"),
+            breakdown: estimate.breakdown.map((entry) => ({
+              label: entry.label,
+              value: formatFlavorAmount(estimate.currency, entry.amount, estimate.suffix),
+            })),
+          },
+        }];
+      }
+      case "EVS": {
+        const diskType = getBatchDiskType(item, evsDiskType);
+        const diskSizeGiB = getBatchDiskSize(item, evsDiskSizeValue, evsDiskSizeBounds);
+        const rawDurationMonths =
+          getNestedRecord(item, "evs")?.durationMonths
+          ?? getNestedRecord(item, "evs")?.months
+          ?? item.durationMonths
+          ?? item.months;
+        const parsedDurationMonths = parsePositiveNumber(rawDurationMonths);
+        const durationMonths = billingMode === "Yearly/Monthly"
+          ? Math.max(1, Math.floor(parsedDurationMonths ?? evsDurationMonthsValue))
+          : evsDurationMonthsValue;
+        const requestedIops = diskType === "General Purpose SSD V2"
+          ? getGpSsd2RequestedIops(item, diskSizeGiB)
+          : null;
+        const requestedThroughput = diskType === "General Purpose SSD V2" && requestedIops != null
+          ? getGpSsd2RequestedThroughput(item, requestedIops)
+          : null;
+
+        return buildEvsProductMutationBodies({
+          serviceCode: selectedServiceCode,
+          serviceName: selectedService,
+          serviceTitle: selectedService,
+          region: regionValue,
+          billingMode,
+          usageHours: usageHoursValue,
+          durationMonths,
+          quantity,
+          description,
+          diskType,
+          diskSizeGiB,
+          requestedIops,
+          requestedThroughput,
+          diskPricing: evsDiskPricing,
+        });
+      }
+      default:
+        return null;
+    }
+  }, [
+    billingMode,
+    catalogRegionIdByService.OBS,
+    evsDiskPricing,
+    evsDiskSizeValue,
+    evsDiskType,
+    evsDurationMonthsValue,
+    isConfigurableService,
+    obsCatalog,
+    obsDeleteRequestsValue,
+    obsDurationMonthsValue,
+    obsLifecycleTransitionRequestsValue,
+    obsOutboundTrafficUnit,
+    obsOutboundTrafficValue,
+    obsProductType,
+    obsPullTrafficUnit,
+    obsPullTrafficValue,
+    obsReadRequestsValue,
+    obsReadTrafficUnit,
+    obsReadTrafficValue,
+    obsRedundancy,
+    obsReplicationTrafficUnit,
+    obsReplicationTrafficValue,
+    obsRestorationType,
+    obsStorageClass,
+    obsStorageSizeValue,
+    obsStorageUnit,
+    obsWriteRequestsValue,
+    regionValue,
+    selectedService,
+    selectedServiceCode,
+    usageHoursValue,
+  ]);
+
   const hydrateProduct = useCallback((product: AppProduct): EditHydrationResult => {
     if (!isRecord(product.config)) {
       return { handled: false, error: "This product cannot be edited from the calculator." };
@@ -3013,6 +3255,7 @@ export function useConfigurableServiceRuntime({
     showSharedUsageHours: runtimeMeta.shouldShowSharedUsageHours({ showEipEnhanced95DurationMonths }),
     addToListError,
     buildRequestBodies,
+    buildBatchRequestBodies,
     applyDefaultsForServiceCode,
     hydrateProduct,
     batchSnapshot: {
