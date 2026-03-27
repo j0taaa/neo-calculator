@@ -16,21 +16,12 @@ import { authClient } from "@/lib/auth-client";
 import {
   findServiceCatalogEntry,
   getConfigurableServiceBundleByCode,
-  getConfiguredBillingOptions,
   serviceCatalog,
   supportedBatchAddServiceCodes,
   supportedCalculatorServiceCodes,
 } from "@/lib/service-config";
-import {
-  buildCalculatorEstimate,
-  buildCalculatorSelectionNotes,
-  buildCalculatorSelectionSummary,
-} from "@/lib/calculator-presentation";
-import { getCalculatorRuntimeMeta } from "@/lib/calculator-runtime-registry";
-import { useConfigurableServiceRuntime } from "@/lib/use-configurable-service-runtime";
 import { useSessionContext } from "@/components/session-provider";
 import { formatDate, formatDateTime, formatNumber } from "@/lib/utils";
-import { findFlexusLPlan, flexusLPlans, flexusLPricingReference } from "@/lib/flexus-l-catalog";
 import { huaweiRegions, type HuaweiRegionKey } from "@/lib/huawei-regions";
 import {
   buildListExportPayload,
@@ -46,14 +37,11 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Check, ChevronDown, ChevronRight, Copy, Download, Link2, Pencil, RefreshCw, Search, Share2, Trash2, Upload, UserCircle2, X } from "lucide-react";
 import {
   copyText,
-  formatFlavorAmount,
   getCartCloneDefaultName,
   getFirstListId,
   getProjectCloneDefaultName,
   getResponseError,
-  isRecord,
   parseJsonFile,
-  splitPriceDisplay,
   splitProductPriceSummary,
   type AppList,
   type AppProduct,
@@ -63,21 +51,8 @@ import {
   type ProductMutationBody,
 } from "@/lib/calculator-page-helpers";
 import { getProductConfigSummary } from "@/lib/product-config-summary";
-import { useCustomEcsCalculator } from "@/lib/use-custom-ecs-calculator";
-import { buildCustomBatchRequestBodies, buildCustomProductRequestBody, hydrateCustomProduct } from "@/lib/custom-service-calculator";
-import {
-  buildEvsSplitNotice,
-  ecsDiskSizeBounds,
-  evsSingleDiskMaxGiB,
-  getGpSsd2IopsBounds,
-  getGpSsd2ThroughputBounds,
-  gpSsd2IopsBounds,
-  gpSsd2ThroughputBounds,
-  normalizeGpSsd2Iops,
-  normalizeGpSsd2Throughput,
-  systemDiskOptions,
-  type SystemDiskOption,
-} from "@/lib/configurable-runtime-utils";
+import { parseDashboardUrlState, type ActiveModalKind, type DashboardUrlState } from "@/lib/dashboard-url-state";
+import { useCalculatorController } from "@/lib/use-calculator-controller";
 
 const services = serviceCatalog;
 const options = {
@@ -86,46 +61,9 @@ const options = {
 
 type BillingOption = PageBillingOption;
 
-const priceListEntries = [
-  { service: "Elastic Cloud Server", sku: "c7.large.2", billing: "Pay-per-use", unit: "per hour", price: "USD 0.122" },
-  { service: "Elastic Cloud Server", sku: "c7.xlarge.4", billing: "Yearly/Monthly", unit: "per month", price: "USD 89.11" },
-  { service: "Elastic Cloud Server", sku: "c7.2xlarge.8", billing: "RI", unit: "per month", price: "USD 154.63" },
-  { service: "Flexus X Instance", sku: "fx1.medium", billing: "Pay-per-use", unit: "per hour", price: "USD 0.094" },
-  { service: "Flexus X Instance", sku: "fx1.large", billing: "Yearly/Monthly", unit: "per month", price: "USD 64.20" },
-  { service: "Object Storage Service", sku: "Standard Storage", billing: "Pay-per-use", unit: "per GB", price: "USD 0.023" },
-  { service: "Object Storage Service", sku: "Infrequent Access", billing: "Pay-per-use", unit: "per GB", price: "USD 0.014" },
-  { service: "Elastic Load Balance", sku: "Shared ELB", billing: "Pay-per-use", unit: "per hour", price: "USD 0.031" },
-  { service: "Elastic Load Balance", sku: "Dedicated ELB", billing: "Yearly/Monthly", unit: "per month", price: "USD 47.80" },
-  { service: "Elastic IP", sku: "Dynamic BGP", billing: "Pay-per-use", unit: "per hour", price: "USD 0.005" },
-  { service: "Cloud Container Engine", sku: "Cluster Management", billing: "Pay-per-use", unit: "per hour", price: "USD 0.145" },
-  { service: "Cloud Container Engine", sku: "Node Pool", billing: "Yearly/Monthly", unit: "per month", price: "USD 112.40" },
-  { service: "DataArts Studio", sku: "Basic Workspace", billing: "Yearly/Monthly", unit: "per month", price: "USD 39.00" },
-  { service: "Workspace", sku: "Desktop Standard", billing: "Pay-per-use", unit: "per hour", price: "USD 0.082" },
-  { service: "Databases", sku: "Primary DB Instance", billing: "Yearly/Monthly", unit: "per month", price: "USD 129.70" },
-  { service: "NAT Gateway", sku: "Small", billing: "Pay-per-use", unit: "per day", price: "USD 2.438" },
-  { service: "Virtual Private Network", sku: "Professional 2", billing: "Yearly/Monthly", unit: "per month", price: "USD 409.00" },
-  { service: "Analytics", sku: "Data Lake Query", billing: "Pay-per-use", unit: "per query", price: "USD 0.009" },
-];
-
-const flavorSortLabels = {
-  "price-asc": "Price: Lowest first",
-  "price-desc": "Price: Highest first",
-  "name-asc": "Name: A to Z",
-  "vcpu-asc": "vCPU: Lowest first",
-} as const;
-
-const evsBillingOptions = (getConfiguredBillingOptions("EVS") ?? ["Pay-per-use", "Yearly/Monthly"]) as BillingOption[];
-const obsBillingOptions: BillingOption[] = ["Pay-per-use"];
-const flavorPageSizeOptions = [1, 3, 5, 10, 20] as const;
-const flavorPageSizeStorageKey = "neoCalculator.flavorPageSize";
-
 type ActiveModal =
-  | { kind: "project-huawei"; projectId: string }
-  | { kind: "project-clone"; projectId: string }
-  | { kind: "project-share"; projectId: string }
-  | { kind: "list-link"; listId: string }
-  | { kind: "list-clone"; listId: string }
-  | { kind: "list-share"; listId: string }
+  | { kind: ActiveModalKind; projectId: string }
+  | { kind: ActiveModalKind; listId: string }
   | null;
 
 type ResourceExportModalState = {
@@ -135,103 +73,12 @@ type ResourceExportModalState = {
   filename: string;
 } | null;
 
-type DashboardTab = "calculator" | "batch-add";
-
-type DashboardUrlState = {
-  serviceCode?: string;
-  region?: HuaweiRegionKey;
-  billingMode?: BillingOption;
-  usageHours?: string;
-  tab?: DashboardTab;
-  projectId?: string;
-  listId?: string;
-  editProductId?: string;
-  editProductListId?: string;
-  modalKind?: NonNullable<ActiveModal>["kind"];
-  modalProjectId?: string;
-  modalListId?: string;
-  flavorQuery?: string;
-  flavorPage?: number;
-  flavorSort?: string;
-  flavorPageSize?: (typeof flavorPageSizeOptions)[number];
-  selectedFlavor?: string;
-  minVcpuValue?: string;
-  minRamValue?: string;
-  showFlexusLInEcs?: boolean;
-};
-
-const dashboardTabs = ["calculator", "batch-add"] as const;
-const modalKinds = ["project-huawei", "project-clone", "project-share", "list-link", "list-clone", "list-share"] as const;
-
-function isDashboardTab(value: unknown): value is DashboardTab {
-  return typeof value === "string" && (dashboardTabs as readonly string[]).includes(value);
-}
-
-function isModalKind(value: unknown): value is NonNullable<ActiveModal>["kind"] {
-  return typeof value === "string" && (modalKinds as readonly string[]).includes(value);
-}
-
-function isFlavorSortValue(value: unknown): value is keyof typeof flavorSortLabels {
-  return typeof value === "string" && value in flavorSortLabels;
-}
-
-function isFlavorPageSizeValue(value: unknown): value is (typeof flavorPageSizeOptions)[number] {
-  return typeof value === "number" && flavorPageSizeOptions.includes(value as (typeof flavorPageSizeOptions)[number]);
-}
-
-function parseDashboardUrlState(search: string): DashboardUrlState {
-  const params = new URLSearchParams(search);
-  const parsedFlavorPage = Number(params.get("flavorPage"));
-  const parsedFlavorPageSize = Number(params.get("flavorPageSize"));
-
-  return {
-    serviceCode: params.get("service") || undefined,
-    region: (params.get("region") as HuaweiRegionKey | null) ?? undefined,
-    billingMode: (params.get("billing") as BillingOption | null) ?? undefined,
-    usageHours: params.get("hours") || undefined,
-    tab: isDashboardTab(params.get("tab")) ? (params.get("tab") as DashboardTab) : undefined,
-    projectId: params.get("project") || undefined,
-    listId: params.get("list") || undefined,
-    editProductId: params.get("editProduct") || undefined,
-    editProductListId: params.get("editList") || undefined,
-    modalKind: isModalKind(params.get("modal")) ? (params.get("modal") as NonNullable<ActiveModal>["kind"]) : undefined,
-    modalProjectId: params.get("modalProject") || undefined,
-    modalListId: params.get("modalList") || undefined,
-    flavorQuery: params.get("flavorQuery") || undefined,
-    flavorPage: Number.isFinite(parsedFlavorPage) && parsedFlavorPage > 0 ? Math.floor(parsedFlavorPage) : undefined,
-    flavorSort: isFlavorSortValue(params.get("flavorSort")) ? params.get("flavorSort") ?? undefined : undefined,
-    flavorPageSize: isFlavorPageSizeValue(parsedFlavorPageSize) ? parsedFlavorPageSize : undefined,
-    selectedFlavor: params.get("flavor") || undefined,
-    minVcpuValue: params.get("minVcpu") || undefined,
-    minRamValue: params.get("minRam") || undefined,
-    showFlexusLInEcs: params.get("flexusL") === "1" ? true : params.get("flexusL") === "0" ? false : undefined,
-  };
-}
-
 function getServiceMeta(serviceCode: string, serviceName: string) {
   return findServiceCatalogEntry(serviceCode, serviceName);
 }
 
 function isBillingOption(value: unknown): value is BillingOption {
-  return typeof value === "string" && (options.billing as readonly string[]).includes(value);
-}
-
-function getCalculatorBillingOptions(
-  serviceCode: string,
-): BillingOption[] {
-  if (serviceCode === "EVS") {
-    return evsBillingOptions;
-  }
-
-  if (serviceCode === "OBS") {
-    return obsBillingOptions;
-  }
-
-  if (serviceCode === "Flexus L") {
-    return ["Yearly/Monthly"];
-  }
-
-  return [...options.billing];
+  return value === "Pay-per-use" || value === "RI" || value === "Yearly/Monthly";
 }
 
 function OptionGrid({
@@ -277,20 +124,6 @@ export default function Home() {
   const [regionValue, setRegionValue] = useState<HuaweiRegionKey>("la-sao-paulo1");
   const [billingMode, setBillingMode] = useState<BillingOption>("Pay-per-use");
   const [usageHours, setUsageHours] = useState("744");
-  const [vcpuValue, setVcpuValue] = useState("2");
-  const [ramValue, setRamValue] = useState("8");
-  const [minVcpuValue, setMinVcpuValue] = useState("2");
-  const [minRamValue, setMinRamValue] = useState("8");
-  const [instanceCount, setInstanceCount] = useState("1");
-  const [systemDiskType, setSystemDiskType] = useState<SystemDiskOption>("High I/O");
-  const [systemDiskSize, setSystemDiskSize] = useState("40");
-  const [gpSsd2Iops, setGpSsd2Iops] = useState("3000");
-  const [gpSsd2Throughput, setGpSsd2Throughput] = useState("125");
-  const [flavorQuery, setFlavorQuery] = useState("");
-  const [flavorPage, setFlavorPage] = useState(1);
-  const [flavorSort, setFlavorSort] = useState("price-asc");
-  const [flavorPageSize, setFlavorPageSize] = useState<(typeof flavorPageSizeOptions)[number]>(3);
-  const [selectedFlavor, setSelectedFlavor] = useState("");
   const [projects, setProjects] = useState<AppProject[]>([]);
   const [projectsLoading, setProjectsLoading] = useState(false);
   const [projectsError, setProjectsError] = useState("");
@@ -314,12 +147,6 @@ export default function Home() {
   const [activeTab, setActiveTab] = useState("calculator");
   const [resourceExportModal, setResourceExportModal] = useState<ResourceExportModalState>(null);
   const [resourceExportActionMessage, setResourceExportActionMessage] = useState("");
-  const [showFlexusLInEcs, setShowFlexusLInEcs] = useState(false);
-  const [addToListPending, setAddToListPending] = useState(false);
-  const [addToListMessage, setAddToListMessage] = useState("");
-  const [batchInput, setBatchInput] = useState("");
-  const [batchAddPending, setBatchAddPending] = useState(false);
-  const [batchAddMessage, setBatchAddMessage] = useState("");
   const [deletingProductId, setDeletingProductId] = useState<string | null>(null);
   const [expandedProjects, setExpandedProjects] = useState<Record<string, boolean>>({});
   const [huaweiCarts, setHuaweiCarts] = useState<HuaweiCartSummary[]>([]);
@@ -382,13 +209,6 @@ export default function Home() {
   const selectedServiceBundle = getConfigurableServiceBundleByCode(selectedServiceCode);
   const selectedServiceDefinition = selectedServiceBundle?.service ?? null;
   const selectedServiceDefinitionStatus = selectedServiceBundle?.metadata.status ?? null;
-  const isEcsCalculator = selectedServiceCode === "ECS";
-  const isFlexusLCalculator = selectedServiceCode === "Flexus L";
-  const isEvsCalculator = selectedServiceCode === "EVS";
-  const activeRuntimeMeta = getCalculatorRuntimeMeta(selectedServiceCode);
-  const isSelectedServiceImplemented = supportedCalculatorServiceCodes.includes(selectedServiceCode);
-  const isSelectedServiceBatchAddImplemented = supportedBatchAddServiceCodes.includes(selectedServiceCode);
-  const selectedPrices = priceListEntries.filter((entry) => entry.service === selectedService);
   const hasSuggestions = isSearchOpen && suggestions.length > 0;
   const activeDescendant = hasSuggestions ? `${listboxId}-${activeSuggestionIndex}` : undefined;
   const totalProjectLists = projects.reduce((sum, project) => sum + project.lists.length, 0);
@@ -413,97 +233,82 @@ export default function Home() {
   const activeList = activeModal != null && "listId" in activeModal ? listsById.get(activeModal.listId)?.list ?? null : null;
   const cloneableRegions = (Object.entries(huaweiRegions) as Array<[HuaweiRegionKey, (typeof huaweiRegions)[HuaweiRegionKey]]>)
     .filter(([, labels]) => Boolean(labels.catalogRegionId));
-  const usageHoursValue = Number.isFinite(Number(usageHours)) ? Math.max(1, Number(usageHours)) : 744;
-  const instanceCountValue = Number.isFinite(Number(instanceCount)) ? Math.max(1, Number(instanceCount)) : 1;
-  const configurableRuntime = useConfigurableServiceRuntime({
-    selectedServiceCode,
+
+  const mutateListProduct = useCallback(
+    async (
+      requestUrl: string,
+      requestMethod: "POST" | "PATCH",
+      requestBody: ProductMutationBody,
+      fallbackError: string,
+    ) => {
+      const response = await fetch(requestUrl, {
+        method: requestMethod,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(requestBody),
+      });
+
+      const payload = (await response.json().catch(() => null)) as
+        | (AppProduct & { listId: string; projectId: string; error?: never })
+        | { error?: string }
+        | null;
+
+      if (!response.ok || !payload || !("projectId" in payload)) {
+        throw new Error(getResponseError(payload, fallbackError));
+      }
+
+      return payload;
+    },
+    [],
+  );
+
+  const calculatorController = useCalculatorController({
     selectedService,
-    selectedServiceDefinition,
+    selectedServiceMeta,
     regionValue,
+    setRegionValue,
     billingMode,
     setBillingMode,
     usageHours,
-    usageHoursValue,
-    updateUsageHours,
-    instanceCountValue,
+    setUsageHours,
+    selectedListId,
+    setSelectedListId,
+    editingProductId,
+    setEditingProductId,
+    editingProductListId,
+    setEditingProductListId,
+    activeTab,
+    setActiveTab,
+    session,
+    isSignedIn,
+    setProjects,
+    setSelectedService,
+    setQuery,
+    mutateListProduct,
   });
-  const calculatorBillingOptions = useMemo(
-    () => configurableRuntime.activeBillingOptions ?? getCalculatorBillingOptions(selectedServiceCode),
-    [configurableRuntime.activeBillingOptions, selectedServiceCode],
-  );
-  const canShowFlexusLInEcs = isEcsCalculator
-    && (billingMode === "RI" || billingMode === "Yearly/Monthly" || (billingMode === "Pay-per-use" && (usageHoursValue === 730 || usageHoursValue === 744)));
-  const systemDiskSizeValue = Number.isFinite(Number(systemDiskSize))
-    ? Math.max(ecsDiskSizeBounds.min, Number(systemDiskSize))
-    : ecsDiskSizeBounds.min;
-  const isGpSsd2Selected = systemDiskType === "General Purpose SSD V2";
-  const gpSsd2IopsValue = isGpSsd2Selected ? normalizeGpSsd2Iops(gpSsd2Iops, systemDiskSizeValue) : null;
-  const gpSsd2IopsRange = isGpSsd2Selected ? getGpSsd2IopsBounds(systemDiskSizeValue) : null;
-  const gpSsd2ThroughputValue =
-    isGpSsd2Selected && gpSsd2IopsValue != null ? normalizeGpSsd2Throughput(gpSsd2Throughput, gpSsd2IopsValue) : null;
-  const gpSsd2ThroughputRange =
-    isGpSsd2Selected && gpSsd2IopsValue != null ? getGpSsd2ThroughputBounds(gpSsd2IopsValue) : null;
-  const customEcsRuntime = useCustomEcsCalculator({
-    isEcsCalculator,
-    isFlexusLCalculator,
-    canShowFlexusLInEcs,
-    showFlexusLInEcs,
-    regionValue,
-    billingMode,
-    usageHoursValue,
-    minVcpuValue,
-    minRamValue,
-    flavorQuery,
-    flavorSort,
-    flavorPage,
-    flavorPageSize,
-    systemDiskType,
-    systemDiskSizeValue,
-    selectedFlavor,
-    setSelectedFlavor,
-    setVcpuValue,
-    setRamValue,
-    setFlavorPage,
-  });
-  const activeDiskSizeBounds = customEcsRuntime.activeDiskSizeBounds;
   const {
-    catalogFlavors,
-    diskPricing,
-    catalogFlavorsLoading,
-    catalogFlavorsError,
-    catalogFlavorsLastCompletedAt,
-    selectedDiskPrice,
-    visibleFlavors,
-    currentFlavorPage,
-    totalFlavorPages,
-    selectedFlavorCard,
-    selectedFlexusLPlan,
-    setCustomSelection,
-  } = customEcsRuntime;
-  const customCalculatorEstimate = buildCalculatorEstimate(
-    {
-      serviceCode: selectedServiceCode,
-      instanceCountValue,
-      selectedPrices,
-      selectedFlavorCard,
-      selectedFlexusLPlan,
-      selectedDiskPrice,
-      selectedObsPricing: null,
-      selectedEipPricing: null,
-      selectedElbPricing: null,
-      selectedNatPricing: null,
-      selectedVpnPricing: null,
-      selectedModelArtsPricing: null,
-      selectedCcePricing: null,
-    },
-    formatFlavorAmount,
-  );
-  const selectedEstimate = configurableRuntime.isConfigurableService ? configurableRuntime.selectedEstimate : customCalculatorEstimate.selectedEstimate;
-  const quantityLabel = configurableRuntime.isConfigurableService ? configurableRuntime.quantityLabel : customCalculatorEstimate.quantityLabel;
-  const showGlobalQuantityControl = configurableRuntime.isConfigurableService ? configurableRuntime.showGlobalQuantityControl : customCalculatorEstimate.showGlobalQuantityControl;
-  const selectedEstimateParts = splitPriceDisplay(selectedEstimate);
-  const displayQuantityValue = showGlobalQuantityControl ? instanceCountValue : 1;
-
+    isSelectedServiceImplemented,
+    isSelectedServiceBatchAddImplemented,
+    showBillingHeader,
+    calculatorBillingOptions,
+    showSharedUsageHours,
+    selectedEstimateParts,
+    quantityLabel,
+    showGlobalQuantityControl,
+    displayQuantityValue,
+    instanceCount,
+    updateInstanceCount,
+    addToListPending,
+    addToListMessage,
+    setAddToListMessage,
+    calculatorPanelProps,
+    batchPanelProps,
+    handleAddToList,
+    handleEditProduct,
+    handleCancelEdit,
+    applyServiceUrlState,
+    writeServiceUrlState,
+    resetForServiceCode,
+  } = calculatorController;
   const queueUrlStateFromLocation = useCallback(() => {
     if (typeof window === "undefined") {
       return;
@@ -529,34 +334,6 @@ export default function Home() {
     window.addEventListener("popstate", handlePopState);
     return () => window.removeEventListener("popstate", handlePopState);
   }, [queueUrlStateFromLocation]);
-
-  useEffect(() => {
-    if (!calculatorBillingOptions.includes(billingMode)) {
-      setBillingMode(calculatorBillingOptions[0]);
-    }
-  }, [billingMode, calculatorBillingOptions]);
-
-  useEffect(() => {
-    if (!canShowFlexusLInEcs && showFlexusLInEcs) {
-      setShowFlexusLInEcs(false);
-    }
-  }, [canShowFlexusLInEcs, showFlexusLInEcs]);
-
-  useEffect(() => {
-    if (!isGpSsd2Selected || gpSsd2IopsValue == null || gpSsd2ThroughputValue == null) {
-      return;
-    }
-
-    const normalizedIops = String(gpSsd2IopsValue);
-    if (gpSsd2Iops !== normalizedIops) {
-      setGpSsd2Iops(normalizedIops);
-    }
-
-    const normalizedThroughput = String(gpSsd2ThroughputValue);
-    if (gpSsd2Throughput !== normalizedThroughput) {
-      setGpSsd2Throughput(normalizedThroughput);
-    }
-  }, [gpSsd2Iops, gpSsd2IopsValue, gpSsd2Throughput, gpSsd2ThroughputValue, isGpSsd2Selected]);
 
   useEffect(() => {
     const handlePointerDown = (event: MouseEvent) => {
@@ -698,13 +475,6 @@ export default function Home() {
     setCookieDraft(storedCookie);
   }, []);
 
-  useEffect(() => {
-    const storedPageSize = Number(window.localStorage.getItem(flavorPageSizeStorageKey));
-    if (flavorPageSizeOptions.some((option) => option === storedPageSize)) {
-      setFlavorPageSize(storedPageSize as (typeof flavorPageSizeOptions)[number]);
-    }
-  }, []);
-
   const loadHuaweiCarts = useCallback(async () => {
     if (!cookieValue.trim()) {
       setHuaweiCarts([]);
@@ -762,7 +532,7 @@ export default function Home() {
     setActiveSuggestionIndex(0);
     const serviceMeta = services.find((entry) => entry.name === service);
     if (serviceMeta) {
-      configurableRuntime.applyDefaultsForServiceCode(serviceMeta.code);
+      resetForServiceCode(serviceMeta.code);
     }
   };
 
@@ -1696,30 +1466,6 @@ export default function Home() {
     }
   };
 
-  const updateSystemDiskSize = useCallback((nextValue: string) => {
-    if (nextValue === "") {
-      setSystemDiskSize("");
-      return;
-    }
-
-    const parsed = Number(nextValue);
-    if (Number.isNaN(parsed)) return;
-    const bounded = Math.min(activeDiskSizeBounds.max, Math.max(activeDiskSizeBounds.min, parsed));
-    setSystemDiskSize(String(bounded));
-  }, [activeDiskSizeBounds.max, activeDiskSizeBounds.min]);
-
-  const updateInstanceCount = (nextValue: string) => {
-    if (nextValue === "") {
-      setInstanceCount("");
-      return;
-    }
-
-    const parsed = Number(nextValue);
-    if (Number.isNaN(parsed)) return;
-    const bounded = Math.min(999, Math.max(1, parsed));
-    setInstanceCount(String(bounded));
-  };
-
   function updateUsageHours(nextValue: string) {
     if (nextValue === "") {
       setUsageHours("");
@@ -1731,113 +1477,6 @@ export default function Home() {
     const bounded = Math.min(87600, Math.max(1, parsed));
     setUsageHours(String(bounded));
   }
-
-  const handleEditProduct = useCallback((product: AppProduct, sourceListId = selectedListId) => {
-    const customHydrated = hydrateCustomProduct(product, {
-      regionValue,
-      flavorQuery,
-      flavorSort,
-      minVcpuValue,
-      minRamValue,
-      vcpuValue,
-      ramValue,
-    });
-    if (customHydrated.handled) {
-      setSelectedService(product.serviceName);
-      setQuery(product.serviceName);
-      if (customHydrated.nextRegion) {
-        setRegionValue(customHydrated.nextRegion);
-      }
-      if (customHydrated.nextBillingMode) {
-        setBillingMode(customHydrated.nextBillingMode);
-      }
-      if (customHydrated.nextUsageHours) {
-        setUsageHours(customHydrated.nextUsageHours);
-      }
-      if (
-        customHydrated.nextSelectedFlavor !== undefined
-        && customHydrated.nextVcpuValue !== undefined
-        && customHydrated.nextRamValue !== undefined
-      ) {
-        setCustomSelection({
-          selectedFlavor: customHydrated.nextSelectedFlavor,
-          vcpuValue: customHydrated.nextVcpuValue,
-          ramValue: customHydrated.nextRamValue,
-          flavorAutoSelectKey: customHydrated.nextFlavorAutoSelectKey,
-        });
-      }
-      if (customHydrated.nextMinVcpuValue !== undefined) {
-        setMinVcpuValue(customHydrated.nextMinVcpuValue);
-      }
-      if (customHydrated.nextMinRamValue !== undefined) {
-        setMinRamValue(customHydrated.nextMinRamValue);
-      }
-      if (customHydrated.nextGpSsd2Iops !== undefined) {
-        setGpSsd2Iops(customHydrated.nextGpSsd2Iops);
-      }
-      if (customHydrated.nextGpSsd2Throughput !== undefined) {
-        setGpSsd2Throughput(customHydrated.nextGpSsd2Throughput);
-      }
-      if (customHydrated.nextSystemDiskType !== undefined) {
-        setSystemDiskType(customHydrated.nextSystemDiskType);
-      }
-      if (customHydrated.nextSystemDiskSize !== undefined) {
-        setSystemDiskSize(customHydrated.nextSystemDiskSize);
-      }
-      if (customHydrated.nextInstanceCount) {
-        setInstanceCount(customHydrated.nextInstanceCount);
-      }
-      setEditingProductId(product.id);
-      setSelectedListId(sourceListId);
-      setEditingProductListId(sourceListId);
-      setActiveTab("calculator");
-      setAddToListMessage("Editing item. Save changes when ready.");
-      return;
-    }
-
-    const hydrated = configurableRuntime.hydrateProduct(product);
-    if (!hydrated.handled) {
-      setAddToListMessage(hydrated.error ?? "This product cannot be edited from the calculator.");
-      return;
-    }
-
-    setSelectedService(product.serviceName);
-    setQuery(product.serviceName);
-    if (hydrated.nextRegion) {
-      setRegionValue(hydrated.nextRegion);
-    }
-    if (hydrated.nextBillingMode) {
-      setBillingMode(hydrated.nextBillingMode);
-    }
-    if (hydrated.nextUsageHours) {
-      setUsageHours(hydrated.nextUsageHours);
-    }
-    if (hydrated.nextInstanceCount) {
-      setInstanceCount(hydrated.nextInstanceCount);
-    }
-    setEditingProductId(product.id);
-    setSelectedListId(sourceListId);
-    setEditingProductListId(sourceListId);
-    setActiveTab("calculator");
-    setAddToListMessage("Editing item. Save changes when ready.");
-  }, [
-    configurableRuntime,
-    flavorQuery,
-    flavorSort,
-    minRamValue,
-    minVcpuValue,
-    ramValue,
-    regionValue,
-    selectedListId,
-    setCustomSelection,
-    vcpuValue,
-  ]);
-
-  const handleCancelEdit = useCallback(() => {
-    setEditingProductId(null);
-    setEditingProductListId(null);
-    setAddToListMessage("");
-  }, []);
 
   useEffect(() => {
     const pendingUrlState = pendingUrlStateRef.current;
@@ -1875,37 +1514,7 @@ export default function Home() {
         setActiveTab(pendingUrlState.tab);
       }
 
-      if (pendingUrlState.flavorQuery !== undefined) {
-        setFlavorQuery(pendingUrlState.flavorQuery);
-      }
-
-      if (pendingUrlState.flavorPage != null) {
-        setFlavorPage(pendingUrlState.flavorPage);
-      }
-
-      if (pendingUrlState.flavorSort && isFlavorSortValue(pendingUrlState.flavorSort)) {
-        setFlavorSort(pendingUrlState.flavorSort);
-      }
-
-      if (pendingUrlState.flavorPageSize && isFlavorPageSizeValue(pendingUrlState.flavorPageSize)) {
-        setFlavorPageSize(pendingUrlState.flavorPageSize);
-      }
-
-      if (pendingUrlState.selectedFlavor !== undefined) {
-        setSelectedFlavor(pendingUrlState.selectedFlavor);
-      }
-
-      if (pendingUrlState.minVcpuValue !== undefined) {
-        setMinVcpuValue(pendingUrlState.minVcpuValue);
-      }
-
-      if (pendingUrlState.minRamValue !== undefined) {
-        setMinRamValue(pendingUrlState.minRamValue);
-      }
-
-      if (pendingUrlState.showFlexusLInEcs !== undefined) {
-        setShowFlexusLInEcs(pendingUrlState.showFlexusLInEcs);
-      }
+      applyServiceUrlState(pendingUrlState);
 
       const shouldWaitForProjects = Boolean(session?.user.id) && projectsLoading;
       if (shouldWaitForProjects) {
@@ -1972,7 +1581,7 @@ export default function Home() {
     } finally {
       isApplyingUrlStateRef.current = false;
     }
-  }, [handleCancelEdit, handleEditProduct, listsById, projects, projectsById, projectsLoading, session?.user.id, urlStateVersion]);
+  }, [applyServiceUrlState, handleCancelEdit, handleEditProduct, listsById, projects, projectsById, projectsLoading, session?.user.id, urlStateVersion]);
 
   useEffect(() => {
     if (!hasInitializedUrlStateRef.current || isApplyingUrlStateRef.current || typeof window === "undefined") {
@@ -1985,19 +1594,7 @@ export default function Home() {
     params.set("billing", billingMode);
     params.set("hours", usageHours);
     params.set("tab", activeTab);
-    params.set("minVcpu", minVcpuValue);
-    params.set("minRam", minRamValue);
-    params.set("flavorPage", String(flavorPage));
-    params.set("flavorSort", flavorSort);
-    params.set("flavorPageSize", String(flavorPageSize));
-    params.set("flexusL", showFlexusLInEcs ? "1" : "0");
-
-    if (flavorQuery) {
-      params.set("flavorQuery", flavorQuery);
-    }
-    if (selectedFlavor) {
-      params.set("flavor", selectedFlavor);
-    }
+    writeServiceUrlState(params);
     if (selectedProject?.id) {
       params.set("project", selectedProject.id);
     }
@@ -2030,45 +1627,17 @@ export default function Home() {
   }, [
     activeModal,
     activeTab,
+    applyServiceUrlState,
     billingMode,
     editingProductId,
     editingProductListId,
-    flavorPage,
-    flavorPageSize,
-    flavorQuery,
-    flavorSort,
-    minRamValue,
-    minVcpuValue,
     regionValue,
-    selectedFlavor,
     selectedListId,
     selectedProject?.id,
     selectedServiceCode,
-    showFlexusLInEcs,
     usageHours,
+    writeServiceUrlState,
   ]);
-
-  const updateGpSsd2Iops = useCallback((nextValue: string) => {
-    if (nextValue === "") {
-      setGpSsd2Iops("");
-      return;
-    }
-
-    const parsed = Number(nextValue);
-    if (Number.isNaN(parsed)) return;
-    setGpSsd2Iops(String(normalizeGpSsd2Iops(parsed, systemDiskSizeValue)));
-  }, [systemDiskSizeValue]);
-
-  const updateGpSsd2Throughput = useCallback((nextValue: string) => {
-    if (nextValue === "") {
-      setGpSsd2Throughput("");
-      return;
-    }
-
-    const parsed = Number(nextValue);
-    if (Number.isNaN(parsed)) return;
-    setGpSsd2Throughput(String(normalizeGpSsd2Throughput(parsed, gpSsd2IopsValue ?? gpSsd2IopsBounds.min)));
-  }, [gpSsd2IopsValue]);
 
   const handleDeleteProduct = async (product: AppProduct) => {
     if (!selectedListId) {
@@ -2124,351 +1693,6 @@ export default function Home() {
     }
   };
 
-  const appendProductToState = useCallback((payload: AppProduct & { listId: string; projectId: string }) => {
-    setProjects((current) =>
-      current.map((project) =>
-        project.id === payload.projectId
-          ? {
-              ...project,
-              updatedAt: payload.updatedAt,
-              lists: project.lists.map((list) =>
-                list.id === payload.listId
-                  ? {
-                      ...list,
-                      updatedAt: payload.updatedAt,
-                      productCount: list.productCount + 1,
-                      products: [payload, ...list.products],
-                    }
-                  : list,
-              ),
-            }
-          : project,
-      ),
-    );
-  }, []);
-
-  const mutateListProduct = useCallback(
-    async (
-      requestUrl: string,
-      requestMethod: "POST" | "PATCH",
-      requestBody: ProductMutationBody,
-      fallbackError: string,
-    ) => {
-      const response = await fetch(requestUrl, {
-        method: requestMethod,
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(requestBody),
-      });
-
-      const payload = (await response.json().catch(() => null)) as
-        | (AppProduct & { listId: string; projectId: string; error?: never })
-        | { error?: string }
-        | null;
-
-      if (!response.ok || !payload || !("projectId" in payload)) {
-        throw new Error(getResponseError(payload, fallbackError));
-      }
-
-      return payload;
-    },
-    [],
-  );
-
-  const obsBatchSnapshot = configurableRuntime.batchSnapshot.obs;
-  const evsBatchSnapshot = configurableRuntime.batchSnapshot.evs;
-  const obsProductType = obsBatchSnapshot.productType;
-  const obsStorageClass = obsBatchSnapshot.storageClass;
-  const obsRedundancy = obsBatchSnapshot.redundancy;
-  const obsStorageSizeValue = obsBatchSnapshot.storageSizeValue;
-  const obsStorageUnit = obsBatchSnapshot.storageUnit;
-  const obsDurationMonthsValue = obsBatchSnapshot.durationMonthsValue;
-
-  const handleBatchAdd = async () => {
-    if (!session) {
-      setBatchAddMessage("Sign in to save carts and projects.");
-      return;
-    }
-
-    if (!isSelectedServiceBatchAddImplemented) {
-      setBatchAddMessage(`${selectedService} does not support batch add yet.`);
-      return;
-    }
-
-    if (!selectedListId) {
-      setBatchAddMessage("Create a list first.");
-      return;
-    }
-
-    let parsedInput: unknown;
-    try {
-      parsedInput = JSON.parse(batchInput);
-    } catch {
-      setBatchAddMessage("Batch input must be valid JSON.");
-      return;
-    }
-
-    if (!Array.isArray(parsedInput) || parsedInput.length === 0) {
-      setBatchAddMessage("Batch input must be a non-empty JSON array.");
-      return;
-    }
-
-    if (isEcsCalculator && !catalogFlavors.length) {
-      setBatchAddMessage("ECS flavors are not loaded yet.");
-      return;
-    }
-
-    if (isEvsCalculator && !evsBatchSnapshot.diskPricing) {
-      setBatchAddMessage("EVS pricing is not loaded yet.");
-      return;
-    }
-
-    setBatchAddPending(true);
-    setBatchAddMessage("");
-
-    let createdCount = 0;
-    let splitDiskCount = 0;
-
-    try {
-      for (let index = 0; index < parsedInput.length; index += 1) {
-        const item = parsedInput[index];
-
-        if (!isRecord(item)) {
-          throw new Error(`Item ${index + 1} must be an object.`);
-        }
-
-        const requestBodies = isEcsCalculator || isFlexusLCalculator
-          ? buildCustomBatchRequestBodies({
-              selectedServiceCode,
-              selectedServiceMetaCode: selectedServiceMeta.code,
-              selectedService,
-              regionValue,
-              billingMode,
-              usageHoursValue,
-              catalogFlavors,
-              diskPricing,
-              canShowFlexusLInEcs,
-              showFlexusLInEcs,
-              item,
-            })
-          : configurableRuntime.buildBatchRequestBodies(item);
-
-        if (!requestBodies || requestBodies.length === 0) {
-          throw new Error(`Item ${index + 1} could not be converted into products.`);
-        }
-
-        if (selectedServiceCode === "EVS") {
-          splitDiskCount += Math.max(0, requestBodies.length - 1);
-        }
-
-        for (const [chunkIndex, requestBody] of requestBodies.entries()) {
-          const payload = await mutateListProduct(
-            `/api/lists/${selectedListId}/products`,
-            "POST",
-            requestBody,
-            `Unable to add item ${index + 1}${requestBodies.length > 1 ? ` chunk ${chunkIndex + 1}` : ""} to the list`,
-          );
-
-          appendProductToState(payload);
-          createdCount += 1;
-        }
-      }
-
-      setBatchAddMessage(
-        splitDiskCount > 0
-          ? `Added ${createdCount} products to the list. ${splitDiskCount} extra EVS split disk${splitDiskCount === 1 ? "" : "s"} were created for sizes above ${evsSingleDiskMaxGiB} GiB.`
-          : createdCount === 1
-            ? "Added 1 product to the list."
-            : `Added ${createdCount} products to the list.`,
-      );
-    } catch (error) {
-      setBatchAddMessage(
-        createdCount > 0
-          ? `${error instanceof Error ? error.message : "Batch add failed."} ${createdCount} item${createdCount === 1 ? "" : "s"} were added before the error.`
-          : error instanceof Error
-            ? error.message
-            : "Batch add failed.",
-      );
-    } finally {
-      setBatchAddPending(false);
-    }
-  };
-
-  const handleAddToList = async () => {
-    if (!session) {
-      setAddToListMessage("Sign in to save carts and projects.");
-      return;
-    }
-
-    if (!isSelectedServiceImplemented) {
-      setAddToListMessage(`${selectedService} is not implemented in the calculator yet.`);
-      return;
-    }
-
-    if (!selectedListId) {
-      setAddToListMessage("Create a list first.");
-      return;
-    }
-
-    if (isEcsCalculator && !selectedFlavorCard) {
-      setAddToListMessage("Select a flavor first.");
-      return;
-    }
-
-    if (isFlexusLCalculator && !selectedFlexusLPlan) {
-      setAddToListMessage("Select a Flexus L plan first.");
-      return;
-    }
-
-    if (configurableRuntime.isConfigurableService && configurableRuntime.addToListError) {
-      setAddToListMessage(configurableRuntime.addToListError);
-      return;
-    }
-
-    setAddToListPending(true);
-    setAddToListMessage("");
-
-    try {
-      const quantity = Math.max(1, Number(instanceCount || "1"));
-      const requestBodies = configurableRuntime.isConfigurableService
-        ? configurableRuntime.buildRequestBodies()
-        : buildCustomProductRequestBody({
-            selectedServiceCode,
-            selectedServiceMetaCode: selectedServiceMeta.code,
-            selectedService,
-            selectedEstimate,
-            quantity,
-            regionValue,
-            billingMode,
-            usageHoursValue,
-            selectedFlavor,
-            selectedFlavorCard,
-            selectedFlexusLPlan,
-            vcpuValue,
-            ramValue,
-            systemDiskType,
-            systemDiskSizeValue,
-            isGpSsd2Selected,
-            gpSsd2IopsValue,
-            gpSsd2ThroughputValue,
-            selectedDiskPrice,
-          });
-
-      if (!requestBodies) {
-        throw new Error("Unable to build the selected product configuration.");
-      }
-
-      if (editingProductId && editingProductListId) {
-        if (Array.isArray(requestBodies)) {
-          const [firstBody, ...extraBodies] = requestBodies;
-          const updatedPayload = await mutateListProduct(
-            `/api/lists/${editingProductListId}/products/${editingProductId}`,
-            "PATCH",
-            firstBody,
-            "Unable to update product",
-          );
-
-          setProjects((current) =>
-            current.map((project) =>
-              project.id === updatedPayload.projectId
-                ? {
-                    ...project,
-                    updatedAt: updatedPayload.updatedAt,
-                    lists: project.lists.map((list) =>
-                      list.id === updatedPayload.listId
-                        ? {
-                            ...list,
-                            updatedAt: updatedPayload.updatedAt,
-                            products: list.products.map((item) => (item.id === updatedPayload.id ? { ...item, ...updatedPayload } : item)),
-                          }
-                        : list,
-                    ),
-                  }
-                : project,
-            ),
-          );
-
-          for (const extraBody of extraBodies) {
-            const createdPayload = await mutateListProduct(
-              `/api/lists/${selectedListId}/products`,
-              "POST",
-              extraBody,
-              "Unable to create one of the EVS split disks",
-            );
-            appendProductToState(createdPayload);
-          }
-
-          setAddToListMessage(
-            extraBodies.length > 0
-              ? `Product updated and split into ${requestBodies.length} EVS disks because totals above ${evsSingleDiskMaxGiB} GiB are saved in chunks.`
-              : "Product updated.",
-          );
-        } else {
-          const updatedPayload = await mutateListProduct(
-            `/api/lists/${editingProductListId}/products/${editingProductId}`,
-            "PATCH",
-            requestBodies,
-            "Unable to update product",
-          );
-
-          setProjects((current) =>
-            current.map((project) =>
-              project.id === updatedPayload.projectId
-                ? {
-                    ...project,
-                    updatedAt: updatedPayload.updatedAt,
-                    lists: project.lists.map((list) =>
-                      list.id === updatedPayload.listId
-                        ? {
-                            ...list,
-                            updatedAt: updatedPayload.updatedAt,
-                            products: list.products.map((item) => (item.id === updatedPayload.id ? { ...item, ...updatedPayload } : item)),
-                          }
-                        : list,
-                    ),
-                  }
-                : project,
-            ),
-          );
-
-          setAddToListMessage("Product updated.");
-        }
-      } else if (Array.isArray(requestBodies)) {
-        for (const requestBody of requestBodies) {
-          const createdPayload = await mutateListProduct(
-            `/api/lists/${selectedListId}/products`,
-            "POST",
-            requestBody,
-            "Unable to add product to list",
-          );
-          appendProductToState(createdPayload);
-        }
-
-        setAddToListMessage(
-          requestBodies.length > 1
-            ? `Added ${requestBodies.length} EVS disks to the list because totals above ${evsSingleDiskMaxGiB} GiB are split into ${evsSingleDiskMaxGiB} GiB chunks plus a final remainder disk.`
-            : "Product added to list.",
-        );
-      } else {
-        const createdPayload = await mutateListProduct(
-          `/api/lists/${selectedListId}/products`,
-          "POST",
-          requestBodies,
-          "Unable to add product to list",
-        );
-
-        appendProductToState(createdPayload);
-        setAddToListMessage("Product added to list.");
-      }
-
-      setEditingProductId(null);
-      setEditingProductListId(null);
-    } catch (error) {
-      setAddToListMessage(error instanceof Error ? error.message : "Unable to add product to list");
-    } finally {
-      setAddToListPending(false);
-    }
-  };
-
   const activeProjectCloneTargetRegion = activeProject ? projectCloneTargetRegions[activeProject.id] ?? "" : "";
   const activeProjectCloneTargetBillingMode = activeProject ? projectCloneTargetBillingModes[activeProject.id] ?? "" : "";
   const activeProjectCloneMessage = activeProject ? projectCloneMessages[activeProject.id] ?? "" : "";
@@ -2494,272 +1718,6 @@ export default function Home() {
   const isActiveProjectSyncing = activeProject ? syncingHuaweiProjectId === activeProject.id : false;
   const isActiveListLinking = activeList ? linkingHuaweiListId === activeList.id : false;
   const isActiveListCloning = activeList ? cloningListId === activeList.id : false;
-  const calculatorRegionOptions = Object.entries(huaweiRegions).map(([value, labels]) => ({
-    value,
-    label: labels.full,
-  }));
-  const flavorSortOptions = Object.entries(flavorSortLabels).map(([value, label]) => ({
-    value,
-    label,
-  }));
-  const evsSplitNotice = isEvsCalculator ? buildEvsSplitNotice(systemDiskSizeValue) : null;
-  const configurablePanelProps = configurableRuntime.panelProps;
-  const customCalculatorSelectionSummary = buildCalculatorSelectionSummary(
-    {
-      serviceCode: selectedServiceCode,
-      billingMode,
-      selectedFlavor,
-      selectedFlavorCard,
-      selectedFlexusLPlan,
-      vcpuValue,
-      ramValue,
-      systemDiskType,
-      systemDiskSize,
-      activeDiskSizeMin: activeDiskSizeBounds.min,
-      isGpSsd2Selected,
-      gpSsd2IopsValue,
-      gpSsd2ThroughputValue,
-      selectedDiskPrice,
-      selectedObsPricing: null,
-      obsProductType: "",
-      obsStorageClass: "",
-      obsRedundancy: "",
-      obsRestorationType: null,
-      obsStorageSizeValue: 0,
-      obsStorageUnit: "GB",
-      obsReadTrafficValue: 0,
-      obsReadTrafficUnit: "GB",
-      obsDurationMonthsValue: 1,
-      selectedEipPricing: null,
-      eipType: "",
-      eipChargeMode: "",
-      showEipBandwidth: false,
-      eipBandwidthMbitValue: 0,
-      showEipEnhanced95DurationMonths: false,
-      eipEnhanced95DurationMonthsValue: 1,
-      showEipSharedBandwidthQuantity: false,
-      eipSharedBandwidthQuantityValue: 1,
-      showEipTraffic: false,
-      eipTrafficAmountValue: 0,
-      eipTrafficUnit: "GB",
-      selectedElbPricing: null,
-      elbType: "",
-      elbSpecificationType: "",
-      elbFixedAvailabilityAzCount: 1,
-      elbFixedSelectedTypes: [],
-      normalizedElbFixedTypeSpecs: {},
-      elbSubAz: "",
-      elbNetworkType: "",
-      showElbSharedChargeMode: false,
-      elbSharedChargeMode: "",
-      showElbSharedBandwidth: false,
-      elbSharedBandwidthMbitValue: 0,
-      showElbSharedTraffic: false,
-      elbSharedTrafficAmountValue: 0,
-      elbSharedTrafficUnit: "GB",
-      selectedNatPricing: null,
-      natType: "",
-      natSize: "",
-      selectedVpnPricing: null,
-      vpnEdition: "",
-      vpnMode: "",
-      vpnNetworkType: "",
-      vpnSelectedSpecification: "",
-      showVpnPublicBandwidth: false,
-      vpnUseSharedBandwidth: false,
-      vpnEipBandwidthMbit1: "0",
-      vpnEipBandwidthMbit2: "0",
-      vpnDurationMonths: "1",
-      selectedModelArtsPricing: null,
-      modelArtsResourceType: "",
-      modelArtsSpecification: "",
-      modelArtsStorageQuotaValue: 0,
-      modelArtsQuantityValue: 1,
-      usageHoursValue,
-      modelArtsDurationMonthsValue: 1,
-      selectedCcePricing: null,
-      cceClusterScale: "",
-      cceMasterNodes: "",
-      evsDurationMonthsValue: 1,
-    },
-    formatFlavorAmount,
-  );
-  const customCalculatorSelectionNotes = useMemo(
-    () =>
-      buildCalculatorSelectionNotes(
-        {
-          serviceCode: selectedServiceCode,
-          selectedFlavorCard,
-          selectedDiskPrice,
-          selectedObsPricing: null,
-          obsRestorationType: null,
-          selectedEipPricing: null,
-          selectedElbPricing: null,
-          elbType: "",
-          elbSpecificationType: "",
-          elbFixedSelectedTypes: [],
-          normalizedElbFixedTypeSpecs: {},
-          elbFixedAvailabilityAzCount: 1,
-          selectedNatPricing: null,
-          selectedVpnPricing: null,
-          selectedModelArtsPricing: null,
-          selectedCcePricing: null,
-          isGpSsd2Selected,
-          evsSplitNotice,
-        },
-        formatFlavorAmount,
-      ),
-    [
-      evsSplitNotice,
-      isGpSsd2Selected,
-      selectedDiskPrice,
-      selectedFlavorCard,
-      selectedServiceCode,
-    ],
-  );
-  const calculatorSelectionSummary = configurableRuntime.isConfigurableService
-    ? (configurablePanelProps?.selectionSummary ?? "Selected specifications:")
-    : customCalculatorSelectionSummary;
-  const calculatorSelectionNotes = configurableRuntime.isConfigurableService
-    ? (configurablePanelProps?.selectionNotes ?? [])
-    : customCalculatorSelectionNotes;
-  const calculatorDiskNotes = useMemo(
-    () => [
-      ...(isGpSsd2Selected
-        ? ["Current estimate reflects capacity pricing only. Additional GPSSD2 IOPS and throughput charges are not modeled yet."]
-        : []),
-      ...(isEvsCalculator
-        ? [
-            `A single EVS disk can be up to ${evsSingleDiskMaxGiB} GiB. Entering a larger total will save multiple disks: ${evsSingleDiskMaxGiB} GiB chunks plus one final remainder disk.`,
-            ...(evsSplitNotice ? [evsSplitNotice] : []),
-          ]
-        : [`Minimum ${activeDiskSizeBounds.min} GiB, maximum ${activeDiskSizeBounds.max} GiB.`]),
-    ],
-    [activeDiskSizeBounds.max, activeDiskSizeBounds.min, evsSplitNotice, isEvsCalculator, isGpSsd2Selected],
-  );
-  const calculatorDiskConfigProps = {
-    mode: isEvsCalculator ? ("evs" as const) : ("ecs" as const),
-    systemDiskType,
-    systemDiskOptions,
-    onSystemDiskTypeChange: (value: string) => {
-      if (!value) {
-        return;
-      }
-      setSystemDiskType(value as (typeof systemDiskOptions)[number]);
-    },
-    systemDiskSize,
-    onSystemDiskSizeChange: (value: string) => {
-      if (value === "") {
-        setSystemDiskSize("");
-        return;
-      }
-      updateSystemDiskSize(value);
-    },
-    onSystemDiskSizeBlur: () => updateSystemDiskSize(systemDiskSize || String(activeDiskSizeBounds.min)),
-    onSystemDiskSizeStep: (delta: number) => updateSystemDiskSize(String(Number(systemDiskSize || String(activeDiskSizeBounds.min)) + delta)),
-    showGpSsd2Controls: isGpSsd2Selected,
-    gpSsd2Iops,
-    gpSsd2IopsRange,
-    onGpSsd2IopsChange: (value: string) => {
-      if (value === "") {
-        setGpSsd2Iops("");
-        return;
-      }
-      updateGpSsd2Iops(value);
-    },
-    onGpSsd2IopsBlur: () => updateGpSsd2Iops(gpSsd2Iops || String(gpSsd2IopsRange?.min ?? gpSsd2IopsBounds.min)),
-    gpSsd2Throughput,
-    gpSsd2ThroughputRange,
-    onGpSsd2ThroughputChange: (value: string) => {
-      if (value === "") {
-        setGpSsd2Throughput("");
-        return;
-      }
-      updateGpSsd2Throughput(value);
-    },
-    onGpSsd2ThroughputBlur: () =>
-      updateGpSsd2Throughput(gpSsd2Throughput || String(gpSsd2ThroughputRange?.min ?? gpSsd2ThroughputBounds.min)),
-    pricingError: undefined,
-    pricingLoadingMessage: null,
-    notes: calculatorDiskNotes,
-    selectionSummary: calculatorSelectionSummary,
-    selectionNotes: calculatorSelectionNotes,
-  };
-  const ecsPanelProps = {
-    minVcpuValue,
-    onMinVcpuChange: setMinVcpuValue,
-    minRamValue,
-    onMinRamChange: setMinRamValue,
-    flavorQuery,
-    onFlavorQueryChange: (value: string) => {
-      setFlavorQuery(value);
-      setFlavorPage(1);
-    },
-    flavorSort,
-    flavorSortOptions,
-    onFlavorSortChange: (value: string) => {
-      if (!value) {
-        return;
-      }
-      setFlavorSort(value);
-      setFlavorPage(1);
-    },
-    flavorPageSize,
-    flavorPageSizeOptions,
-    onFlavorPageSizeChange: (value: number) => {
-      if (!flavorPageSizeOptions.some((option) => option === value)) {
-        return;
-      }
-      setFlavorPageSize(value as (typeof flavorPageSizeOptions)[number]);
-      setFlavorPage(1);
-      window.localStorage.setItem(flavorPageSizeStorageKey, String(value));
-    },
-    catalogFlavorsError,
-    catalogFlavorsLastCompletedAt,
-    catalogFlavorsLoading,
-    visibleFlavors,
-    selectedFlavor,
-    onSelectFlavor: (name: string, vcpu: string, ram: string) => setCustomSelection({
-      selectedFlavor: name,
-      vcpuValue: vcpu,
-      ramValue: ram,
-    }),
-    currentFlavorPage,
-    totalFlavorPages,
-    onPreviousFlavorPage: () => setFlavorPage((page) => Math.max(1, page - 1)),
-    onNextFlavorPage: () => setFlavorPage((page) => Math.min(totalFlavorPages, page + 1)),
-    showFlexusLToggleVisible: canShowFlexusLInEcs,
-    showFlexusLChecked: showFlexusLInEcs,
-    onShowFlexusLChange: setShowFlexusLInEcs,
-    diskConfigProps: calculatorDiskConfigProps,
-  };
-  const flexusLPanelProps = {
-    plans: flexusLPlans.map((plan) => ({
-      id: plan.id,
-      title: plan.title,
-      vcpu: plan.vcpu,
-      ramGiB: plan.ramGiB,
-      systemDiskGiB: plan.systemDiskGiB,
-      peakBandwidthMbit: plan.peakBandwidthMbit,
-      dataPackageTiB: plan.dataPackageTiB,
-      monthlyPrice: formatFlavorAmount("USD", plan.monthlyPriceUsd, "/mo"),
-    })),
-    selectedPlanId: selectedFlexusLPlan?.id ?? "",
-    onSelectPlan: (planId: string) => {
-      const plan = findFlexusLPlan(planId);
-      if (!plan) {
-        return;
-      }
-      setCustomSelection({
-        selectedFlavor: plan.id,
-        vcpuValue: String(plan.vcpu),
-        ramValue: String(plan.ramGiB),
-      });
-    },
-    selectionSummary: calculatorSelectionSummary,
-    selectionNotes: calculatorSelectionNotes,
-    referenceNote: `Reference pricing uses Huawei Cloud's public Flexus L monthly catalog for ${flexusLPricingReference.region}.`,
-  };
   const selectedCartMenuItems: ActionMenuItem[] =
     selectedList && selectedProject
       ? [
@@ -3460,7 +2418,7 @@ export default function Home() {
                                   onChange={(event) => {
                                     const digitsOnly = event.target.value.replace(/\D/g, "");
                                     if (digitsOnly === "") {
-                                      setInstanceCount("");
+                                      updateInstanceCount("");
                                       return;
                                     }
                                     updateInstanceCount(digitsOnly);
@@ -3515,8 +2473,8 @@ export default function Home() {
                         </section>
                       </div>
 
-                      {activeRuntimeMeta.usesSharedBillingHeader ? (
-                        <section className={`grid gap-4 ${billingMode === "Pay-per-use" && configurableRuntime.showSharedUsageHours ? "xl:grid-cols-[minmax(0,1fr)_340px]" : ""}`}>
+                      {showBillingHeader ? (
+                        <section className={`grid gap-4 ${billingMode === "Pay-per-use" && showSharedUsageHours ? "xl:grid-cols-[minmax(0,1fr)_340px]" : ""}`}>
                           <div className="space-y-3">
                             <p className="text-sm font-medium">Billing Mode</p>
                             <OptionGrid
@@ -3524,11 +2482,10 @@ export default function Home() {
                               value={billingMode}
                               onChange={(value) => {
                                 setBillingMode(value);
-                                setFlavorPage(1);
                               }}
                             />
                           </div>
-                          {billingMode === "Pay-per-use" && configurableRuntime.showSharedUsageHours ? (
+                          {billingMode === "Pay-per-use" && showSharedUsageHours ? (
                             <div className="space-y-3">
                               <p className="text-sm font-medium">Usage Hours</p>
                               <div className="flex items-center gap-3">
@@ -3571,10 +2528,10 @@ export default function Home() {
                         </section>
                       ) : null}
                       <CalculatorPanelRouter
-                        activeServiceCode={selectedServiceCode}
-                        configurablePanel={configurablePanelProps}
-                        ecsPanel={ecsPanelProps}
-                        flexusLPanel={flexusLPanelProps}
+                        activeServiceCode={calculatorPanelProps.activeServiceCode}
+                        configurablePanel={calculatorPanelProps.configurablePanel as never}
+                        ecsPanel={calculatorPanelProps.ecsPanel as never}
+                        flexusLPanel={calculatorPanelProps.flexusLPanel as never}
                       />
                     </CardContent>
                   </>
@@ -3587,31 +2544,8 @@ export default function Home() {
               </TabsContent>
 
               <TabsContent value="batch-add">
-                {isSelectedServiceBatchAddImplemented ? (
-                  <ServiceBatchAddPanel
-                    mode={activeRuntimeMeta.batchMode ?? "ecs"}
-                    regionValue={regionValue}
-                    regionOptions={calculatorRegionOptions}
-                    onRegionChange={(value) => setRegionValue(value as HuaweiRegionKey)}
-                    batchInput={batchInput}
-                    onBatchInputChange={setBatchInput}
-                    batchAddMessage={batchAddMessage}
-                    systemDiskType={systemDiskType}
-                    systemDiskSizeValue={systemDiskSizeValue}
-                    evsSingleDiskMaxGiB={evsSingleDiskMaxGiB}
-                    obsProductType={obsProductType}
-                    obsStorageClass={obsStorageClass}
-                    obsRedundancy={obsRedundancy}
-                    obsStorageSizeValue={obsStorageSizeValue}
-                    obsStorageUnit={obsStorageUnit}
-                    obsDurationMonthsValue={obsDurationMonthsValue}
-                    showFlexusLToggleVisible={canShowFlexusLInEcs}
-                    showFlexusLChecked={showFlexusLInEcs}
-                    onShowFlexusLChange={setShowFlexusLInEcs}
-                    onSubmit={handleBatchAdd}
-                    submitDisabled={batchAddPending || !selectedListId || !isSignedIn}
-                    submitLabel={batchAddPending ? "Adding Batch..." : "Add Batch"}
-                  />
+                {isSelectedServiceBatchAddImplemented && batchPanelProps ? (
+                  <ServiceBatchAddPanel {...batchPanelProps} />
                 ) : (
                   <UnsupportedServicePanel
                     title={`Batch add not implemented yet for ${selectedService}`}
