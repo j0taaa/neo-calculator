@@ -22,7 +22,6 @@ import {
 import type { DashboardUrlState } from "@/lib/dashboard-url-state";
 import { findFlexusLPlan, flexusLPlans, flexusLPricingReference } from "@/lib/flexus-l-catalog";
 import { huaweiRegions, type HuaweiRegionKey } from "@/lib/huawei-regions";
-import { getCalculatorRuntimeMeta } from "@/lib/calculator-runtime-registry";
 import {
   getConfigurableServiceBundleByCode,
   supportedBatchAddServiceCodes,
@@ -33,7 +32,6 @@ import {
 import { useConfigurableServiceRuntime } from "@/lib/use-configurable-service-runtime";
 import { useCustomEcsCalculator } from "@/lib/use-custom-ecs-calculator";
 import {
-  buildEvsSplitNotice,
   ecsDiskSizeBounds,
   evsSingleDiskMaxGiB,
   getGpSsd2IopsBounds,
@@ -240,7 +238,6 @@ export function useCalculatorController({
   const selectedServiceCode = selectedServiceMeta.code;
   const selectedServiceBundle = getConfigurableServiceBundleByCode(selectedServiceCode);
   const selectedServiceDefinition: ServiceDefinition | null = selectedServiceBundle?.service ?? null;
-  const activeRuntimeMeta = getCalculatorRuntimeMeta(selectedServiceCode);
   const isSelectedServiceImplemented = supportedCalculatorServiceCodes.includes(selectedServiceCode);
   const isSelectedServiceBatchAddImplemented = supportedBatchAddServiceCodes.includes(selectedServiceCode);
 
@@ -269,7 +266,7 @@ export function useCalculatorController({
   const instanceCountValue = Number.isFinite(Number(instanceCount)) ? Math.max(1, Number(instanceCount)) : 1;
   const isEcsCalculator = selectedServiceCode === "ECS";
   const isFlexusLCalculator = selectedServiceCode === "Flexus L";
-  const isEvsCalculator = selectedServiceCode === "EVS";
+  const isCustomService = isEcsCalculator || isFlexusLCalculator;
   const canShowFlexusLInEcs = isEcsCalculator
     && (billingMode === "RI" || billingMode === "Yearly/Monthly" || (billingMode === "Pay-per-use" && (usageHoursValue === 730 || usageHoursValue === 744)));
   const systemDiskSizeValue = Number.isFinite(Number(systemDiskSize))
@@ -337,31 +334,39 @@ export function useCalculatorController({
     setCustomSelection,
   } = customEcsRuntime;
 
-  const selectedPrices = priceListEntries.filter((entry) => entry.service === selectedService);
-  const customCalculatorEstimate = buildCalculatorEstimate(
-    {
-      serviceCode: selectedServiceCode,
-      instanceCountValue,
-      selectedPrices,
-      selectedFlavorCard,
-      selectedFlexusLPlan,
-      selectedDiskPrice,
-      selectedObsPricing: null,
-      selectedEipPricing: null,
-      selectedElbPricing: null,
-      selectedNatPricing: null,
-      selectedVpnPricing: null,
-      selectedModelArtsPricing: null,
-      selectedCcePricing: null,
-    },
-    formatFlavorAmount,
+  const selectedPrices = useMemo(
+    () => (isCustomService ? priceListEntries.filter((entry) => entry.service === selectedService) : []),
+    [isCustomService, selectedService],
+  );
+  const customCalculatorEstimate = useMemo(
+    () => (
+      isCustomService
+        ? buildCalculatorEstimate(
+            {
+              serviceCode: selectedServiceCode,
+              instanceCountValue,
+              selectedPrices,
+              selectedFlavorCard,
+              selectedFlexusLPlan,
+              selectedDiskPrice,
+              selectedObsPricing: null,
+              selectedEipPricing: null,
+              selectedElbPricing: null,
+              selectedNatPricing: null,
+              selectedVpnPricing: null,
+              selectedModelArtsPricing: null,
+              selectedCcePricing: null,
+            },
+            formatFlavorAmount,
+          )
+        : { selectedEstimate: "USD 0.00", quantityLabel: "Instance", showGlobalQuantityControl: true }
+    ),
+    [instanceCountValue, isCustomService, selectedDiskPrice, selectedFlavorCard, selectedFlexusLPlan, selectedPrices, selectedServiceCode],
   );
 
-  const selectedEstimate = configurableRuntime.isConfigurableService ? configurableRuntime.selectedEstimate : customCalculatorEstimate.selectedEstimate;
-  const quantityLabel = configurableRuntime.isConfigurableService ? configurableRuntime.quantityLabel : customCalculatorEstimate.quantityLabel;
-  const showGlobalQuantityControl = configurableRuntime.isConfigurableService
-    ? configurableRuntime.showGlobalQuantityControl
-    : customCalculatorEstimate.showGlobalQuantityControl;
+  const selectedEstimate = isCustomService ? customCalculatorEstimate.selectedEstimate : configurableRuntime.selectedEstimate;
+  const quantityLabel = isCustomService ? customCalculatorEstimate.quantityLabel : configurableRuntime.quantityLabel;
+  const showGlobalQuantityControl = isCustomService ? customCalculatorEstimate.showGlobalQuantityControl : configurableRuntime.showGlobalQuantityControl;
   const selectedEstimateParts = splitPriceDisplay(selectedEstimate);
   const displayQuantityValue = showGlobalQuantityControl ? instanceCountValue : 1;
   const calculatorBillingOptions = useMemo(
@@ -448,142 +453,160 @@ export function useCalculatorController({
     setGpSsd2Throughput(String(normalizeGpSsd2Throughput(parsed, gpSsd2IopsValue ?? gpSsd2IopsBounds.min)));
   }, [gpSsd2IopsValue]);
 
-  const evsBatchSnapshot = configurableRuntime.batchSnapshot.evs;
-  const obsBatchSnapshot = configurableRuntime.batchSnapshot.obs;
-  const evsSplitNotice = isEvsCalculator ? buildEvsSplitNotice(systemDiskSizeValue) : null;
-
-  const customCalculatorSelectionSummary = buildCalculatorSelectionSummary(
-    {
-      serviceCode: selectedServiceCode,
+  const customCalculatorSelectionSummary = useMemo(
+    () => (
+      isCustomService
+        ? buildCalculatorSelectionSummary(
+            {
+              serviceCode: selectedServiceCode,
+              billingMode,
+              selectedFlavor,
+              selectedFlavorCard,
+              selectedFlexusLPlan,
+              vcpuValue,
+              ramValue,
+              systemDiskType,
+              systemDiskSize,
+              activeDiskSizeMin: activeDiskSizeBounds.min,
+              isGpSsd2Selected,
+              gpSsd2IopsValue,
+              gpSsd2ThroughputValue,
+              selectedDiskPrice,
+              selectedObsPricing: null,
+              obsProductType: "",
+              obsStorageClass: "",
+              obsRedundancy: "",
+              obsRestorationType: null,
+              obsStorageSizeValue: 0,
+              obsStorageUnit: "GB",
+              obsReadTrafficValue: 0,
+              obsReadTrafficUnit: "GB",
+              obsDurationMonthsValue: 1,
+              selectedEipPricing: null,
+              eipType: "",
+              eipChargeMode: "",
+              showEipBandwidth: false,
+              eipBandwidthMbitValue: 0,
+              showEipEnhanced95DurationMonths: false,
+              eipEnhanced95DurationMonthsValue: 1,
+              showEipSharedBandwidthQuantity: false,
+              eipSharedBandwidthQuantityValue: 1,
+              showEipTraffic: false,
+              eipTrafficAmountValue: 0,
+              eipTrafficUnit: "GB",
+              selectedElbPricing: null,
+              elbType: "",
+              elbSpecificationType: "",
+              elbFixedAvailabilityAzCount: 1,
+              elbFixedSelectedTypes: [],
+              normalizedElbFixedTypeSpecs: {},
+              elbSubAz: "",
+              elbNetworkType: "",
+              showElbSharedChargeMode: false,
+              elbSharedChargeMode: "",
+              showElbSharedBandwidth: false,
+              elbSharedBandwidthMbitValue: 0,
+              showElbSharedTraffic: false,
+              elbSharedTrafficAmountValue: 0,
+              elbSharedTrafficUnit: "GB",
+              selectedNatPricing: null,
+              natType: "",
+              natSize: "",
+              selectedVpnPricing: null,
+              vpnEdition: "",
+              vpnMode: "",
+              vpnNetworkType: "",
+              vpnSelectedSpecification: "",
+              showVpnPublicBandwidth: false,
+              vpnUseSharedBandwidth: false,
+              vpnEipBandwidthMbit1: "0",
+              vpnEipBandwidthMbit2: "0",
+              vpnDurationMonths: "1",
+              selectedModelArtsPricing: null,
+              modelArtsResourceType: "",
+              modelArtsSpecification: "",
+              modelArtsStorageQuotaValue: 0,
+              modelArtsQuantityValue: 1,
+              usageHoursValue,
+              modelArtsDurationMonthsValue: 1,
+              selectedCcePricing: null,
+              cceClusterScale: "",
+              cceMasterNodes: "",
+              evsDurationMonthsValue: 1,
+            },
+            formatFlavorAmount,
+          )
+        : "Selected specifications:"
+    ),
+    [
+      activeDiskSizeBounds.min,
       billingMode,
+      gpSsd2IopsValue,
+      gpSsd2ThroughputValue,
+      isCustomService,
+      isGpSsd2Selected,
+      ramValue,
+      selectedDiskPrice,
       selectedFlavor,
       selectedFlavorCard,
       selectedFlexusLPlan,
-      vcpuValue,
-      ramValue,
-      systemDiskType,
+      selectedServiceCode,
       systemDiskSize,
-      activeDiskSizeMin: activeDiskSizeBounds.min,
-      isGpSsd2Selected,
-      gpSsd2IopsValue,
-      gpSsd2ThroughputValue,
-      selectedDiskPrice,
-      selectedObsPricing: null,
-      obsProductType: "",
-      obsStorageClass: "",
-      obsRedundancy: "",
-      obsRestorationType: null,
-      obsStorageSizeValue: 0,
-      obsStorageUnit: "GB",
-      obsReadTrafficValue: 0,
-      obsReadTrafficUnit: "GB",
-      obsDurationMonthsValue: 1,
-      selectedEipPricing: null,
-      eipType: "",
-      eipChargeMode: "",
-      showEipBandwidth: false,
-      eipBandwidthMbitValue: 0,
-      showEipEnhanced95DurationMonths: false,
-      eipEnhanced95DurationMonthsValue: 1,
-      showEipSharedBandwidthQuantity: false,
-      eipSharedBandwidthQuantityValue: 1,
-      showEipTraffic: false,
-      eipTrafficAmountValue: 0,
-      eipTrafficUnit: "GB",
-      selectedElbPricing: null,
-      elbType: "",
-      elbSpecificationType: "",
-      elbFixedAvailabilityAzCount: 1,
-      elbFixedSelectedTypes: [],
-      normalizedElbFixedTypeSpecs: {},
-      elbSubAz: "",
-      elbNetworkType: "",
-      showElbSharedChargeMode: false,
-      elbSharedChargeMode: "",
-      showElbSharedBandwidth: false,
-      elbSharedBandwidthMbitValue: 0,
-      showElbSharedTraffic: false,
-      elbSharedTrafficAmountValue: 0,
-      elbSharedTrafficUnit: "GB",
-      selectedNatPricing: null,
-      natType: "",
-      natSize: "",
-      selectedVpnPricing: null,
-      vpnEdition: "",
-      vpnMode: "",
-      vpnNetworkType: "",
-      vpnSelectedSpecification: "",
-      showVpnPublicBandwidth: false,
-      vpnUseSharedBandwidth: false,
-      vpnEipBandwidthMbit1: "0",
-      vpnEipBandwidthMbit2: "0",
-      vpnDurationMonths: "1",
-      selectedModelArtsPricing: null,
-      modelArtsResourceType: "",
-      modelArtsSpecification: "",
-      modelArtsStorageQuotaValue: 0,
-      modelArtsQuantityValue: 1,
+      systemDiskType,
       usageHoursValue,
-      modelArtsDurationMonthsValue: 1,
-      selectedCcePricing: null,
-      cceClusterScale: "",
-      cceMasterNodes: "",
-      evsDurationMonthsValue: 1,
-    },
-    formatFlavorAmount,
+      vcpuValue,
+    ],
   );
 
   const customCalculatorSelectionNotes = useMemo(
-    () =>
-      buildCalculatorSelectionNotes(
-        {
-          serviceCode: selectedServiceCode,
-          selectedFlavorCard,
-          selectedDiskPrice,
-          selectedObsPricing: null,
-          obsRestorationType: null,
-          selectedEipPricing: null,
-          selectedElbPricing: null,
-          elbType: "",
-          elbSpecificationType: "",
-          elbFixedSelectedTypes: [],
-          normalizedElbFixedTypeSpecs: {},
-          elbFixedAvailabilityAzCount: 1,
-          selectedNatPricing: null,
-          selectedVpnPricing: null,
-          selectedModelArtsPricing: null,
-          selectedCcePricing: null,
-          isGpSsd2Selected,
-          evsSplitNotice,
-        },
-        formatFlavorAmount,
-      ),
-    [evsSplitNotice, isGpSsd2Selected, selectedDiskPrice, selectedFlavorCard, selectedServiceCode],
+    () => (
+      isCustomService
+        ? buildCalculatorSelectionNotes(
+            {
+              serviceCode: selectedServiceCode,
+              selectedFlavorCard,
+              selectedDiskPrice,
+              selectedObsPricing: null,
+              obsRestorationType: null,
+              selectedEipPricing: null,
+              selectedElbPricing: null,
+              elbType: "",
+              elbSpecificationType: "",
+              elbFixedSelectedTypes: [],
+              normalizedElbFixedTypeSpecs: {},
+              elbFixedAvailabilityAzCount: 1,
+              selectedNatPricing: null,
+              selectedVpnPricing: null,
+              selectedModelArtsPricing: null,
+              selectedCcePricing: null,
+              isGpSsd2Selected,
+              evsSplitNotice: null,
+            },
+            formatFlavorAmount,
+          )
+        : []
+    ),
+    [isCustomService, isGpSsd2Selected, selectedDiskPrice, selectedFlavorCard, selectedServiceCode],
   );
 
-  const calculatorSelectionSummary = configurableRuntime.isConfigurableService
-    ? (configurableRuntime.panelProps?.selectionSummary ?? "Selected specifications:")
-    : customCalculatorSelectionSummary;
-  const calculatorSelectionNotes = configurableRuntime.isConfigurableService
-    ? (configurableRuntime.panelProps?.selectionNotes ?? [])
-    : customCalculatorSelectionNotes;
+  const calculatorSelectionSummary = isCustomService
+    ? customCalculatorSelectionSummary
+    : (configurableRuntime.panelProps?.selectionSummary ?? "Selected specifications:");
+  const calculatorSelectionNotes = isCustomService
+    ? customCalculatorSelectionNotes
+    : (configurableRuntime.panelProps?.selectionNotes ?? []);
   const calculatorDiskNotes = useMemo(
     () => [
       ...(isGpSsd2Selected
         ? ["Current estimate reflects capacity pricing only. Additional GPSSD2 IOPS and throughput charges are not modeled yet."]
         : []),
-      ...(isEvsCalculator
-        ? [
-            `A single EVS disk can be up to ${evsSingleDiskMaxGiB} GiB. Entering a larger total will save multiple disks: ${evsSingleDiskMaxGiB} GiB chunks plus one final remainder disk.`,
-            ...(evsSplitNotice ? [evsSplitNotice] : []),
-          ]
-        : [`Minimum ${activeDiskSizeBounds.min} GiB, maximum ${activeDiskSizeBounds.max} GiB.`]),
+      `Minimum ${activeDiskSizeBounds.min} GiB, maximum ${activeDiskSizeBounds.max} GiB.`,
     ],
-    [activeDiskSizeBounds.max, activeDiskSizeBounds.min, evsSplitNotice, isEvsCalculator, isGpSsd2Selected],
+    [activeDiskSizeBounds.max, activeDiskSizeBounds.min, isGpSsd2Selected],
   );
 
   const calculatorDiskConfigProps = {
-    mode: isEvsCalculator ? ("evs" as const) : ("ecs" as const),
+    mode: "ecs" as const,
     systemDiskType,
     systemDiskOptions,
     onSystemDiskTypeChange: (value: string) => value && setSystemDiskType(value as SystemDiskOption),
@@ -724,24 +747,19 @@ export function useCalculatorController({
       };
     }
 
-    if (selectedServiceCode === "EVS" || selectedServiceCode === "OBS") {
+    if (configurableRuntime.isConfigurableService && configurableRuntime.batchPanel) {
       return {
-        mode: selectedServiceCode === "EVS" ? "evs" : "obs",
+        kind: "declarative" as const,
         regionValue,
         regionOptions: calculatorRegionOptions,
         onRegionChange: (value: string) => setRegionValue(value as HuaweiRegionKey),
         batchInput,
         onBatchInputChange: setBatchInput,
         batchAddMessage,
-        systemDiskType,
-        systemDiskSizeValue,
-        evsSingleDiskMaxGiB,
-        obsProductType: obsBatchSnapshot.productType,
-        obsStorageClass: obsBatchSnapshot.storageClass,
-        obsRedundancy: obsBatchSnapshot.redundancy,
-        obsStorageSizeValue: obsBatchSnapshot.storageSizeValue,
-        obsStorageUnit: obsBatchSnapshot.storageUnit,
-        obsDurationMonthsValue: obsBatchSnapshot.durationMonthsValue,
+        placeholder: configurableRuntime.batchPanel.placeholder,
+        description: configurableRuntime.batchPanel.description,
+        defaults: configurableRuntime.batchPanel.defaults,
+        validation: configurableRuntime.batchPanel.validation,
         onSubmit: () => void 0,
         submitDisabled: true,
         submitLabel: "Add Batch",
@@ -757,14 +775,9 @@ export function useCalculatorController({
     isEcsCalculator,
     isFlexusLCalculator,
     isSelectedServiceBatchAddImplemented,
-    obsBatchSnapshot.durationMonthsValue,
-    obsBatchSnapshot.productType,
-    obsBatchSnapshot.redundancy,
-    obsBatchSnapshot.storageClass,
-    obsBatchSnapshot.storageSizeValue,
-    obsBatchSnapshot.storageUnit,
+    configurableRuntime.batchPanel,
+    configurableRuntime.isConfigurableService,
     regionValue,
-    selectedServiceCode,
     setRegionValue,
     showFlexusLInEcs,
     systemDiskSizeValue,
@@ -968,8 +981,11 @@ export function useCalculatorController({
         }
 
         setAddToListMessage(
-          selectedServiceCode === "EVS" && extraBodies.length > 0
-            ? `Product updated and split into ${requestBodies.length} EVS disks because totals above ${evsSingleDiskMaxGiB} GiB are saved in chunks.`
+          configurableRuntime.isConfigurableService
+            ? (configurableRuntime.getUpdateSuccessMessage({
+                requestBodiesCount: requestBodies.length,
+                extraRequestBodiesCount: extraBodies.length,
+              }) ?? "Product updated.")
             : "Product updated.",
         );
       } else {
@@ -984,8 +1000,8 @@ export function useCalculatorController({
         }
 
         setAddToListMessage(
-          selectedServiceCode === "EVS" && requestBodies.length > 1
-            ? `Added ${requestBodies.length} EVS disks to the list because totals above ${evsSingleDiskMaxGiB} GiB are split into ${evsSingleDiskMaxGiB} GiB chunks plus a final remainder disk.`
+          configurableRuntime.isConfigurableService
+            ? (configurableRuntime.getAddSuccessMessage({ requestBodiesCount: requestBodies.length }) ?? "Product added to list.")
             : "Product added to list.",
         );
       }
@@ -1046,11 +1062,6 @@ export function useCalculatorController({
       setBatchAddMessage("ECS flavors are not loaded yet.");
       return;
     }
-    if (selectedServiceCode === "EVS" && !evsBatchSnapshot.diskPricing) {
-      setBatchAddMessage("EVS pricing is not loaded yet.");
-      return;
-    }
-
     let parsedInput: unknown;
     try {
       parsedInput = JSON.parse(batchInput);
@@ -1067,7 +1078,7 @@ export function useCalculatorController({
     setBatchAddPending(true);
     setBatchAddMessage("");
     let createdCount = 0;
-    let splitDiskCount = 0;
+    let expandedCount = 0;
 
     try {
       for (let index = 0; index < parsedInput.length; index += 1) {
@@ -1092,9 +1103,7 @@ export function useCalculatorController({
           throw new Error(`Item ${index + 1} could not be converted into products.`);
         }
 
-        if (selectedServiceCode === "EVS") {
-          splitDiskCount += Math.max(0, requestBodies.length - 1);
-        }
+        expandedCount += Math.max(0, requestBodies.length - 1);
 
         for (const [chunkIndex, requestBody] of requestBodies.entries()) {
           const payload = await mutateListProduct(
@@ -1109,11 +1118,15 @@ export function useCalculatorController({
       }
 
       setBatchAddMessage(
-        splitDiskCount > 0
-          ? `Added ${createdCount} products to the list. ${splitDiskCount} extra EVS split disk${splitDiskCount === 1 ? "" : "s"} were created for sizes above ${evsSingleDiskMaxGiB} GiB.`
-          : createdCount === 1
-            ? "Added 1 product to the list."
-            : `Added ${createdCount} products to the list.`,
+        configurableRuntime.isConfigurableService
+          ? (
+              configurableRuntime.getBatchSuccessMessage({
+                createdCount,
+                expandedCount,
+              })
+              ?? (createdCount === 1 ? "Added 1 product to the list." : `Added ${createdCount} products to the list.`)
+            )
+          : (createdCount === 1 ? "Added 1 product to the list." : `Added ${createdCount} products to the list.`),
       );
     } catch (error) {
       setBatchAddMessage(
@@ -1133,7 +1146,6 @@ export function useCalculatorController({
     catalogFlavors,
     configurableRuntime,
     diskPricing,
-    evsBatchSnapshot.diskPricing,
     isEcsCalculator,
     isFlexusLCalculator,
     isSelectedServiceBatchAddImplemented,
@@ -1216,7 +1228,7 @@ export function useCalculatorController({
   return {
     isSelectedServiceImplemented,
     isSelectedServiceBatchAddImplemented,
-    showBillingHeader: activeRuntimeMeta.usesSharedBillingHeader,
+    showBillingHeader: configurableRuntime.isConfigurableService ? configurableRuntime.usesSharedBillingHeader : true,
     calculatorBillingOptions,
     showSharedUsageHours: configurableRuntime.showSharedUsageHours,
     selectedEstimate,

@@ -6,14 +6,22 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 
-type ServiceBatchAddPanelProps = {
-  mode: "ecs" | "flexus-l" | "evs" | "obs";
+type SharedBatchPanelProps = {
+  kind?: "custom" | "declarative";
   regionValue: string;
   regionOptions: Array<{ value: string; label: string }>;
   onRegionChange: (value: string) => void;
   batchInput: string;
   onBatchInputChange: (value: string) => void;
   batchAddMessage: string;
+  onSubmit: () => void;
+  submitDisabled: boolean;
+  submitLabel: string;
+};
+
+type CustomBatchAddPanelProps = SharedBatchPanelProps & {
+  kind?: "custom";
+  mode: "ecs" | "flexus-l" | "evs" | "obs";
   systemDiskType: string;
   systemDiskSizeValue: number;
   evsSingleDiskMaxGiB: number;
@@ -26,35 +34,120 @@ type ServiceBatchAddPanelProps = {
   showFlexusLToggleVisible?: boolean;
   showFlexusLChecked?: boolean;
   onShowFlexusLChange?: (checked: boolean) => void;
-  onSubmit: () => void;
-  submitDisabled: boolean;
-  submitLabel: string;
 };
 
-export function ServiceBatchAddPanel({
-  mode,
-  regionValue,
-  regionOptions,
-  onRegionChange,
-  batchInput,
-  onBatchInputChange,
-  batchAddMessage,
-  systemDiskType,
-  systemDiskSizeValue,
-  evsSingleDiskMaxGiB,
-  obsProductType = "Object storage",
-  obsStorageClass = "Standard",
-  obsRedundancy = "Single-AZ storage",
-  obsStorageSizeValue = 100,
-  obsStorageUnit = "GB",
-  obsDurationMonthsValue = 1,
-  showFlexusLToggleVisible = false,
-  showFlexusLChecked = false,
-  onShowFlexusLChange,
-  onSubmit,
-  submitDisabled,
-  submitLabel,
-}: ServiceBatchAddPanelProps) {
+type DeclarativeBatchAddPanelProps = SharedBatchPanelProps & {
+  kind: "declarative";
+  placeholder: string;
+  description: string;
+  defaults: string;
+  validation: string;
+};
+
+type ServiceBatchAddPanelProps = CustomBatchAddPanelProps | DeclarativeBatchAddPanelProps;
+
+export function ServiceBatchAddPanel(props: ServiceBatchAddPanelProps) {
+  if (props.kind === "declarative") {
+    const {
+      regionValue,
+      regionOptions,
+      onRegionChange,
+      batchInput,
+      onBatchInputChange,
+      batchAddMessage,
+      placeholder,
+      description,
+      defaults,
+      validation,
+      onSubmit,
+      submitDisabled,
+      submitLabel,
+    } = props;
+
+    return (
+      <>
+        <CardContent className="space-y-6 py-5">
+          <div className="space-y-2">
+            <p className="text-sm font-medium">Region</p>
+            <Select
+              value={regionValue}
+              onValueChange={(value) => {
+                if (value) {
+                  onRegionChange(value);
+                }
+              }}
+            >
+              <SelectTrigger className="max-w-sm bg-white">
+                <SelectValue>{regionOptions.find((option) => option.value === regionValue)?.label ?? regionValue}</SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                {regionOptions.map((option) => (
+                  <SelectItem key={option.value} value={option.value}>
+                    {option.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-2">
+            <p className="text-sm font-medium">Batch input</p>
+            <textarea
+              value={batchInput}
+              onChange={(event) => onBatchInputChange(event.target.value)}
+              className="min-h-48 w-full rounded-xl border border-zinc-200 bg-white px-3 py-3 text-sm text-zinc-900 outline-none transition focus:border-zinc-400 focus:ring-3 focus:ring-zinc-200"
+              placeholder={placeholder}
+            />
+            <p className="text-sm text-zinc-500">{description}</p>
+            {batchAddMessage ? <p className="text-sm text-zinc-500">{batchAddMessage}</p> : null}
+          </div>
+
+          <div className="grid gap-4 md:grid-cols-2">
+            <div className="rounded-lg border bg-zinc-50 p-4">
+              <p className="text-sm font-medium text-zinc-900">Defaults</p>
+              <p className="mt-1 whitespace-pre-line text-sm text-zinc-500">{defaults}</p>
+            </div>
+            <div className="rounded-lg border bg-zinc-50 p-4">
+              <p className="text-sm font-medium text-zinc-900">Validation</p>
+              <p className="mt-1 whitespace-pre-line text-sm text-zinc-500">{validation}</p>
+            </div>
+          </div>
+        </CardContent>
+        <Separator />
+        <div className="flex justify-end p-4">
+          <Button onClick={onSubmit} disabled={submitDisabled}>
+            {submitLabel}
+          </Button>
+        </div>
+      </>
+    );
+  }
+
+  const {
+    mode,
+    regionValue,
+    regionOptions,
+    onRegionChange,
+    batchInput,
+    onBatchInputChange,
+    batchAddMessage,
+    systemDiskType,
+    systemDiskSizeValue,
+    evsSingleDiskMaxGiB,
+    obsProductType = "Object storage",
+    obsStorageClass = "Standard",
+    obsRedundancy = "Single-AZ storage",
+    obsStorageSizeValue = 100,
+    obsStorageUnit = "GB",
+    obsDurationMonthsValue = 1,
+    showFlexusLToggleVisible = false,
+    showFlexusLChecked = false,
+    onShowFlexusLChange,
+    onSubmit,
+    submitDisabled,
+    submitLabel,
+  } = props;
+
   const isEcs = mode === "ecs";
   const isFlexusL = mode === "flexus-l";
   const isObs = mode === "obs";
