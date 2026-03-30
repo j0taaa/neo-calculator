@@ -209,3 +209,63 @@ test("RDS estimator matches the documented example prices", () => {
   expect(pgDedRr?.amount).toBeCloseTo(175.88, 2);
   expect(pgDedHa?.amount).toBeCloseTo(530.32, 2);
 });
+
+test("RDS estimator uses the direct Brazil Flexible SSD rates for MySQL general-purpose HA", () => {
+  const brazilFixture = {
+    product: {
+      "rds_rds.vm": [
+        {
+          engineType: "MySQL",
+          dbVersion: "dataInfo_57_",
+          instanceClass: "General-purpose",
+          cpu: "2Core",
+          mem: "8192MB",
+          resourceSpecCode: "rds.mysql.n1.large.4.ha",
+          productSpecSysDesc: "DB Engine:MySQL;DB Engine Version:5.6|5.7|8.0;DB Instance Type:Primary/Standby;Storage Type:Flexible SSD;Instance Class:General-purpose;vCPU:2Core;Memory:8192MB",
+          planList: [{ billingMode: "ONDEMAND", amount: 0.3, productId: "br-mysql-gp-ha-2-8" }],
+        },
+      ],
+      "rds_rds.volume": [
+        {
+          engineType: "MySQL",
+          resourceSpecCode: "rds.mysql.volume.gpssd2.ha",
+          productSpecSysDesc: "Volume Type:Flexible SSD;DB Engine:MySQL;DB Instance Type:Primary/Standby",
+          planList: [{ billingMode: "ONDEMAND", amount: 0.000396, productId: "br-mysql-flex-ha" }],
+        },
+        {
+          engineType: "MySQL",
+          resourceSpecCode: "rds.mysql.volume.gpssd2.throughput.ha",
+          productSpecSysDesc: "Volume Type:Flexible SSD throughput;DB Engine:MySQL;DB Instance Type:Primary/Standby",
+          planList: [{ billingMode: "ONDEMAND", amount: 0.00019726, productId: "br-mysql-flex-ha-throughput" }],
+        },
+        {
+          engineType: "MySQL",
+          resourceSpecCode: "rds.mysql.volume.gpssd2.iops.ha",
+          productSpecSysDesc: "Volume Type:Flexible SSD IOPS;DB Engine:MySQL;DB Instance Type:Primary/Standby",
+          planList: [{ billingMode: "ONDEMAND", amount: 0.00002466, productId: "br-mysql-flex-ha-iops" }],
+        },
+      ],
+    },
+  };
+  const catalog = parseRdsPricingCatalogResponse(brazilFixture, "sa-brazil-1");
+  const estimate = estimateRdsConfiguration(catalog, {
+    engine: "MySQL",
+    version: "8.0",
+    instanceType: "Primary/Standby",
+    instanceClass: "General-purpose",
+    size: "2 vCPUs, 8 GB",
+    storageType: "Flexible SSD",
+    storageSizeGb: 40,
+    iops: 3000,
+    throughputMibps: 125,
+    usageHours: 744,
+    quantity: 1,
+  });
+
+  expect(estimate?.amount).toBeCloseTo(234.98, 2);
+  expect(estimate?.computeAmount).toBeCloseTo(223.2, 2);
+  expect(estimate?.storageAmount).toBeCloseTo(11.78, 2);
+  expect(estimate?.memorySurchargeAmount).toBe(0);
+  expect(estimate?.throughputAmount).toBe(0);
+  expect(estimate?.iopsAmount).toBe(0);
+});
