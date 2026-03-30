@@ -17,7 +17,8 @@ export const serviceRegistryDocument = {
     "Workspace",
     "DCS",
     "FunctionGraph",
-    "RDS"
+    "RDS",
+    "Flexus RDS"
   ],
   "supportedBatchAddServiceCodes": [
     "ECS",
@@ -117,6 +118,13 @@ export const serviceRegistryDocument = {
       "definitionId": "rds",
       "serviceDefinitionPath": "./rds/bundle.ts",
       "pricingDefinitionPath": "./rds/bundle.ts",
+      "status": "active"
+    },
+    {
+      "serviceCode": "Flexus RDS",
+      "definitionId": "flexus-rds",
+      "serviceDefinitionPath": "./flexus-rds/bundle.ts",
+      "pricingDefinitionPath": "./flexus-rds/bundle.ts",
       "status": "active"
     }
   ],

@@ -331,7 +331,7 @@ export function getProductConfigSummary(product: AppProduct): string {
     return parts.join(" · ") || product.serviceName;
   }
 
-  if (product.productType === "rds") {
+  if (product.productType === "rds" || product.productType === "flexus-rds") {
     const parts = [
       typeof product.config.region === "string" ? product.config.region : null,
       typeof product.config.engine === "string" ? product.config.engine : null,
@@ -345,7 +345,9 @@ export function getProductConfigSummary(product: AppProduct): string {
       typeof product.config.iops === "number" ? `${product.config.iops} IOPS` : null,
       typeof product.config.throughputMibps === "number" ? `${product.config.throughputMibps} MiB/s` : null,
       typeof product.config.billingMode === "string" ? product.config.billingMode : null,
-      typeof product.config.usageHours === "number" ? `${product.config.usageHours}h` : null,
+      typeof product.config.durationMonths === "number"
+        ? product.config.durationMonths === 12 ? "1yr" : `${product.config.durationMonths}mo`
+        : typeof product.config.usageHours === "number" ? `${product.config.usageHours}h` : null,
     ].filter(Boolean);
 
     return parts.join(" · ") || product.serviceName;

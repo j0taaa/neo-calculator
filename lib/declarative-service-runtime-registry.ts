@@ -4,6 +4,7 @@ import { configurableServiceBundle as dcsBundle } from "@/config/services/dcs/bu
 import { configurableServiceBundle as eipBundle } from "@/config/services/eip/bundle";
 import { configurableServiceBundle as elbBundle } from "@/config/services/elb/bundle";
 import { configurableServiceBundle as evsBundle } from "@/config/services/evs/bundle";
+import { configurableServiceBundle as flexusRdsBundle } from "@/config/services/flexus-rds/bundle";
 import { configurableServiceBundle as functionGraphBundle } from "@/config/services/functiongraph/bundle";
 import { configurableServiceBundle as modelArtsBundle } from "@/config/services/modelarts/bundle";
 import { configurableServiceBundle as natBundle } from "@/config/services/nat/bundle";
@@ -24,6 +25,7 @@ const typedRuntimeDefinitions = {
   VPN: vpnBundle.runtime,
   Workspace: workspaceBundle.runtime,
   FunctionGraph: functionGraphBundle.runtime,
+  "Flexus RDS": flexusRdsBundle.runtime,
   RDS: rdsBundle.runtime,
   NAT: natBundle.runtime,
   EIP: eipBundle.runtime,

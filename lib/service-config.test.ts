@@ -49,7 +49,7 @@ test("EVS pilot pricing definition links metrics to normalized catalog rate sour
 });
 
 test("additional configurable service definitions load from typed TS config", () => {
-  expect(configurableServiceCodes).toEqual(expect.arrayContaining(["OBS", "EIP", "ELB", "NAT", "VPN", "CCE", "CCI", "ModelArts", "Workspace", "DCS", "FunctionGraph", "RDS"]));
+  expect(configurableServiceCodes).toEqual(expect.arrayContaining(["OBS", "EIP", "ELB", "NAT", "VPN", "CCE", "CCI", "ModelArts", "Workspace", "DCS", "FunctionGraph", "RDS", "Flexus RDS"]));
 
   expect(getConfigurableServiceDefinitionByCode("OBS")?.implementation).toBe("configurable");
   expect(getConfigurableServiceDefinitionByCode("ELB")?.implementation).toBe("configurable");
@@ -117,4 +117,16 @@ test("additional configurable service definitions load from typed TS config", ()
     "quantity",
   ]);
   expect(getConfigurablePricingDefinitionByCode("RDS")?.catalogAdapter).toBe("rds");
+  expect(getConfigurableServiceDefinitionByCode("Flexus RDS")?.fields.map((field) => field.id)).toEqual([
+    "engine",
+    "version",
+    "instanceType",
+    "instanceClass",
+    "size",
+    "storageType",
+    "storageSizeGb",
+    "durationMonths",
+    "quantity",
+  ]);
+  expect(getConfigurablePricingDefinitionByCode("Flexus RDS")?.catalogAdapter).toBe("flexus-rds");
 });

@@ -8,6 +8,7 @@ import { estimateModelArtsConfiguration, listModelArtsResourceTypes, listModelAr
 import { estimateVpnConfiguration, getFallbackVpnPricingCatalog, getVpnBillingOptions, listVpnModes, listVpnSpecifications, shouldShowVpnPublicBandwidth, vpnDefaults, vpnPricingReference } from "@/lib/vpn-catalog";
 import { estimateWorkspaceConfiguration, listWorkspaceCpuOptions, listWorkspaceDiskTypes, listWorkspaceMemoryOptions, workspaceDefaults, workspacePricingReference } from "@/lib/workspace-catalog";
 import { estimateFunctionGraphConfiguration, functionGraphDefaults, functionGraphPricingReference, getFallbackFunctionGraphPricingCatalog } from "@/lib/functiongraph-catalog";
+import { estimateFlexusRdsConfiguration, flexusRdsDefaults, flexusRdsPricingReference, listFlexusRdsEngines, listFlexusRdsInstanceTypes, listFlexusRdsSizes, listFlexusRdsVersions } from "@/lib/flexus-rds-catalog";
 import { estimateRdsConfiguration, isRdsEngine, isRdsInstanceClass, isRdsInstanceType, isRdsStorageType, isRdsVersion, listRdsEngines, listRdsInstanceClasses, listRdsInstanceTypes, listRdsSizes, listRdsStorageTypes, listRdsVersions, rdsDefaults, rdsPricingReference } from "@/lib/rds-catalog";
 import { buildEvsProductMutationBodies, buildEvsSplitNotice, evsDiskSizeBounds, formatObsRequestInputValue, getGpSsd2IopsBounds, getGpSsd2RequestedIops, getGpSsd2RequestedThroughput, getGpSsd2ThroughputBounds, getObsRequestUnits, normalizeGpSsd2Iops, normalizeGpSsd2Throughput, obsStorageSizeBounds, parsePositiveNumber, splitEvsDiskSizes, systemDiskOptions } from "@/lib/configurable-runtime-utils";
 import { getBatchDescription, getBatchDiskSize, getBatchDiskType, getBatchObsAmount, getBatchObsProductType, getBatchObsRedundancy, getBatchObsStorageClass, getBatchObsStorageSize, getBatchObsUnit, getNestedRecord, parseBatchQuantity } from "@/lib/batch-input-utils";
@@ -160,6 +161,7 @@ export const declarativeRuntimeHelpers = {
   estimateModelArtsConfiguration,
   estimateWorkspaceConfiguration,
   estimateFunctionGraphConfiguration,
+  estimateFlexusRdsConfiguration,
   estimateRdsConfiguration,
   estimateDcsConfiguration,
   getElbBillingOptions,
@@ -184,6 +186,10 @@ export const declarativeRuntimeHelpers = {
   listWorkspaceMemoryOptions,
   listWorkspaceDiskTypes,
   listRdsEngines,
+  listFlexusRdsEngines,
+  listFlexusRdsVersions,
+  listFlexusRdsInstanceTypes,
+  listFlexusRdsSizes,
   listRdsVersions,
   listRdsInstanceTypes,
   listRdsInstanceClasses,
@@ -235,6 +241,7 @@ export const declarativeRuntimeHelpers = {
   vpnDefaults,
   workspaceDefaults,
   functionGraphDefaults,
+  flexusRdsDefaults,
   rdsDefaults,
   eipPricingReference,
   elbPricingReference,
@@ -245,6 +252,7 @@ export const declarativeRuntimeHelpers = {
   vpnPricingReference,
   workspacePricingReference,
   functionGraphPricingReference,
+  flexusRdsPricingReference,
   rdsPricingReference,
   huaweiRegions,
   isRecord,
