@@ -8,6 +8,7 @@ import { configurableServiceBundle as functionGraphBundle } from "@/config/servi
 import { configurableServiceBundle as modelArtsBundle } from "@/config/services/modelarts/bundle";
 import { configurableServiceBundle as natBundle } from "@/config/services/nat/bundle";
 import { configurableServiceBundle as obsBundle } from "@/config/services/obs/bundle";
+import { configurableServiceBundle as rdsBundle } from "@/config/services/rds/bundle";
 import { configurableServiceBundle as vpnBundle } from "@/config/services/vpn/bundle";
 import { configurableServiceBundle as workspaceBundle } from "@/config/services/workspace/bundle";
 import type { DeclarativeRuntimeDefinition } from "@/lib/declarative-service-runtime-types";
@@ -23,6 +24,7 @@ const typedRuntimeDefinitions = {
   VPN: vpnBundle.runtime,
   Workspace: workspaceBundle.runtime,
   FunctionGraph: functionGraphBundle.runtime,
+  RDS: rdsBundle.runtime,
   NAT: natBundle.runtime,
   EIP: eipBundle.runtime,
   DCS: dcsBundle.runtime,

@@ -9,6 +9,7 @@ import { pricingDefinition as functionGraphPricingDefinitionDocument, serviceDef
 import { pricingDefinition as modelartsPricingDefinitionDocument, serviceDefinition as modelartsServiceDefinitionDocument } from "@/config/services/modelarts/bundle";
 import { pricingDefinition as natPricingDefinitionDocument, serviceDefinition as natServiceDefinitionDocument } from "@/config/services/nat/bundle";
 import { pricingDefinition as obsPricingDefinitionDocument, serviceDefinition as obsServiceDefinitionDocument } from "@/config/services/obs/bundle";
+import { pricingDefinition as rdsPricingDefinitionDocument, serviceDefinition as rdsServiceDefinitionDocument } from "@/config/services/rds/bundle";
 import { pricingDefinition as vpnPricingDefinitionDocument, serviceDefinition as vpnServiceDefinitionDocument } from "@/config/services/vpn/bundle";
 import { pricingDefinition as workspacePricingDefinitionDocument, serviceDefinition as workspaceServiceDefinitionDocument } from "@/config/services/workspace/bundle";
 import {
@@ -461,6 +462,10 @@ const definitionDocuments = {
   obs: {
     service: parseServiceDefinition(obsServiceDefinitionDocument),
     pricing: parsePricingDefinition(obsPricingDefinitionDocument),
+  },
+  rds: {
+    service: parseServiceDefinition(rdsServiceDefinitionDocument),
+    pricing: parsePricingDefinition(rdsPricingDefinitionDocument),
   },
   vpn: {
     service: parseServiceDefinition(vpnServiceDefinitionDocument),

@@ -8,6 +8,7 @@ import { estimateModelArtsConfiguration, listModelArtsResourceTypes, listModelAr
 import { estimateVpnConfiguration, getFallbackVpnPricingCatalog, getVpnBillingOptions, listVpnModes, listVpnSpecifications, shouldShowVpnPublicBandwidth, vpnDefaults, vpnPricingReference } from "@/lib/vpn-catalog";
 import { estimateWorkspaceConfiguration, listWorkspaceCpuOptions, listWorkspaceDiskTypes, listWorkspaceMemoryOptions, workspaceDefaults, workspacePricingReference } from "@/lib/workspace-catalog";
 import { estimateFunctionGraphConfiguration, functionGraphDefaults, functionGraphPricingReference, getFallbackFunctionGraphPricingCatalog } from "@/lib/functiongraph-catalog";
+import { estimateRdsConfiguration, isRdsEngine, isRdsInstanceClass, isRdsInstanceType, isRdsStorageType, isRdsVersion, listRdsEngines, listRdsInstanceClasses, listRdsInstanceTypes, listRdsSizes, listRdsStorageTypes, listRdsVersions, rdsDefaults, rdsPricingReference } from "@/lib/rds-catalog";
 import { buildEvsProductMutationBodies, buildEvsSplitNotice, evsDiskSizeBounds, formatObsRequestInputValue, getGpSsd2IopsBounds, getGpSsd2RequestedIops, getGpSsd2RequestedThroughput, getGpSsd2ThroughputBounds, getObsRequestUnits, normalizeGpSsd2Iops, normalizeGpSsd2Throughput, obsStorageSizeBounds, parsePositiveNumber, splitEvsDiskSizes, systemDiskOptions } from "@/lib/configurable-runtime-utils";
 import { getBatchDescription, getBatchDiskSize, getBatchDiskType, getBatchObsAmount, getBatchObsProductType, getBatchObsRedundancy, getBatchObsStorageClass, getBatchObsStorageSize, getBatchObsUnit, getNestedRecord, parseBatchQuantity } from "@/lib/batch-input-utils";
 import { formatFlavorAmount, getDiskPriceForBillingOption, isRecord } from "@/lib/calculator-page-helpers";
@@ -159,6 +160,7 @@ export const declarativeRuntimeHelpers = {
   estimateModelArtsConfiguration,
   estimateWorkspaceConfiguration,
   estimateFunctionGraphConfiguration,
+  estimateRdsConfiguration,
   estimateDcsConfiguration,
   getElbBillingOptions,
   shouldShowElbSharedBandwidth,
@@ -181,6 +183,12 @@ export const declarativeRuntimeHelpers = {
   listWorkspaceCpuOptions,
   listWorkspaceMemoryOptions,
   listWorkspaceDiskTypes,
+  listRdsEngines,
+  listRdsVersions,
+  listRdsInstanceTypes,
+  listRdsInstanceClasses,
+  listRdsSizes,
+  listRdsStorageTypes,
   listDcsVersions,
   listDcsInstanceTypes,
   listDcsArchitectures,
@@ -227,6 +235,7 @@ export const declarativeRuntimeHelpers = {
   vpnDefaults,
   workspaceDefaults,
   functionGraphDefaults,
+  rdsDefaults,
   eipPricingReference,
   elbPricingReference,
   ccePricingReference,
@@ -236,9 +245,15 @@ export const declarativeRuntimeHelpers = {
   vpnPricingReference,
   workspacePricingReference,
   functionGraphPricingReference,
+  rdsPricingReference,
   huaweiRegions,
   isRecord,
   asArray,
+  isRdsEngine,
+  isRdsVersion,
+  isRdsInstanceType,
+  isRdsInstanceClass,
+  isRdsStorageType,
 };
 
 export type DeclarativeRuntimeHelpers = typeof declarativeRuntimeHelpers;

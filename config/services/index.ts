@@ -16,7 +16,8 @@ export const serviceRegistryDocument = {
     "ModelArts",
     "Workspace",
     "DCS",
-    "FunctionGraph"
+    "FunctionGraph",
+    "RDS"
   ],
   "supportedBatchAddServiceCodes": [
     "ECS",
@@ -109,6 +110,13 @@ export const serviceRegistryDocument = {
       "definitionId": "functiongraph",
       "serviceDefinitionPath": "./functiongraph/bundle.ts",
       "pricingDefinitionPath": "./functiongraph/bundle.ts",
+      "status": "active"
+    },
+    {
+      "serviceCode": "RDS",
+      "definitionId": "rds",
+      "serviceDefinitionPath": "./rds/bundle.ts",
+      "pricingDefinitionPath": "./rds/bundle.ts",
       "status": "active"
     }
   ],

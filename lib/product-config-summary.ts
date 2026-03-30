@@ -331,5 +331,25 @@ export function getProductConfigSummary(product: AppProduct): string {
     return parts.join(" · ") || product.serviceName;
   }
 
+  if (product.productType === "rds") {
+    const parts = [
+      typeof product.config.region === "string" ? product.config.region : null,
+      typeof product.config.engine === "string" ? product.config.engine : null,
+      typeof product.config.version === "string" ? product.config.version : null,
+      typeof product.config.instanceType === "string" ? product.config.instanceType : null,
+      typeof product.config.instanceClass === "string" ? product.config.instanceClass : null,
+      typeof product.config.size === "string" ? product.config.size : null,
+      typeof product.config.storageType === "string" && typeof product.config.storageSizeGb === "number"
+        ? `${product.config.storageType} ${product.config.storageSizeGb} GB`
+        : null,
+      typeof product.config.iops === "number" ? `${product.config.iops} IOPS` : null,
+      typeof product.config.throughputMibps === "number" ? `${product.config.throughputMibps} MiB/s` : null,
+      typeof product.config.billingMode === "string" ? product.config.billingMode : null,
+      typeof product.config.usageHours === "number" ? `${product.config.usageHours}h` : null,
+    ].filter(Boolean);
+
+    return parts.join(" · ") || product.serviceName;
+  }
+
   return product.serviceName;
 }
