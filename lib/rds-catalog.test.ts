@@ -24,6 +24,16 @@ const fixture = {
         planList: [{ billingMode: "ONDEMAND", amount: 0.16, productId: "mysql-gp-ha-2-4" }],
       },
       {
+        engineType: "MySQL",
+        dbVersion: "dataInfo_57_",
+        instanceClass: "General-purpose",
+        cpu: "2Core",
+        mem: "8192MB",
+        resourceSpecCode: "rds.mysql.n1.large.4.ha",
+        productSpecSysDesc: "DB Engine:MySQL;DB Engine Version:5.6|5.7|8.0;DB Instance Type:Primary/Standby;Storage Type:Flexible SSD;Instance Class:General-purpose;vCPU:2Core;Memory:8192MB",
+        planList: [{ billingMode: "ONDEMAND", amount: 0.2, productId: "mysql-gp-ha-2-8" }],
+      },
+      {
         engineType: "PostgreSQL",
         dbVersion: "dataInfo_78_",
         instanceClass: "General-purpose",
@@ -126,6 +136,19 @@ test("RDS estimator matches the documented example prices", () => {
     usageHours: 744,
     quantity: 1,
   });
+  const mysqlGpHa8g = estimateRdsConfiguration(catalog, {
+    engine: "MySQL",
+    version: "8.0",
+    instanceType: "Primary/Standby",
+    instanceClass: "General-purpose",
+    size: "2 vCPUs, 8 GB",
+    storageType: "Flexible SSD",
+    storageSizeGb: 40,
+    iops: 3000,
+    throughputMibps: 125,
+    usageHours: 744,
+    quantity: 1,
+  });
   const pgGpHa = estimateRdsConfiguration(catalog, {
     engine: "PostgreSQL",
     version: "17",
@@ -180,6 +203,7 @@ test("RDS estimator matches the documented example prices", () => {
   });
 
   expect(mysqlGpHa?.amount).toBeCloseTo(205.22, 2);
+  expect(mysqlGpHa8g?.amount).toBeCloseTo(469.97, 2);
   expect(pgGpHa?.amount).toBeCloseTo(217.84, 2);
   expect(pgGpRr?.amount).toBeCloseTo(123.80, 2);
   expect(pgDedRr?.amount).toBeCloseTo(175.88, 2);

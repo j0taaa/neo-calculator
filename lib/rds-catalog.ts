@@ -58,6 +58,7 @@ export interface RdsEstimate {
   storageTier: RdsStorageTier;
   computeAmount: number;
   storageAmount: number;
+  memorySurchargeAmount: number;
   iopsAmount: number;
   throughputAmount: number;
   breakdown: RdsEstimateBreakdownItem[];
@@ -91,6 +92,7 @@ const postgresqlVersionOrder: Extract<RdsVersion, "17" | "16" | "15" | "14" | "1
 const instanceTypeOrder: RdsInstanceType[] = ["Primary/Standby", "Single", "Read replica"];
 const classOrder: RdsInstanceClass[] = ["General-purpose", "Dedicated"];
 const storageTypeOrder: RdsStorageType[] = ["Flexible SSD", "Cloud SSD", "Extreme SSD"];
+const mysqlGeneralPurposeFlexibleSsdMemorySurchargePerGiBHour = 0.0395322143;
 
 function roundAmount(value: number) {
   return Number(value.toFixed(5));
@@ -284,6 +286,14 @@ export function estimateRdsConfiguration(catalog: RdsPricingCatalog, input: RdsE
 
   const computeAmount = computeTier.prices.ONDEMAND * usageHours;
   const storageAmount = calibratedStorageRatePerGbHour * storageSizeGb * usageHours * nodeCount;
+  const memorySurchargeAmount = (
+    input.engine === "MySQL"
+    && input.instanceClass === "General-purpose"
+    && input.storageType === "Flexible SSD"
+    && computeTier.memoryGiB > 4
+  )
+    ? Math.max(0, computeTier.memoryGiB - 4) * nodeCount * usageHours * mysqlGeneralPurposeFlexibleSsdMemorySurchargePerGiBHour
+    : 0;
   const iopsAmount = input.storageType === "Flexible SSD"
     ? Math.max(0, input.iops - 3000) * usageHours * (storageTier.iopsRatePerUnit ?? 0)
     : 0;
@@ -291,13 +301,19 @@ export function estimateRdsConfiguration(catalog: RdsPricingCatalog, input: RdsE
     ? Math.max(0, input.throughputMibps) * usageHours * (storageTier.throughputRatePerUnit ?? 0)
     : 0;
 
-  const unitAmount = roundAmount(computeAmount + storageAmount + iopsAmount + throughputAmount);
+  const unitAmount = roundAmount(computeAmount + storageAmount + memorySurchargeAmount + iopsAmount + throughputAmount);
   const amount = roundAmount(unitAmount * quantity);
   const monthlyAverageAmount = roundAmount(amount / (usageHours / (24 * 30)));
   const breakdown = [
     { label: `${quantity} x DB instance`, amount: roundAmount(computeAmount * quantity) },
     { label: `${quantity} x ${input.storageType} ${storageSizeGb} GB`, amount: roundAmount(storageAmount * quantity) },
   ];
+  if (memorySurchargeAmount > 0) {
+    breakdown.push({
+      label: `${quantity} x MySQL memory surcharge`,
+      amount: roundAmount(memorySurchargeAmount * quantity),
+    });
+  }
   if (input.storageType === "Flexible SSD" && throughputAmount > 0) {
     breakdown.push({
       label: `${quantity} x Flexible SSD throughput ${input.throughputMibps} MiB/s`,
@@ -330,6 +346,7 @@ export function estimateRdsConfiguration(catalog: RdsPricingCatalog, input: RdsE
     storageTier,
     computeAmount: roundAmount(computeAmount * quantity),
     storageAmount: roundAmount(storageAmount * quantity),
+    memorySurchargeAmount: roundAmount(memorySurchargeAmount * quantity),
     iopsAmount: roundAmount(iopsAmount * quantity),
     throughputAmount: roundAmount(throughputAmount * quantity),
     breakdown,
