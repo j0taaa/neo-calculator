@@ -1,7 +1,6 @@
 import type { ConfigurableServiceBundleDefinition } from "@/lib/configurable-service-bundle-types";
-import type { DeclarativeRuntimeDefinition } from "@/lib/declarative-service-runtime-types";
-import { convertLegacyRuntimeDefinition } from "@/lib/legacy-runtime-converter";
 import type { PricingDefinition, ServiceDefinition } from "@/lib/service-config-types";
+import { and, call, coalesce, eq, ifElse, ref, template } from "@/lib/typed-declarative-runtime-ops";
 
 export const serviceDefinition = {
   version: 1,
@@ -86,130 +85,6 @@ export const pricingDefinition = {
     },
   ],
 } satisfies PricingDefinition;
-
-const legacyRuntimeDefinition = {
-  quantityLabel: "DB Instance",
-  showGlobalQuantityControl: false,
-  usesSharedBillingHeader: true,
-  catalog: { route: "rds-pricing" },
-  showSharedUsageHoursExpression: "false",
-  catalogViewExpression: `(() => {
-    const engineOptions = catalog ? helpers.listRdsEngines(catalog) : ['MySQL', 'PostgreSQL'];
-    const engine = engineOptions.includes(values.engine) ? values.engine : helpers.rdsDefaults.engine;
-    const versionOptions = catalog ? helpers.listRdsVersions(catalog, engine) : (engine === 'MySQL' ? ['8.0', '5.7'] : ['17', '16', '15', '14', '13']);
-    const version = versionOptions.includes(values.version) ? values.version : (versionOptions[0] ?? helpers.rdsDefaults.version);
-    const instanceTypeOptions = catalog ? helpers.listRdsInstanceTypes(catalog, { engine, version }) : ['Primary/Standby', 'Single', 'Read replica'];
-    const instanceType = instanceTypeOptions.includes(values.instanceType) ? values.instanceType : (instanceTypeOptions[0] ?? helpers.rdsDefaults.instanceType);
-    const showSubAz = instanceType === 'Primary/Standby';
-    const subAz = 'General AZ';
-    const instanceClassOptions = catalog ? helpers.listRdsInstanceClasses(catalog, { engine, version, instanceType }) : ['General-purpose', 'Dedicated'];
-    const instanceClass = instanceClassOptions.includes(values.instanceClass) ? values.instanceClass : (instanceClassOptions[0] ?? helpers.rdsDefaults.instanceClass);
-    const sizeOptions = catalog ? helpers.listRdsSizes(catalog, { engine, version, instanceType, instanceClass }) : [helpers.rdsDefaults.size];
-    const size = sizeOptions.includes(values.size) ? values.size : (sizeOptions[0] ?? helpers.rdsDefaults.size);
-    const storageTypeOptions = catalog ? helpers.listRdsStorageTypes(catalog, { engine, instanceType }) : (instanceType === 'Read replica' ? ['Cloud SSD', 'Extreme SSD'] : ['Flexible SSD', 'Cloud SSD', 'Extreme SSD']);
-    const storageType = storageTypeOptions.includes(values.storageType) ? values.storageType : (storageTypeOptions[0] ?? helpers.rdsDefaults.storageType);
-    const showIops = storageType === 'Flexible SSD';
-    const showThroughput = storageType === 'Flexible SSD';
-    const storageSizeGb = helpers.clampInteger(values.storageSizeGb || 40, 40, 65536);
-    const iops = showIops ? helpers.clampInteger(values.iops || 3000, 3000, 100000) : 3000;
-    const throughputMibps = showThroughput ? helpers.clampInteger(values.throughputMibps || 128, 1, 100000) : 128;
-    const usageHours = helpers.clampInteger(values.usageHours || 744, 1, 87600);
-    const quantity = helpers.clampInteger(values.quantity || 1, 1);
-    const estimate = catalog ? helpers.estimateRdsConfiguration(catalog, { engine, version, instanceType, instanceClass, size, storageType, storageSizeGb, iops, throughputMibps, usageHours, quantity }) : null;
-    return { engineOptions, engine, versionOptions, version, instanceTypeOptions, instanceType, showSubAz, subAz, instanceClassOptions, instanceClass, sizeOptions, size, storageTypeOptions, storageType, showIops, iops, showThroughput, throughputMibps, storageSizeGb, usageHours, quantity, estimate };
-  })()`,
-  syncValuesExpression: `({
-    engine: catalogView.engine,
-    version: catalogView.version,
-    instanceType: catalogView.instanceType,
-    subAz: catalogView.subAz,
-    instanceClass: catalogView.instanceClass,
-    size: catalogView.size,
-    storageType: catalogView.storageType,
-    storageSizeGb: String(catalogView.storageSizeGb),
-    iops: String(catalogView.iops),
-    throughputMibps: String(catalogView.throughputMibps),
-    usageHours: String(catalogView.usageHours),
-    quantity: String(catalogView.quantity),
-  })`,
-  fieldRuntime: {
-    engine: { optionsExpression: "helpers.optionList(catalogView.engineOptions)" },
-    version: { optionsExpression: "helpers.optionList(catalogView.versionOptions)" },
-    instanceType: { optionsExpression: "helpers.optionList(catalogView.instanceTypeOptions)" },
-    subAz: { disabledExpression: "true" },
-    instanceClass: { optionsExpression: "helpers.optionList(catalogView.instanceClassOptions)" },
-    size: { optionsExpression: "helpers.optionList(catalogView.sizeOptions)" },
-    storageType: { optionsExpression: "helpers.optionList(catalogView.storageTypeOptions)" },
-    storageSizeGb: { minExpression: "40", maxExpression: "65536", normalizeExpression: "helpers.clampInteger(values.storageSizeGb || 40, 40, 65536)" },
-    iops: { minExpression: "3000", normalizeExpression: "helpers.clampInteger(values.iops || 3000, 3000, 100000)" },
-    throughputMibps: { minExpression: "1", normalizeExpression: "helpers.clampInteger(values.throughputMibps || 128, 1, 100000)" },
-    usageHours: { minExpression: "1", maxExpression: "87600", normalizeExpression: "helpers.clampInteger(values.usageHours || 744, 1, 87600)" },
-    quantity: { minExpression: "1", normalizeExpression: "helpers.clampInteger(values.quantity || 1, 1)" },
-  },
-  estimateExpression: "catalogView.estimate",
-  addToListErrorExpression: "catalogView.estimate ? null : (pricingError || 'RDS pricing is unavailable for the current selection.')",
-  selectionSummaryExpression: "`Selected specifications: ${catalogView.engine} ${catalogView.version} | ${catalogView.instanceType}${catalogView.showSubAz ? ` | ${catalogView.subAz}` : ''} | ${catalogView.instanceClass} | ${catalogView.size} | ${catalogView.storageType} ${catalogView.storageSizeGb} GB${catalogView.showIops ? ` | ${catalogView.iops} IOPS` : ''}${catalogView.showThroughput ? ` | ${catalogView.throughputMibps} MiB/s` : ''} | ${catalogView.usageHours}h | ${catalogView.quantity} instance${catalogView.quantity === 1 ? '' : 's'}${catalogView.estimate ? ` | ${helpers.formatFlavorAmount(catalogView.estimate.currency, catalogView.estimate.amount, catalogView.estimate.suffix)}` : ''}`",
-  selectionNotesExpression: "catalogView.estimate ? [...helpers.formatBreakdownNotes(catalogView.estimate.currency, catalogView.estimate.suffix, catalogView.estimate.breakdown), `Monthly average: ${helpers.formatFlavorAmount(catalogView.estimate.currency, catalogView.estimate.monthlyAverageAmount, '/mo')}.`, ...helpers.asArray(catalogView.estimate.notes), ...(catalogView.instanceType === 'Read replica' ? ['You can only purchase read replicas after creating a primary DB instance.'] : [])] : []",
-  referenceNoteExpression: "`Pricing sourced from Huawei Cloud RDS calculator API for ${catalogRegionId ?? (helpers.huaweiRegions[regionValue].catalogRegionId ?? regionValue)}. Sources: ${helpers.rdsPricingReference.pricingUrl}, ${helpers.rdsPricingReference.productUrl}, and ${helpers.rdsPricingReference.calculatorApi}`",
-  buildRequestBodiesExpression: `catalogView.estimate ? ({
-    serviceCode: selectedServiceCode,
-    serviceName: selectedService,
-    productType: 'rds',
-    title: \`\${selectedService} \${catalogView.engine} \${catalogView.version} \${catalogView.size}\`,
-    quantity: 1,
-    config: {
-      region: regionValue,
-      catalogRegionId: catalogRegionId ?? (helpers.huaweiRegions[regionValue].catalogRegionId ?? regionValue),
-      billingMode: 'Pay-per-use',
-      engine: catalogView.engine,
-      version: catalogView.version,
-      instanceType: catalogView.instanceType,
-      subAz: catalogView.showSubAz ? catalogView.subAz : null,
-      instanceClass: catalogView.instanceClass,
-      size: catalogView.size,
-      storageType: catalogView.storageType,
-      storageSizeGb: catalogView.storageSizeGb,
-      iops: catalogView.showIops ? catalogView.iops : null,
-      throughputMibps: catalogView.showThroughput ? catalogView.throughputMibps : null,
-      usageHours: catalogView.usageHours,
-      quantity: catalogView.quantity,
-      computeResourceSpecCode: catalogView.estimate.computeTier.resourceSpecCode,
-      computeProductId: catalogView.estimate.computeTier.productIds.ONDEMAND ?? null,
-      storageResourceSpecCode: catalogView.estimate.storageTier.resourceSpecCode,
-      storageProductId: catalogView.estimate.storageTier.productIds.ONDEMAND ?? null,
-    },
-    pricing: {
-      total: helpers.formatFlavorAmount(catalogView.estimate.currency, catalogView.estimate.amount, catalogView.estimate.suffix),
-      estimate: helpers.formatFlavorAmount(catalogView.estimate.currency, catalogView.estimate.amount, catalogView.estimate.suffix),
-      monthlyAverage: helpers.formatFlavorAmount(catalogView.estimate.currency, catalogView.estimate.monthlyAverageAmount, '/mo'),
-      breakdown: helpers.byLabelAmount(catalogView.estimate.currency, catalogView.estimate.suffix, catalogView.estimate.breakdown),
-    },
-  }) : null`,
-  hydrateExpression: `(() => {
-    if (product.productType !== 'rds' || !helpers.isRecord(product.config)) {
-      return { handled: false, error: 'This product cannot be edited from the calculator.' };
-    }
-    return {
-      handled: true,
-      values: {
-        engine: typeof product.config.engine === 'string' ? product.config.engine : helpers.rdsDefaults.engine,
-        version: typeof product.config.version === 'string' ? product.config.version : helpers.rdsDefaults.version,
-        instanceType: typeof product.config.instanceType === 'string' ? product.config.instanceType : helpers.rdsDefaults.instanceType,
-        subAz: typeof product.config.subAz === 'string' ? product.config.subAz : helpers.rdsDefaults.subAz,
-        instanceClass: typeof product.config.instanceClass === 'string' ? product.config.instanceClass : helpers.rdsDefaults.instanceClass,
-        size: typeof product.config.size === 'string' ? product.config.size : helpers.rdsDefaults.size,
-        storageType: typeof product.config.storageType === 'string' ? product.config.storageType : helpers.rdsDefaults.storageType,
-        storageSizeGb: typeof product.config.storageSizeGb === 'number' ? String(Math.max(40, Math.floor(product.config.storageSizeGb))) : String(helpers.rdsDefaults.storageSizeGb),
-        iops: typeof product.config.iops === 'number' ? String(Math.max(3000, Math.floor(product.config.iops))) : String(helpers.rdsDefaults.iops),
-        throughputMibps: typeof product.config.throughputMibps === 'number' ? String(Math.max(1, Math.floor(product.config.throughputMibps))) : String(helpers.rdsDefaults.throughputMibps),
-        usageHours: typeof product.config.usageHours === 'number' ? String(Math.max(1, Math.floor(product.config.usageHours))) : String(helpers.rdsDefaults.usageHours),
-        quantity: typeof product.config.quantity === 'number' ? String(Math.max(1, Math.floor(product.config.quantity))) : String(helpers.rdsDefaults.quantity),
-      },
-      nextRegion: typeof product.config.region === 'string' ? product.config.region : regionValue,
-      nextBillingMode: 'Pay-per-use',
-    };
-  })()`,
-} satisfies DeclarativeRuntimeDefinition;
 
 export const configurableServiceBundle = {
   service: serviceDefinition,
@@ -445,5 +320,267 @@ export const configurableServiceBundle = {
       ],
     },
   },
-  runtime: convertLegacyRuntimeDefinition(legacyRuntimeDefinition),
+  runtime: {
+    quantityLabel: "DB Instance",
+    showGlobalQuantityControl: false,
+    usesSharedBillingHeader: true,
+    catalog: { route: "rds-pricing" },
+    showSharedUsageHours: false,
+    derived: [
+      { key: "engineOptions", value: ifElse(ref("catalog"), call("listRdsEngines", ref("catalog")), ["MySQL", "PostgreSQL"]) },
+      { key: "engine", value: call("resolveOption", ref("values.engine"), ref("derived.engineOptions"), ref("helpers.rdsDefaults.engine")) },
+      {
+        key: "versionOptions",
+        value: ifElse(
+          ref("catalog"),
+          call("listRdsVersions", ref("catalog"), ref("derived.engine")),
+          ifElse(eq(ref("derived.engine"), "MySQL"), ["8.0", "5.7"], ["17", "16", "15", "14", "13"]),
+        ),
+      },
+      { key: "version", value: call("resolveOption", ref("values.version"), ref("derived.versionOptions"), ref("helpers.rdsDefaults.version")) },
+      {
+        key: "instanceTypeOptions",
+        value: ifElse(
+          ref("catalog"),
+          call("listRdsInstanceTypes", ref("catalog"), { engine: ref("derived.engine"), version: ref("derived.version") }),
+          ["Primary/Standby", "Single", "Read replica"],
+        ),
+      },
+      { key: "instanceType", value: call("resolveOption", ref("values.instanceType"), ref("derived.instanceTypeOptions"), ref("helpers.rdsDefaults.instanceType")) },
+      { key: "showSubAz", value: eq(ref("derived.instanceType"), "Primary/Standby") },
+      { key: "subAz", value: "General AZ" },
+      {
+        key: "instanceClassOptions",
+        value: ifElse(
+          ref("catalog"),
+          call("listRdsInstanceClasses", ref("catalog"), {
+            engine: ref("derived.engine"),
+            version: ref("derived.version"),
+            instanceType: ref("derived.instanceType"),
+          }),
+          ["General-purpose", "Dedicated"],
+        ),
+      },
+      {
+        key: "instanceClass",
+        value: call("resolveOption", ref("values.instanceClass"), ref("derived.instanceClassOptions"), ref("helpers.rdsDefaults.instanceClass")),
+      },
+      {
+        key: "sizeOptions",
+        value: ifElse(
+          ref("catalog"),
+          call("listRdsSizes", ref("catalog"), {
+            engine: ref("derived.engine"),
+            version: ref("derived.version"),
+            instanceType: ref("derived.instanceType"),
+            instanceClass: ref("derived.instanceClass"),
+          }),
+          [ref("helpers.rdsDefaults.size")],
+        ),
+      },
+      { key: "size", value: call("resolveOption", ref("values.size"), ref("derived.sizeOptions"), ref("helpers.rdsDefaults.size")) },
+      {
+        key: "storageTypeOptions",
+        value: ifElse(
+          ref("catalog"),
+          call("listRdsStorageTypes", ref("catalog"), { engine: ref("derived.engine"), instanceType: ref("derived.instanceType") }),
+          ifElse(eq(ref("derived.instanceType"), "Read replica"), ["Cloud SSD", "Extreme SSD"], ["Flexible SSD", "Cloud SSD", "Extreme SSD"]),
+        ),
+      },
+      {
+        key: "storageType",
+        value: call("resolveOption", ref("values.storageType"), ref("derived.storageTypeOptions"), ref("helpers.rdsDefaults.storageType")),
+      },
+      { key: "showIops", value: eq(ref("derived.storageType"), "Flexible SSD") },
+      { key: "showThroughput", value: eq(ref("derived.storageType"), "Flexible SSD") },
+      { key: "storageSizeGb", value: call("clampInteger", ref("values.storageSizeGb"), 40, 65536) },
+      {
+        key: "iops",
+        value: ifElse(ref("derived.showIops"), call("clampInteger", ref("values.iops"), 3000, 100000), 3000),
+      },
+      {
+        key: "throughputMibps",
+        value: ifElse(ref("derived.showThroughput"), call("clampInteger", ref("values.throughputMibps"), 1, 100000), 128),
+      },
+      { key: "usageHours", value: call("clampInteger", ref("values.usageHours"), 1, 87600) },
+      { key: "quantity", value: call("clampInteger", ref("values.quantity"), 1) },
+      {
+        key: "estimate",
+        value: ifElse(
+          ref("catalog"),
+          call("estimateRdsConfiguration", ref("catalog"), {
+            engine: ref("derived.engine"),
+            version: ref("derived.version"),
+            instanceType: ref("derived.instanceType"),
+            instanceClass: ref("derived.instanceClass"),
+            size: ref("derived.size"),
+            storageType: ref("derived.storageType"),
+            storageSizeGb: ref("derived.storageSizeGb"),
+            iops: ref("derived.iops"),
+            throughputMibps: ref("derived.throughputMibps"),
+            usageHours: ref("derived.usageHours"),
+            quantity: ref("derived.quantity"),
+          }),
+          null,
+        ),
+      },
+    ],
+    syncValues: {
+      engine: ref("derived.engine"),
+      version: ref("derived.version"),
+      instanceType: ref("derived.instanceType"),
+      subAz: ref("derived.subAz"),
+      instanceClass: ref("derived.instanceClass"),
+      size: ref("derived.size"),
+      storageType: ref("derived.storageType"),
+      storageSizeGb: ref("derived.storageSizeGb"),
+      iops: ref("derived.iops"),
+      throughputMibps: ref("derived.throughputMibps"),
+      usageHours: ref("derived.usageHours"),
+      quantity: ref("derived.quantity"),
+    },
+    fieldRuntime: {
+      engine: { options: call("optionList", ref("derived.engineOptions")) },
+      version: { options: call("optionList", ref("derived.versionOptions")) },
+      instanceType: { options: call("optionList", ref("derived.instanceTypeOptions")) },
+      subAz: { disabled: true },
+      instanceClass: { options: call("optionList", ref("derived.instanceClassOptions")) },
+      size: { options: call("optionList", ref("derived.sizeOptions")) },
+      storageType: { options: call("optionList", ref("derived.storageTypeOptions")) },
+      storageSizeGb: { min: 40, max: 65536, normalize: ref("derived.storageSizeGb") },
+      iops: { min: 3000, normalize: ref("derived.iops") },
+      throughputMibps: { min: 1, normalize: ref("derived.throughputMibps") },
+      usageHours: { min: 1, max: 87600, normalize: ref("derived.usageHours") },
+      quantity: { min: 1, normalize: ref("derived.quantity") },
+    },
+    estimate: ref("derived.estimate"),
+    addToListError: ifElse(
+      ref("derived.estimate"),
+      null,
+      call("firstMeaningfulText", ref("pricingError"), "RDS pricing is unavailable for the current selection."),
+    ),
+    selectionSummary: ifElse(
+      ref("derived.estimate"),
+      call(
+        "joinSelectionParts",
+        [
+          "Selected specifications:",
+          template("{engine} {version}", {
+            engine: ref("derived.engine"),
+            version: ref("derived.version"),
+          }),
+          ref("derived.instanceType"),
+          ifElse(ref("derived.showSubAz"), ref("derived.subAz"), null),
+          ref("derived.instanceClass"),
+          ref("derived.size"),
+          template("{storageType} {storageSizeGb} GB", {
+            storageType: ref("derived.storageType"),
+            storageSizeGb: ref("derived.storageSizeGb"),
+          }),
+          ifElse(ref("derived.showIops"), template("{iops} IOPS", { iops: ref("derived.iops") }), null),
+          ifElse(ref("derived.showThroughput"), template("{throughputMibps} MiB/s", { throughputMibps: ref("derived.throughputMibps") }), null),
+          template("{usageHours}h", { usageHours: ref("derived.usageHours") }),
+          template("{quantity} instance{suffix}", {
+            quantity: ref("derived.quantity"),
+            suffix: ifElse(eq(ref("derived.quantity"), 1), "", "s"),
+          }),
+          call("formatFlavorAmount", ref("derived.estimate.currency"), ref("derived.estimate.amount"), ref("derived.estimate.suffix")),
+        ],
+      ),
+      "Selected specifications:",
+    ),
+    selectionNotes: ifElse(
+      ref("derived.estimate"),
+      call(
+        "concatArrays",
+        call("formatBreakdownNotes", ref("derived.estimate.currency"), ref("derived.estimate.suffix"), ref("derived.estimate.breakdown")),
+        [
+          template("Monthly average: {avg}.", {
+            avg: call("formatFlavorAmount", ref("derived.estimate.currency"), ref("derived.estimate.monthlyAverageAmount"), "/mo"),
+          }),
+        ],
+        call("asArray", ref("derived.estimate.notes")),
+        ifElse(eq(ref("derived.instanceType"), "Read replica"), ["You can only purchase read replicas after creating a primary DB instance."], []),
+      ),
+      [],
+    ),
+    referenceNote: template(
+      "Pricing sourced from Huawei Cloud RDS calculator API for {region}. Sources: {pricingUrl}, {productUrl}, and {calculatorApi}",
+      {
+        region: coalesce(ref("catalogRegionId"), call("getCatalogRegionId", ref("regionValue"))),
+        pricingUrl: ref("helpers.rdsPricingReference.pricingUrl"),
+        productUrl: ref("helpers.rdsPricingReference.productUrl"),
+        calculatorApi: ref("helpers.rdsPricingReference.calculatorApi"),
+      },
+    ),
+    buildRequestBodies: ifElse(
+      ref("derived.estimate"),
+      {
+        serviceCode: ref("selectedServiceCode"),
+        serviceName: ref("selectedService"),
+        productType: "rds",
+        title: template("{service} {engine} {version} {size}", {
+          service: ref("selectedService"),
+          engine: ref("derived.engine"),
+          version: ref("derived.version"),
+          size: ref("derived.size"),
+        }),
+        quantity: 1,
+        config: {
+          region: ref("regionValue"),
+          catalogRegionId: coalesce(ref("catalogRegionId"), call("getCatalogRegionId", ref("regionValue"))),
+          billingMode: "Pay-per-use",
+          engine: ref("derived.engine"),
+          version: ref("derived.version"),
+          instanceType: ref("derived.instanceType"),
+          subAz: ifElse(ref("derived.showSubAz"), ref("derived.subAz"), null),
+          instanceClass: ref("derived.instanceClass"),
+          size: ref("derived.size"),
+          storageType: ref("derived.storageType"),
+          storageSizeGb: ref("derived.storageSizeGb"),
+          iops: ifElse(ref("derived.showIops"), ref("derived.iops"), null),
+          throughputMibps: ifElse(ref("derived.showThroughput"), ref("derived.throughputMibps"), null),
+          usageHours: ref("derived.usageHours"),
+          quantity: ref("derived.quantity"),
+          computeResourceSpecCode: ref("derived.estimate.computeTier.resourceSpecCode"),
+          computeProductId: coalesce(ref("derived.estimate.computeTier.productIds.ONDEMAND"), null),
+          storageResourceSpecCode: ref("derived.estimate.storageTier.resourceSpecCode"),
+          storageProductId: coalesce(ref("derived.estimate.storageTier.productIds.ONDEMAND"), null),
+        },
+        pricing: {
+          total: call("formatFlavorAmount", ref("derived.estimate.currency"), ref("derived.estimate.amount"), ref("derived.estimate.suffix")),
+          estimate: call("formatFlavorAmount", ref("derived.estimate.currency"), ref("derived.estimate.amount"), ref("derived.estimate.suffix")),
+          monthlyAverage: call("formatFlavorAmount", ref("derived.estimate.currency"), ref("derived.estimate.monthlyAverageAmount"), "/mo"),
+          breakdown: call("byLabelAmount", ref("derived.estimate.currency"), ref("derived.estimate.suffix"), ref("derived.estimate.breakdown")),
+        },
+      },
+      null,
+    ),
+    hydrate: ifElse(
+      and(eq(ref("product.productType"), "rds"), call("isRecord", ref("product.config"))),
+      {
+        handled: true,
+        values: {
+          engine: coalesce(ref("product.config.engine"), ref("helpers.rdsDefaults.engine")),
+          version: coalesce(ref("product.config.version"), ref("helpers.rdsDefaults.version")),
+          instanceType: coalesce(ref("product.config.instanceType"), ref("helpers.rdsDefaults.instanceType")),
+          subAz: coalesce(ref("product.config.subAz"), ref("helpers.rdsDefaults.subAz")),
+          instanceClass: coalesce(ref("product.config.instanceClass"), ref("helpers.rdsDefaults.instanceClass")),
+          size: coalesce(ref("product.config.size"), ref("helpers.rdsDefaults.size")),
+          storageType: coalesce(ref("product.config.storageType"), ref("helpers.rdsDefaults.storageType")),
+          storageSizeGb: call("integerString", ref("product.config.storageSizeGb"), ref("helpers.rdsDefaults.storageSizeGb"), 40, 65536),
+          iops: call("integerString", ref("product.config.iops"), ref("helpers.rdsDefaults.iops"), 3000, 100000),
+          throughputMibps: call("integerString", ref("product.config.throughputMibps"), ref("helpers.rdsDefaults.throughputMibps"), 1, 100000),
+          usageHours: call("integerString", ref("product.config.usageHours"), ref("helpers.rdsDefaults.usageHours"), 1, 87600),
+          quantity: call("integerString", ref("product.config.quantity"), ref("helpers.rdsDefaults.quantity"), 1),
+        },
+        nextRegion: coalesce(ref("product.config.region"), ref("regionValue")),
+        nextBillingMode: "Pay-per-use",
+      },
+      {
+        handled: false,
+        error: "This product cannot be edited from the calculator.",
+      },
+    ),
+  },
 } as const satisfies ConfigurableServiceBundleDefinition;
