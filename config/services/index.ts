@@ -43,8 +43,8 @@ export const serviceRegistryDocument = {
     {
       "serviceCode": "EIP",
       "definitionId": "eip",
-      "serviceDefinitionPath": "./eip/service.ts",
-      "pricingDefinitionPath": "./eip/pricing.ts",
+      "serviceDefinitionPath": "./eip/bundle.ts",
+      "pricingDefinitionPath": "./eip/bundle.ts",
       "status": "active"
     },
     {
@@ -57,8 +57,8 @@ export const serviceRegistryDocument = {
     {
       "serviceCode": "NAT",
       "definitionId": "nat",
-      "serviceDefinitionPath": "./nat/service.ts",
-      "pricingDefinitionPath": "./nat/pricing.ts",
+      "serviceDefinitionPath": "./nat/bundle.ts",
+      "pricingDefinitionPath": "./nat/bundle.ts",
       "status": "active"
     },
     {
@@ -99,8 +99,8 @@ export const serviceRegistryDocument = {
     {
       "serviceCode": "DCS",
       "definitionId": "dcs",
-      "serviceDefinitionPath": "./dcs/service.ts",
-      "pricingDefinitionPath": "./dcs/pricing.ts",
+      "serviceDefinitionPath": "./dcs/bundle.ts",
+      "pricingDefinitionPath": "./dcs/bundle.ts",
       "status": "active"
     }
   ],
