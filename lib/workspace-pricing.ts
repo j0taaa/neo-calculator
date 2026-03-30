@@ -53,6 +53,16 @@ function pickHourlyPlan(record: RawCatalogRecord) {
   return plans.find((plan) => plan.billingMode === "ONDEMAND" && typeof plan.amount === "number" && Number.isFinite(plan.amount)) ?? null;
 }
 
+function parseLeadingNumber(value: string) {
+  const match = value.match(/(\d+(?:\.\d+)?)/);
+  if (!match) {
+    return null;
+  }
+
+  const parsed = Number(match[1]);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+}
+
 function parseCpuCount(value: unknown) {
   if (typeof value === "number" && Number.isFinite(value) && value > 0) {
     return Math.floor(value);
@@ -68,6 +78,17 @@ function parseCpuCount(value: unknown) {
     if (match) {
       const parsed = Number(match[1]);
       return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+    }
+
+    const coreMatch = value.match(/(\d+)\s*core/i);
+    if (coreMatch) {
+      const parsed = Number(coreMatch[1]);
+      return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+    }
+
+    const leading = parseLeadingNumber(value);
+    if (leading != null) {
+      return Math.floor(leading);
     }
   }
 
@@ -92,6 +113,11 @@ function parseMemoryGiB(value: unknown) {
     const mbMatch = value.match(/(\d+)\s*mb/i);
     if (mbMatch) {
       return Number(mbMatch[1]) / 1024;
+    }
+
+    const leading = parseLeadingNumber(value);
+    if (leading != null) {
+      return leading >= 1024 ? leading / 1024 : leading;
     }
   }
 
@@ -119,6 +145,8 @@ function inferDiskType(record: RawCatalogRecord): WorkspaceDiskType | null {
     record.type,
     record.diskType,
     record.volumeType,
+    record.DiskSpecifications,
+    record.diskSpec,
     record.productSpecSysDesc,
     record.descriptions,
   ]
@@ -146,11 +174,14 @@ function buildDesktopTier(record: RawCatalogRecord): WorkspaceDesktopTier | null
   }
 
   const productIdCandidates = [record.productId, plan.productId].filter((value): value is string => typeof value === "string");
-  if (!productIdCandidates.some((value) => value.startsWith("workspace."))) {
+  const isWorkspaceDesktop = [record.resourceType, record.resourceSpecCode, record.resourceSpecType]
+    .filter((value): value is string => typeof value === "string")
+    .some((value) => value.toLowerCase().includes("workspace") || value.toLowerCase().includes("ultimatedesktop"));
+  if (!isWorkspaceDesktop && !productIdCandidates.some((value) => value.startsWith("workspace."))) {
     return null;
   }
 
-  const packageText = [record.packageType, record.productSpecSysDesc, record.descriptions]
+  const packageText = [record.packageType, record.productSpecSysDesc, record.descriptions, record.resourceSpecType, record.DesktopType]
     .filter((value): value is string => typeof value === "string")
     .join(" ")
     .toLowerCase();
@@ -158,13 +189,16 @@ function buildDesktopTier(record: RawCatalogRecord): WorkspaceDesktopTier | null
     return null;
   }
 
-  const architectureText = [record.architecture, ...productIdCandidates].filter((value): value is string => typeof value === "string").join(" ").toLowerCase();
+  const architectureText = [record.architecture, record.arch, record.type, record.resourceSpecCode, record.productSpecSysDesc, ...productIdCandidates]
+    .filter((value): value is string => typeof value === "string")
+    .join(" ")
+    .toLowerCase();
   if (!architectureText.includes("x86")) {
     return null;
   }
 
-  const cpuCount = parseCpuCount(record.cpu ?? record.vcpu ?? record.cpuCount ?? record.cpuNum);
-  const memoryGiB = parseMemoryGiB(record.memory ?? record.mem ?? record.ram ?? record.memSize);
+  const cpuCount = parseCpuCount(record.cpu ?? record.vcpu ?? record.vCPUs ?? record.cpuCount ?? record.cpuNum);
+  const memoryGiB = parseMemoryGiB(record.memory ?? record.newMem ?? record.memVal ?? record.mem ?? record.ram ?? record.memSize);
   if (cpuCount == null || memoryGiB == null) {
     return null;
   }

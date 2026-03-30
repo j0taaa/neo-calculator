@@ -80,6 +80,65 @@ const fixture = {
   },
 };
 
+const liveShapeFixture = {
+  product: {
+    "vdi_workspace.desktop": [
+      {
+        resourceType: "hws.resource.type.workspace.desktop",
+        resourceSpecCode: "workspace.x86.ultimate.large2",
+        productSpecSysDesc: "mem:4096MB;cpu:2CORE;CPU Architecture:x86;DesktopType:Ultimate",
+        resourceSpecType: "UltimateDesktop",
+        mem: "4096BSSUNIT.pluralUnit.21",
+        cpu: "2BSSUNIT.pluralUnit.23",
+        type: "x86",
+        DesktopType: "Ultimate",
+        memory: "4BSSUNIT.pluralUnit.17",
+        memVal: "4",
+        planList: [{ productId: "OFFI862602315098054658", billingMode: "ONDEMAND", amount: 0.118 }],
+      },
+      {
+        resourceType: "hws.resource.type.workspace.desktop",
+        resourceSpecCode: "workspace.x86.ultimate.xlarge2",
+        productSpecSysDesc: "mem:8192MB;cpu:4CORE;CPU Architecture:x86;DesktopType:Ultimate",
+        resourceSpecType: "UltimateDesktop",
+        mem: "8192BSSUNIT.pluralUnit.21",
+        cpu: "4BSSUNIT.pluralUnit.23",
+        type: "x86",
+        DesktopType: "Ultimate",
+        memory: "8BSSUNIT.pluralUnit.17",
+        memVal: "8",
+        planList: [{ productId: "OFFI862602315098054659", billingMode: "ONDEMAND", amount: 0.236 }],
+      },
+    ],
+    "vdi_workspace.volume": [
+      {
+        resourceType: "hws.resource.type.workspace.volume",
+        resourceSpecCode: "workspace.volume.high",
+        resourceSpecType: "Disk",
+        productSpecSysDesc: "DiskSpecifications:general",
+        DiskSpecifications: "general",
+        planList: [{ productId: "OFFI862609358377762816", billingMode: "ONDEMAND", amount: 0.00016 }],
+      },
+      {
+        resourceType: "hws.resource.type.workspace.volume",
+        resourceSpecCode: "workspace.volume.ultrahigh",
+        resourceSpecType: "Disk",
+        productSpecSysDesc: "DiskSpecifications:high",
+        DiskSpecifications: "high",
+        planList: [{ productId: "OFFI862609358377762817", billingMode: "ONDEMAND", amount: 0.00041 }],
+      },
+      {
+        resourceType: "hws.resource.type.workspace.volume",
+        resourceSpecCode: "workspace.volume.general-purpose-ssd",
+        resourceSpecType: "Disk",
+        productSpecSysDesc: "DiskSpecifications:ultrahigh;DiskType:EVS",
+        DiskSpecifications: "ultrahigh",
+        planList: [{ productId: "OFFI862609358377762818", billingMode: "ONDEMAND", amount: 0.00026 }],
+      },
+    ],
+  },
+};
+
 test("Workspace parser extracts CPU, memory, and disk options from productInfo", () => {
   const catalog = parseWorkspacePricingCatalogResponse(fixture, "ap-southeast-1");
 
@@ -130,4 +189,13 @@ test("Workspace estimator matches the documented example prices", () => {
   expect(small?.amount).toBeCloseTo(97.32, 2);
   expect(medium?.amount).toBeCloseTo(185.11, 2);
   expect(large?.amount).toBeCloseTo(375.57, 2);
+});
+
+test("Workspace parser accepts the current live catalog shape", () => {
+  const catalog = parseWorkspacePricingCatalogResponse(liveShapeFixture, "sa-brazil-1");
+
+  expect(listWorkspaceCpuOptions(catalog)).toEqual(["2 vCPUs", "4 vCPUs"]);
+  expect(listWorkspaceMemoryOptions(catalog, "2 vCPUs")).toEqual(["4 GB"]);
+  expect(listWorkspaceMemoryOptions(catalog, "4 vCPUs")).toEqual(["8 GB"]);
+  expect(listWorkspaceDiskTypes(catalog)).toEqual(["High I/O", "Ultra-high I/O", "General purpose SSD"]);
 });

@@ -30,6 +30,6 @@ export function getTypedDeclarativeRuntimeDefinitionByCode(serviceCode: string):
   return (typedRuntimeDefinitions[serviceCode as keyof typeof typedRuntimeDefinitions] ?? null) as TypedDeclarativeRuntimeDefinition | null;
 }
 
-export function getDeclarativeRuntimeDefinitionByCode(_serviceCode: string): DeclarativeRuntimeDefinition | null {
+export function getDeclarativeRuntimeDefinitionByCode(): DeclarativeRuntimeDefinition | null {
   return null;
 }
