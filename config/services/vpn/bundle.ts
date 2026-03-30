@@ -1,4 +1,5 @@
-import type { ServiceDefinition } from "@/lib/service-config-types";
+import type { ConfigurableServiceBundleDefinition } from "@/lib/configurable-service-bundle-types";
+import type { PricingDefinition, ServiceDefinition } from "@/lib/service-config-types";
 
 export const serviceDefinition = {
   "version": 1,
@@ -158,3 +159,61 @@ export const serviceDefinition = {
     ]
   }
 } satisfies ServiceDefinition;
+
+export const pricingDefinition = {
+  "version": 1,
+  "definitionId": "vpn",
+  "serviceCode": "VPN",
+  "serviceName": "Virtual Private Network",
+  "catalogAdapter": "vpn",
+  "rateSources": {
+    "gateway": {
+      "catalogKey": "gateway.rate"
+    },
+    "publicBandwidth": {
+      "catalogKey": "publicBandwidth.rate"
+    }
+  },
+  "metrics": [
+    {
+      "id": "gateway",
+      "label": "Gateway",
+      "rateSource": "gateway",
+      "quantity": {
+        "source": "expression",
+        "expression": "1"
+      }
+    },
+    {
+      "id": "publicBandwidth1",
+      "label": "EIP 1 bandwidth",
+      "rateSource": "publicBandwidth",
+      "quantity": {
+        "source": "field",
+        "field": "eipBandwidthMbit1"
+      },
+      "enabledWhen": {
+        "field": "networkType",
+        "equals": "Public network"
+      }
+    },
+    {
+      "id": "publicBandwidth2",
+      "label": "EIP 2 bandwidth",
+      "rateSource": "publicBandwidth",
+      "quantity": {
+        "source": "field",
+        "field": "eipBandwidthMbit2"
+      },
+      "enabledWhen": {
+        "field": "networkType",
+        "equals": "Public network"
+      }
+    }
+  ]
+} satisfies PricingDefinition;
+
+export const configurableServiceBundle = {
+  service: serviceDefinition,
+  pricing: pricingDefinition,
+} as const satisfies ConfigurableServiceBundleDefinition;

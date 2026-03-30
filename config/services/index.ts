@@ -29,15 +29,15 @@ export const serviceRegistryDocument = {
     {
       "serviceCode": "OBS",
       "definitionId": "obs",
-      "serviceDefinitionPath": "./obs/service.ts",
-      "pricingDefinitionPath": "./obs/pricing.ts",
+      "serviceDefinitionPath": "./obs/bundle.ts",
+      "pricingDefinitionPath": "./obs/bundle.ts",
       "status": "active"
     },
     {
       "serviceCode": "EVS",
       "definitionId": "evs",
-      "serviceDefinitionPath": "./evs/service.ts",
-      "pricingDefinitionPath": "./evs/pricing.ts",
+      "serviceDefinitionPath": "./evs/bundle.ts",
+      "pricingDefinitionPath": "./evs/bundle.ts",
       "status": "pilot"
     },
     {
@@ -50,8 +50,8 @@ export const serviceRegistryDocument = {
     {
       "serviceCode": "ELB",
       "definitionId": "elb",
-      "serviceDefinitionPath": "./elb/service.ts",
-      "pricingDefinitionPath": "./elb/pricing.ts",
+      "serviceDefinitionPath": "./elb/bundle.ts",
+      "pricingDefinitionPath": "./elb/bundle.ts",
       "status": "active"
     },
     {
@@ -64,36 +64,36 @@ export const serviceRegistryDocument = {
     {
       "serviceCode": "VPN",
       "definitionId": "vpn",
-      "serviceDefinitionPath": "./vpn/service.ts",
-      "pricingDefinitionPath": "./vpn/pricing.ts",
+      "serviceDefinitionPath": "./vpn/bundle.ts",
+      "pricingDefinitionPath": "./vpn/bundle.ts",
       "status": "active"
     },
     {
       "serviceCode": "CCE",
       "definitionId": "cce",
-      "serviceDefinitionPath": "./cce/service.ts",
-      "pricingDefinitionPath": "./cce/pricing.ts",
+      "serviceDefinitionPath": "./cce/bundle.ts",
+      "pricingDefinitionPath": "./cce/bundle.ts",
       "status": "active"
     },
     {
       "serviceCode": "CCI",
       "definitionId": "cci",
-      "serviceDefinitionPath": "./cci/service.ts",
-      "pricingDefinitionPath": "./cci/pricing.ts",
+      "serviceDefinitionPath": "./cci/bundle.ts",
+      "pricingDefinitionPath": "./cci/bundle.ts",
       "status": "active"
     },
     {
       "serviceCode": "ModelArts",
       "definitionId": "modelarts",
-      "serviceDefinitionPath": "./modelarts/service.ts",
-      "pricingDefinitionPath": "./modelarts/pricing.ts",
+      "serviceDefinitionPath": "./modelarts/bundle.ts",
+      "pricingDefinitionPath": "./modelarts/bundle.ts",
       "status": "active"
     },
     {
       "serviceCode": "Workspace",
       "definitionId": "workspace",
-      "serviceDefinitionPath": "./workspace/service.ts",
-      "pricingDefinitionPath": "./workspace/pricing.ts",
+      "serviceDefinitionPath": "./workspace/bundle.ts",
+      "pricingDefinitionPath": "./workspace/bundle.ts",
       "status": "active"
     },
     {

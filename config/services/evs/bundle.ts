@@ -1,4 +1,5 @@
-import type { ServiceDefinition } from "@/lib/service-config-types";
+import type { ConfigurableServiceBundleDefinition } from "@/lib/configurable-service-bundle-types";
+import type { PricingDefinition, ServiceDefinition } from "@/lib/service-config-types";
 
 export const serviceDefinition = {
   "version": 1,
@@ -151,3 +152,73 @@ export const serviceDefinition = {
     ]
   }
 } satisfies ServiceDefinition;
+
+export const pricingDefinition = {
+  "version": 1,
+  "definitionId": "evs",
+  "serviceCode": "EVS",
+  "serviceName": "Elastic Volume Service",
+  "catalogAdapter": "evs",
+  "rateSources": {
+    "diskBase": {
+      "catalogKey": "disk.baseRate",
+      "description": "Base storage rate resolved from the normalized EVS catalog by disk type and billing mode."
+    },
+    "gpSsd2Iops": {
+      "catalogKey": "disk.gpSsd2.iopsRate",
+      "description": "Placeholder for future GPSSD2 performance add-on pricing if exposed by the normalized adapter."
+    },
+    "gpSsd2Throughput": {
+      "catalogKey": "disk.gpSsd2.throughputRate",
+      "description": "Placeholder for future GPSSD2 throughput pricing if exposed by the normalized adapter."
+    }
+  },
+  "metrics": [
+    {
+      "id": "diskStorage",
+      "label": "Disk capacity",
+      "rateSource": "diskBase",
+      "quantity": {
+        "source": "field",
+        "field": "diskSizeGiB"
+      },
+      "unit": "GiB",
+      "notes": [
+        "The future pricing engine should multiply by hours or months according to the selected billing mode."
+      ]
+    },
+    {
+      "id": "gpSsd2Iops",
+      "label": "GPSSD2 IOPS",
+      "rateSource": "gpSsd2Iops",
+      "quantity": {
+        "source": "field",
+        "field": "iops"
+      },
+      "unit": "IOPS",
+      "enabledWhen": {
+        "field": "diskType",
+        "equals": "General Purpose SSD V2"
+      }
+    },
+    {
+      "id": "gpSsd2Throughput",
+      "label": "GPSSD2 throughput",
+      "rateSource": "gpSsd2Throughput",
+      "quantity": {
+        "source": "field",
+        "field": "throughput"
+      },
+      "unit": "MB/s",
+      "enabledWhen": {
+        "field": "diskType",
+        "equals": "General Purpose SSD V2"
+      }
+    }
+  ]
+} satisfies PricingDefinition;
+
+export const configurableServiceBundle = {
+  service: serviceDefinition,
+  pricing: pricingDefinition,
+} as const satisfies ConfigurableServiceBundleDefinition;

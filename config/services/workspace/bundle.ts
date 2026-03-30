@@ -1,4 +1,5 @@
-import type { ServiceDefinition } from "@/lib/service-config-types";
+import type { ConfigurableServiceBundleDefinition } from "@/lib/configurable-service-bundle-types";
+import type { PricingDefinition, ServiceDefinition } from "@/lib/service-config-types";
 
 export const serviceDefinition = {
   "version": 1,
@@ -109,3 +110,47 @@ export const serviceDefinition = {
     ]
   }
 } satisfies ServiceDefinition;
+
+export const pricingDefinition = {
+  "version": 1,
+  "definitionId": "workspace",
+  "serviceCode": "Workspace",
+  "serviceName": "Workspace",
+  "catalogAdapter": "workspace",
+  "rateSources": {
+    "desktop": {
+      "catalogKey": "desktopTiers.prices",
+      "description": "Normalized Workspace desktop hourly rates from the productInfo catalog."
+    },
+    "systemDisk": {
+      "catalogKey": "diskTiers.prices",
+      "description": "Normalized Workspace system disk hourly rates from the productInfo catalog."
+    }
+  },
+  "metrics": [
+    {
+      "id": "desktop",
+      "label": "Desktop packages",
+      "rateSource": "desktop",
+      "quantity": {
+        "source": "field",
+        "field": "quantity"
+      }
+    },
+    {
+      "id": "systemDisk",
+      "label": "System disk capacity",
+      "rateSource": "systemDisk",
+      "quantity": {
+        "source": "field",
+        "field": "diskSizeGb"
+      },
+      "unit": "GB"
+    }
+  ]
+} satisfies PricingDefinition;
+
+export const configurableServiceBundle = {
+  service: serviceDefinition,
+  pricing: pricingDefinition,
+} as const satisfies ConfigurableServiceBundleDefinition;

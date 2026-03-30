@@ -1,23 +1,15 @@
 import { serviceRegistryDocument } from "@/config/services/index";
-import { pricingDefinition as ccePricingDefinitionDocument } from "@/config/services/cce/pricing";
-import { serviceDefinition as cceServiceDefinitionDocument } from "@/config/services/cce/service";
-import { pricingDefinition as cciPricingDefinitionDocument } from "@/config/services/cci/pricing";
-import { serviceDefinition as cciServiceDefinitionDocument } from "@/config/services/cci/service";
+import { pricingDefinition as ccePricingDefinitionDocument, serviceDefinition as cceServiceDefinitionDocument } from "@/config/services/cce/bundle";
+import { pricingDefinition as cciPricingDefinitionDocument, serviceDefinition as cciServiceDefinitionDocument } from "@/config/services/cci/bundle";
 import { pricingDefinition as dcsPricingDefinitionDocument, serviceDefinition as dcsServiceDefinitionDocument } from "@/config/services/dcs/bundle";
 import { pricingDefinition as eipPricingDefinitionDocument, serviceDefinition as eipServiceDefinitionDocument } from "@/config/services/eip/bundle";
-import { pricingDefinition as elbPricingDefinitionDocument } from "@/config/services/elb/pricing";
-import { serviceDefinition as elbServiceDefinitionDocument } from "@/config/services/elb/service";
-import { pricingDefinition as evsPricingDefinitionDocument } from "@/config/services/evs/pricing";
-import { serviceDefinition as evsServiceDefinitionDocument } from "@/config/services/evs/service";
-import { pricingDefinition as modelartsPricingDefinitionDocument } from "@/config/services/modelarts/pricing";
-import { serviceDefinition as modelartsServiceDefinitionDocument } from "@/config/services/modelarts/service";
+import { pricingDefinition as elbPricingDefinitionDocument, serviceDefinition as elbServiceDefinitionDocument } from "@/config/services/elb/bundle";
+import { pricingDefinition as evsPricingDefinitionDocument, serviceDefinition as evsServiceDefinitionDocument } from "@/config/services/evs/bundle";
+import { pricingDefinition as modelartsPricingDefinitionDocument, serviceDefinition as modelartsServiceDefinitionDocument } from "@/config/services/modelarts/bundle";
 import { pricingDefinition as natPricingDefinitionDocument, serviceDefinition as natServiceDefinitionDocument } from "@/config/services/nat/bundle";
-import { pricingDefinition as obsPricingDefinitionDocument } from "@/config/services/obs/pricing";
-import { serviceDefinition as obsServiceDefinitionDocument } from "@/config/services/obs/service";
-import { pricingDefinition as vpnPricingDefinitionDocument } from "@/config/services/vpn/pricing";
-import { serviceDefinition as vpnServiceDefinitionDocument } from "@/config/services/vpn/service";
-import { pricingDefinition as workspacePricingDefinitionDocument } from "@/config/services/workspace/pricing";
-import { serviceDefinition as workspaceServiceDefinitionDocument } from "@/config/services/workspace/service";
+import { pricingDefinition as obsPricingDefinitionDocument, serviceDefinition as obsServiceDefinitionDocument } from "@/config/services/obs/bundle";
+import { pricingDefinition as vpnPricingDefinitionDocument, serviceDefinition as vpnServiceDefinitionDocument } from "@/config/services/vpn/bundle";
+import { pricingDefinition as workspacePricingDefinitionDocument, serviceDefinition as workspaceServiceDefinitionDocument } from "@/config/services/workspace/bundle";
 import {
   billingOptions,
   definitionStatuses,
