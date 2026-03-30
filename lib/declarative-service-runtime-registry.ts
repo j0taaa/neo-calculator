@@ -1,10 +1,26 @@
+import { configurableServiceBundle as cceBundle } from "@/config/services/cce/bundle";
+import { configurableServiceBundle as cciBundle } from "@/config/services/cci/bundle";
 import { configurableServiceBundle as dcsBundle } from "@/config/services/dcs/bundle";
 import { configurableServiceBundle as eipBundle } from "@/config/services/eip/bundle";
+import { configurableServiceBundle as elbBundle } from "@/config/services/elb/bundle";
+import { configurableServiceBundle as evsBundle } from "@/config/services/evs/bundle";
+import { configurableServiceBundle as modelArtsBundle } from "@/config/services/modelarts/bundle";
 import { configurableServiceBundle as natBundle } from "@/config/services/nat/bundle";
-import { configurableRuntimeDefinitions } from "@/config/services/runtime";
+import { configurableServiceBundle as obsBundle } from "@/config/services/obs/bundle";
+import { configurableServiceBundle as vpnBundle } from "@/config/services/vpn/bundle";
+import { configurableServiceBundle as workspaceBundle } from "@/config/services/workspace/bundle";
+import type { DeclarativeRuntimeDefinition } from "@/lib/declarative-service-runtime-types";
 import type { TypedDeclarativeRuntimeDefinition } from "@/lib/typed-declarative-runtime-types";
 
 const typedRuntimeDefinitions = {
+  CCE: cceBundle.runtime,
+  CCI: cciBundle.runtime,
+  EVS: evsBundle.runtime,
+  ELB: elbBundle.runtime,
+  OBS: obsBundle.runtime,
+  ModelArts: modelArtsBundle.runtime,
+  VPN: vpnBundle.runtime,
+  Workspace: workspaceBundle.runtime,
   NAT: natBundle.runtime,
   EIP: eipBundle.runtime,
   DCS: dcsBundle.runtime,
@@ -14,6 +30,6 @@ export function getTypedDeclarativeRuntimeDefinitionByCode(serviceCode: string):
   return (typedRuntimeDefinitions[serviceCode as keyof typeof typedRuntimeDefinitions] ?? null) as TypedDeclarativeRuntimeDefinition | null;
 }
 
-export function getDeclarativeRuntimeDefinitionByCode(serviceCode: string) {
-  return configurableRuntimeDefinitions[serviceCode] ?? null;
+export function getDeclarativeRuntimeDefinitionByCode(_serviceCode: string): DeclarativeRuntimeDefinition | null {
+  return null;
 }

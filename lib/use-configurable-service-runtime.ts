@@ -341,6 +341,9 @@ export function useConfigurableServiceRuntime({
       });
 
       if (typedRuntimeDefinition) {
+        if (typedRuntimeDefinition.catalogView) {
+          return evaluateDeclarativeValue(typedRuntimeDefinition.catalogView, baseScope);
+        }
         return evaluateDeclarativeDerivedValues(typedRuntimeDefinition.derived, baseScope);
       }
 

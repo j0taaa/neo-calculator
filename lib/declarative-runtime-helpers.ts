@@ -10,6 +10,7 @@ import { estimateWorkspaceConfiguration, listWorkspaceCpuOptions, listWorkspaceD
 import { buildEvsProductMutationBodies, buildEvsSplitNotice, evsDiskSizeBounds, formatObsRequestInputValue, getGpSsd2IopsBounds, getGpSsd2RequestedIops, getGpSsd2RequestedThroughput, getGpSsd2ThroughputBounds, getObsRequestUnits, normalizeGpSsd2Iops, normalizeGpSsd2Throughput, obsStorageSizeBounds, parsePositiveNumber, splitEvsDiskSizes, systemDiskOptions } from "@/lib/configurable-runtime-utils";
 import { getBatchDescription, getBatchDiskSize, getBatchDiskType, getBatchObsAmount, getBatchObsProductType, getBatchObsRedundancy, getBatchObsStorageClass, getBatchObsStorageSize, getBatchObsUnit, getNestedRecord, parseBatchQuantity } from "@/lib/batch-input-utils";
 import { formatFlavorAmount, getDiskPriceForBillingOption, isRecord } from "@/lib/calculator-page-helpers";
+import { evaluateDefinitionExpression } from "@/lib/declarative-runtime-evaluator";
 import { huaweiRegions } from "@/lib/huawei-regions";
 
 function asArray<T>(value: T[] | readonly T[] | null | undefined) {
@@ -112,6 +113,13 @@ function getCatalogRegionId(regionValue: keyof typeof huaweiRegions | string) {
   return regionValue;
 }
 
+function runLegacyDefinitionExpression(expression: string | null | undefined, scope: Record<string, unknown>) {
+  return evaluateDefinitionExpression(expression, {
+    helpers: declarativeRuntimeHelpers,
+    ...scope,
+  });
+}
+
 export const declarativeRuntimeHelpers = {
   formatFlavorAmount,
   getDiskPriceForBillingOption,
@@ -199,6 +207,7 @@ export const declarativeRuntimeHelpers = {
   integerString,
   multiplyNumbers,
   getCatalogRegionId,
+  runLegacyDefinitionExpression,
   byLabelAmount,
   formatBreakdownNotes,
   obsPricingReference,

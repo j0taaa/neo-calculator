@@ -1,4 +1,6 @@
 import type { ConfigurableServiceBundleDefinition } from "@/lib/configurable-service-bundle-types";
+import type { DeclarativeRuntimeDefinition } from "@/lib/declarative-service-runtime-types";
+import { convertLegacyRuntimeDefinition } from "@/lib/legacy-runtime-converter";
 import type { PricingDefinition, ServiceDefinition } from "@/lib/service-config-types";
 
 export const serviceDefinition = {
@@ -965,7 +967,241 @@ export const pricingDefinition = {
   ]
 } satisfies PricingDefinition;
 
+const legacyRuntimeDefinition = {
+    quantityLabel: "Instance",
+    showGlobalQuantityControl: true,
+    usesSharedBillingHeader: true,
+    catalog: { route: "elb-pricing" },
+    showSharedUsageHoursExpression: "false",
+    catalogViewExpression: `(() => {
+      const type = values.type === 'Dedicated load balancer' ? 'Dedicated load balancer' : 'Shared load balancer';
+      const specificationType = values.specificationType === 'Elastic' ? 'Elastic' : 'Fixed';
+      const networkType = values.networkType === 'Private network' ? 'Private network' : 'Public network';
+      const sharedChargeMode = values.sharedChargeMode === 'By bandwidth' ? 'By bandwidth' : 'By traffic';
+      const sharedBandwidthMbit = helpers.normalizeObsPositiveNumber(values.sharedBandwidthMbit, 0, 0);
+      const sharedTrafficAmount = helpers.normalizeObsPositiveNumber(values.sharedTrafficAmount, 0, 0);
+      const sharedTrafficUnit = values.sharedTrafficUnit === 'TB' ? 'TB' : 'GB';
+      const fixedAvailabilityAzCountOptions = (() => {
+        const rateSet = catalog?.dedicatedRates?.fixed?.[helpers.elbDefaults.subAz];
+        if (!rateSet) return [String(helpers.elbDefaults.fixedAvailabilityAzCount)];
+        const options = Object.keys(rateSet).map(Number).filter((value) => Number.isFinite(value) && value > 0).sort((left, right) => left - right).map(String);
+        return options.length > 0 ? options : [String(helpers.elbDefaults.fixedAvailabilityAzCount)];
+      })();
+      const fixedAvailabilityAzCount = Number.isFinite(Number(values.fixedAvailabilityAzCount)) ? Math.max(1, Math.floor(Number(values.fixedAvailabilityAzCount))) : Number(fixedAvailabilityAzCountOptions[0] ?? helpers.elbDefaults.fixedAvailabilityAzCount);
+      const fixedNetworkEnabled = values.fixedNetworkEnabled === 'true';
+      const fixedApplicationEnabled = values.fixedApplicationEnabled === 'true';
+      const fixedNetworkSpec = helpers.elbFixedSpecOptions.includes(values.fixedNetworkSpec) ? values.fixedNetworkSpec : helpers.elbDefaults.fixedTypeSpecs['Network load balancing (TCP/UDP/TLS)'];
+      const fixedApplicationSpec = helpers.elbFixedSpecOptions.includes(values.fixedApplicationSpec) ? values.fixedApplicationSpec : helpers.elbDefaults.fixedTypeSpecs['Application load balancing (HTTP/HTTPS)'];
+      const showSharedChargeMode = helpers.shouldShowElbSharedChargeMode(type, networkType);
+      const showSharedBandwidth = helpers.shouldShowElbSharedBandwidth(type, networkType, sharedChargeMode);
+      const showSharedTraffic = helpers.shouldShowElbSharedTraffic(type, networkType, sharedChargeMode);
+      const protocols = [
+        { protocol: 'Network load balancing (TCP)', prefix: 'tcp' },
+        { protocol: 'Network load balancing (UDP)', prefix: 'udp' },
+        { protocol: 'Network load balancing (TLS)', prefix: 'tls' },
+        { protocol: 'Application load balancing (HTTP/HTTPS)', prefix: 'http' },
+      ].map(({ protocol, prefix }) => {
+        const enabled = values[prefix + 'Enabled'] === 'true';
+        const metricMode = values[prefix + 'MetricMode'] === 'By bandwidth' ? 'By bandwidth' : 'By traffic';
+        return {
+          protocol,
+          prefix,
+          enabled,
+          input: {
+            newConnections: helpers.normalizeObsPositiveNumber(values[prefix + 'NewConnections'], 0, 0),
+            maxConcurrentConnections: helpers.normalizeObsPositiveNumber(values[prefix + 'MaxConcurrentConnections'], 0, 0),
+            metricMode,
+            processedTrafficGbPerHour: helpers.normalizeObsPositiveNumber(values[prefix + 'ProcessedTrafficGbPerHour'], 0, 0),
+            averageBandwidthMbit: helpers.normalizeObsPositiveNumber(values[prefix + 'AverageBandwidthMbit'], 0, 0),
+            queriesPerSecond: prefix === 'http' ? helpers.normalizeObsPositiveNumber(values.httpQueriesPerSecond, 0, 0) : 0,
+            forwardingRules: prefix === 'http' ? helpers.normalizeObsPositiveNumber(values.httpForwardingRules, 0, 0) : 0,
+          },
+        };
+      });
+      const enabledProtocolPrefixes = protocols.filter((entry) => entry.enabled).map((entry) => entry.prefix);
+      const normalizedFixedNetworkEnabled = type === 'Dedicated load balancer' && specificationType === 'Fixed' && !fixedNetworkEnabled && !fixedApplicationEnabled ? true : fixedNetworkEnabled;
+      const normalizedFixedApplicationEnabled = type === 'Dedicated load balancer' && specificationType === 'Fixed' && !fixedNetworkEnabled && !fixedApplicationEnabled ? false : fixedApplicationEnabled;
+      const normalizedProtocols = protocols.map((entry) => entry.prefix === 'tcp' && type === 'Dedicated load balancer' && specificationType === 'Elastic' && enabledProtocolPrefixes.length === 0 ? { ...entry, enabled: true } : entry);
+      const selectedProtocols = normalizedProtocols.filter((entry) => entry.enabled).map((entry) => entry.protocol);
+      const protocolInputs = Object.fromEntries(normalizedProtocols.map((entry) => [entry.protocol, entry.input]));
+      const estimateInput = {
+        type,
+        specificationType,
+        subAz: helpers.elbDefaults.subAz,
+        fixedAvailabilityAzCount,
+        fixedSelectedTypes: type === 'Dedicated load balancer' && specificationType === 'Fixed'
+          ? [
+              ...(normalizedFixedNetworkEnabled ? ['Network load balancing (TCP/UDP/TLS)'] : []),
+              ...(normalizedFixedApplicationEnabled ? ['Application load balancing (HTTP/HTTPS)'] : []),
+            ]
+          : [],
+        fixedTypeSpecs: {
+          'Network load balancing (TCP/UDP/TLS)': fixedNetworkSpec,
+          'Application load balancing (HTTP/HTTPS)': fixedApplicationSpec,
+        },
+        selectedProtocols: type === 'Dedicated load balancer' && specificationType === 'Elastic' ? selectedProtocols : [],
+        protocolInputs: type === 'Dedicated load balancer' && specificationType === 'Elastic' ? protocolInputs : {},
+        networkType,
+        billingMode: billingMode === 'Pay-per-use' ? 'Pay-per-use' : 'Yearly/Monthly',
+        sharedDurationHours: usageHoursValue,
+        sharedChargeMode,
+        sharedTrafficAmount: showSharedTraffic ? sharedTrafficAmount : 0,
+        sharedTrafficUnit,
+        sharedBandwidthMbit: showSharedBandwidth ? sharedBandwidthMbit : 0,
+      };
+      const estimate = catalog ? helpers.estimateElbConfiguration(catalog, estimateInput) : null;
+      return { type, specificationType, networkType, sharedChargeMode, sharedBandwidthMbit, sharedTrafficAmount, sharedTrafficUnit, fixedAvailabilityAzCountOptions, fixedAvailabilityAzCount, fixedNetworkEnabled: normalizedFixedNetworkEnabled, fixedApplicationEnabled: normalizedFixedApplicationEnabled, fixedNetworkSpec, fixedApplicationSpec, showSharedChargeMode, showSharedBandwidth, showSharedTraffic, protocols: normalizedProtocols, selectedProtocols, protocolInputs, estimate };
+    })()`,
+    syncValuesExpression: `(() => {
+      const next = {
+        type: catalogView.type,
+        networkType: catalogView.networkType,
+        sharedChargeMode: catalogView.sharedChargeMode,
+        specificationType: catalogView.specificationType,
+        fixedAvailabilityAzCount: String(catalogView.fixedAvailabilityAzCount),
+        fixedNetworkEnabled: catalogView.fixedNetworkEnabled ? 'true' : 'false',
+        fixedApplicationEnabled: catalogView.fixedApplicationEnabled ? 'true' : 'false',
+        fixedNetworkSpec: catalogView.fixedNetworkSpec,
+        fixedApplicationSpec: catalogView.fixedApplicationSpec,
+      };
+      for (const entry of catalogView.protocols) {
+        next[entry.prefix + 'Enabled'] = entry.enabled ? 'true' : 'false';
+      }
+      return next;
+    })()`,
+    visibilityContextExpression: `({
+      showUsageHours: true,
+      showSharedBandwidth: catalogView.showSharedBandwidth,
+      showSharedTraffic: catalogView.showSharedTraffic,
+      type: catalogView.type,
+      specificationType: catalogView.specificationType,
+      networkType: catalogView.networkType,
+      fixedNetworkEnabled: catalogView.fixedNetworkEnabled,
+      fixedApplicationEnabled: catalogView.fixedApplicationEnabled,
+      tcpEnabled: catalogView.protocols.find((entry) => entry.prefix === 'tcp')?.enabled ?? false,
+      tcpMetricMode: values.tcpMetricMode === 'By bandwidth' ? 'By bandwidth' : 'By traffic',
+      udpEnabled: catalogView.protocols.find((entry) => entry.prefix === 'udp')?.enabled ?? false,
+      udpMetricMode: values.udpMetricMode === 'By bandwidth' ? 'By bandwidth' : 'By traffic',
+      tlsEnabled: catalogView.protocols.find((entry) => entry.prefix === 'tls')?.enabled ?? false,
+      tlsMetricMode: values.tlsMetricMode === 'By bandwidth' ? 'By bandwidth' : 'By traffic',
+      httpEnabled: catalogView.protocols.find((entry) => entry.prefix === 'http')?.enabled ?? false,
+      httpMetricMode: values.httpMetricMode === 'By bandwidth' ? 'By bandwidth' : 'By traffic',
+    })`,
+    activeBillingOptionsExpression: "helpers.getElbBillingOptions(catalogView.type)",
+    fieldRuntime: {
+      fixedAvailabilityAzCount: { optionsExpression: "helpers.optionList(catalogView.fixedAvailabilityAzCountOptions)" },
+      sharedBandwidthMbit: { minExpression: "0" },
+      sharedTrafficAmount: { minExpression: "0" },
+      tcpNewConnections: { minExpression: "0" },
+      tcpMaxConcurrentConnections: { minExpression: "0" },
+      tcpProcessedTrafficGbPerHour: { minExpression: "0" },
+      tcpAverageBandwidthMbit: { minExpression: "0" },
+      udpNewConnections: { minExpression: "0" },
+      udpMaxConcurrentConnections: { minExpression: "0" },
+      udpProcessedTrafficGbPerHour: { minExpression: "0" },
+      udpAverageBandwidthMbit: { minExpression: "0" },
+      tlsNewConnections: { minExpression: "0" },
+      tlsMaxConcurrentConnections: { minExpression: "0" },
+      tlsProcessedTrafficGbPerHour: { minExpression: "0" },
+      tlsAverageBandwidthMbit: { minExpression: "0" },
+      httpNewConnections: { minExpression: "0" },
+      httpMaxConcurrentConnections: { minExpression: "0" },
+      httpProcessedTrafficGbPerHour: { minExpression: "0" },
+      httpAverageBandwidthMbit: { minExpression: "0" },
+      httpQueriesPerSecond: { minExpression: "0" },
+      httpForwardingRules: { minExpression: "0" },
+    },
+    estimateExpression: "catalogView.estimate",
+    addToListErrorExpression: "catalogView.estimate ? null : (pricingError || 'ELB pricing is unavailable for the current selection.')",
+    selectionSummaryExpression: "catalogView.estimate ? `Selected specifications: ${catalogView.type}${catalogView.type === 'Dedicated load balancer' ? ` | ${catalogView.specificationType}` : ''}${catalogView.type === 'Dedicated load balancer' && catalogView.specificationType === 'Fixed' ? ` | ${catalogView.fixedAvailabilityAzCount} AZs` : ''} | ${catalogView.networkType}${catalogView.showSharedChargeMode ? ` | ${catalogView.sharedChargeMode}${catalogView.showSharedBandwidth ? ` | ${catalogView.sharedBandwidthMbit} Mbit/s` : ''}${catalogView.showSharedTraffic ? ` | ${catalogView.sharedTrafficAmount} ${catalogView.sharedTrafficUnit}` : ''}` : ''}${catalogView.type === 'Dedicated load balancer' ? ` | ${catalogView.estimate.estimatedLcus.total} estimated LCU` : ''} | ${helpers.formatFlavorAmount(catalogView.estimate.currency, catalogView.estimate.amount, catalogView.estimate.suffix)}` : 'Selected specifications:'",
+    selectionNotesExpression: "catalogView.estimate ? [...helpers.formatBreakdownNotes(catalogView.estimate.currency, catalogView.estimate.suffix, catalogView.estimate.breakdown), ...helpers.asArray(catalogView.estimate.notes)] : []",
+    referenceNoteExpression: "`Pricing sourced from Huawei Cloud ELB calculator API for ${catalogRegionId ?? (helpers.huaweiRegions[regionValue].catalogRegionId ?? regionValue)}. Sources: ${helpers.elbPricingReference.pricingUrl}, ${helpers.elbPricingReference.fixedDrawerNetworkUrl}, and ${helpers.elbPricingReference.fixedDrawerAppUrl}`",
+    buildRequestBodiesExpression: `catalogView.estimate ? ({
+      serviceCode: selectedServiceCode,
+      serviceName: selectedService,
+      productType: 'elb',
+      title: \`\${selectedService} \${catalogView.type}\`,
+      quantity: instanceCountValue,
+      config: {
+        region: regionValue,
+        catalogRegionId: catalogRegionId ?? (helpers.huaweiRegions[regionValue].catalogRegionId ?? regionValue),
+        billingMode: billingMode === 'Pay-per-use' ? 'Pay-per-use' : 'Yearly/Monthly',
+        type: catalogView.type,
+        specificationType: catalogView.specificationType,
+        subAz: helpers.elbDefaults.subAz,
+        fixedAvailabilityAzCount: catalogView.type === 'Dedicated load balancer' && catalogView.specificationType === 'Fixed' ? catalogView.fixedAvailabilityAzCount : null,
+        fixedSelectedTypes: catalogView.type === 'Dedicated load balancer' && catalogView.specificationType === 'Fixed'
+          ? [
+              ...(catalogView.fixedNetworkEnabled ? ['Network load balancing (TCP/UDP/TLS)'] : []),
+              ...(catalogView.fixedApplicationEnabled ? ['Application load balancing (HTTP/HTTPS)'] : []),
+            ]
+          : [],
+        fixedTypeSpecs: catalogView.type === 'Dedicated load balancer' && catalogView.specificationType === 'Fixed'
+          ? {
+              'Network load balancing (TCP/UDP/TLS)': catalogView.fixedNetworkSpec,
+              'Application load balancing (HTTP/HTTPS)': catalogView.fixedApplicationSpec,
+            }
+          : {},
+        networkType: catalogView.networkType,
+        sharedChargeMode: catalogView.showSharedChargeMode ? catalogView.sharedChargeMode : null,
+        sharedBandwidthMbit: catalogView.showSharedBandwidth ? catalogView.sharedBandwidthMbit : null,
+        sharedTrafficAmount: catalogView.showSharedTraffic ? catalogView.sharedTrafficAmount : null,
+        sharedTrafficUnit: catalogView.showSharedTraffic ? catalogView.sharedTrafficUnit : null,
+        selectedProtocols: catalogView.type === 'Dedicated load balancer' && catalogView.specificationType === 'Elastic' ? catalogView.selectedProtocols : [],
+        protocolInputs: catalogView.type === 'Dedicated load balancer' && catalogView.specificationType === 'Elastic' ? catalogView.protocolInputs : {},
+        estimatedNetworkLcus: catalogView.estimate.estimatedLcus.network,
+        estimatedApplicationLcus: catalogView.estimate.estimatedLcus.application,
+        estimatedTotalLcus: catalogView.estimate.estimatedLcus.total,
+        selectedNetworkSpecLcus: catalogView.estimate.selectedSpecLcus.network,
+        selectedApplicationSpecLcus: catalogView.estimate.selectedSpecLcus.application,
+        usageHours: usageHoursValue,
+      },
+      pricing: {
+        total: helpers.formatFlavorAmount(catalogView.estimate.currency, catalogView.estimate.amount * instanceCountValue, catalogView.estimate.suffix),
+        estimate: helpers.formatFlavorAmount(catalogView.estimate.currency, catalogView.estimate.amount, catalogView.estimate.suffix),
+        monthlyAverage: helpers.formatFlavorAmount(catalogView.estimate.currency, catalogView.estimate.monthlyAverageAmount, '/mo'),
+        breakdown: helpers.byLabelAmount(catalogView.estimate.currency, catalogView.estimate.suffix, catalogView.estimate.breakdown),
+      },
+    }) : null`,
+    hydrateExpression: `(() => {
+      if (product.productType !== 'elb' || !helpers.isRecord(product.config)) {
+        return { handled: false, error: 'This product cannot be edited from the calculator.' };
+      }
+      const fixedSelectedTypes = Array.isArray(product.config.fixedSelectedTypes) ? product.config.fixedSelectedTypes.filter((entry) => typeof entry === 'string') : [];
+      const fixedTypeSpecs = helpers.isRecord(product.config.fixedTypeSpecs) ? product.config.fixedTypeSpecs : {};
+      const selectedProtocols = Array.isArray(product.config.selectedProtocols) ? product.config.selectedProtocols.filter((entry) => typeof entry === 'string') : [];
+      const protocolInputs = helpers.isRecord(product.config.protocolInputs) ? product.config.protocolInputs : {};
+      return {
+        handled: true,
+        values: {
+          type: product.config.type === 'Dedicated load balancer' ? 'Dedicated load balancer' : 'Shared load balancer',
+          specificationType: product.config.specificationType === 'Elastic' ? 'Elastic' : 'Fixed',
+          networkType: product.config.networkType === 'Private network' ? 'Private network' : 'Public network',
+          sharedChargeMode: product.config.sharedChargeMode === 'By bandwidth' ? 'By bandwidth' : 'By traffic',
+          usageHours: typeof product.config.usageHours === 'number' ? String(Math.max(1, Math.floor(product.config.usageHours))) : '744',
+          sharedBandwidthMbit: typeof product.config.sharedBandwidthMbit === 'number' ? String(Math.max(0, product.config.sharedBandwidthMbit)) : String(helpers.elbDefaults.sharedBandwidthMbit),
+          sharedTrafficAmount: typeof product.config.sharedTrafficAmount === 'number' ? String(Math.max(0, product.config.sharedTrafficAmount)) : String(helpers.elbDefaults.sharedTrafficGb),
+          sharedTrafficUnit: product.config.sharedTrafficUnit === 'TB' ? 'TB' : 'GB',
+          fixedAvailabilityAzCount: typeof product.config.fixedAvailabilityAzCount === 'number' ? String(Math.max(1, Math.floor(product.config.fixedAvailabilityAzCount))) : String(helpers.elbDefaults.fixedAvailabilityAzCount),
+          fixedNetworkEnabled: fixedSelectedTypes.includes('Network load balancing (TCP/UDP/TLS)') ? 'true' : 'false',
+          fixedNetworkSpec: typeof fixedTypeSpecs['Network load balancing (TCP/UDP/TLS)'] === 'string' ? String(fixedTypeSpecs['Network load balancing (TCP/UDP/TLS)']) : helpers.elbDefaults.fixedTypeSpecs['Network load balancing (TCP/UDP/TLS)'],
+          fixedApplicationEnabled: fixedSelectedTypes.includes('Application load balancing (HTTP/HTTPS)') ? 'true' : 'false',
+          fixedApplicationSpec: typeof fixedTypeSpecs['Application load balancing (HTTP/HTTPS)'] === 'string' ? String(fixedTypeSpecs['Application load balancing (HTTP/HTTPS)']) : helpers.elbDefaults.fixedTypeSpecs['Application load balancing (HTTP/HTTPS)'],
+          tcpEnabled: selectedProtocols.includes('Network load balancing (TCP)') ? 'true' : 'false',
+          udpEnabled: selectedProtocols.includes('Network load balancing (UDP)') ? 'true' : 'false',
+          tlsEnabled: selectedProtocols.includes('Network load balancing (TLS)') ? 'true' : 'false',
+          httpEnabled: selectedProtocols.includes('Application load balancing (HTTP/HTTPS)') ? 'true' : 'false',
+        },
+        nextRegion: typeof product.config.region === 'string' ? product.config.region : regionValue,
+        nextBillingMode: product.config.billingMode === 'Yearly/Monthly' ? 'Yearly/Monthly' : 'Pay-per-use',
+        nextUsageHours: typeof product.config.usageHours === 'number' ? String(Math.max(1, Math.floor(product.config.usageHours))) : usageHours,
+        nextInstanceCount: String(Math.max(1, product.quantity)),
+      };
+    })()`,
+  } satisfies DeclarativeRuntimeDefinition;
+
 export const configurableServiceBundle = {
   service: serviceDefinition,
   pricing: pricingDefinition,
+  runtime: convertLegacyRuntimeDefinition(legacyRuntimeDefinition),
 } as const satisfies ConfigurableServiceBundleDefinition;

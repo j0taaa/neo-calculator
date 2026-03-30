@@ -53,6 +53,7 @@ export type TypedDeclarativeRuntimeDefinition = {
   showGlobalQuantityControl: boolean;
   usesSharedBillingHeader: boolean;
   catalog?: DeclarativeCatalogSource;
+  catalogView?: TypedDeclarativeValue;
   derived?: TypedDeclarativeDerivedValue[];
   syncValues?: TypedDeclarativeValue;
   activeBillingOptions?: TypedDeclarativeValue;
