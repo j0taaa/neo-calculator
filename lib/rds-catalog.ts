@@ -92,40 +92,9 @@ const postgresqlVersionOrder: Extract<RdsVersion, "17" | "16" | "15" | "14" | "1
 const instanceTypeOrder: RdsInstanceType[] = ["Primary/Standby", "Single", "Read replica"];
 const classOrder: RdsInstanceClass[] = ["General-purpose", "Dedicated"];
 const storageTypeOrder: RdsStorageType[] = ["Flexible SSD", "Cloud SSD", "Extreme SSD"];
-const mysqlGeneralPurposeFlexibleSsdMemorySurchargePerGiBHour = 0.0395322143;
 
 function roundAmount(value: number) {
   return Number(value.toFixed(5));
-}
-
-function getNodeCount(instanceType: RdsInstanceType) {
-  return instanceType === "Primary/Standby" ? 2 : 1;
-}
-
-function getCalibratedStorageRatePerGbHour(input: {
-  regionId: string;
-  instanceClass: RdsInstanceClass;
-  instanceType: RdsInstanceType;
-  storageType: RdsStorageType;
-  storageTier: RdsStorageTier;
-}) {
-  if (input.storageType === "Flexible SSD") {
-    if (input.regionId === "sa-brazil-1") {
-      return input.storageTier.prices.ONDEMAND ?? 0;
-    }
-    return 0.0012287167;
-  }
-
-  if (input.storageType === "Cloud SSD") {
-    if (input.instanceClass === "General-purpose") {
-      return 0.00166;
-    }
-
-    return input.instanceType === "Primary/Standby" ? 0.0029099462 : 0.0021599462;
-  }
-
-  const nodeCount = getNodeCount(input.instanceType);
-  return (input.storageTier.prices.ONDEMAND ?? 0) / Math.max(1, nodeCount);
 }
 
 export function isRdsEngine(value: unknown): value is RdsEngine {
@@ -280,39 +249,11 @@ export function estimateRdsConfiguration(catalog: RdsPricingCatalog, input: RdsE
   const usageHours = Number.isFinite(input.usageHours) ? Math.max(1, Math.floor(input.usageHours)) : 1;
   const quantity = Number.isFinite(input.quantity) ? Math.max(1, Math.floor(input.quantity)) : 1;
   const storageSizeGb = Number.isFinite(input.storageSizeGb) ? Math.max(40, Math.floor(input.storageSizeGb)) : 40;
-  const nodeCount = getNodeCount(input.instanceType);
-  const calibratedStorageRatePerGbHour = getCalibratedStorageRatePerGbHour({
-    regionId: catalog.regionId,
-    instanceClass: input.instanceClass,
-    instanceType: input.instanceType,
-    storageType: input.storageType,
-    storageTier,
-  });
-
   const computeAmount = computeTier.prices.ONDEMAND * usageHours;
-  const storageNodeCount = input.storageType === "Flexible SSD" && catalog.regionId === "sa-brazil-1"
-    ? 1
-    : nodeCount;
-  const storageAmount = calibratedStorageRatePerGbHour * storageSizeGb * usageHours * storageNodeCount;
-  const memorySurchargeAmount = (
-    catalog.regionId !== "sa-brazil-1"
-    && (
-    input.engine === "MySQL"
-    && input.instanceClass === "General-purpose"
-    && input.storageType === "Flexible SSD"
-    && computeTier.memoryGiB > 4
-    )
-  )
-    ? Math.max(0, computeTier.memoryGiB - 4) * nodeCount * usageHours * mysqlGeneralPurposeFlexibleSsdMemorySurchargePerGiBHour
-    : 0;
-  const iopsAmount = input.storageType === "Flexible SSD"
-    && catalog.regionId !== "sa-brazil-1"
-    ? Math.max(0, input.iops - 3000) * usageHours * (storageTier.iopsRatePerUnit ?? 0)
-    : 0;
-  const throughputAmount = input.storageType === "Flexible SSD"
-    && catalog.regionId !== "sa-brazil-1"
-    ? Math.max(0, input.throughputMibps) * usageHours * (storageTier.throughputRatePerUnit ?? 0)
-    : 0;
+  const storageAmount = storageTier.prices.ONDEMAND * storageSizeGb * usageHours;
+  const memorySurchargeAmount = 0;
+  const iopsAmount = 0;
+  const throughputAmount = 0;
 
   const unitAmount = roundAmount(computeAmount + storageAmount + memorySurchargeAmount + iopsAmount + throughputAmount);
   const amount = roundAmount(unitAmount * quantity);
@@ -343,14 +284,10 @@ export function estimateRdsConfiguration(catalog: RdsPricingCatalog, input: RdsE
   const notes = [
     input.instanceType === "Read replica"
       ? "Read replica pricing models only the replica instance. You must create the primary DB instance separately."
-      : "Primary/Standby pricing includes the standby node in the compute and storage model.",
+      : "Primary/Standby uses the direct Huawei HA spec rate returned by the catalog for the selected configuration.",
     input.storageType === "Flexible SSD"
-      ? (
-          catalog.regionId === "sa-brazil-1"
-            ? "Flexible SSD for sa-brazil-1 uses the direct Huawei storage rate. Throughput and the 3000 IOPS baseline are treated as included in this model."
-            : "Flexible SSD uses a calibrated storage base rate plus throughput charges. IOPS are billed only above the included 3000 baseline in this model."
-        )
-      : `Storage is modeled with the calibrated ${input.storageType} rate for the selected class and instance type.`,
+      ? "Flexible SSD uses the direct Huawei storage rate returned by the catalog. Additional IOPS and throughput rows are not applied because the API does not expose a reliable billable baseline for the current input."
+      : `Storage uses the direct Huawei ${input.storageType} rate returned by the catalog.`,
   ];
 
   return {

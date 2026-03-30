@@ -120,7 +120,7 @@ test("RDS parser extracts supported engines, versions, instance types, classes, 
   expect(listRdsStorageTypes(catalog, { engine: "MySQL", instanceType: "Primary/Standby" })).toEqual(["Flexible SSD"]);
 });
 
-test("RDS estimator matches the documented example prices", () => {
+test("RDS estimator uses direct API compute and storage rates", () => {
   const catalog = parseRdsPricingCatalogResponse(fixture, "ap-southeast-1");
 
   const mysqlGpHa = estimateRdsConfiguration(catalog, {
@@ -202,12 +202,15 @@ test("RDS estimator matches the documented example prices", () => {
     quantity: 1,
   });
 
-  expect(mysqlGpHa?.amount).toBeCloseTo(205.22, 2);
-  expect(mysqlGpHa8g?.amount).toBeCloseTo(469.97, 2);
-  expect(pgGpHa?.amount).toBeCloseTo(217.84, 2);
-  expect(pgGpRr?.amount).toBeCloseTo(123.80, 2);
-  expect(pgDedRr?.amount).toBeCloseTo(175.88, 2);
-  expect(pgDedHa?.amount).toBeCloseTo(530.32, 2);
+  expect(mysqlGpHa?.amount).toBeCloseTo(127.19, 2);
+  expect(mysqlGpHa?.storageAmount).toBeCloseTo(8.15, 2);
+  expect(mysqlGpHa8g?.amount).toBeCloseTo(156.95, 2);
+  expect(mysqlGpHa8g?.memorySurchargeAmount).toBe(0);
+  expect(mysqlGpHa8g?.throughputAmount).toBe(0);
+  expect(pgGpHa?.amount).toBeCloseTo(142.85, 2);
+  expect(pgGpRr?.amount).toBeCloseTo(86.30, 2);
+  expect(pgDedRr?.amount).toBeCloseTo(123.50, 2);
+  expect(pgDedHa?.amount).toBeCloseTo(380.93, 2);
 });
 
 test("RDS estimator uses the direct Brazil Flexible SSD rates for MySQL general-purpose HA", () => {
