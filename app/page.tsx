@@ -2538,7 +2538,7 @@ export default function Home() {
                 ) : (
                   <UnsupportedServicePanel
                     title={`Calculator not implemented yet for ${selectedService}`}
-                    description={`This dashboard calculator currently supports ${supportedCalculatorServiceCodes.join(", ")} only. Select Elastic Cloud Server, Flexus L Instance, Elastic Volume Service, Object Storage Service, Elastic IP, NAT Gateway, Virtual Private Network, Elastic Load Balance, Cloud Container Engine, Cloud Container Instance, ModelArts, Workspace, or Distributed Cache Service to use the pricing form and save items.`}
+                    description={`This dashboard calculator currently supports ${supportedCalculatorServiceCodes.join(", ")} only.`}
                   />
                 )}
               </TabsContent>

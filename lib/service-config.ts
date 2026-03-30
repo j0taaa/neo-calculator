@@ -5,6 +5,7 @@ import { pricingDefinition as dcsPricingDefinitionDocument, serviceDefinition as
 import { pricingDefinition as eipPricingDefinitionDocument, serviceDefinition as eipServiceDefinitionDocument } from "@/config/services/eip/bundle";
 import { pricingDefinition as elbPricingDefinitionDocument, serviceDefinition as elbServiceDefinitionDocument } from "@/config/services/elb/bundle";
 import { pricingDefinition as evsPricingDefinitionDocument, serviceDefinition as evsServiceDefinitionDocument } from "@/config/services/evs/bundle";
+import { pricingDefinition as functionGraphPricingDefinitionDocument, serviceDefinition as functionGraphServiceDefinitionDocument } from "@/config/services/functiongraph/bundle";
 import { pricingDefinition as modelartsPricingDefinitionDocument, serviceDefinition as modelartsServiceDefinitionDocument } from "@/config/services/modelarts/bundle";
 import { pricingDefinition as natPricingDefinitionDocument, serviceDefinition as natServiceDefinitionDocument } from "@/config/services/nat/bundle";
 import { pricingDefinition as obsPricingDefinitionDocument, serviceDefinition as obsServiceDefinitionDocument } from "@/config/services/obs/bundle";
@@ -444,6 +445,10 @@ const definitionDocuments = {
   evs: {
     service: parseServiceDefinition(evsServiceDefinitionDocument),
     pricing: parsePricingDefinition(evsPricingDefinitionDocument),
+  },
+  functiongraph: {
+    service: parseServiceDefinition(functionGraphServiceDefinitionDocument),
+    pricing: parsePricingDefinition(functionGraphPricingDefinitionDocument),
   },
   nat: {
     service: parseServiceDefinition(natServiceDefinitionDocument),

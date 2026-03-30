@@ -49,7 +49,7 @@ test("EVS pilot pricing definition links metrics to normalized catalog rate sour
 });
 
 test("additional configurable service definitions load from typed TS config", () => {
-  expect(configurableServiceCodes).toEqual(expect.arrayContaining(["OBS", "EIP", "ELB", "NAT", "VPN", "CCE", "CCI", "ModelArts", "Workspace", "DCS"]));
+  expect(configurableServiceCodes).toEqual(expect.arrayContaining(["OBS", "EIP", "ELB", "NAT", "VPN", "CCE", "CCI", "ModelArts", "Workspace", "DCS", "FunctionGraph"]));
 
   expect(getConfigurableServiceDefinitionByCode("OBS")?.implementation).toBe("configurable");
   expect(getConfigurableServiceDefinitionByCode("ELB")?.implementation).toBe("configurable");
@@ -94,4 +94,12 @@ test("additional configurable service definitions load from typed TS config", ()
     "usageHours",
   ]);
   expect(getConfigurablePricingDefinitionByCode("DCS")?.catalogAdapter).toBe("dcs");
+  expect(getConfigurableServiceDefinitionByCode("FunctionGraph")?.fields.map((field) => field.id)).toEqual([
+    "averageRequestsAmount",
+    "averageRequestsUnit",
+    "executionDurationMs",
+    "memoryAmount",
+    "memoryUnit",
+  ]);
+  expect(getConfigurablePricingDefinitionByCode("FunctionGraph")?.catalogAdapter).toBe("functiongraph");
 });

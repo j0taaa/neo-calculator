@@ -7,6 +7,7 @@ import { estimateNatConfiguration, getFallbackNatPricingCatalog, listNatGatewayS
 import { estimateModelArtsConfiguration, listModelArtsResourceTypes, listModelArtsSpecifications, modelArtsDefaults, modelArtsPricingReference } from "@/lib/modelarts-catalog";
 import { estimateVpnConfiguration, getFallbackVpnPricingCatalog, getVpnBillingOptions, listVpnModes, listVpnSpecifications, shouldShowVpnPublicBandwidth, vpnDefaults, vpnPricingReference } from "@/lib/vpn-catalog";
 import { estimateWorkspaceConfiguration, listWorkspaceCpuOptions, listWorkspaceDiskTypes, listWorkspaceMemoryOptions, workspaceDefaults, workspacePricingReference } from "@/lib/workspace-catalog";
+import { estimateFunctionGraphConfiguration, functionGraphDefaults, functionGraphPricingReference, getFallbackFunctionGraphPricingCatalog } from "@/lib/functiongraph-catalog";
 import { buildEvsProductMutationBodies, buildEvsSplitNotice, evsDiskSizeBounds, formatObsRequestInputValue, getGpSsd2IopsBounds, getGpSsd2RequestedIops, getGpSsd2RequestedThroughput, getGpSsd2ThroughputBounds, getObsRequestUnits, normalizeGpSsd2Iops, normalizeGpSsd2Throughput, obsStorageSizeBounds, parsePositiveNumber, splitEvsDiskSizes, systemDiskOptions } from "@/lib/configurable-runtime-utils";
 import { getBatchDescription, getBatchDiskSize, getBatchDiskType, getBatchObsAmount, getBatchObsProductType, getBatchObsRedundancy, getBatchObsStorageClass, getBatchObsStorageSize, getBatchObsUnit, getNestedRecord, parseBatchQuantity } from "@/lib/batch-input-utils";
 import { formatFlavorAmount, getDiskPriceForBillingOption, isRecord } from "@/lib/calculator-page-helpers";
@@ -157,6 +158,7 @@ export const declarativeRuntimeHelpers = {
   estimateCceConfiguration,
   estimateModelArtsConfiguration,
   estimateWorkspaceConfiguration,
+  estimateFunctionGraphConfiguration,
   estimateDcsConfiguration,
   getElbBillingOptions,
   shouldShowElbSharedBandwidth,
@@ -165,6 +167,7 @@ export const declarativeRuntimeHelpers = {
   getFallbackNatPricingCatalog,
   getFallbackVpnPricingCatalog,
   getFallbackCcePricingCatalog,
+  getFallbackFunctionGraphPricingCatalog,
   getVpnBillingOptions,
   shouldShowVpnPublicBandwidth,
   listNatGatewayTypes,
@@ -223,6 +226,7 @@ export const declarativeRuntimeHelpers = {
   modelArtsDefaults,
   vpnDefaults,
   workspaceDefaults,
+  functionGraphDefaults,
   eipPricingReference,
   elbPricingReference,
   ccePricingReference,
@@ -231,6 +235,7 @@ export const declarativeRuntimeHelpers = {
   modelArtsPricingReference,
   vpnPricingReference,
   workspacePricingReference,
+  functionGraphPricingReference,
   huaweiRegions,
   isRecord,
   asArray,

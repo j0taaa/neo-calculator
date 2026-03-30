@@ -15,7 +15,8 @@ export const serviceRegistryDocument = {
     "CCI",
     "ModelArts",
     "Workspace",
-    "DCS"
+    "DCS",
+    "FunctionGraph"
   ],
   "supportedBatchAddServiceCodes": [
     "ECS",
@@ -101,6 +102,13 @@ export const serviceRegistryDocument = {
       "definitionId": "dcs",
       "serviceDefinitionPath": "./dcs/bundle.ts",
       "pricingDefinitionPath": "./dcs/bundle.ts",
+      "status": "active"
+    },
+    {
+      "serviceCode": "FunctionGraph",
+      "definitionId": "functiongraph",
+      "serviceDefinitionPath": "./functiongraph/bundle.ts",
+      "pricingDefinitionPath": "./functiongraph/bundle.ts",
       "status": "active"
     }
   ],

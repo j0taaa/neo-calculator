@@ -315,5 +315,21 @@ export function getProductConfigSummary(product: AppProduct): string {
     return parts.join(" · ") || product.serviceName;
   }
 
+  if (product.productType === "functiongraph") {
+    const parts = [
+      typeof product.config.region === "string" ? product.config.region : null,
+      typeof product.config.averageRequestsAmount === "number" && typeof product.config.averageRequestsUnit === "string"
+        ? `${product.config.averageRequestsAmount} x 10k/${product.config.averageRequestsUnit}`
+        : null,
+      typeof product.config.executionDurationMs === "number" ? `${product.config.executionDurationMs} ms` : null,
+      typeof product.config.memoryAmount === "number" && typeof product.config.memoryUnit === "string"
+        ? `${product.config.memoryAmount} ${product.config.memoryUnit}`
+        : null,
+      typeof product.config.billingMode === "string" ? product.config.billingMode : null,
+    ].filter(Boolean);
+
+    return parts.join(" · ") || product.serviceName;
+  }
+
   return product.serviceName;
 }

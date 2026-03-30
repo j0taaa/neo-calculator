@@ -4,6 +4,7 @@ import { configurableServiceBundle as dcsBundle } from "@/config/services/dcs/bu
 import { configurableServiceBundle as eipBundle } from "@/config/services/eip/bundle";
 import { configurableServiceBundle as elbBundle } from "@/config/services/elb/bundle";
 import { configurableServiceBundle as evsBundle } from "@/config/services/evs/bundle";
+import { configurableServiceBundle as functionGraphBundle } from "@/config/services/functiongraph/bundle";
 import { configurableServiceBundle as modelArtsBundle } from "@/config/services/modelarts/bundle";
 import { configurableServiceBundle as natBundle } from "@/config/services/nat/bundle";
 import { configurableServiceBundle as obsBundle } from "@/config/services/obs/bundle";
@@ -21,6 +22,7 @@ const typedRuntimeDefinitions = {
   ModelArts: modelArtsBundle.runtime,
   VPN: vpnBundle.runtime,
   Workspace: workspaceBundle.runtime,
+  FunctionGraph: functionGraphBundle.runtime,
   NAT: natBundle.runtime,
   EIP: eipBundle.runtime,
   DCS: dcsBundle.runtime,
@@ -30,6 +32,10 @@ export function getTypedDeclarativeRuntimeDefinitionByCode(serviceCode: string):
   return (typedRuntimeDefinitions[serviceCode as keyof typeof typedRuntimeDefinitions] ?? null) as TypedDeclarativeRuntimeDefinition | null;
 }
 
-export function getDeclarativeRuntimeDefinitionByCode(): DeclarativeRuntimeDefinition | null {
+export function getDeclarativeRuntimeDefinitionByCode(serviceCode?: string): DeclarativeRuntimeDefinition | null {
+  if (serviceCode) {
+    return null;
+  }
+
   return null;
 }
