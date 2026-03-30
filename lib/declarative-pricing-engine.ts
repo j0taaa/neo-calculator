@@ -24,6 +24,7 @@ type ExtractorDefinition =
   | { kind: "literal"; value: unknown }
   | { kind: "path"; path: string }
   | { kind: "path-or-template"; path: string; template: string }
+  | { kind: "conditional"; when: PredicateDefinition[]; then: ExtractorDefinition; else?: ExtractorDefinition }
   | { kind: "contains-map"; path: string; mappings: Array<{ contains: string; value: unknown }>; caseInsensitive?: boolean }
   | {
       kind: "keyword-map";
@@ -34,9 +35,11 @@ type ExtractorDefinition =
       caseInsensitive?: boolean;
     }
   | { kind: "enum-from-pattern"; paths: string[]; values: string[]; pattern?: string; flags?: string }
+  | { kind: "number-from-pattern"; paths: string[]; pattern?: string; flags?: string; divideBy?: number }
   | { kind: "memory-gib"; paths: string[] }
   | { kind: "replica-count"; numberPaths: string[]; textPaths: string[]; fallbackByField?: { field: string; equals: unknown; value: unknown } }
   | { kind: "rate-set"; planPath?: string; modes: ProductInfoBillingMode[] }
+  | { kind: "product-id-set"; planPath?: string; modes: ProductInfoBillingMode[] }
   | { kind: "plan-amount"; billingMode: ProductInfoBillingMode; billingEvent?: string; planPath?: string }
   | { kind: "plan-product-id"; billingMode: ProductInfoBillingMode; planPath?: string }
   | { kind: "division-tiers"; billingMode: ProductInfoBillingMode; billingEvent: string; planPath?: string }
@@ -117,12 +120,31 @@ type RecursiveGroupedParserDefinition = {
   auxiliaryOutputs?: SelectedOutputDefinition[];
 };
 
+type GroupedSectionDefinition = {
+  targetPath: string;
+  path: string;
+  filters?: PredicateDefinition[];
+  fields: SectionFieldDefinition[];
+  mergeBy?: string[];
+  dedupeBy?: string[];
+  minByPath?: string;
+  sort?: Array<{ path: string; direction: "asc" | "desc"; order?: Array<string | number> }>;
+};
+
+type GroupedSectionsParserDefinition = {
+  kind: "grouped-sections";
+  currency: string;
+  catalogStatic?: Record<string, unknown>;
+  sections: GroupedSectionDefinition[];
+};
+
 export type DeclarativePricingDefinition =
   & { source: ProductInfoSourceDefinition }
   & (
     | { parser: SectionedRateSetParserDefinition }
     | { parser: SelectedRecordsParserDefinition }
     | { parser: RecursiveGroupedParserDefinition }
+    | { parser: GroupedSectionsParserDefinition }
   );
 
 type RawPlan = Record<string, unknown> & {
@@ -158,7 +180,19 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 function readPath(value: unknown, path: string) {
-  return path.split(".").reduce<unknown>((current, part) => (isRecord(current) ? current[part] : undefined), value);
+  const parts = path.split(".");
+  let current: unknown = value;
+  for (let index = 0; index < parts.length; index += 1) {
+    if (!isRecord(current)) {
+      return undefined;
+    }
+    const remaining = parts.slice(index).join(".");
+    if (remaining in current) {
+      return current[remaining];
+    }
+    current = current[parts[index]];
+  }
+  return current;
 }
 
 function readArrayAtPath(value: unknown, path: string): RawRecord[] {
@@ -220,6 +254,12 @@ function pickAmount(record: RawRecord, billingMode: ProductInfoBillingMode, bill
 function buildRateSet(record: RawRecord, modes: ProductInfoBillingMode[], planPath?: string) {
   return Object.fromEntries(
     modes.map((mode) => [mode, pickAmount(record, mode, undefined, planPath) ?? undefined]),
+  );
+}
+
+function buildProductIdSet(record: RawRecord, modes: ProductInfoBillingMode[], planPath?: string) {
+  return Object.fromEntries(
+    modes.map((mode) => [mode, pickPlan(record, mode, undefined, planPath)?.productId ?? undefined]),
   );
 }
 
@@ -298,12 +338,18 @@ function matchesPredicate(record: RawRecord, predicate: PredicateDefinition) {
   return false;
 }
 
-function extractValue(record: RawRecord, extractor: ExtractorDefinition, fields: Record<string, unknown> = {}) {
+function extractValue(record: RawRecord, extractor: ExtractorDefinition, fields: Record<string, unknown> = {}): unknown {
   switch (extractor.kind) {
     case "literal":
       return extractor.value;
     case "path":
       return readPath(record, extractor.path);
+    case "conditional":
+      return extractor.when.every((predicate) => matchesPredicate(record, predicate))
+        ? extractValue(record, extractor.then, fields)
+        : extractor.else
+          ? extractValue(record, extractor.else, fields)
+          : null;
     case "path-or-template": {
       const value = readPath(record, extractor.path);
       if (typeof value === "string" && value) {
@@ -353,6 +399,25 @@ function extractValue(record: RawRecord, extractor: ExtractorDefinition, fields:
       }
       return null;
     }
+    case "number-from-pattern": {
+      for (const value of extractor.paths.map((path) => readPath(record, path))) {
+        if (typeof value === "number" && Number.isFinite(value)) {
+          return extractor.divideBy ? value / extractor.divideBy : value;
+        }
+        if (typeof value === "string" && value.trim()) {
+          const match = extractor.pattern
+            ? value.match(new RegExp(extractor.pattern, extractor.flags))
+            : value.match(/(\d+(?:\.\d+)?)/);
+          if (match) {
+            const parsed = Number(match[1]);
+            if (Number.isFinite(parsed)) {
+              return extractor.divideBy ? parsed / extractor.divideBy : parsed;
+            }
+          }
+        }
+      }
+      return null;
+    }
     case "memory-gib":
       return parseMemoryGiB(record, extractor.paths);
     case "replica-count": {
@@ -376,6 +441,8 @@ function extractValue(record: RawRecord, extractor: ExtractorDefinition, fields:
     }
     case "rate-set":
       return buildRateSet(record, extractor.modes, extractor.planPath);
+    case "product-id-set":
+      return buildProductIdSet(record, extractor.modes, extractor.planPath);
     case "plan-amount":
       return pickAmount(record, extractor.billingMode, extractor.billingEvent, extractor.planPath);
     case "plan-product-id":
@@ -535,7 +602,7 @@ function parseSectionedRateSetCatalog(definition: Extract<DeclarativePricingDefi
           valid = false;
           break;
         }
-        fields[field.key] = value;
+        setNestedValue(fields, field.key, value);
       }
       if (valid) {
         records.push(fields);
@@ -597,14 +664,14 @@ function parseRecursiveGroupedCatalog(definition: Extract<DeclarativePricingDefi
 
     const fields: Record<string, unknown> = {};
     let valid = true;
-    for (const field of definition.fields) {
-      const value = extractValue(record, field.extractor, fields);
-      if (field.required && (value == null || value === "")) {
-        valid = false;
-        break;
+      for (const field of definition.fields) {
+        const value = extractValue(record, field.extractor, fields);
+        if (field.required && (value == null || value === "")) {
+          valid = false;
+          break;
+        }
+        setNestedValue(fields, field.key, value);
       }
-      fields[field.key] = value;
-    }
     if (!valid || rejectByDerivedConditions(fields, definition.postRejectWhenAll)) {
       continue;
     }
@@ -655,6 +722,97 @@ function parseRecursiveGroupedCatalog(definition: Extract<DeclarativePricingDefi
   return catalog;
 }
 
+function mergeDefinedValues(target: Record<string, unknown>, source: Record<string, unknown>) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value == null || value === "") {
+      continue;
+    }
+    const existing = target[key];
+    if (isRecord(existing) && isRecord(value)) {
+      mergeDefinedValues(existing, value);
+      continue;
+    }
+    target[key] = value;
+  }
+}
+
+function buildSectionItems(section: GroupedSectionDefinition, body: unknown) {
+  const sourceRecords = readArrayAtPath(body, section.path)
+    .filter((record) => section.filters?.every((predicate) => matchesPredicate(record, predicate)) ?? true);
+
+  const parsedItems: Record<string, unknown>[] = [];
+  for (const record of sourceRecords) {
+    const fields: Record<string, unknown> = {};
+    let valid = true;
+    for (const field of section.fields) {
+      const value = extractValue(record, field.extractor, fields);
+      if (field.required && (value == null || value === "")) {
+        valid = false;
+        break;
+      }
+      setNestedValue(fields, field.key, value);
+    }
+    if (valid) {
+      parsedItems.push(fields);
+    }
+  }
+
+  let items = parsedItems;
+  if (section.mergeBy?.length) {
+    const merged = new Map<string, Record<string, unknown>>();
+    for (const item of parsedItems) {
+      const key = section.mergeBy.map((field) => String(readPath(item, field) ?? "")).join("|");
+      const existing = merged.get(key);
+      if (existing) {
+        mergeDefinedValues(existing, item);
+      } else {
+        merged.set(key, structuredClone(item));
+      }
+    }
+    items = [...merged.values()];
+  } else if (section.dedupeBy?.length && section.minByPath) {
+    const deduped = new Map<string, Record<string, unknown>>();
+    for (const item of parsedItems) {
+      const key = section.dedupeBy.map((field) => String(readPath(item, field) ?? "")).join("|");
+      const existing = deduped.get(key);
+      const currentValue = readPath(item, section.minByPath);
+      const existingValue = existing ? readPath(existing, section.minByPath) : undefined;
+      if (!existing || (typeof currentValue === "number" && typeof existingValue === "number" && currentValue < existingValue)) {
+        deduped.set(key, item);
+      }
+    }
+    items = [...deduped.values()];
+  }
+
+  if (section.sort?.length) {
+    items.sort((left, right) => {
+      for (const rule of section.sort ?? []) {
+        const comparison = compareByRule(left, right, rule);
+        if (comparison !== 0) {
+          return comparison;
+        }
+      }
+      return 0;
+    });
+  }
+
+  return items;
+}
+
+function parseGroupedSectionsCatalog(definition: Extract<DeclarativePricingDefinition["parser"], { kind: "grouped-sections" }>, body: unknown, regionId: string) {
+  const catalog: Record<string, unknown> = {
+    currency: definition.currency,
+    regionId,
+    ...(definition.catalogStatic ?? {}),
+  };
+
+  for (const section of definition.sections) {
+    setNestedValue(catalog, section.targetPath, buildSectionItems(section, body));
+  }
+
+  return catalog;
+}
+
 export async function fetchDeclarativePricingCatalog<T>(definition: DeclarativePricingDefinition, regionId: string): Promise<T> {
   const body = await fetchProductInfoBody(definition.source, regionId);
   return parseDeclarativePricingCatalog<T>(definition, body, regionId);
@@ -668,6 +826,8 @@ export function parseDeclarativePricingCatalog<T>(definition: DeclarativePricing
       return parseSelectedRecordsCatalog(definition.parser, body, regionId) as T;
     case "recursive-grouped-records":
       return parseRecursiveGroupedCatalog(definition.parser, body, regionId) as T;
+    case "grouped-sections":
+      return parseGroupedSectionsCatalog(definition.parser, body, regionId) as T;
   }
 }
 

@@ -214,5 +214,236 @@ const legacyRuntimeDefinition = {
 export const configurableServiceBundle = {
   service: serviceDefinition,
   pricing: pricingDefinition,
+  catalogDefinition: {
+    source: {
+      displayName: "RDS",
+      urlPath: "rds",
+      tab: "calc",
+    },
+    parser: {
+      kind: "grouped-sections",
+      currency: "USD",
+      sections: [
+        {
+          targetPath: "computeTiers",
+          path: "product.rds_rds.vm",
+          fields: [
+            {
+              key: "engine",
+              required: true,
+              extractor: {
+                kind: "keyword-map",
+                directPath: "engineType",
+                directMap: {
+                  MySQL: "MySQL",
+                  PostgreSQL: "PostgreSQL",
+                },
+                textPaths: ["engineType", "productSpecSysDesc", "resourceSpecCode"],
+                mappings: [
+                  { keywords: ["mysql"], value: "MySQL" },
+                  { keywords: ["postgresql"], value: "PostgreSQL" },
+                ],
+              },
+            },
+            {
+              key: "version",
+              required: true,
+              extractor: {
+                kind: "keyword-map",
+                directPath: "dbVersion",
+                directMap: {
+                  dataInfo_57_: "8.0",
+                  dataInfo_46_: "5.7",
+                  dataInfo_78_: "17",
+                  dataInfo_74_: "16",
+                  dataInfo_73_: "15",
+                  dataInfo_68_: "14",
+                  dataInfo_67_: "13",
+                },
+                textPaths: ["dbVersion", "productSpecSysDesc", "resourceSpecCode"],
+                mappings: [],
+              },
+            },
+            {
+              key: "instanceType",
+              required: true,
+              extractor: {
+                kind: "keyword-map",
+                directPath: "instanceType",
+                directMap: {
+                  dataInfo_14_: "Primary/Standby",
+                  dataInfo_15_: "Read replica",
+                  dataInfo_16_: "Single",
+                },
+                textPaths: ["instanceType", "productSpecSysDesc", "resourceSpecCode"],
+                mappings: [
+                  { keywords: ["primary/standby"], value: "Primary/Standby" },
+                  { keywords: ["primary standby"], value: "Primary/Standby" },
+                  { keywords: ["read replica"], value: "Read replica" },
+                  { keywords: ["single"], value: "Single" },
+                ],
+              },
+            },
+            {
+              key: "instanceClass",
+              required: true,
+              extractor: {
+                kind: "keyword-map",
+                directPath: "instanceClass",
+                directMap: {
+                  "General-purpose": "General-purpose",
+                  Delicated: "Dedicated",
+                },
+                textPaths: ["instanceClass", "productSpecSysDesc", "resourceSpecCode"],
+                mappings: [],
+              },
+            },
+            { key: "cpu", required: true, extractor: { kind: "number-from-pattern", paths: ["cpu"], pattern: "(\\d+(?:\\.\\d+)?)" } },
+            { key: "memoryGiB", required: true, extractor: { kind: "memory-gib", paths: ["mem"] } },
+            { key: "sizeLabel", extractor: { kind: "path-or-template", path: "sizeLabel", template: "{cpu} vCPUs, {memoryGiB} GB" } },
+            { key: "resourceSpecCode", extractor: { kind: "path-or-template", path: "resourceSpecCode", template: "{engine}-{version}-{instanceType}-{instanceClass}-{cpu}-{memoryGiB}" } },
+            { key: "prices", extractor: { kind: "rate-set", modes: ["ONDEMAND", "MONTHLY", "YEARLY"] } },
+            { key: "productIds", extractor: { kind: "product-id-set", modes: ["ONDEMAND", "MONTHLY", "YEARLY"] } },
+          ],
+          dedupeBy: ["engine", "version", "instanceType", "instanceClass", "sizeLabel"],
+          minByPath: "prices.ONDEMAND",
+          sort: [
+            { path: "engine", direction: "asc", order: ["MySQL", "PostgreSQL"] },
+            { path: "version", direction: "asc", order: ["8.0", "5.7", "17", "16", "15", "14", "13"] },
+            { path: "instanceType", direction: "asc", order: ["Primary/Standby", "Single", "Read replica"] },
+            { path: "instanceClass", direction: "asc", order: ["General-purpose", "Dedicated"] },
+            { path: "cpu", direction: "asc" },
+            { path: "memoryGiB", direction: "asc" },
+          ],
+        },
+        {
+          targetPath: "storageTiers",
+          path: "product.rds_rds.volume",
+          fields: [
+            {
+              key: "engine",
+              required: true,
+              extractor: {
+                kind: "keyword-map",
+                directPath: "engineType",
+                directMap: {
+                  MySQL: "MySQL",
+                  PostgreSQL: "PostgreSQL",
+                },
+                textPaths: ["engineType", "productSpecSysDesc", "resourceSpecCode"],
+                mappings: [
+                  { keywords: ["mysql"], value: "MySQL" },
+                  { keywords: ["postgresql"], value: "PostgreSQL" },
+                ],
+              },
+            },
+            {
+              key: "instanceType",
+              required: true,
+              extractor: {
+                kind: "keyword-map",
+                directPath: "instanceType",
+                directMap: {
+                  dataInfo_14_: "Primary/Standby",
+                  dataInfo_15_: "Read replica",
+                  dataInfo_16_: "Single",
+                },
+                textPaths: ["instanceType", "productSpecSysDesc", "resourceSpecCode"],
+                mappings: [
+                  { keywords: ["primary/standby"], value: "Primary/Standby" },
+                  { keywords: ["primary standby"], value: "Primary/Standby" },
+                  { keywords: ["read replica"], value: "Read replica" },
+                  { keywords: ["single"], value: "Single" },
+                ],
+              },
+            },
+            {
+              key: "storageType",
+              required: true,
+              extractor: {
+                kind: "keyword-map",
+                directPath: "volumeType",
+                directMap: {
+                  "Flexible SSD": "Flexible SSD",
+                  "Flexible SSD throughput": "Flexible SSD",
+                  "Flexible SSD IOPS": "Flexible SSD",
+                  "Cloud SSD": "Cloud SSD",
+                  ESSD: "Extreme SSD",
+                  "Extreme SSD": "Extreme SSD",
+                },
+                textPaths: ["volumeType", "productSpecSysDesc", "resourceSpecCode"],
+                mappings: [
+                  { keywords: ["flexible ssd"], value: "Flexible SSD" },
+                  { keywords: ["cloud ssd"], value: "Cloud SSD" },
+                  { keywords: ["essd"], value: "Extreme SSD" },
+                  { keywords: ["extreme ssd"], value: "Extreme SSD" },
+                ],
+              },
+            },
+            {
+              key: "resourceSpecCode",
+              extractor: {
+                kind: "conditional",
+                when: [
+                  { kind: "text-excludes", paths: ["resourceSpecCode", "productSpecSysDesc", "volumeType"], value: "throughput" },
+                  { kind: "text-excludes", paths: ["resourceSpecCode", "productSpecSysDesc", "volumeType"], value: "iops" },
+                ],
+                then: { kind: "path-or-template", path: "resourceSpecCode", template: "{engine}-{instanceType}-{storageType}" },
+                else: { kind: "literal", value: null },
+              },
+            },
+            {
+              key: "prices",
+              extractor: {
+                kind: "conditional",
+                when: [
+                  { kind: "text-excludes", paths: ["resourceSpecCode", "productSpecSysDesc", "volumeType"], value: "throughput" },
+                  { kind: "text-excludes", paths: ["resourceSpecCode", "productSpecSysDesc", "volumeType"], value: "iops" },
+                ],
+                then: { kind: "rate-set", modes: ["ONDEMAND", "MONTHLY", "YEARLY"] },
+                else: { kind: "literal", value: {} },
+              },
+            },
+            {
+              key: "productIds",
+              extractor: {
+                kind: "conditional",
+                when: [
+                  { kind: "text-excludes", paths: ["resourceSpecCode", "productSpecSysDesc", "volumeType"], value: "throughput" },
+                  { kind: "text-excludes", paths: ["resourceSpecCode", "productSpecSysDesc", "volumeType"], value: "iops" },
+                ],
+                then: { kind: "product-id-set", modes: ["ONDEMAND", "MONTHLY", "YEARLY"] },
+                else: { kind: "literal", value: {} },
+              },
+            },
+            {
+              key: "iopsRatePerUnit",
+              extractor: {
+                kind: "conditional",
+                when: [{ kind: "text-includes", paths: ["resourceSpecCode", "productSpecSysDesc", "volumeType"], value: "iops" }],
+                then: { kind: "plan-amount", billingMode: "ONDEMAND" },
+                else: { kind: "literal", value: null },
+              },
+            },
+            {
+              key: "throughputRatePerUnit",
+              extractor: {
+                kind: "conditional",
+                when: [{ kind: "text-includes", paths: ["resourceSpecCode", "productSpecSysDesc", "volumeType"], value: "throughput" }],
+                then: { kind: "plan-amount", billingMode: "ONDEMAND" },
+                else: { kind: "literal", value: null },
+              },
+            },
+          ],
+          mergeBy: ["engine", "instanceType", "storageType"],
+          sort: [
+            { path: "engine", direction: "asc", order: ["MySQL", "PostgreSQL"] },
+            { path: "instanceType", direction: "asc", order: ["Primary/Standby", "Single", "Read replica"] },
+            { path: "storageType", direction: "asc", order: ["Flexible SSD", "Cloud SSD", "Extreme SSD"] },
+          ],
+        },
+      ],
+    },
+  },
   runtime: convertLegacyRuntimeDefinition(legacyRuntimeDefinition),
 } as const satisfies ConfigurableServiceBundleDefinition;
