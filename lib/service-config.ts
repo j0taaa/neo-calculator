@@ -2,6 +2,7 @@ import { serviceRegistryDocument } from "@/config/services/index";
 import { pricingDefinition as ccePricingDefinitionDocument, serviceDefinition as cceServiceDefinitionDocument } from "@/config/services/cce/bundle";
 import { pricingDefinition as cciPricingDefinitionDocument, serviceDefinition as cciServiceDefinitionDocument } from "@/config/services/cci/bundle";
 import { pricingDefinition as dcsPricingDefinitionDocument, serviceDefinition as dcsServiceDefinitionDocument } from "@/config/services/dcs/bundle";
+import { pricingDefinition as dcPricingDefinitionDocument, serviceDefinition as dcServiceDefinitionDocument } from "@/config/services/dc/bundle";
 import { pricingDefinition as eipPricingDefinitionDocument, serviceDefinition as eipServiceDefinitionDocument } from "@/config/services/eip/bundle";
 import { pricingDefinition as elbPricingDefinitionDocument, serviceDefinition as elbServiceDefinitionDocument } from "@/config/services/elb/bundle";
 import { pricingDefinition as evsPricingDefinitionDocument, serviceDefinition as evsServiceDefinitionDocument } from "@/config/services/evs/bundle";
@@ -435,6 +436,10 @@ const definitionDocuments = {
   dcs: {
     service: parseServiceDefinition(dcsServiceDefinitionDocument),
     pricing: parsePricingDefinition(dcsPricingDefinitionDocument),
+  },
+  dc: {
+    service: parseServiceDefinition(dcServiceDefinitionDocument),
+    pricing: parsePricingDefinition(dcPricingDefinitionDocument),
   },
   elb: {
     service: parseServiceDefinition(elbServiceDefinitionDocument),

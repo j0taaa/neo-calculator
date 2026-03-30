@@ -9,6 +9,7 @@ import { estimateVpnConfiguration, getFallbackVpnPricingCatalog, getVpnBillingOp
 import { estimateWorkspaceConfiguration, listWorkspaceCpuOptions, listWorkspaceDiskTypes, listWorkspaceMemoryOptions, workspaceDefaults, workspacePricingReference } from "@/lib/workspace-catalog";
 import { estimateFunctionGraphConfiguration, functionGraphDefaults, functionGraphPricingReference, getFallbackFunctionGraphPricingCatalog } from "@/lib/functiongraph-catalog";
 import { estimateFlexusRdsConfiguration, flexusRdsDefaults, flexusRdsPricingReference, listFlexusRdsEngines, listFlexusRdsInstanceTypes, listFlexusRdsSizes, listFlexusRdsVersions } from "@/lib/flexus-rds-catalog";
+import { directConnectDefaults, directConnectPricingReference, estimateDirectConnectConfiguration, listDirectConnectDurationMonths, listDirectConnectPortSpeeds } from "@/lib/direct-connect-catalog";
 import { estimateRdsConfiguration, isRdsEngine, isRdsInstanceClass, isRdsInstanceType, isRdsStorageType, isRdsVersion, listRdsEngines, listRdsInstanceClasses, listRdsInstanceTypes, listRdsSizes, listRdsStorageTypes, listRdsVersions, rdsDefaults, rdsPricingReference } from "@/lib/rds-catalog";
 import { buildEvsProductMutationBodies, buildEvsSplitNotice, evsDiskSizeBounds, formatObsRequestInputValue, getGpSsd2IopsBounds, getGpSsd2RequestedIops, getGpSsd2RequestedThroughput, getGpSsd2ThroughputBounds, getObsRequestUnits, normalizeGpSsd2Iops, normalizeGpSsd2Throughput, obsStorageSizeBounds, parsePositiveNumber, splitEvsDiskSizes, systemDiskOptions } from "@/lib/configurable-runtime-utils";
 import { getBatchDescription, getBatchDiskSize, getBatchDiskType, getBatchObsAmount, getBatchObsProductType, getBatchObsRedundancy, getBatchObsStorageClass, getBatchObsStorageSize, getBatchObsUnit, getNestedRecord, parseBatchQuantity } from "@/lib/batch-input-utils";
@@ -161,6 +162,7 @@ export const declarativeRuntimeHelpers = {
   estimateModelArtsConfiguration,
   estimateWorkspaceConfiguration,
   estimateFunctionGraphConfiguration,
+  estimateDirectConnectConfiguration,
   estimateFlexusRdsConfiguration,
   estimateRdsConfiguration,
   estimateDcsConfiguration,
@@ -190,6 +192,8 @@ export const declarativeRuntimeHelpers = {
   listFlexusRdsVersions,
   listFlexusRdsInstanceTypes,
   listFlexusRdsSizes,
+  listDirectConnectPortSpeeds,
+  listDirectConnectDurationMonths,
   listRdsVersions,
   listRdsInstanceTypes,
   listRdsInstanceClasses,
@@ -241,6 +245,7 @@ export const declarativeRuntimeHelpers = {
   vpnDefaults,
   workspaceDefaults,
   functionGraphDefaults,
+  directConnectDefaults,
   flexusRdsDefaults,
   rdsDefaults,
   eipPricingReference,
@@ -252,6 +257,7 @@ export const declarativeRuntimeHelpers = {
   vpnPricingReference,
   workspacePricingReference,
   functionGraphPricingReference,
+  directConnectPricingReference,
   flexusRdsPricingReference,
   rdsPricingReference,
   huaweiRegions,

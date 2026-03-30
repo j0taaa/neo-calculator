@@ -353,5 +353,19 @@ export function getProductConfigSummary(product: AppProduct): string {
     return parts.join(" · ") || product.serviceName;
   }
 
+  if (product.productType === "direct-connect") {
+    const parts = [
+      typeof product.config.region === "string" ? product.config.region : null,
+      typeof product.config.portSpeed === "string" ? product.config.portSpeed : null,
+      typeof product.config.billingMode === "string" ? product.config.billingMode : null,
+      typeof product.config.durationMonths === "number"
+        ? product.config.durationMonths === 12 ? "1yr" : product.config.durationMonths === 24 ? "2yr" : product.config.durationMonths === 36 ? "3yr" : `${product.config.durationMonths}mo`
+        : null,
+      typeof product.config.quantity === "number" ? `${product.config.quantity} port${product.config.quantity === 1 ? "" : "s"}` : null,
+    ].filter(Boolean);
+
+    return parts.join(" · ") || product.serviceName;
+  }
+
   return product.serviceName;
 }

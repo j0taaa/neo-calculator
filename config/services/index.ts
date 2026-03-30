@@ -16,6 +16,7 @@ export const serviceRegistryDocument = {
     "ModelArts",
     "Workspace",
     "DCS",
+    "DC",
     "FunctionGraph",
     "RDS",
     "Flexus RDS"
@@ -104,6 +105,13 @@ export const serviceRegistryDocument = {
       "definitionId": "dcs",
       "serviceDefinitionPath": "./dcs/bundle.ts",
       "pricingDefinitionPath": "./dcs/bundle.ts",
+      "status": "active"
+    },
+    {
+      "serviceCode": "DC",
+      "definitionId": "dc",
+      "serviceDefinitionPath": "./dc/bundle.ts",
+      "pricingDefinitionPath": "./dc/bundle.ts",
       "status": "active"
     },
     {
