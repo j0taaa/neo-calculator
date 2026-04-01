@@ -367,5 +367,33 @@ export function getProductConfigSummary(product: AppProduct): string {
     return parts.join(" · ") || product.serviceName;
   }
 
+  if (product.productType === "cbh") {
+    const parts = [
+      typeof product.config.region === "string" ? product.config.region : null,
+      typeof product.config.instanceType === "string" ? product.config.instanceType : null,
+      typeof product.config.edition === "string" ? product.config.edition : null,
+      typeof product.config.billingMode === "string" ? product.config.billingMode : null,
+      typeof product.config.durationMonths === "number"
+        ? product.config.durationMonths === 12 ? "1yr" : product.config.durationMonths === 24 ? "2yr" : product.config.durationMonths === 36 ? "3yr" : `${product.config.durationMonths}mo`
+        : null,
+      typeof product.config.quantity === "number" ? `${product.config.quantity} instance${product.config.quantity === 1 ? "" : "s"}` : null,
+    ].filter(Boolean);
+
+    return parts.join(" · ") || product.serviceName;
+  }
+
+  if (product.productType === "vpcep") {
+    const parts = [
+      typeof product.config.region === "string" ? product.config.region : null,
+      typeof product.config.serviceCategory === "string" ? product.config.serviceCategory : null,
+      typeof product.config.trafficGb === "number" ? `${product.config.trafficGb} GB` : null,
+      typeof product.config.billingMode === "string" ? product.config.billingMode : null,
+      typeof product.config.usageHours === "number" ? `${product.config.usageHours}h` : null,
+      typeof product.config.quantity === "number" ? `${product.config.quantity} endpoint${product.config.quantity === 1 ? "" : "s"}` : null,
+    ].filter(Boolean);
+
+    return parts.join(" · ") || product.serviceName;
+  }
+
   return product.serviceName;
 }

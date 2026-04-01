@@ -17,6 +17,8 @@ export const serviceRegistryDocument = {
     "Workspace",
     "DCS",
     "DC",
+    "CBH",
+    "VPCEP",
     "FunctionGraph",
     "RDS",
     "Flexus RDS"
@@ -112,6 +114,20 @@ export const serviceRegistryDocument = {
       "definitionId": "dc",
       "serviceDefinitionPath": "./dc/bundle.ts",
       "pricingDefinitionPath": "./dc/bundle.ts",
+      "status": "active"
+    },
+    {
+      "serviceCode": "CBH",
+      "definitionId": "cbh",
+      "serviceDefinitionPath": "./cbh/bundle.ts",
+      "pricingDefinitionPath": "./cbh/bundle.ts",
+      "status": "active"
+    },
+    {
+      "serviceCode": "VPCEP",
+      "definitionId": "vpcep",
+      "serviceDefinitionPath": "./vpcep/bundle.ts",
+      "pricingDefinitionPath": "./vpcep/bundle.ts",
       "status": "active"
     },
     {

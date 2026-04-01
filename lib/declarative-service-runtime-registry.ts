@@ -1,3 +1,4 @@
+import { configurableServiceBundle as cbhBundle } from "@/config/services/cbh/bundle";
 import { configurableServiceBundle as cceBundle } from "@/config/services/cce/bundle";
 import { configurableServiceBundle as cciBundle } from "@/config/services/cci/bundle";
 import { configurableServiceBundle as dcsBundle } from "@/config/services/dcs/bundle";
@@ -11,12 +12,14 @@ import { configurableServiceBundle as modelArtsBundle } from "@/config/services/
 import { configurableServiceBundle as natBundle } from "@/config/services/nat/bundle";
 import { configurableServiceBundle as obsBundle } from "@/config/services/obs/bundle";
 import { configurableServiceBundle as rdsBundle } from "@/config/services/rds/bundle";
+import { configurableServiceBundle as vpcepBundle } from "@/config/services/vpcep/bundle";
 import { configurableServiceBundle as vpnBundle } from "@/config/services/vpn/bundle";
 import { configurableServiceBundle as workspaceBundle } from "@/config/services/workspace/bundle";
 import type { DeclarativeRuntimeDefinition } from "@/lib/declarative-service-runtime-types";
 import type { TypedDeclarativeRuntimeDefinition } from "@/lib/typed-declarative-runtime-types";
 
 const typedRuntimeDefinitions = {
+  CBH: cbhBundle.runtime,
   CCE: cceBundle.runtime,
   CCI: cciBundle.runtime,
   EVS: evsBundle.runtime,
@@ -27,6 +30,7 @@ const typedRuntimeDefinitions = {
   Workspace: workspaceBundle.runtime,
   FunctionGraph: functionGraphBundle.runtime,
   DC: dcBundle.runtime,
+  VPCEP: vpcepBundle.runtime,
   "Flexus RDS": flexusRdsBundle.runtime,
   RDS: rdsBundle.runtime,
   NAT: natBundle.runtime,
