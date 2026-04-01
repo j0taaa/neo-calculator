@@ -4,7 +4,7 @@ import { estimateDirectConnectConfiguration, type DirectConnectPricingCatalog } 
 
 const catalog: DirectConnectPricingCatalog = {
   currency: "USD",
-  regionId: "ap-southeast-1",
+  regionId: "la-south-2",
   portTiers: [
     {
       portSpeed: "1GE",

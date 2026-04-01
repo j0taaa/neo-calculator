@@ -31,7 +31,7 @@ const classicCatalog: VpnPricingCatalog = {
 
 const enterpriseMonthlyCatalog: VpnPricingCatalog = {
   currency: "USD",
-  regionId: "ap-southeast-1",
+  regionId: "la-south-2",
   gateways: [
     {
       mode: "Site-to-Cloud",
@@ -63,7 +63,7 @@ const enterpriseMonthlyCatalog: VpnPricingCatalog = {
 
 const enterprisePaygCatalog: VpnPricingCatalog = {
   currency: "USD",
-  regionId: "ap-southeast-1",
+  regionId: "la-south-2",
   gateways: [
     {
       mode: "Site-to-Cloud",

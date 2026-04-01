@@ -4,7 +4,7 @@ import { estimateEipConfiguration, type EipPricingCatalog } from "@/lib/eip-cata
 
 const catalog: EipPricingCatalog = {
   currency: "USD",
-  regionId: "test-region",
+  regionId: "sa-brazil-1",
   dedicated: {
     eipRates: { ONDEMAND: 0.005 },
     bandwidthRates: { ONDEMAND: 0.0281, MONTHLY: 9 },

@@ -4,7 +4,7 @@ import { estimateFlexusRdsConfiguration, type FlexusRdsPricingCatalog } from "@/
 
 const catalog: FlexusRdsPricingCatalog = {
   currency: "USD",
-  regionId: "ap-southeast-1",
+  regionId: "la-south-2",
   computeTiers: [
     {
       engine: "MySQL",

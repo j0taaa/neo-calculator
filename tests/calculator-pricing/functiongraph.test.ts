@@ -4,7 +4,7 @@ import { estimateFunctionGraphConfiguration, type FunctionGraphPricingCatalog } 
 
 const catalog: FunctionGraphPricingCatalog = {
   currency: "USD",
-  regionId: "ap-southeast-1",
+  regionId: "sa-brazil-1",
   requestFreeCount: 1_000_000,
   requestRatePerMillion: 0.2,
   computeFreeGbSeconds: 400_000,

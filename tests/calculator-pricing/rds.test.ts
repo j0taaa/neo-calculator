@@ -4,7 +4,7 @@ import { estimateRdsConfiguration, type RdsPricingCatalog } from "@/lib/rds-cata
 
 const apCatalog: RdsPricingCatalog = {
   currency: "USD",
-  regionId: "ap-southeast-1",
+  regionId: "la-south-2",
   computeTiers: [
     {
       engine: "MySQL",

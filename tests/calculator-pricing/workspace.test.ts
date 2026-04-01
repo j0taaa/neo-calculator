@@ -4,7 +4,7 @@ import { estimateWorkspaceConfiguration, type WorkspacePricingCatalog } from "@/
 
 const catalog: WorkspacePricingCatalog = {
   currency: "USD",
-  regionId: "ap-southeast-1",
+  regionId: "sa-brazil-1",
   architecture: "x86 desktop",
   specification: "Ultimate",
   desktopTiers: [

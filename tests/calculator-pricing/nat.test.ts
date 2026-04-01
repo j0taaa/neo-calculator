@@ -4,7 +4,7 @@ import { estimateNatConfiguration, type NatPricingCatalog } from "@/lib/nat-cata
 
 const catalog: NatPricingCatalog = {
   currency: "USD",
-  regionId: "test-region",
+  regionId: "sa-brazil-1",
   tiers: [
     {
       type: "Public NAT Gateway",

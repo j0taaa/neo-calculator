@@ -4,7 +4,7 @@ import { estimateDcsConfiguration, type DcsPricingCatalog } from "@/lib/dcs-cata
 
 const catalog: DcsPricingCatalog = {
   currency: "USD",
-  regionId: "ap-southeast-1",
+  regionId: "la-south-2",
   edition: "Basic",
   instanceTiers: [
     {
