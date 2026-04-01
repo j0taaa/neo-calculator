@@ -70,6 +70,7 @@ test("APIG parser extracts editions and public bandwidth tiers", () => {
     { startGb: 0, upToGb: 5, amountPerGb: 0.013 },
     { startGb: 5, upToGb: null, amountPerGb: 0.04 },
   ]);
+  expect(catalog.publicBandwidthTiers[0]?.ratePerMbitHour).toBeNull();
 });
 
 test("APIG estimator uses instance hourly rate without public outbound access", () => {
@@ -106,4 +107,33 @@ test("APIG estimator rejects invalid public bandwidth selections", () => {
     usageHours: 744,
     quantity: 1,
   })).toBeNull();
+});
+
+test("APIG estimator supports flat live public outbound bandwidth rates", () => {
+  const catalog = parseApigPricingCatalogResponse({
+    product: {
+      "apig_apig.instance": payload.product["apig_apig.instance"],
+      "apig_apig.publicip": [
+        {
+          resourceSpecCode: "publicip",
+          planList: [
+            {
+              productId: "apig-public-bandwidth-flat",
+              billingMode: "ONDEMAND",
+              billingEvent: "event.type.apig.apigpublicip.duration",
+              amount: 0.0281,
+            },
+          ],
+        },
+      ],
+    },
+  }, "sa-brazil-1");
+
+  expect(estimateApigConfiguration(catalog, {
+    edition: "Basic",
+    publicOutboundAccess: true,
+    bandwidthMbit: 10,
+    usageHours: 744,
+    quantity: 1,
+  })?.amount).toBe(774.504);
 });

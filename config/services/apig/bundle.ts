@@ -128,6 +128,7 @@ export const configurableServiceBundle = {
           fields: [
             { key: "resourceSpecCode", extractor: { kind: "path", path: "resourceSpecCode" } },
             { key: "productId", extractor: { kind: "plan-product-id", billingMode: "ONDEMAND" } },
+            { key: "ratePerMbitHour", extractor: { kind: "plan-amount", billingMode: "ONDEMAND", billingEvent: "event.type.apig.apigpublicip.duration" } },
             { key: "tiers", extractor: { kind: "division-tiers", billingMode: "ONDEMAND", billingEvent: "event.type.apig.apigpublicip.duration" } },
           ],
         },

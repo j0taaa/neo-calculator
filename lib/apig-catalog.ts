@@ -23,6 +23,7 @@ export interface ApigEditionTier {
 export interface ApigPublicBandwidthTier {
   resourceSpecCode: string;
   productId: string | null;
+  ratePerMbitHour: number | null;
   tiers: Array<{
     startGb: number;
     upToGb: number | null;
@@ -120,6 +121,16 @@ function estimateTieredBandwidthCost(tiers: readonly ApigPublicBandwidthTier["ti
   return roundAmount(total);
 }
 
+function estimatePublicBandwidthCost(tier: ApigPublicBandwidthTier, bandwidthMbit: number) {
+  if (tier.tiers.length > 0) {
+    return estimateTieredBandwidthCost(tier.tiers, bandwidthMbit);
+  }
+  if (tier.ratePerMbitHour != null && Number.isFinite(tier.ratePerMbitHour) && tier.ratePerMbitHour > 0) {
+    return roundAmount(tier.ratePerMbitHour * bandwidthMbit);
+  }
+  return 0;
+}
+
 export function listApigEditions(catalog: ApigPricingCatalog) {
   const values = new Set<ApigEdition>();
   for (const tier of catalog.editionTiers) {
@@ -135,7 +146,7 @@ export function findApigEditionTier(catalog: ApigPricingCatalog, edition: ApigEd
 }
 
 function getPrimaryPublicBandwidthTier(catalog: ApigPricingCatalog) {
-  return catalog.publicBandwidthTiers.find((tier) => tier.tiers.length > 0) ?? null;
+  return catalog.publicBandwidthTiers.find((tier) => tier.tiers.length > 0 || (tier.ratePerMbitHour != null && tier.ratePerMbitHour > 0)) ?? null;
 }
 
 export function estimateApigConfiguration(catalog: ApigPricingCatalog, input: ApigEstimateInput): ApigEstimate | null {
@@ -164,7 +175,7 @@ export function estimateApigConfiguration(catalog: ApigPricingCatalog, input: Ap
   if (input.publicOutboundAccess && !publicBandwidthTier) {
     return null;
   }
-  const publicBandwidthRatePerHour = publicBandwidthTier ? estimateTieredBandwidthCost(publicBandwidthTier.tiers, bandwidthMbit) : 0;
+  const publicBandwidthRatePerHour = publicBandwidthTier ? estimatePublicBandwidthCost(publicBandwidthTier, bandwidthMbit) : 0;
   const publicBandwidthAmount = roundAmount(publicBandwidthRatePerHour * usageHours * quantity);
   const amount = roundAmount(instanceAmount + publicBandwidthAmount);
   const monthlyAverageAmount = roundAmount(amount / (usageHours / (24 * 30)));
@@ -196,7 +207,9 @@ export function estimateApigConfiguration(catalog: ApigPricingCatalog, input: Ap
     notes: [
       `Instance rate: ${catalog.currency} ${tier.hourlyRate.toFixed(6)}/gateway/h.`,
       input.publicOutboundAccess && publicBandwidthTier
-        ? "Public outbound access uses the tiered APIG bandwidth rate from the live Huawei calculator catalog."
+        ? publicBandwidthTier.tiers.length > 0
+          ? "Public outbound access uses the tiered APIG bandwidth rate from the live Huawei calculator catalog."
+          : `Public outbound access uses the direct APIG bandwidth rate: ${catalog.currency} ${publicBandwidthTier.ratePerMbitHour?.toFixed(6) ?? "0.000000"}/Mbit/s/h.`
         : "Public outbound access is disabled.",
     ],
   };

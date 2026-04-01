@@ -23,6 +23,7 @@ const catalog: ApigPricingCatalog = {
     {
       resourceSpecCode: "publicip",
       productId: "apig-public-bandwidth",
+      ratePerMbitHour: null,
       tiers: [
         { startGb: 0, upToGb: 5, amountPerGb: 0.013 },
         { startGb: 5, upToGb: null, amountPerGb: 0.04 },
