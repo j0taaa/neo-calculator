@@ -1,19 +1,8 @@
 import { fetchVpnPricingCatalog } from "@/lib/vpn-pricing";
 import { estimateVpnConfiguration } from "@/lib/vpn-catalog";
+import type { CalculatorPriceVerificationCase } from "@/tests/huawei-inquiry/types";
 
-export type CalculatorPriceVerificationCase = {
-  id: string;
-  serviceCode: string;
-  description: string;
-  tolerance: number;
-  buildInquiryRequest(): {
-    url: string;
-    body: unknown;
-  };
-  getLocalAmount(): Promise<number>;
-};
-
-export const calculatorPriceVerificationCases: CalculatorPriceVerificationCase[] = [
+export const vpnInquiryCases: CalculatorPriceVerificationCase[] = [
   {
     id: "vpn-payg-v300-1h",
     serviceCode: "VPN",

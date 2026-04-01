@@ -1,5 +1,10 @@
-import { calculatorPriceVerificationCases } from "@/scripts/calculator-price-verification-cases";
 import { fetchHuaweiBillingInquiry } from "@/lib/huawei-billing-inquiry";
+import type { CalculatorPriceVerificationCase } from "@/tests/huawei-inquiry/types";
+import { vpnInquiryCases } from "@/tests/huawei-inquiry/vpn";
+
+const verificationCases: CalculatorPriceVerificationCase[] = [
+  ...vpnInquiryCases,
+];
 
 function roundAmount(value: number) {
   return Number(value.toFixed(5));
@@ -8,8 +13,8 @@ function roundAmount(value: number) {
 async function main() {
   const selectedCaseIds = new Set(process.argv.slice(2));
   const selectedCases = selectedCaseIds.size > 0
-    ? calculatorPriceVerificationCases.filter((entry) => selectedCaseIds.has(entry.id))
-    : calculatorPriceVerificationCases;
+    ? verificationCases.filter((entry) => selectedCaseIds.has(entry.id))
+    : verificationCases;
 
   if (selectedCases.length === 0) {
     throw new Error(`No calculator price verification cases matched: ${[...selectedCaseIds].join(", ")}`);
