@@ -247,6 +247,15 @@ function pickPlan(record: RawRecord, billingMode: ProductInfoBillingMode, billin
   )) ?? null;
 }
 
+function pickDivisionPlan(record: RawRecord, billingMode: ProductInfoBillingMode, billingEvent: string, planPath?: string) {
+  return getPlans(record, planPath).find((plan) => (
+    plan.billingMode === billingMode
+    && plan.billingEvent === billingEvent
+    && Array.isArray(plan.divisionList)
+    && plan.divisionList.length > 0
+  )) ?? null;
+}
+
 function pickAmount(record: RawRecord, billingMode: ProductInfoBillingMode, billingEvent?: string, planPath?: string) {
   return pickPlan(record, billingMode, billingEvent, planPath)?.amount ?? null;
 }
@@ -448,7 +457,7 @@ function extractValue(record: RawRecord, extractor: ExtractorDefinition, fields:
     case "plan-product-id":
       return pickPlan(record, extractor.billingMode, undefined, extractor.planPath)?.productId ?? null;
     case "division-tiers": {
-      const plan = pickPlan(record, extractor.billingMode, extractor.billingEvent, extractor.planPath);
+      const plan = pickDivisionPlan(record, extractor.billingMode, extractor.billingEvent, extractor.planPath);
       return (plan?.divisionList ?? [])
         .map((tier) => {
           if (typeof tier.amount !== "number" || !Number.isFinite(tier.amount)) {

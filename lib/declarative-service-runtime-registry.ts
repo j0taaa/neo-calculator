@@ -1,3 +1,4 @@
+import { configurableServiceBundle as apigBundle } from "@/config/services/apig/bundle";
 import { configurableServiceBundle as cbhBundle } from "@/config/services/cbh/bundle";
 import { configurableServiceBundle as cbrBundle } from "@/config/services/cbr/bundle";
 import { configurableServiceBundle as cceBundle } from "@/config/services/cce/bundle";
@@ -7,6 +8,7 @@ import { configurableServiceBundle as dcBundle } from "@/config/services/dc/bund
 import { configurableServiceBundle as eipBundle } from "@/config/services/eip/bundle";
 import { configurableServiceBundle as elbBundle } from "@/config/services/elb/bundle";
 import { configurableServiceBundle as evsBundle } from "@/config/services/evs/bundle";
+import { configurableServiceBundle as erBundle } from "@/config/services/er/bundle";
 import { configurableServiceBundle as flexusRdsBundle } from "@/config/services/flexus-rds/bundle";
 import { configurableServiceBundle as functionGraphBundle } from "@/config/services/functiongraph/bundle";
 import { configurableServiceBundle as modelArtsBundle } from "@/config/services/modelarts/bundle";
@@ -21,6 +23,7 @@ import type { DeclarativeRuntimeDefinition } from "@/lib/declarative-service-run
 import type { TypedDeclarativeRuntimeDefinition } from "@/lib/typed-declarative-runtime-types";
 
 const typedRuntimeDefinitions = {
+  APIG: apigBundle.runtime,
   CBH: cbhBundle.runtime,
   CBR: cbrBundle.runtime,
   CCE: cceBundle.runtime,
@@ -39,6 +42,7 @@ const typedRuntimeDefinitions = {
   RDS: rdsBundle.runtime,
   NAT: natBundle.runtime,
   EIP: eipBundle.runtime,
+  ER: erBundle.runtime,
   DCS: dcsBundle.runtime,
 } as const;
 

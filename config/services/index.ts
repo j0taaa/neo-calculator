@@ -23,7 +23,9 @@ export const serviceRegistryDocument = {
     "VPCEP",
     "FunctionGraph",
     "RDS",
-    "Flexus RDS"
+    "Flexus RDS",
+    "ER",
+    "APIG"
   ],
   "supportedBatchAddServiceCodes": [
     "ECS",
@@ -165,6 +167,20 @@ export const serviceRegistryDocument = {
       "definitionId": "flexus-rds",
       "serviceDefinitionPath": "./flexus-rds/bundle.ts",
       "pricingDefinitionPath": "./flexus-rds/bundle.ts",
+      "status": "active"
+    },
+    {
+      "serviceCode": "ER",
+      "definitionId": "er",
+      "serviceDefinitionPath": "./er/bundle.ts",
+      "pricingDefinitionPath": "./er/bundle.ts",
+      "status": "active"
+    },
+    {
+      "serviceCode": "APIG",
+      "definitionId": "apig",
+      "serviceDefinitionPath": "./apig/bundle.ts",
+      "pricingDefinitionPath": "./apig/bundle.ts",
       "status": "active"
     }
   ],

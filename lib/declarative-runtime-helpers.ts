@@ -1,3 +1,4 @@
+import { apigDefaults, apigPricingReference, estimateApigConfiguration, listApigEditions } from "@/lib/apig-catalog";
 import { cbhDefaults, cbhPricingReference, estimateCbhConfiguration, listCbhDurationMonths, listCbhEditions, listCbhInstanceTypes } from "@/lib/cbh-catalog";
 import { cbrDefaults, cbrPricingReference, estimateCbrConfiguration, listCbrDurationMonths, listCbrVaultTypes } from "@/lib/cbr-catalog";
 import { buildObsHuaweiPayload, convertObsCapacityToGb, convertObsRequestInputToCount, estimateObsConfiguration, getObsRedundancyOptions, getObsStorageClassOptions, listObsProductTypes, listObsRedundancies, listObsRestorationTypes, listObsStorageClasses, normalizeObsPositiveNumber, obsPricingReference, shouldShowObsPullTraffic, type ObsCapacityUnit, type ObsEstimateInput, type ObsPricingCatalog, type ObsProductType, type ObsRedundancy, type ObsRestorationType, type ObsStorageClass } from "@/lib/obs-catalog";
@@ -12,6 +13,7 @@ import { estimateWorkspaceConfiguration, listWorkspaceCpuOptions, listWorkspaceD
 import { estimateFunctionGraphConfiguration, functionGraphDefaults, functionGraphPricingReference, getFallbackFunctionGraphPricingCatalog } from "@/lib/functiongraph-catalog";
 import { estimateFlexusRdsConfiguration, flexusRdsDefaults, flexusRdsPricingReference, listFlexusRdsEngines, listFlexusRdsInstanceTypes, listFlexusRdsSizes, listFlexusRdsVersions } from "@/lib/flexus-rds-catalog";
 import { directConnectDefaults, directConnectPricingReference, estimateDirectConnectConfiguration, listDirectConnectDurationMonths, listDirectConnectPortSpeeds } from "@/lib/direct-connect-catalog";
+import { erDefaults, erPricingReference, estimateErConfiguration } from "@/lib/er-catalog";
 import { estimateRdsConfiguration, isRdsEngine, isRdsInstanceClass, isRdsInstanceType, isRdsStorageType, isRdsVersion, listRdsEngines, listRdsInstanceClasses, listRdsInstanceTypes, listRdsSizes, listRdsStorageTypes, listRdsVersions, rdsDefaults, rdsPricingReference } from "@/lib/rds-catalog";
 import { estimateVpcepConfiguration, listVpcepServiceCategories, vpcepDefaults, vpcepPricingReference } from "@/lib/vpcep-catalog";
 import { convertSfsStorageToGb, estimateSfsConfiguration, getSfsStorageUnitOptions, hasSfsPackagePricing, inferSfsStorageAmountFromGb, inferSfsStorageUnitFromGb, listSfsDurationMonths, listSfsFileSystemTypes, listSfsStorageSpaceOptions, listSfsTypes, sfsDefaults, sfsPricingReference } from "@/lib/sfs-catalog";
@@ -158,6 +160,7 @@ export const declarativeRuntimeHelpers = {
   shouldShowObsPullTraffic,
   estimateObsConfiguration,
   buildObsHuaweiPayload,
+  estimateApigConfiguration,
   estimateCbhConfiguration,
   estimateCbrConfiguration,
   estimateEipConfiguration,
@@ -169,6 +172,7 @@ export const declarativeRuntimeHelpers = {
   estimateWorkspaceConfiguration,
   estimateFunctionGraphConfiguration,
   estimateDirectConnectConfiguration,
+  estimateErConfiguration,
   estimateFlexusRdsConfiguration,
   estimateRdsConfiguration,
   estimateVpcepConfiguration,
@@ -188,6 +192,7 @@ export const declarativeRuntimeHelpers = {
   getFallbackFunctionGraphPricingCatalog,
   getVpnBillingOptions,
   shouldShowVpnPublicBandwidth,
+  listApigEditions,
   listNatGatewayTypes,
   listNatGatewaySizes,
   listVpnModes,
@@ -258,6 +263,7 @@ export const declarativeRuntimeHelpers = {
   eipDefaults,
   eipSharedBandwidthMinimumMbit,
   eipSharedEnhanced95MinimumMbit,
+  apigDefaults,
   elbDefaults,
   elbDedicatedProtocolOptions,
   elbFixedSpecOptions,
@@ -271,10 +277,12 @@ export const declarativeRuntimeHelpers = {
   workspaceDefaults,
   functionGraphDefaults,
   directConnectDefaults,
+  erDefaults,
   flexusRdsDefaults,
   rdsDefaults,
   vpcepDefaults,
   sfsDefaults,
+  apigPricingReference,
   eipPricingReference,
   elbPricingReference,
   ccePricingReference,
@@ -287,6 +295,7 @@ export const declarativeRuntimeHelpers = {
   workspacePricingReference,
   functionGraphPricingReference,
   directConnectPricingReference,
+  erPricingReference,
   flexusRdsPricingReference,
   rdsPricingReference,
   vpcepPricingReference,

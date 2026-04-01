@@ -430,5 +430,36 @@ export function getProductConfigSummary(product: AppProduct): string {
     return parts.join(" · ") || product.serviceName;
   }
 
+  if (product.productType === "er") {
+    const parts = [
+      typeof product.config.region === "string" ? product.config.region : null,
+      typeof product.config.attachmentQuantity === "number" ? `${product.config.attachmentQuantity} attachment${product.config.attachmentQuantity === 1 ? "" : "s"}` : null,
+      typeof product.config.trafficGb === "number" ? `${product.config.trafficGb} GB` : null,
+      typeof product.config.billingMode === "string" ? product.config.billingMode : null,
+      typeof product.config.usageHours === "number" ? `${product.config.usageHours}h` : null,
+      typeof product.config.quantity === "number" ? `${product.config.quantity} router${product.config.quantity === 1 ? "" : "s"}` : null,
+    ].filter(Boolean);
+
+    return parts.join(" · ") || product.serviceName;
+  }
+
+  if (product.productType === "apig") {
+    const parts = [
+      typeof product.config.region === "string" ? product.config.region : null,
+      typeof product.config.edition === "string" ? product.config.edition : null,
+      typeof product.config.publicOutboundAccess === "boolean"
+        ? product.config.publicOutboundAccess ? "Public outbound enabled" : "Public outbound disabled"
+        : null,
+      typeof product.config.publicOutboundAccess === "boolean" && product.config.publicOutboundAccess && typeof product.config.bandwidthMbit === "number"
+        ? `${product.config.bandwidthMbit} Mbit/s`
+        : null,
+      typeof product.config.billingMode === "string" ? product.config.billingMode : null,
+      typeof product.config.usageHours === "number" ? `${product.config.usageHours}h` : null,
+      typeof product.config.quantity === "number" ? `${product.config.quantity} gateway${product.config.quantity === 1 ? "" : "s"}` : null,
+    ].filter(Boolean);
+
+    return parts.join(" · ") || product.serviceName;
+  }
+
   return product.serviceName;
 }

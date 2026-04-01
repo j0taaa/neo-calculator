@@ -49,7 +49,7 @@ test("EVS pilot pricing definition links metrics to normalized catalog rate sour
 });
 
 test("additional configurable service definitions load from typed TS config", () => {
-  expect(configurableServiceCodes).toEqual(expect.arrayContaining(["OBS", "EIP", "ELB", "NAT", "VPN", "CCE", "CCI", "ModelArts", "Workspace", "DCS", "DC", "CBH", "VPCEP", "FunctionGraph", "RDS", "Flexus RDS"]));
+  expect(configurableServiceCodes).toEqual(expect.arrayContaining(["OBS", "EIP", "ELB", "NAT", "VPN", "CCE", "CCI", "ModelArts", "Workspace", "DCS", "DC", "CBH", "VPCEP", "FunctionGraph", "RDS", "Flexus RDS", "ER", "APIG"]));
 
   expect(getConfigurableServiceDefinitionByCode("OBS")?.implementation).toBe("configurable");
   expect(getConfigurableServiceDefinitionByCode("ELB")?.implementation).toBe("configurable");
@@ -114,6 +114,13 @@ test("additional configurable service definitions load from typed TS config", ()
     "quantity",
   ]);
   expect(getConfigurablePricingDefinitionByCode("VPCEP")?.catalogAdapter).toBe("vpcep");
+  expect(getConfigurableServiceDefinitionByCode("ER")?.fields.map((field) => field.id)).toEqual([
+    "attachmentQuantity",
+    "usageHours",
+    "trafficGb",
+    "quantity",
+  ]);
+  expect(getConfigurablePricingDefinitionByCode("ER")?.catalogAdapter).toBe("er");
   expect(getConfigurableServiceDefinitionByCode("FunctionGraph")?.fields.map((field) => field.id)).toEqual([
     "averageRequestsAmount",
     "averageRequestsUnit",
@@ -149,4 +156,12 @@ test("additional configurable service definitions load from typed TS config", ()
     "quantity",
   ]);
   expect(getConfigurablePricingDefinitionByCode("Flexus RDS")?.catalogAdapter).toBe("flexus-rds");
+  expect(getConfigurableServiceDefinitionByCode("APIG")?.fields.map((field) => field.id)).toEqual([
+    "edition",
+    "publicOutboundAccess",
+    "bandwidthMbit",
+    "usageHours",
+    "quantity",
+  ]);
+  expect(getConfigurablePricingDefinitionByCode("APIG")?.catalogAdapter).toBe("apig");
 });

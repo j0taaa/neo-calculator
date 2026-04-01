@@ -1,4 +1,5 @@
 import { serviceRegistryDocument } from "@/config/services/index";
+import { pricingDefinition as apigPricingDefinitionDocument, serviceDefinition as apigServiceDefinitionDocument } from "@/config/services/apig/bundle";
 import { pricingDefinition as cbhPricingDefinitionDocument, serviceDefinition as cbhServiceDefinitionDocument } from "@/config/services/cbh/bundle";
 import { pricingDefinition as cbrPricingDefinitionDocument, serviceDefinition as cbrServiceDefinitionDocument } from "@/config/services/cbr/bundle";
 import { pricingDefinition as ccePricingDefinitionDocument, serviceDefinition as cceServiceDefinitionDocument } from "@/config/services/cce/bundle";
@@ -8,6 +9,7 @@ import { pricingDefinition as dcPricingDefinitionDocument, serviceDefinition as 
 import { pricingDefinition as eipPricingDefinitionDocument, serviceDefinition as eipServiceDefinitionDocument } from "@/config/services/eip/bundle";
 import { pricingDefinition as elbPricingDefinitionDocument, serviceDefinition as elbServiceDefinitionDocument } from "@/config/services/elb/bundle";
 import { pricingDefinition as evsPricingDefinitionDocument, serviceDefinition as evsServiceDefinitionDocument } from "@/config/services/evs/bundle";
+import { pricingDefinition as erPricingDefinitionDocument, serviceDefinition as erServiceDefinitionDocument } from "@/config/services/er/bundle";
 import { pricingDefinition as flexusRdsPricingDefinitionDocument, serviceDefinition as flexusRdsServiceDefinitionDocument } from "@/config/services/flexus-rds/bundle";
 import { pricingDefinition as functionGraphPricingDefinitionDocument, serviceDefinition as functionGraphServiceDefinitionDocument } from "@/config/services/functiongraph/bundle";
 import { pricingDefinition as modelartsPricingDefinitionDocument, serviceDefinition as modelartsServiceDefinitionDocument } from "@/config/services/modelarts/bundle";
@@ -429,6 +431,10 @@ function parsePricingDefinition(value: unknown): PricingDefinition {
 const serviceRegistry = parseServiceRegistryDocument(serviceRegistryDocument);
 
 const definitionDocuments = {
+  apig: {
+    service: parseServiceDefinition(apigServiceDefinitionDocument),
+    pricing: parsePricingDefinition(apigPricingDefinitionDocument),
+  },
   cbh: {
     service: parseServiceDefinition(cbhServiceDefinitionDocument),
     pricing: parsePricingDefinition(cbhPricingDefinitionDocument),
@@ -464,6 +470,10 @@ const definitionDocuments = {
   evs: {
     service: parseServiceDefinition(evsServiceDefinitionDocument),
     pricing: parsePricingDefinition(evsPricingDefinitionDocument),
+  },
+  er: {
+    service: parseServiceDefinition(erServiceDefinitionDocument),
+    pricing: parsePricingDefinition(erPricingDefinitionDocument),
   },
   functiongraph: {
     service: parseServiceDefinition(functionGraphServiceDefinitionDocument),
