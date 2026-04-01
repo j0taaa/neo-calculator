@@ -60,3 +60,15 @@ test("FunctionGraph documented examples stay aligned", () => {
     })?.amount,
   ).toBeCloseTo(8718.33, 2);
 });
+
+test("FunctionGraph rejects memory below the minimum allocatable size", () => {
+  expect(
+    estimateFunctionGraphConfiguration(catalog, {
+      averageRequestsAmount: 233,
+      averageRequestsUnit: "month",
+      executionDurationMs: 100,
+      memoryAmount: 64,
+      memoryUnit: "MB",
+    }),
+  ).toBeNull();
+});

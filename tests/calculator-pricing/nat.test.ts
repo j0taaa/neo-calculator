@@ -49,3 +49,14 @@ test("NAT pricing calculations stay aligned for public and private gateways", ()
     })?.amount,
   ).toBe(57.3);
 });
+
+test("NAT rejects non-positive usage durations", () => {
+  expect(
+    estimateNatConfiguration(catalog, {
+      type: "Private NAT Gateway",
+      size: "Small",
+      billingMode: "Pay-per-use",
+      usageHours: 0,
+    }),
+  ).toBeNull();
+});

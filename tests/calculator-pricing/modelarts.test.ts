@@ -92,3 +92,18 @@ test("ModelArts price examples stay aligned", () => {
     })?.amount,
   ).toBe(0.2976);
 });
+
+test("ModelArts rejects unsupported yearly or monthly contract lengths", () => {
+  expect(
+    estimateModelArtsConfiguration(catalog, {
+      billingMode: "Yearly/Monthly",
+      serviceType: "AI Development Lifecycle",
+      resourceType: "Dedicated Resource Pool",
+      specification: "Compute CPU dedicated instance (8U)",
+      quantity: 1,
+      storageQuotaGb: 1,
+      usageHours: 744,
+      durationMonths: 10,
+    }),
+  ).toBeNull();
+});

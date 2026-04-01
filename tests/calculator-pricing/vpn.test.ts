@@ -142,3 +142,21 @@ test("VPN pricing examples stay aligned", () => {
     })?.amount,
   ).toBe(0.33);
 });
+
+test("VPN rejects unsupported term lengths instead of coercing them", () => {
+  expect(
+    estimateVpnConfiguration(enterpriseMonthlyCatalog, {
+      mode: "Site-to-Cloud",
+      networkType: "Public network",
+      specification: "Professional 2",
+      billingMode: "Yearly/Monthly",
+      accessViaNonFixedIp: "Off",
+      connectionGroups: 10,
+      useSharedBandwidth: false,
+      eipBandwidthMbit1: 10,
+      eipBandwidthMbit2: 10,
+      usageHours: 744,
+      durationMonths: 13,
+    }),
+  ).toBeNull();
+});

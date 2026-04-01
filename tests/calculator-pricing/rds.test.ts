@@ -260,3 +260,21 @@ test("RDS documented price anchors stay aligned", () => {
     })?.amount,
   ).toBeCloseTo(234.98, 2);
 });
+
+test("RDS rejects impossible values instead of silently clamping them", () => {
+  expect(
+    estimateRdsConfiguration(apCatalog, {
+      engine: "MySQL",
+      version: "8.0",
+      instanceType: "Primary/Standby",
+      instanceClass: "General-purpose",
+      size: "2 vCPUs, 4 GB",
+      storageType: "Flexible SSD",
+      storageSizeGb: 1,
+      iops: 3000,
+      throughputMibps: 128,
+      usageHours: 744,
+      quantity: 1,
+    }),
+  ).toBeNull();
+});

@@ -169,10 +169,10 @@ function findBandwidthPlan(
 }
 
 function getNormalizedDurationMonths(value: number) {
-  const normalized = Math.max(1, Math.floor(Number.isFinite(value) ? value : 1));
+  const normalized = Number.isFinite(value) ? Math.floor(value) : NaN;
   return vpnDurationMonthOptions.includes(normalized as (typeof vpnDurationMonthOptions)[number])
     ? normalized
-    : 1;
+    : null;
 }
 
 export function getFallbackVpnPricingCatalog(): VpnPricingCatalog {
@@ -264,9 +264,19 @@ export function estimateVpnConfiguration(catalog: VpnPricingCatalog, input: VpnE
     return null;
   }
 
-  const normalizedConnectionGroups = Math.max(1, Number.isFinite(input.connectionGroups) ? input.connectionGroups : vpnDefaults.connectionGroups);
-  const normalizedUsageHours = Math.max(1, Number.isFinite(input.usageHours) ? input.usageHours : 1);
+  if (!Number.isFinite(input.connectionGroups) || input.connectionGroups < 1) {
+    return null;
+  }
+  if (!Number.isFinite(input.usageHours) || input.usageHours < 1) {
+    return null;
+  }
+
+  const normalizedConnectionGroups = input.connectionGroups;
+  const normalizedUsageHours = input.usageHours;
   const normalizedDurationMonths = getNormalizedDurationMonths(input.durationMonths);
+  if (normalizedDurationMonths == null) {
+    return null;
+  }
   const breakdown: VpnEstimateBreakdownItem[] = [];
   const notes: string[] = [];
   let amount = 0;

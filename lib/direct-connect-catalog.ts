@@ -57,11 +57,11 @@ function roundAmount(value: number) {
 }
 
 function normalizeDurationMonths(value: number) {
-  const parsed = Number.isFinite(value) ? Math.max(1, Math.floor(value)) : 1;
+  const parsed = Number.isFinite(value) ? Math.floor(value) : NaN;
   if (parsed <= 11 || parsed === 12 || parsed === 24 || parsed === 36) {
     return parsed;
   }
-  return parsed > 24 ? 36 : parsed > 12 ? 24 : 12;
+  return null;
 }
 
 function getDurationLabel(durationMonths: number) {
@@ -120,7 +120,14 @@ export function estimateDirectConnectConfiguration(catalog: DirectConnectPricing
   }
 
   const durationMonths = normalizeDurationMonths(input.durationMonths);
-  const quantity = Number.isFinite(input.quantity) ? Math.max(1, Math.floor(input.quantity)) : 1;
+  if (durationMonths == null) {
+    return null;
+  }
+  if (!Number.isFinite(input.quantity) || input.quantity < 1) {
+    return null;
+  }
+
+  const quantity = Math.floor(input.quantity);
   const durationLabel = getDurationLabel(durationMonths);
 
   let selectedPlan: DirectConnectPlan | null = null;

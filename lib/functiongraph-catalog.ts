@@ -122,13 +122,19 @@ export function estimateFunctionGraphConfiguration(
     return null;
   }
 
-  const averageRequestsAmount = Number.isFinite(input.averageRequestsAmount) ? Math.max(0, Math.floor(input.averageRequestsAmount)) : 0;
-  const executionDurationMs = Number.isFinite(input.executionDurationMs) ? Math.max(1, Math.floor(input.executionDurationMs)) : 1;
-  const memoryAmount = Number.isFinite(input.memoryAmount)
-    ? Math.max(input.memoryUnit === "GB" ? 1 : 128, Math.floor(input.memoryAmount))
-    : input.memoryUnit === "GB"
-      ? 1
-      : 128;
+  if (!Number.isFinite(input.averageRequestsAmount) || input.averageRequestsAmount < 0) {
+    return null;
+  }
+  if (!Number.isFinite(input.executionDurationMs) || input.executionDurationMs < 1) {
+    return null;
+  }
+  if (!Number.isFinite(input.memoryAmount) || input.memoryAmount < (input.memoryUnit === "GB" ? 1 : 128)) {
+    return null;
+  }
+
+  const averageRequestsAmount = Math.floor(input.averageRequestsAmount);
+  const executionDurationMs = Math.floor(input.executionDurationMs);
+  const memoryAmount = Math.floor(input.memoryAmount);
   const memoryGiB = convertFunctionGraphMemoryToGiB(memoryAmount, input.memoryUnit);
   const monthlyRequestCount = averageRequestsAmount * 10_000 * normalizeMonthlyRequestMultiplier(input.averageRequestsUnit);
   const billableRequestCount = Math.max(0, monthlyRequestCount - catalog.requestFreeCount);

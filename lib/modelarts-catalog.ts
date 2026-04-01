@@ -147,10 +147,23 @@ export function estimateModelArtsConfiguration(catalog: ModelArtsPricingCatalog,
     return null;
   }
 
-  const quantity = Number.isFinite(input.quantity) ? Math.max(1, Math.floor(input.quantity)) : 1;
-  const usageHours = Number.isFinite(input.usageHours) ? Math.max(1, Math.floor(input.usageHours)) : 1;
-  const durationMonths = Number.isFinite(input.durationMonths) ? Math.max(1, Math.floor(input.durationMonths)) : 1;
-  const storageQuotaGb = Number.isFinite(input.storageQuotaGb) ? Math.max(1, input.storageQuotaGb) : 1;
+  if (!Number.isFinite(input.quantity) || input.quantity < 1) {
+    return null;
+  }
+  if (!Number.isFinite(input.usageHours) || input.usageHours < 1) {
+    return null;
+  }
+  if (!Number.isFinite(input.durationMonths) || !isModelArtsDurationMonths(Math.floor(input.durationMonths))) {
+    return null;
+  }
+  if (!Number.isFinite(input.storageQuotaGb) || input.storageQuotaGb < 1) {
+    return null;
+  }
+
+  const quantity = Math.floor(input.quantity);
+  const usageHours = Math.floor(input.usageHours);
+  const durationMonths = Math.floor(input.durationMonths);
+  const storageQuotaGb = input.storageQuotaGb;
   const notes: string[] = [];
 
   if (input.resourceType === "EVS Storage") {

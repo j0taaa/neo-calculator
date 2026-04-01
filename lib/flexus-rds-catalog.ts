@@ -173,8 +173,8 @@ export function findFlexusRdsStorageTier(
 }
 
 function normalizeDurationMonths(value: number) {
-  const parsed = Number.isFinite(value) ? Math.floor(value) : 1;
-  return durationMonthOptions.includes(parsed as typeof durationMonthOptions[number]) ? parsed : 1;
+  const parsed = Number.isFinite(value) ? Math.floor(value) : NaN;
+  return durationMonthOptions.includes(parsed as typeof durationMonthOptions[number]) ? parsed : null;
 }
 
 function getDurationLabel(durationMonths: number) {
@@ -189,8 +189,18 @@ export function estimateFlexusRdsConfiguration(catalog: FlexusRdsPricingCatalog,
   }
 
   const durationMonths = normalizeDurationMonths(input.durationMonths);
-  const quantity = Number.isFinite(input.quantity) ? Math.max(1, Math.floor(input.quantity)) : 1;
-  const storageSizeGb = Number.isFinite(input.storageSizeGb) ? Math.max(40, Math.floor(input.storageSizeGb)) : 40;
+  if (durationMonths == null) {
+    return null;
+  }
+  if (!Number.isFinite(input.quantity) || input.quantity < 1) {
+    return null;
+  }
+  if (!Number.isFinite(input.storageSizeGb) || input.storageSizeGb < 1) {
+    return null;
+  }
+
+  const quantity = Math.floor(input.quantity);
+  const storageSizeGb = Math.floor(input.storageSizeGb);
   const billingMode = durationMonths === 12 ? "YEARLY" : "MONTHLY";
   const computeRate = computeTier.prices[billingMode];
   const storageRate = storageTier.prices[billingMode];

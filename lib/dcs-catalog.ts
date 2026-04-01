@@ -205,9 +205,19 @@ export function estimateDcsConfiguration(catalog: DcsPricingCatalog, input: DcsE
     return null;
   }
 
-  const quantity = Number.isFinite(input.quantity) ? Math.max(1, Math.floor(input.quantity)) : 1;
-  const usageHours = Number.isFinite(input.usageHours) ? Math.max(1, Math.floor(input.usageHours)) : 1;
-  const bandwidthMbit = Number.isFinite(input.bandwidthMbit) ? Math.max(1, Math.floor(input.bandwidthMbit)) : 1;
+  if (!Number.isFinite(input.quantity) || input.quantity < 1) {
+    return null;
+  }
+  if (!Number.isFinite(input.usageHours) || input.usageHours < 1) {
+    return null;
+  }
+  if (input.elasticBandwidth === "Buy now" && (!Number.isFinite(input.bandwidthMbit) || input.bandwidthMbit < 1)) {
+    return null;
+  }
+
+  const quantity = Math.floor(input.quantity);
+  const usageHours = Math.floor(input.usageHours);
+  const bandwidthMbit = Math.floor(input.bandwidthMbit);
 
   if (input.elasticBandwidth === "Buy now" && catalog.bandwidthRatePerMbitHour == null) {
     return null;

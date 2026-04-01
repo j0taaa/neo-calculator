@@ -147,3 +147,20 @@ test("DCS documented examples stay aligned", () => {
     })?.amount,
   ).toBeCloseTo(34.97, 2);
 });
+
+test("DCS rejects impossible elastic bandwidth values", () => {
+  expect(
+    estimateDcsConfiguration(catalog, {
+      edition: "Basic",
+      version: "7.0",
+      instanceType: "Single-node",
+      architecture: "x86 | DRAM",
+      replicas: null,
+      specification: "4 GB",
+      quantity: 1,
+      elasticBandwidth: "Buy now",
+      bandwidthMbit: 0,
+      usageHours: 744,
+    }),
+  ).toBeNull();
+});

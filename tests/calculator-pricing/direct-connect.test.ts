@@ -31,3 +31,7 @@ test("Direct Connect documented price anchors stay aligned", () => {
   expect(estimateDirectConnectConfiguration(catalog, { portSpeed: "1GE", durationMonths: 1, quantity: 1 })?.amount).toBe(138);
   expect(estimateDirectConnectConfiguration(catalog, { portSpeed: "100GE", durationMonths: 1, quantity: 1 })?.amount).toBe(11700);
 });
+
+test("Direct Connect rejects unsupported contract lengths", () => {
+  expect(estimateDirectConnectConfiguration(catalog, { portSpeed: "100GE", durationMonths: 13, quantity: 1 })).toBeNull();
+});

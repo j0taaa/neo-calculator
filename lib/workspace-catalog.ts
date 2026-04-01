@@ -147,10 +147,23 @@ export function estimateWorkspaceConfiguration(catalog: WorkspacePricingCatalog,
     return null;
   }
 
-  const quantity = Number.isFinite(input.quantity) ? Math.max(1, Math.floor(input.quantity)) : 1;
-  const cpuUsageHours = Number.isFinite(input.cpuUsageHours) ? Math.max(1, Math.floor(input.cpuUsageHours)) : 1;
-  const diskUsageHours = Number.isFinite(input.diskUsageHours) ? Math.max(1, Math.floor(input.diskUsageHours)) : 1;
-  const diskSizeGb = Number.isFinite(input.diskSizeGb) ? Math.max(80, Math.floor(input.diskSizeGb)) : 80;
+  if (!Number.isFinite(input.quantity) || input.quantity < 1) {
+    return null;
+  }
+  if (!Number.isFinite(input.cpuUsageHours) || input.cpuUsageHours < 1) {
+    return null;
+  }
+  if (!Number.isFinite(input.diskUsageHours) || input.diskUsageHours < 1) {
+    return null;
+  }
+  if (!Number.isFinite(input.diskSizeGb) || input.diskSizeGb < 80) {
+    return null;
+  }
+
+  const quantity = Math.floor(input.quantity);
+  const cpuUsageHours = Math.floor(input.cpuUsageHours);
+  const diskUsageHours = Math.floor(input.diskUsageHours);
+  const diskSizeGb = Math.floor(input.diskSizeGb);
   const desktopAmount = desktopTier.prices.ONDEMAND * cpuUsageHours * quantity;
   const diskAmount = diskTier.prices.ONDEMAND * diskSizeGb * diskUsageHours * quantity;
   const amount = roundAmount(desktopAmount + diskAmount);

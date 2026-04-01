@@ -92,3 +92,19 @@ test("Flexus RDS price examples stay aligned", () => {
     })?.amount,
   ).toBe(1000.08);
 });
+
+test("Flexus RDS rejects unsupported durations instead of remapping them", () => {
+  expect(
+    estimateFlexusRdsConfiguration(catalog, {
+      engine: "MySQL",
+      version: "8.0",
+      instanceType: "Single",
+      instanceClass: "Lightweight",
+      size: "4 vCPUs, 8 GB",
+      storageType: "Cloud SSD",
+      storageSizeGb: 240,
+      durationMonths: 10,
+      quantity: 1,
+    }),
+  ).toBeNull();
+});

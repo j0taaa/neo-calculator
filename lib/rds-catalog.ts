@@ -246,9 +246,19 @@ export function estimateRdsConfiguration(catalog: RdsPricingCatalog, input: RdsE
     return null;
   }
 
-  const usageHours = Number.isFinite(input.usageHours) ? Math.max(1, Math.floor(input.usageHours)) : 1;
-  const quantity = Number.isFinite(input.quantity) ? Math.max(1, Math.floor(input.quantity)) : 1;
-  const storageSizeGb = Number.isFinite(input.storageSizeGb) ? Math.max(40, Math.floor(input.storageSizeGb)) : 40;
+  if (!Number.isFinite(input.usageHours) || input.usageHours < 1) {
+    return null;
+  }
+  if (!Number.isFinite(input.quantity) || input.quantity < 1) {
+    return null;
+  }
+  if (!Number.isFinite(input.storageSizeGb) || input.storageSizeGb < 40) {
+    return null;
+  }
+
+  const usageHours = Math.floor(input.usageHours);
+  const quantity = Math.floor(input.quantity);
+  const storageSizeGb = Math.floor(input.storageSizeGb);
   const computeAmount = computeTier.prices.ONDEMAND * usageHours;
   const storageAmount = storageTier.prices.ONDEMAND * storageSizeGb * usageHours;
   const memorySurchargeAmount = 0;

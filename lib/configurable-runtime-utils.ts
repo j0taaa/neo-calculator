@@ -20,7 +20,7 @@ export const evsSingleDiskMaxGiB = 32_768;
 export const gpSsd2IopsBounds = { min: 3_000, max: 128_000 } as const;
 export const gpSsd2ThroughputBounds = { min: 125, max: 1_000 } as const;
 export const ecsDiskSizeBounds = { min: 40, max: 1024 } as const;
-export const evsDiskSizeBounds = { min: 1, max: 1_000_000 } as const;
+export const evsDiskSizeBounds = { min: 10, max: 1_000_000 } as const;
 export const obsStorageSizeBounds = { min: 1, max: 1_000_000_000 } as const;
 export const systemDiskOptions = [
   "High I/O",
@@ -143,7 +143,15 @@ export function getGpSsd2RequestedThroughput(value: unknown, fallbackIops: numbe
 }
 
 export function splitEvsDiskSizes(totalGiB: number) {
-  const normalizedTotal = Math.max(1, Math.floor(totalGiB));
+  const normalizedTotal = Number.isFinite(totalGiB) ? Math.floor(totalGiB) : NaN;
+  if (
+    !Number.isFinite(normalizedTotal)
+    || normalizedTotal < evsDiskSizeBounds.min
+    || normalizedTotal > evsDiskSizeBounds.max
+  ) {
+    throw new Error(`EVS disk size must be between ${evsDiskSizeBounds.min} and ${evsDiskSizeBounds.max} GiB.`);
+  }
+
   const chunks: number[] = [];
   let remaining = normalizedTotal;
 
@@ -223,11 +231,20 @@ export function buildEvsProductMutationBodies<SystemDiskOption extends string>(i
 }
 
 export function buildEvsSplitNotice(totalGiB: number) {
+  const normalizedTotal = Number.isFinite(totalGiB) ? Math.floor(totalGiB) : NaN;
+  if (
+    !Number.isFinite(normalizedTotal)
+    || normalizedTotal < evsDiskSizeBounds.min
+    || normalizedTotal > evsDiskSizeBounds.max
+  ) {
+    return null;
+  }
+
   if (totalGiB <= evsSingleDiskMaxGiB) {
     return null;
   }
 
-  const chunks = splitEvsDiskSizes(totalGiB);
+  const chunks = splitEvsDiskSizes(normalizedTotal);
   return `Totals above ${evsSingleDiskMaxGiB} GiB are saved as multiple disks: ${chunks.join(" GiB + ")} GiB.`;
 }
 

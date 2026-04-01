@@ -103,7 +103,11 @@ export function estimateNatConfiguration(catalog: NatPricingCatalog, input: NatE
     return null;
   }
 
-  const usageHours = Number.isFinite(input.usageHours) ? Math.max(1, input.usageHours) : 1;
+  if (!Number.isFinite(input.usageHours) || input.usageHours < 1) {
+    return null;
+  }
+
+  const usageHours = input.usageHours;
   const dailyAmount = input.type === "Public NAT Gateway" ? tier.prices.ONDEMAND ?? null : null;
   const hourlyAmount = input.type === "Private NAT Gateway" ? tier.prices.ONDEMAND ?? null : null;
   const monthlyAmount = tier.prices.MONTHLY ?? null;

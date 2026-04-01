@@ -101,3 +101,19 @@ test("Workspace documented examples stay aligned", () => {
     })?.amount,
   ).toBeCloseTo(375.57, 2);
 });
+
+test("Workspace rejects impossible disk sizes", () => {
+  expect(
+    estimateWorkspaceConfiguration(catalog, {
+      architecture: "x86 desktop",
+      specification: "Ultimate",
+      cpu: "2 vCPUs",
+      memory: "4 GB",
+      cpuUsageHours: 744,
+      diskType: "High I/O",
+      diskSizeGb: 1,
+      diskUsageHours: 744,
+      quantity: 1,
+    }),
+  ).toBeNull();
+});
