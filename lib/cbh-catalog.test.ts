@@ -55,9 +55,11 @@ const payload = {
 test("CBH parser extracts instance types, editions, and supported durations", () => {
   const catalog = parseCbhPricingCatalogResponse(payload, "ap-southeast-1");
 
-  expect(listCbhInstanceTypes(catalog)).toEqual(["Single-node"]);
+  expect(listCbhInstanceTypes(catalog)).toEqual(["Single-node", "Primary/Standby"]);
   expect(listCbhEditions(catalog, "Single-node")).toEqual(["Standard 50", "Standard 100", "Professional 100"]);
+  expect(listCbhEditions(catalog, "Primary/Standby")).toEqual(["Standard 50", "Standard 100", "Professional 100"]);
   expect(listCbhDurationMonths(catalog, "Single-node", "Standard 50")).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 12, 24, 36]);
+  expect(listCbhDurationMonths(catalog, "Primary/Standby", "Standard 50")).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 12, 24, 36]);
 });
 
 test("CBH estimator uses direct monthly and yearly plans", () => {
@@ -66,4 +68,5 @@ test("CBH estimator uses direct monthly and yearly plans", () => {
   expect(estimateCbhConfiguration(catalog, { instanceType: "Single-node", edition: "Standard 50", durationMonths: 1, quantity: 1 })?.amount).toBe(400);
   expect(estimateCbhConfiguration(catalog, { instanceType: "Single-node", edition: "Professional 100", durationMonths: 2, quantity: 2 })?.amount).toBe(3600);
   expect(estimateCbhConfiguration(catalog, { instanceType: "Single-node", edition: "Standard 100", durationMonths: 36, quantity: 1 })?.amount).toBe(10800);
+  expect(estimateCbhConfiguration(catalog, { instanceType: "Primary/Standby", edition: "Standard 50", durationMonths: 1, quantity: 1 })).toBeNull();
 });

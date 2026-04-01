@@ -26,7 +26,7 @@ export const serviceDefinition = {
     selectionTemplate: "{instanceType} | {edition} | {durationMonths} months | {quantity}",
     notes: [
       "This calculator models the Cloud Bastion Host yearly/monthly flow from the Huawei cbh catalog.",
-      "The current live pricing catalog only exposes Single-node SKUs.",
+      "The current live pricing catalog only exposes Single-node SKUs, even though the Huawei calculator UI also shows Primary/Standby.",
     ],
   },
 } satisfies ServiceDefinition;
@@ -128,11 +128,11 @@ export const configurableServiceBundle = {
     catalog: { route: "cbh-pricing" },
     showSharedUsageHours: false,
     derived: [
-      { key: "instanceTypeOptions", value: ifElse(ref("catalog"), call("listCbhInstanceTypes", ref("catalog")), ["Single-node"]) },
+      { key: "instanceTypeOptions", value: ["Single-node", "Primary/Standby"] },
       { key: "instanceType", value: call("resolveOption", ref("values.instanceType"), ref("derived.instanceTypeOptions"), ref("helpers.cbhDefaults.instanceType")) },
       { key: "editionOptions", value: ifElse(ref("catalog"), call("listCbhEditions", ref("catalog"), ref("derived.instanceType")), [ref("helpers.cbhDefaults.edition")]) },
       { key: "edition", value: call("resolveOption", ref("values.edition"), ref("derived.editionOptions"), ref("helpers.cbhDefaults.edition")) },
-      { key: "durationMonthOptions", value: ifElse(ref("catalog"), call("listCbhDurationMonths", ref("catalog"), ref("derived.instanceType"), ref("derived.edition")), [1, 2, 3, 4, 5, 6, 7, 8, 9, 12]) },
+      { key: "durationMonthOptions", value: ifElse(ref("catalog"), call("listCbhDurationMonths", ref("catalog"), ref("derived.instanceType"), ref("derived.edition")), [1, 2, 3, 4, 5, 6, 7, 8, 9, 12, 24, 36]) },
       { key: "durationMonths", value: call("resolveNumberOption", ref("values.durationMonths"), ref("derived.durationMonthOptions"), ref("helpers.cbhDefaults.durationMonths")) },
       { key: "quantity", value: call("clampInteger", ref("values.quantity"), 1) },
       {
@@ -165,7 +165,11 @@ export const configurableServiceBundle = {
     addToListError: ifElse(
       ref("derived.estimate"),
       null,
-      call("firstMeaningfulText", ref("pricingError"), "Cloud Bastion Host pricing is unavailable for the current selection."),
+      ifElse(
+        eq(ref("derived.instanceType"), "Primary/Standby"),
+        "Huawei shows Primary/Standby in the CBH calculator UI, but the current live pricing catalog for this region does not return priced Primary/Standby SKUs.",
+        call("firstMeaningfulText", ref("pricingError"), "Cloud Bastion Host pricing is unavailable for the current selection."),
+      ),
     ),
     selectionSummary: ifElse(
       ref("derived.estimate"),
@@ -178,7 +182,11 @@ export const configurableServiceBundle = {
         }),
         estimate: call("formatFlavorAmount", ref("derived.estimate.currency"), ref("derived.estimate.amount"), ref("derived.estimate.suffix")),
       }),
-      "Selected specifications:",
+      ifElse(
+        eq(ref("derived.instanceType"), "Primary/Standby"),
+        "Selected specifications: Primary/Standby | pricing unavailable for the current live catalog.",
+        "Selected specifications:",
+      ),
     ),
     selectionNotes: ifElse(
       ref("derived.estimate"),
@@ -192,7 +200,11 @@ export const configurableServiceBundle = {
         ],
         call("asArray", ref("derived.estimate.notes")),
       ),
-      [],
+      ifElse(
+        eq(ref("derived.instanceType"), "Primary/Standby"),
+        ["Huawei shows Primary/Standby in the CBH calculator UI, but the current live pricing catalog for this region does not return priced Primary/Standby SKUs."],
+        [],
+      ),
     ),
     referenceNote: template(
       "Pricing sourced from Huawei Cloud Bastion Host calculator API for {region}. Sources: {pricingUrl}, {productUrl}, and {calculatorApi}",

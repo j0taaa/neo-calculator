@@ -1,6 +1,6 @@
 import type { AmountPlan, RegionalPricingCatalog } from "@/lib/pricing-catalog-types";
 
-export type CbhInstanceType = "Single-node";
+export type CbhInstanceType = "Single-node" | "Primary/Standby";
 export type CbhEditionType = "Standard" | "Professional";
 export type CbhBillingMode = "MONTHLY" | "YEARLY";
 
@@ -54,7 +54,7 @@ export const cbhPricingReference = {
   productUrl: "https://www.huaweicloud.com/intl/en-us/product/cbh.html",
 } as const;
 
-const instanceTypeOrder: CbhInstanceType[] = ["Single-node"];
+const instanceTypeOrder: CbhInstanceType[] = ["Single-node", "Primary/Standby"];
 const editionTypeOrder: CbhEditionType[] = ["Standard", "Professional"];
 
 function roundAmount(value: number) {
@@ -83,18 +83,17 @@ function getDurationLabel(durationMonths: number) {
 }
 
 export function listCbhInstanceTypes(catalog: CbhPricingCatalog) {
-  const values = new Set<CbhInstanceType>();
-  for (const tier of catalog.editionTiers) {
-    if (tier.plans.length > 0) {
-      values.add(tier.instanceType);
-    }
-  }
-  return instanceTypeOrder.filter((entry) => values.has(entry));
+  void catalog;
+  return [...instanceTypeOrder];
 }
 
 export function listCbhEditions(catalog: CbhPricingCatalog, instanceType: CbhInstanceType) {
-  return catalog.editionTiers
-    .filter((tier) => tier.instanceType === instanceType && tier.plans.length > 0)
+  const matchingTiers = catalog.editionTiers.filter((tier) => tier.instanceType === instanceType && tier.plans.length > 0);
+  const sourceTiers = matchingTiers.length > 0
+    ? matchingTiers
+    : catalog.editionTiers.filter((tier) => tier.plans.length > 0);
+
+  return sourceTiers
     .sort((left, right) => {
       if (left.assetCount !== right.assetCount) {
         return left.assetCount - right.assetCount;
@@ -107,7 +106,7 @@ export function listCbhEditions(catalog: CbhPricingCatalog, instanceType: CbhIns
 export function listCbhDurationMonths(catalog: CbhPricingCatalog, instanceType: CbhInstanceType, edition: string) {
   const tier = catalog.editionTiers.find((entry) => entry.instanceType === instanceType && entry.edition === edition) ?? null;
   if (!tier) {
-    return [1, 12];
+    return [1, 2, 3, 4, 5, 6, 7, 8, 9, 12, 24, 36];
   }
 
   const options = new Set<number>([1, 2, 3, 4, 5, 6, 7, 8, 9, 12]);
