@@ -433,6 +433,7 @@ export function useConfigurableServiceRuntime({
     selectedService,
     selectedServiceCode,
     selectedServiceDefinition,
+    typedRuntimeDefinition,
     typedRuntimeDefinition?.syncValues,
     usageHours,
     usageHoursValue,
@@ -478,7 +479,7 @@ export function useConfigurableServiceRuntime({
       selectedService,
       selectedServiceCode,
       selectedServiceDefinition,
-      typedRuntimeDefinition?.estimate,
+      typedRuntimeDefinition,
       usageHours,
       usageHoursValue,
     ],
@@ -527,7 +528,7 @@ export function useConfigurableServiceRuntime({
     selectedService,
     selectedServiceCode,
     selectedServiceDefinition,
-    typedRuntimeDefinition?.activeBillingOptions,
+    typedRuntimeDefinition,
     usageHours,
     usageHoursValue,
   ]);
@@ -578,7 +579,7 @@ export function useConfigurableServiceRuntime({
     selectedService,
     selectedServiceCode,
     selectedServiceDefinition,
-    typedRuntimeDefinition?.showSharedUsageHours,
+    typedRuntimeDefinition,
     usageHours,
     usageHoursValue,
   ]);
@@ -627,7 +628,7 @@ export function useConfigurableServiceRuntime({
     selectedService,
     selectedServiceCode,
     selectedServiceDefinition,
-    typedRuntimeDefinition?.visibilityContext,
+    typedRuntimeDefinition,
     usageHours,
     usageHoursValue,
   ]);
@@ -692,7 +693,7 @@ export function useConfigurableServiceRuntime({
     selectedService,
     selectedServiceCode,
     selectedServiceDefinition,
-    typedRuntimeDefinition?.fieldRuntime,
+    typedRuntimeDefinition,
     usageHours,
     usageHoursValue,
   ]);
@@ -746,7 +747,7 @@ export function useConfigurableServiceRuntime({
     selectedService,
     selectedServiceCode,
     selectedServiceDefinition,
-    typedRuntimeDefinition?.fieldRuntime,
+    typedRuntimeDefinition,
     usageHours,
     usageHoursValue,
   ]);
@@ -800,7 +801,7 @@ export function useConfigurableServiceRuntime({
     selectedService,
     selectedServiceCode,
     selectedServiceDefinition,
-    typedRuntimeDefinition?.fieldRuntime,
+    typedRuntimeDefinition,
     usageHours,
     usageHoursValue,
   ]);
@@ -852,7 +853,7 @@ export function useConfigurableServiceRuntime({
     selectedService,
     selectedServiceCode,
     selectedServiceDefinition,
-    typedRuntimeDefinition?.fieldRuntime,
+    typedRuntimeDefinition,
     usageHours,
     usageHoursValue,
   ]);
@@ -1104,7 +1105,7 @@ export function useConfigurableServiceRuntime({
     selectedService,
     selectedServiceCode,
     selectedServiceDefinition,
-    typedRuntimeDefinition?.addToListError,
+    typedRuntimeDefinition,
     usageHours,
     usageHoursValue,
   ]);
@@ -1164,7 +1165,7 @@ export function useConfigurableServiceRuntime({
     selectedService,
     selectedServiceCode,
     selectedServiceDefinition,
-    typedRuntimeDefinition?.buildRequestBodies,
+    typedRuntimeDefinition,
     usageHours,
     usageHoursValue,
   ]);
@@ -1215,7 +1216,7 @@ export function useConfigurableServiceRuntime({
     selectedService,
     selectedServiceCode,
     selectedServiceDefinition,
-    typedRuntimeDefinition?.buildBatchRequestBodies,
+    typedRuntimeDefinition,
     usageHours,
     usageHoursValue,
   ]);
@@ -1263,7 +1264,7 @@ export function useConfigurableServiceRuntime({
     selectedService,
     selectedServiceCode,
     selectedServiceDefinition,
-    typedRuntimeDefinition?.addSuccessMessage,
+    typedRuntimeDefinition,
     usageHours,
     usageHoursValue,
   ]);
@@ -1312,7 +1313,7 @@ export function useConfigurableServiceRuntime({
     selectedService,
     selectedServiceCode,
     selectedServiceDefinition,
-    typedRuntimeDefinition?.updateSuccessMessage,
+    typedRuntimeDefinition,
     usageHours,
     usageHoursValue,
   ]);
@@ -1361,7 +1362,7 @@ export function useConfigurableServiceRuntime({
     selectedService,
     selectedServiceCode,
     selectedServiceDefinition,
-    typedRuntimeDefinition?.batchSuccessMessage,
+    typedRuntimeDefinition,
     usageHours,
     usageHoursValue,
   ]);
@@ -1419,7 +1420,7 @@ export function useConfigurableServiceRuntime({
     selectedService,
     selectedServiceCode,
     selectedServiceDefinition,
-    typedRuntimeDefinition?.hydrate,
+    typedRuntimeDefinition,
     usageHours,
     usageHoursValue,
   ]);
@@ -1476,7 +1477,7 @@ export function useConfigurableServiceRuntime({
     selectedService,
     selectedServiceCode,
     selectedServiceDefinition,
-    typedRuntimeDefinition?.batchPanel,
+    typedRuntimeDefinition,
     usageHours,
     usageHoursValue,
   ]);
