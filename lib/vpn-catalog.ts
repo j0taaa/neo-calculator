@@ -264,7 +264,7 @@ export function estimateVpnConfiguration(catalog: VpnPricingCatalog, input: VpnE
     return null;
   }
 
-  const normalizedConnectionGroups = Math.max(10, Number.isFinite(input.connectionGroups) ? input.connectionGroups : vpnDefaults.connectionGroups);
+  const normalizedConnectionGroups = Math.max(1, Number.isFinite(input.connectionGroups) ? input.connectionGroups : vpnDefaults.connectionGroups);
   const normalizedUsageHours = Math.max(1, Number.isFinite(input.usageHours) ? input.usageHours : 1);
   const normalizedDurationMonths = getNormalizedDurationMonths(input.durationMonths);
   const breakdown: VpnEstimateBreakdownItem[] = [];

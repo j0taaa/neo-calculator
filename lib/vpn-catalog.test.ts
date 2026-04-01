@@ -290,3 +290,55 @@ test("estimateVpnConfiguration Enterprise P2C Point-to-Cloud monthly", () => {
   expect(estimate!.amount).toBe(209);
   expect(estimate!.suffix).toBe("/1mo");
 });
+
+test("estimateVpnConfiguration supports a single pay-per-use connection group for V300-style pricing", () => {
+  const apSingaporeCatalog: VpnPricingCatalog = {
+    currency: "USD",
+    regionId: "ap-southeast-1",
+    gateways: [
+      {
+        mode: "Site-to-Cloud",
+        specification: "Professional 2",
+        accessViaNonFixedIp: "Off",
+        resourceSpecCode: "V300",
+        plans: [
+          {
+            billingMode: "ONDEMAND",
+            periodNum: null,
+            tiers: [
+              { start: 0, end: 1, amount: 0.33 },
+              { start: 1, end: null, amount: 0.035 },
+            ],
+          },
+        ],
+      },
+    ],
+    publicBandwidth: [
+      {
+        allocation: "Shared bandwidth",
+        resourceSpecCode: "19_share",
+        plans: [
+          { billingMode: "ONDEMAND", periodNum: null, amount: 24.3 },
+        ],
+      },
+    ],
+  };
+
+  const estimate = estimateVpnConfiguration(apSingaporeCatalog, {
+    mode: "Site-to-Cloud",
+    networkType: "Public network",
+    specification: "Professional 2",
+    billingMode: "Pay-per-use",
+    accessViaNonFixedIp: "Off",
+    connectionGroups: 1,
+    useSharedBandwidth: true,
+    eipBandwidthMbit1: 0,
+    eipBandwidthMbit2: 0,
+    usageHours: 1,
+    durationMonths: 1,
+  });
+
+  expect(estimate).not.toBeNull();
+  expect(estimate!.amount).toBe(0.33);
+  expect(estimate!.suffix).toBe("/1h");
+});

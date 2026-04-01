@@ -8,6 +8,7 @@
     "start": "bunx --bun next start",
     "lint": "eslint",
     "test": "bun test",
+    "test:pricing": "bun run scripts/test-calculator-pricing.ts",
     "db:migrate": "bunx --bun @better-auth/cli migrate --config ./lib/auth.ts --yes",
     "test:ecs-sync": "bun run scripts/test-ecs-flavor-sync.ts",
     "test:huawei-sync": "HWC_DISABLE_PROXY=1 bun run scripts/test-huawei-cart-sync.ts"
