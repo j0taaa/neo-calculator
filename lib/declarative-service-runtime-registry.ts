@@ -1,4 +1,5 @@
 import { configurableServiceBundle as apigBundle } from "@/config/services/apig/bundle";
+import { configurableServiceBundle as ccmBundle } from "@/config/services/ccm/bundle";
 import { configurableServiceBundle as cbhBundle } from "@/config/services/cbh/bundle";
 import { configurableServiceBundle as cbrBundle } from "@/config/services/cbr/bundle";
 import { configurableServiceBundle as cceBundle } from "@/config/services/cce/bundle";
@@ -18,6 +19,7 @@ import { configurableServiceBundle as natBundle } from "@/config/services/nat/bu
 import { configurableServiceBundle as obsBundle } from "@/config/services/obs/bundle";
 import { configurableServiceBundle as rdsBundle } from "@/config/services/rds/bundle";
 import { configurableServiceBundle as sfsBundle } from "@/config/services/sfs/bundle";
+import { configurableServiceBundle as sfsTurboBundle } from "@/config/services/sfsturbo/bundle";
 import { configurableServiceBundle as vpcepBundle } from "@/config/services/vpcep/bundle";
 import { configurableServiceBundle as vpnBundle } from "@/config/services/vpn/bundle";
 import { configurableServiceBundle as workspaceBundle } from "@/config/services/workspace/bundle";
@@ -26,6 +28,7 @@ import type { TypedDeclarativeRuntimeDefinition } from "@/lib/typed-declarative-
 
 const typedRuntimeDefinitions = {
   APIG: apigBundle.runtime,
+  CCM: ccmBundle.runtime,
   CBH: cbhBundle.runtime,
   CBR: cbrBundle.runtime,
   CCE: cceBundle.runtime,
@@ -41,6 +44,7 @@ const typedRuntimeDefinitions = {
   DC: dcBundle.runtime,
   LTS: ltsBundle.runtime,
   SFS: sfsBundle.runtime,
+  "SFS Turbo": sfsTurboBundle.runtime,
   VPCEP: vpcepBundle.runtime,
   "Flexus RDS": flexusRdsBundle.runtime,
   RDS: rdsBundle.runtime,

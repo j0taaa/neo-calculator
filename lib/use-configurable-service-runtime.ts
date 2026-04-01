@@ -81,7 +81,7 @@ function stringifyConfigValue(value: unknown) {
 }
 
 function toBillingMode(value: unknown, fallback: BillingOption): BillingOption {
-  return value === "RI" || value === "Yearly/Monthly" || value === "Pay-per-use" ? value : fallback;
+  return value === "RI" || value === "Yearly/Monthly" || value === "Pay-per-use" || value === "One-time" ? value : fallback;
 }
 
 function buildDefaultValues(definition: ServiceDefinition) {
@@ -190,7 +190,7 @@ function normalizeHydrationResult(value: unknown): EditHydrationResult {
     handled: value.handled === true,
     error: typeof value.error === "string" ? value.error : undefined,
     nextRegion: typeof value.nextRegion === "string" && value.nextRegion in huaweiRegions ? value.nextRegion as HuaweiRegionKey : undefined,
-    nextBillingMode: value.nextBillingMode === "Pay-per-use" || value.nextBillingMode === "Yearly/Monthly" || value.nextBillingMode === "RI"
+    nextBillingMode: value.nextBillingMode === "Pay-per-use" || value.nextBillingMode === "Yearly/Monthly" || value.nextBillingMode === "RI" || value.nextBillingMode === "One-time"
       ? value.nextBillingMode
       : undefined,
     nextUsageHours: typeof value.nextUsageHours === "string" ? value.nextUsageHours : undefined,
@@ -518,7 +518,7 @@ export function useConfigurableServiceRuntime({
         estimate,
       }),
     );
-    if (Array.isArray(computed) && computed.every((entry) => entry === "Pay-per-use" || entry === "RI" || entry === "Yearly/Monthly")) {
+    if (Array.isArray(computed) && computed.every((entry) => entry === "Pay-per-use" || entry === "RI" || entry === "Yearly/Monthly" || entry === "One-time")) {
       return computed as BillingOption[];
     }
     return selectedServiceDefinition.billingOptions as BillingOption[];

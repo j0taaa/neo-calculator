@@ -19,6 +19,8 @@ export const serviceRegistryDocument = {
     "DC",
     "CBR",
     "SFS",
+    "SFS Turbo",
+    "CCM",
     "CBH",
     "VPCEP",
     "FunctionGraph",
@@ -134,6 +136,20 @@ export const serviceRegistryDocument = {
       "definitionId": "sfs",
       "serviceDefinitionPath": "./sfs/bundle.ts",
       "pricingDefinitionPath": "./sfs/bundle.ts",
+      "status": "active"
+    },
+    {
+      "serviceCode": "SFS Turbo",
+      "definitionId": "sfsturbo",
+      "serviceDefinitionPath": "./sfsturbo/bundle.ts",
+      "pricingDefinitionPath": "./sfsturbo/bundle.ts",
+      "status": "active"
+    },
+    {
+      "serviceCode": "CCM",
+      "definitionId": "ccm",
+      "serviceDefinitionPath": "./ccm/bundle.ts",
+      "pricingDefinitionPath": "./ccm/bundle.ts",
       "status": "active"
     },
     {
@@ -589,6 +605,11 @@ export const serviceRegistryDocument = {
     {
       "name": "Scalable File Service",
       "code": "SFS",
+      "icon": "https://res-static.hc-cdn.cn/cloudbu-site/public/product-banner-icon/Storage/SFS.png"
+    },
+    {
+      "name": "Scalable File Service Turbo",
+      "code": "SFS Turbo",
       "icon": "https://res-static.hc-cdn.cn/cloudbu-site/public/product-banner-icon/Storage/SFS.png"
     },
     {

@@ -56,7 +56,7 @@ import { useCalculatorController } from "@/lib/use-calculator-controller";
 
 const services = serviceCatalog;
 const options = {
-  billing: ["Pay-per-use", "RI", "Yearly/Monthly"],
+  billing: ["Pay-per-use", "RI", "Yearly/Monthly", "One-time"],
 } as const;
 
 type BillingOption = PageBillingOption;
@@ -78,7 +78,7 @@ function getServiceMeta(serviceCode: string, serviceName: string) {
 }
 
 function isBillingOption(value: unknown): value is BillingOption {
-  return value === "Pay-per-use" || value === "RI" || value === "Yearly/Monthly";
+  return value === "Pay-per-use" || value === "RI" || value === "Yearly/Monthly" || value === "One-time";
 }
 
 function OptionGrid({

@@ -1,5 +1,6 @@
 import { serviceRegistryDocument } from "@/config/services/index";
 import { pricingDefinition as apigPricingDefinitionDocument, serviceDefinition as apigServiceDefinitionDocument } from "@/config/services/apig/bundle";
+import { pricingDefinition as ccmPricingDefinitionDocument, serviceDefinition as ccmServiceDefinitionDocument } from "@/config/services/ccm/bundle";
 import { pricingDefinition as cbhPricingDefinitionDocument, serviceDefinition as cbhServiceDefinitionDocument } from "@/config/services/cbh/bundle";
 import { pricingDefinition as cbrPricingDefinitionDocument, serviceDefinition as cbrServiceDefinitionDocument } from "@/config/services/cbr/bundle";
 import { pricingDefinition as ccePricingDefinitionDocument, serviceDefinition as cceServiceDefinitionDocument } from "@/config/services/cce/bundle";
@@ -19,6 +20,7 @@ import { pricingDefinition as natPricingDefinitionDocument, serviceDefinition as
 import { pricingDefinition as obsPricingDefinitionDocument, serviceDefinition as obsServiceDefinitionDocument } from "@/config/services/obs/bundle";
 import { pricingDefinition as rdsPricingDefinitionDocument, serviceDefinition as rdsServiceDefinitionDocument } from "@/config/services/rds/bundle";
 import { pricingDefinition as sfsPricingDefinitionDocument, serviceDefinition as sfsServiceDefinitionDocument } from "@/config/services/sfs/bundle";
+import { pricingDefinition as sfsTurboPricingDefinitionDocument, serviceDefinition as sfsTurboServiceDefinitionDocument } from "@/config/services/sfsturbo/bundle";
 import { pricingDefinition as vpcepPricingDefinitionDocument, serviceDefinition as vpcepServiceDefinitionDocument } from "@/config/services/vpcep/bundle";
 import { pricingDefinition as vpnPricingDefinitionDocument, serviceDefinition as vpnServiceDefinitionDocument } from "@/config/services/vpn/bundle";
 import { pricingDefinition as workspacePricingDefinitionDocument, serviceDefinition as workspaceServiceDefinitionDocument } from "@/config/services/workspace/bundle";
@@ -437,6 +439,10 @@ const definitionDocuments = {
     service: parseServiceDefinition(apigServiceDefinitionDocument),
     pricing: parsePricingDefinition(apigPricingDefinitionDocument),
   },
+  ccm: {
+    service: parseServiceDefinition(ccmServiceDefinitionDocument),
+    pricing: parsePricingDefinition(ccmPricingDefinitionDocument),
+  },
   cbh: {
     service: parseServiceDefinition(cbhServiceDefinitionDocument),
     pricing: parsePricingDefinition(cbhPricingDefinitionDocument),
@@ -512,6 +518,10 @@ const definitionDocuments = {
   sfs: {
     service: parseServiceDefinition(sfsServiceDefinitionDocument),
     pricing: parsePricingDefinition(sfsPricingDefinitionDocument),
+  },
+  sfsturbo: {
+    service: parseServiceDefinition(sfsTurboServiceDefinitionDocument),
+    pricing: parsePricingDefinition(sfsTurboPricingDefinitionDocument),
   },
   vpcep: {
     service: parseServiceDefinition(vpcepServiceDefinitionDocument),

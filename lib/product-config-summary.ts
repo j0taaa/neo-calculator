@@ -180,6 +180,24 @@ export function getProductConfigSummary(product: AppProduct): string {
     return parts.join(" · ") || product.serviceName;
   }
 
+  if (product.productType === "ccm") {
+    const parts = [
+      typeof product.config.region === "string" ? product.config.region : null,
+      typeof product.config.certificateType === "string" ? product.config.certificateType : null,
+      typeof product.config.certificateAuthority === "string" ? product.config.certificateAuthority : null,
+      typeof product.config.domainType === "string" ? product.config.domainType : null,
+      typeof product.config.domainQuantity === "number" && product.config.domainType === "Multiple domains"
+        ? `${product.config.domainQuantity} domains`
+        : null,
+      typeof product.config.validityPeriodYears === "number"
+        ? `${product.config.validityPeriodYears}yr`
+        : null,
+      typeof product.config.billingMode === "string" ? product.config.billingMode : null,
+    ].filter(Boolean);
+
+    return parts.join(" · ") || product.serviceName;
+  }
+
   if (product.productType === "ga") {
     const parts = [
       typeof product.config.region === "string" ? product.config.region : null,
@@ -188,6 +206,24 @@ export function getProductConfigSummary(product: AppProduct): string {
       typeof product.config.trafficGb === "number" ? `${product.config.trafficGb} GB` : null,
       typeof product.config.billingMode === "string" ? product.config.billingMode : null,
       typeof product.config.usageHours === "number" ? `${product.config.usageHours}h` : null,
+    ].filter(Boolean);
+
+    return parts.join(" · ") || product.serviceName;
+  }
+
+  if (product.productType === "sfsturbo") {
+    const parts = [
+      typeof product.config.region === "string" ? product.config.region : null,
+      typeof product.config.generation === "string" ? product.config.generation : null,
+      typeof product.config.type === "string" ? product.config.type : null,
+      typeof product.config.capacityTb === "number" ? `${product.config.capacityTb} TB` : null,
+      typeof product.config.billingMode === "string" ? product.config.billingMode : null,
+      typeof product.config.durationMonths === "number" && product.config.billingMode === "Yearly/Monthly"
+        ? `${product.config.durationMonths}mo`
+        : null,
+      typeof product.config.usageHours === "number" && product.config.billingMode === "Pay-per-use"
+        ? `${product.config.usageHours}h`
+        : null,
     ].filter(Boolean);
 
     return parts.join(" · ") || product.serviceName;

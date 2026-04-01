@@ -31,8 +31,8 @@ const RI_PAYMENT_TYPE_KEY = "NO_UPFRONT";
 const RI_TIME_TOKEN = "nodeData.1_3";
 const RI_TYPE = "nodeData.STANDARD";
 const HUAWEI_HOUR_USAGE_MEASURE_ID = 4;
-const LOCAL_BILLING_OPTIONS = ["Pay-per-use", "Yearly/Monthly", "RI"] as const;
-const CATALOG_PRICING_MODES = ["ONDEMAND", "MONTHLY", "YEARLY", "RI"] as const;
+const LOCAL_BILLING_OPTIONS = ["Pay-per-use", "Yearly/Monthly", "RI", "One-time"] as const;
+const CATALOG_PRICING_MODES = ["ONDEMAND", "MONTHLY", "YEARLY", "RI", "ONETIME"] as const;
 
 const catalogBodyCache = new Map<string, { expiresAt: number; body: unknown }>();
 
@@ -1646,6 +1646,10 @@ function toCatalogPricingMode(flavor: ProductFlavor, billingMode: LocalBillingOp
     return "RI";
   }
 
+  if (billingMode === "One-time") {
+    return "ONETIME";
+  }
+
   const monthlyPrice = getItemBasePrice(flavor, "MONTHLY");
   if (Number.isFinite(monthlyPrice)) {
     return "MONTHLY";
@@ -1714,6 +1718,10 @@ function mapRemotePricingModeToLocal(mode: CatalogPricingMode): LocalBillingOpti
 
   if (mode === "ONDEMAND") {
     return "Pay-per-use";
+  }
+
+  if (mode === "ONETIME") {
+    return "One-time";
   }
 
   return "Yearly/Monthly";

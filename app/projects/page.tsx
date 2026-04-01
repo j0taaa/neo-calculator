@@ -22,7 +22,7 @@ import {
 } from "@/lib/resource-export";
 import { ArrowRightLeft, Check, ChevronDown, ChevronRight, Copy, Download, Link2, MoreHorizontal, Pencil, RefreshCw, Share2, Trash2, Upload, X } from "lucide-react";
 
-type BillingOption = "Pay-per-use" | "RI" | "Yearly/Monthly";
+type BillingOption = "Pay-per-use" | "RI" | "Yearly/Monthly" | "One-time";
 
 type AppProduct = {
   id: string;
@@ -107,7 +107,7 @@ type ResourceExportModalState = {
   filename: string;
 } | null;
 
-const billingOptions: BillingOption[] = ["Pay-per-use", "RI", "Yearly/Monthly"];
+const billingOptions: BillingOption[] = ["Pay-per-use", "RI", "Yearly/Monthly", "One-time"];
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;

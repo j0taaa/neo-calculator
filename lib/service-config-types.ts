@@ -1,4 +1,4 @@
-const billingOptions = ["Pay-per-use", "RI", "Yearly/Monthly"] as const;
+const billingOptions = ["Pay-per-use", "RI", "Yearly/Monthly", "One-time"] as const;
 const definitionStatuses = ["pilot", "active", "deprecated"] as const;
 const fieldTypes = ["select", "number", "checkbox"] as const;
 const fieldInputModes = ["numeric", "decimal"] as const;

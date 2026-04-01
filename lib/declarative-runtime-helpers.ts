@@ -1,6 +1,7 @@
 import { apigDefaults, apigPricingReference, estimateApigConfiguration, listApigEditions } from "@/lib/apig-catalog";
 import { cbhDefaults, cbhPricingReference, estimateCbhConfiguration, listCbhDurationMonths, listCbhEditions, listCbhInstanceTypes } from "@/lib/cbh-catalog";
 import { cbrDefaults, cbrPricingReference, estimateCbrConfiguration, listCbrDurationMonths, listCbrVaultTypes } from "@/lib/cbr-catalog";
+import { ccmDefaults, ccmPricingReference, estimateCcmConfiguration, listCcmAuthorities, listCcmCertificateTypes, listCcmDomainTypes, listCcmValidityPeriods } from "@/lib/ccm-catalog";
 import { buildObsHuaweiPayload, convertObsCapacityToGb, convertObsRequestInputToCount, estimateObsConfiguration, getObsRedundancyOptions, getObsStorageClassOptions, listObsProductTypes, listObsRedundancies, listObsRestorationTypes, listObsStorageClasses, normalizeObsPositiveNumber, obsPricingReference, shouldShowObsPullTraffic, type ObsCapacityUnit, type ObsEstimateInput, type ObsPricingCatalog, type ObsProductType, type ObsRedundancy, type ObsRestorationType, type ObsStorageClass } from "@/lib/obs-catalog";
 import { eipDefaults, eipSharedBandwidthMinimumMbit, eipSharedEnhanced95MinimumMbit, estimateEipConfiguration, eipPricingReference } from "@/lib/eip-catalog";
 import { elbDefaults, elbDedicatedProtocolOptions, elbFixedSpecOptions, estimateElbConfiguration, elbPricingReference, getElbBillingOptions, shouldShowElbSharedBandwidth, shouldShowElbSharedChargeMode, shouldShowElbSharedTraffic } from "@/lib/elb-catalog";
@@ -19,6 +20,7 @@ import { estimateLtsConfiguration, ltsDefaults, ltsPricingReference } from "@/li
 import { estimateRdsConfiguration, isRdsEngine, isRdsInstanceClass, isRdsInstanceType, isRdsStorageType, isRdsVersion, listRdsEngines, listRdsInstanceClasses, listRdsInstanceTypes, listRdsSizes, listRdsStorageTypes, listRdsVersions, rdsDefaults, rdsPricingReference } from "@/lib/rds-catalog";
 import { estimateVpcepConfiguration, listVpcepServiceCategories, vpcepDefaults, vpcepPricingReference } from "@/lib/vpcep-catalog";
 import { convertSfsStorageToGb, estimateSfsConfiguration, getSfsStorageUnitOptions, hasSfsPackagePricing, inferSfsStorageAmountFromGb, inferSfsStorageUnitFromGb, listSfsDurationMonths, listSfsFileSystemTypes, listSfsStorageSpaceOptions, listSfsTypes, sfsDefaults, sfsPricingReference } from "@/lib/sfs-catalog";
+import { estimateSfsTurboConfiguration, listSfsTurboBillingOptions, listSfsTurboCapacityOptions, listSfsTurboDurationMonths, listSfsTurboGenerations, listSfsTurboTypes, sfsTurboDefaults, sfsTurboPricingReference } from "@/lib/sfs-turbo-catalog";
 import { buildEvsProductMutationBodies, buildEvsSplitNotice, evsDiskSizeBounds, formatObsRequestInputValue, getGpSsd2IopsBounds, getGpSsd2RequestedIops, getGpSsd2RequestedThroughput, getGpSsd2ThroughputBounds, getObsRequestUnits, normalizeGpSsd2Iops, normalizeGpSsd2Throughput, obsStorageSizeBounds, parsePositiveNumber, splitEvsDiskSizes, systemDiskOptions } from "@/lib/configurable-runtime-utils";
 import { getBatchDescription, getBatchDiskSize, getBatchDiskType, getBatchObsAmount, getBatchObsProductType, getBatchObsRedundancy, getBatchObsStorageClass, getBatchObsStorageSize, getBatchObsUnit, getNestedRecord, parseBatchQuantity } from "@/lib/batch-input-utils";
 import { formatFlavorAmount, getDiskPriceForBillingOption, isRecord } from "@/lib/calculator-page-helpers";
@@ -163,6 +165,7 @@ export const declarativeRuntimeHelpers = {
   estimateObsConfiguration,
   buildObsHuaweiPayload,
   estimateApigConfiguration,
+  estimateCcmConfiguration,
   estimateCbhConfiguration,
   estimateCbrConfiguration,
   estimateEipConfiguration,
@@ -181,6 +184,7 @@ export const declarativeRuntimeHelpers = {
   estimateRdsConfiguration,
   estimateVpcepConfiguration,
   estimateSfsConfiguration,
+  estimateSfsTurboConfiguration,
   hasSfsPackagePricing,
   estimateDcsConfiguration,
   convertSfsStorageToGb,
@@ -219,6 +223,10 @@ export const declarativeRuntimeHelpers = {
   listCbhInstanceTypes,
   listCbhEditions,
   listCbhDurationMonths,
+  listCcmCertificateTypes,
+  listCcmAuthorities,
+  listCcmDomainTypes,
+  listCcmValidityPeriods,
   listCbrVaultTypes,
   listCbrDurationMonths,
   listRdsVersions,
@@ -237,6 +245,11 @@ export const declarativeRuntimeHelpers = {
   listSfsStorageSpaceOptions,
   listSfsDurationMonths,
   getSfsStorageUnitOptions,
+  listSfsTurboGenerations,
+  listSfsTurboTypes,
+  listSfsTurboCapacityOptions,
+  listSfsTurboDurationMonths,
+  listSfsTurboBillingOptions,
   getBatchDescription,
   getBatchDiskSize,
   getBatchDiskType,
@@ -276,6 +289,7 @@ export const declarativeRuntimeHelpers = {
   cceDefaults,
   cbhDefaults,
   cbrDefaults,
+  ccmDefaults,
   dcsDefaults,
   natDefaults,
   modelArtsDefaults,
@@ -290,12 +304,14 @@ export const declarativeRuntimeHelpers = {
   rdsDefaults,
   vpcepDefaults,
   sfsDefaults,
+  sfsTurboDefaults,
   apigPricingReference,
   eipPricingReference,
   elbPricingReference,
   ccePricingReference,
   cbhPricingReference,
   cbrPricingReference,
+  ccmPricingReference,
   dcsPricingReference,
   natPricingReference,
   modelArtsPricingReference,
@@ -310,6 +326,7 @@ export const declarativeRuntimeHelpers = {
   rdsPricingReference,
   vpcepPricingReference,
   sfsPricingReference,
+  sfsTurboPricingReference,
   huaweiRegions,
   isRecord,
   asArray,

@@ -38,7 +38,7 @@
       "minItems": 1,
       "items": {
         "type": "string",
-        "enum": ["Pay-per-use", "RI", "Yearly/Monthly"]
+        "enum": ["Pay-per-use", "RI", "Yearly/Monthly", "One-time"]
       },
       "uniqueItems": true
     },

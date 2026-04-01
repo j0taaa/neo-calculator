@@ -1,7 +1,7 @@
 import { huaweiRegions, type HuaweiRegionKey } from "@/lib/huawei-regions";
 
-export type BillingOption = "Pay-per-use" | "RI" | "Yearly/Monthly";
-export type FlavorBillingMode = "ONDEMAND" | "MONTHLY" | "YEARLY" | "RI";
+export type BillingOption = "Pay-per-use" | "RI" | "Yearly/Monthly" | "One-time";
+export type FlavorBillingMode = "ONDEMAND" | "MONTHLY" | "YEARLY" | "RI" | "ONETIME";
 export type FlavorPriceSource = "catalog_plan" | "rate_inquiry";
 
 export type CatalogFlavor = {
@@ -145,6 +145,11 @@ const billingOptionConfig: Record<
   RI: {
     modes: ["RI"],
     label: "RI",
+    suffix: "",
+  },
+  "One-time": {
+    modes: ["ONETIME"],
+    label: "One-time",
     suffix: "",
   },
 };

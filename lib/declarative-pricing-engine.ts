@@ -1,6 +1,6 @@
 import { sendHttpRequest } from "@/lib/huawei-http";
 
-type ProductInfoBillingMode = "ONDEMAND" | "MONTHLY" | "YEARLY";
+type ProductInfoBillingMode = "ONDEMAND" | "MONTHLY" | "YEARLY" | "ONETIME";
 
 type ProductInfoSourceDefinition = {
   displayName: string;
