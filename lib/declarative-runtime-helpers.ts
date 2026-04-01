@@ -14,6 +14,8 @@ import { estimateFunctionGraphConfiguration, functionGraphDefaults, functionGrap
 import { estimateFlexusRdsConfiguration, flexusRdsDefaults, flexusRdsPricingReference, listFlexusRdsEngines, listFlexusRdsInstanceTypes, listFlexusRdsSizes, listFlexusRdsVersions } from "@/lib/flexus-rds-catalog";
 import { directConnectDefaults, directConnectPricingReference, estimateDirectConnectConfiguration, listDirectConnectDurationMonths, listDirectConnectPortSpeeds } from "@/lib/direct-connect-catalog";
 import { erDefaults, erPricingReference, estimateErConfiguration } from "@/lib/er-catalog";
+import { estimateGaConfiguration, gaDefaults, gaPricingReference, getGaDestinationEndpointForRegion, listGaAccessPoints } from "@/lib/ga-catalog";
+import { estimateLtsConfiguration, ltsDefaults, ltsPricingReference } from "@/lib/lts-catalog";
 import { estimateRdsConfiguration, isRdsEngine, isRdsInstanceClass, isRdsInstanceType, isRdsStorageType, isRdsVersion, listRdsEngines, listRdsInstanceClasses, listRdsInstanceTypes, listRdsSizes, listRdsStorageTypes, listRdsVersions, rdsDefaults, rdsPricingReference } from "@/lib/rds-catalog";
 import { estimateVpcepConfiguration, listVpcepServiceCategories, vpcepDefaults, vpcepPricingReference } from "@/lib/vpcep-catalog";
 import { convertSfsStorageToGb, estimateSfsConfiguration, getSfsStorageUnitOptions, hasSfsPackagePricing, inferSfsStorageAmountFromGb, inferSfsStorageUnitFromGb, listSfsDurationMonths, listSfsFileSystemTypes, listSfsStorageSpaceOptions, listSfsTypes, sfsDefaults, sfsPricingReference } from "@/lib/sfs-catalog";
@@ -173,7 +175,9 @@ export const declarativeRuntimeHelpers = {
   estimateFunctionGraphConfiguration,
   estimateDirectConnectConfiguration,
   estimateErConfiguration,
+  estimateGaConfiguration,
   estimateFlexusRdsConfiguration,
+  estimateLtsConfiguration,
   estimateRdsConfiguration,
   estimateVpcepConfiguration,
   estimateSfsConfiguration,
@@ -211,6 +215,7 @@ export const declarativeRuntimeHelpers = {
   listFlexusRdsSizes,
   listDirectConnectPortSpeeds,
   listDirectConnectDurationMonths,
+  listGaAccessPoints,
   listCbhInstanceTypes,
   listCbhEditions,
   listCbhDurationMonths,
@@ -256,6 +261,7 @@ export const declarativeRuntimeHelpers = {
   integerString,
   multiplyNumbers,
   getCatalogRegionId,
+  getGaDestinationEndpointForRegion,
   runLegacyDefinitionExpression,
   byLabelAmount,
   formatBreakdownNotes,
@@ -278,7 +284,9 @@ export const declarativeRuntimeHelpers = {
   functionGraphDefaults,
   directConnectDefaults,
   erDefaults,
+  gaDefaults,
   flexusRdsDefaults,
+  ltsDefaults,
   rdsDefaults,
   vpcepDefaults,
   sfsDefaults,
@@ -296,7 +304,9 @@ export const declarativeRuntimeHelpers = {
   functionGraphPricingReference,
   directConnectPricingReference,
   erPricingReference,
+  gaPricingReference,
   flexusRdsPricingReference,
+  ltsPricingReference,
   rdsPricingReference,
   vpcepPricingReference,
   sfsPricingReference,

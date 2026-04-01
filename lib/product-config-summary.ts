@@ -180,6 +180,33 @@ export function getProductConfigSummary(product: AppProduct): string {
     return parts.join(" · ") || product.serviceName;
   }
 
+  if (product.productType === "ga") {
+    const parts = [
+      typeof product.config.region === "string" ? product.config.region : null,
+      typeof product.config.destinationEndpoint === "string" ? product.config.destinationEndpoint : null,
+      typeof product.config.accessPoint === "string" ? product.config.accessPoint : null,
+      typeof product.config.trafficGb === "number" ? `${product.config.trafficGb} GB` : null,
+      typeof product.config.billingMode === "string" ? product.config.billingMode : null,
+      typeof product.config.usageHours === "number" ? `${product.config.usageHours}h` : null,
+    ].filter(Boolean);
+
+    return parts.join(" · ") || product.serviceName;
+  }
+
+  if (product.productType === "lts") {
+    const parts = [
+      typeof product.config.region === "string" ? product.config.region : null,
+      typeof product.config.rawLogSizeGb === "number" ? `${product.config.rawLogSizeGb} GB/day` : null,
+      typeof product.config.logStorageDurationDays === "number" ? `${product.config.logStorageDurationDays} days` : null,
+      typeof product.config.indexFieldRatio === "number" ? `${product.config.indexFieldRatio}% index` : null,
+      product.config.intelligentColdStorage === true ? "Cold storage" : "Standard storage only",
+      typeof product.config.billingMode === "string" ? product.config.billingMode : null,
+      typeof product.config.usageHours === "number" ? `${product.config.usageHours}h` : null,
+    ].filter(Boolean);
+
+    return parts.join(" · ") || product.serviceName;
+  }
+
   if (product.productType === "elb") {
     const selectedProtocols = Array.isArray(product.config.selectedProtocols)
       ? product.config.selectedProtocols.filter((value): value is string => typeof value === "string")

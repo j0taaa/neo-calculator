@@ -49,7 +49,7 @@ test("EVS pilot pricing definition links metrics to normalized catalog rate sour
 });
 
 test("additional configurable service definitions load from typed TS config", () => {
-  expect(configurableServiceCodes).toEqual(expect.arrayContaining(["OBS", "EIP", "ELB", "NAT", "VPN", "CCE", "CCI", "ModelArts", "Workspace", "DCS", "DC", "CBH", "VPCEP", "FunctionGraph", "RDS", "Flexus RDS", "ER", "APIG"]));
+  expect(configurableServiceCodes).toEqual(expect.arrayContaining(["OBS", "EIP", "ELB", "NAT", "VPN", "CCE", "CCI", "ModelArts", "Workspace", "DCS", "DC", "CBH", "VPCEP", "FunctionGraph", "RDS", "Flexus RDS", "ER", "APIG", "LTS", "GA"]));
 
   expect(getConfigurableServiceDefinitionByCode("OBS")?.implementation).toBe("configurable");
   expect(getConfigurableServiceDefinitionByCode("ELB")?.implementation).toBe("configurable");
@@ -164,4 +164,22 @@ test("additional configurable service definitions load from typed TS config", ()
     "quantity",
   ]);
   expect(getConfigurablePricingDefinitionByCode("APIG")?.catalogAdapter).toBe("apig");
+  expect(getConfigurableServiceDefinitionByCode("LTS")?.fields.map((field) => field.id)).toEqual([
+    "rawLogSizeGb",
+    "intelligentColdStorage",
+    "logStorageDurationDays",
+    "indexFieldRatio",
+    "dailyBasicTransferVolumeGb",
+    "dailyAdvancedTransferVolumeGb",
+    "usageHours",
+    "quantity",
+  ]);
+  expect(getConfigurablePricingDefinitionByCode("LTS")?.catalogAdapter).toBe("lts");
+  expect(getConfigurableServiceDefinitionByCode("GA")?.fields.map((field) => field.id)).toEqual([
+    "accessPoint",
+    "trafficGb",
+    "usageHours",
+    "quantity",
+  ]);
+  expect(getConfigurablePricingDefinitionByCode("GA")?.catalogAdapter).toBe("ga");
 });

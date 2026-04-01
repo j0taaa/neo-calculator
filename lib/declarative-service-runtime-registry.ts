@@ -11,6 +11,8 @@ import { configurableServiceBundle as evsBundle } from "@/config/services/evs/bu
 import { configurableServiceBundle as erBundle } from "@/config/services/er/bundle";
 import { configurableServiceBundle as flexusRdsBundle } from "@/config/services/flexus-rds/bundle";
 import { configurableServiceBundle as functionGraphBundle } from "@/config/services/functiongraph/bundle";
+import { configurableServiceBundle as gaBundle } from "@/config/services/ga/bundle";
+import { configurableServiceBundle as ltsBundle } from "@/config/services/lts/bundle";
 import { configurableServiceBundle as modelArtsBundle } from "@/config/services/modelarts/bundle";
 import { configurableServiceBundle as natBundle } from "@/config/services/nat/bundle";
 import { configurableServiceBundle as obsBundle } from "@/config/services/obs/bundle";
@@ -35,7 +37,9 @@ const typedRuntimeDefinitions = {
   VPN: vpnBundle.runtime,
   Workspace: workspaceBundle.runtime,
   FunctionGraph: functionGraphBundle.runtime,
+  GA: gaBundle.runtime,
   DC: dcBundle.runtime,
+  LTS: ltsBundle.runtime,
   SFS: sfsBundle.runtime,
   VPCEP: vpcepBundle.runtime,
   "Flexus RDS": flexusRdsBundle.runtime,

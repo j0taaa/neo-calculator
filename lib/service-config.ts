@@ -12,6 +12,8 @@ import { pricingDefinition as evsPricingDefinitionDocument, serviceDefinition as
 import { pricingDefinition as erPricingDefinitionDocument, serviceDefinition as erServiceDefinitionDocument } from "@/config/services/er/bundle";
 import { pricingDefinition as flexusRdsPricingDefinitionDocument, serviceDefinition as flexusRdsServiceDefinitionDocument } from "@/config/services/flexus-rds/bundle";
 import { pricingDefinition as functionGraphPricingDefinitionDocument, serviceDefinition as functionGraphServiceDefinitionDocument } from "@/config/services/functiongraph/bundle";
+import { pricingDefinition as gaPricingDefinitionDocument, serviceDefinition as gaServiceDefinitionDocument } from "@/config/services/ga/bundle";
+import { pricingDefinition as ltsPricingDefinitionDocument, serviceDefinition as ltsServiceDefinitionDocument } from "@/config/services/lts/bundle";
 import { pricingDefinition as modelartsPricingDefinitionDocument, serviceDefinition as modelartsServiceDefinitionDocument } from "@/config/services/modelarts/bundle";
 import { pricingDefinition as natPricingDefinitionDocument, serviceDefinition as natServiceDefinitionDocument } from "@/config/services/nat/bundle";
 import { pricingDefinition as obsPricingDefinitionDocument, serviceDefinition as obsServiceDefinitionDocument } from "@/config/services/obs/bundle";
@@ -475,9 +477,17 @@ const definitionDocuments = {
     service: parseServiceDefinition(erServiceDefinitionDocument),
     pricing: parsePricingDefinition(erPricingDefinitionDocument),
   },
+  ga: {
+    service: parseServiceDefinition(gaServiceDefinitionDocument),
+    pricing: parsePricingDefinition(gaPricingDefinitionDocument),
+  },
   functiongraph: {
     service: parseServiceDefinition(functionGraphServiceDefinitionDocument),
     pricing: parsePricingDefinition(functionGraphPricingDefinitionDocument),
+  },
+  lts: {
+    service: parseServiceDefinition(ltsServiceDefinitionDocument),
+    pricing: parsePricingDefinition(ltsPricingDefinitionDocument),
   },
   "flexus-rds": {
     service: parseServiceDefinition(flexusRdsServiceDefinitionDocument),

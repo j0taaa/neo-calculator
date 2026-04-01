@@ -6,6 +6,8 @@ import { configurableServiceBundle as dcBundle } from "@/config/services/dc/bund
 import { configurableServiceBundle as eipBundle } from "@/config/services/eip/bundle";
 import { configurableServiceBundle as erBundle } from "@/config/services/er/bundle";
 import { configurableServiceBundle as flexusRdsBundle } from "@/config/services/flexus-rds/bundle";
+import { configurableServiceBundle as gaBundle } from "@/config/services/ga/bundle";
+import { configurableServiceBundle as ltsBundle } from "@/config/services/lts/bundle";
 import { configurableServiceBundle as natBundle } from "@/config/services/nat/bundle";
 import { configurableServiceBundle as rdsBundle } from "@/config/services/rds/bundle";
 import { configurableServiceBundle as sfsBundle } from "@/config/services/sfs/bundle";
@@ -18,6 +20,8 @@ import type { DirectConnectPricingCatalog } from "@/lib/direct-connect-catalog";
 import type { EipPricingCatalog } from "@/lib/eip-catalog";
 import type { ErPricingCatalog } from "@/lib/er-catalog";
 import type { FlexusRdsPricingCatalog } from "@/lib/flexus-rds-catalog";
+import type { GaPricingCatalog } from "@/lib/ga-catalog";
+import type { LtsPricingCatalog } from "@/lib/lts-catalog";
 import type { NatPricingCatalog } from "@/lib/nat-catalog";
 import type { RdsPricingCatalog } from "@/lib/rds-catalog";
 import type { SfsPricingCatalog } from "@/lib/sfs-catalog";
@@ -30,15 +34,17 @@ export const declarativePricingDefinitions = {
   NAT: natBundle.catalogDefinition,
   EIP: eipBundle.catalogDefinition,
   ER: erBundle.catalogDefinition,
+  GA: gaBundle.catalogDefinition,
   DCS: dcsBundle.catalogDefinition,
   DC: dcBundle.catalogDefinition,
+  LTS: ltsBundle.catalogDefinition,
   SFS: sfsBundle.catalogDefinition,
   VPCEP: vpcepBundle.catalogDefinition,
   RDS: rdsBundle.catalogDefinition,
   "Flexus RDS": flexusRdsBundle.catalogDefinition,
 } as const;
 
-export function getDeclarativePricingDefinition(serviceCode: "APIG" | "CBH" | "CBR" | "NAT" | "EIP" | "ER" | "DCS" | "DC" | "SFS" | "VPCEP" | "RDS" | "Flexus RDS") {
+export function getDeclarativePricingDefinition(serviceCode: "APIG" | "CBH" | "CBR" | "NAT" | "EIP" | "ER" | "GA" | "DCS" | "DC" | "LTS" | "SFS" | "VPCEP" | "RDS" | "Flexus RDS") {
   return declarativePricingDefinitions[serviceCode];
 }
 
@@ -50,8 +56,10 @@ export type DeclarativePricingCatalogMap = {
   NAT: NatPricingCatalog;
   EIP: EipPricingCatalog;
   ER: ErPricingCatalog;
+  GA: GaPricingCatalog;
   DCS: DcsPricingCatalog;
   DC: DirectConnectPricingCatalog;
+  LTS: LtsPricingCatalog;
   SFS: SfsPricingCatalog;
   VPCEP: VpcepPricingCatalog;
   RDS: RdsPricingCatalog;

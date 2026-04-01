@@ -25,7 +25,9 @@ export const serviceRegistryDocument = {
     "RDS",
     "Flexus RDS",
     "ER",
-    "APIG"
+    "APIG",
+    "LTS",
+    "GA"
   ],
   "supportedBatchAddServiceCodes": [
     "ECS",
@@ -181,6 +183,20 @@ export const serviceRegistryDocument = {
       "definitionId": "apig",
       "serviceDefinitionPath": "./apig/bundle.ts",
       "pricingDefinitionPath": "./apig/bundle.ts",
+      "status": "active"
+    },
+    {
+      "serviceCode": "LTS",
+      "definitionId": "lts",
+      "serviceDefinitionPath": "./lts/bundle.ts",
+      "pricingDefinitionPath": "./lts/bundle.ts",
+      "status": "active"
+    },
+    {
+      "serviceCode": "GA",
+      "definitionId": "ga",
+      "serviceDefinitionPath": "./ga/bundle.ts",
+      "pricingDefinitionPath": "./ga/bundle.ts",
       "status": "active"
     }
   ],
@@ -459,6 +475,11 @@ export const serviceRegistryDocument = {
       "name": "Enterprise Router",
       "code": "ER",
       "icon": "https://res-static.hc-cdn.cn/cloudbu-site/public/product-banner-icon/Networking/ER.png"
+    },
+    {
+      "name": "Global Accelerator",
+      "code": "GA",
+      "icon": "https://res-static.hc-cdn.cn/cloudbu-site/public/product-banner-icon/Networking/GA.png"
     },
     {
       "name": "VPC Endpoint",
