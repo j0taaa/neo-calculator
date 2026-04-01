@@ -17,6 +17,8 @@ export const serviceRegistryDocument = {
     "Workspace",
     "DCS",
     "DC",
+    "CBR",
+    "SFS",
     "CBH",
     "VPCEP",
     "FunctionGraph",
@@ -114,6 +116,20 @@ export const serviceRegistryDocument = {
       "definitionId": "dc",
       "serviceDefinitionPath": "./dc/bundle.ts",
       "pricingDefinitionPath": "./dc/bundle.ts",
+      "status": "active"
+    },
+    {
+      "serviceCode": "CBR",
+      "definitionId": "cbr",
+      "serviceDefinitionPath": "./cbr/bundle.ts",
+      "pricingDefinitionPath": "./cbr/bundle.ts",
+      "status": "active"
+    },
+    {
+      "serviceCode": "SFS",
+      "definitionId": "sfs",
+      "serviceDefinitionPath": "./sfs/bundle.ts",
+      "pricingDefinitionPath": "./sfs/bundle.ts",
       "status": "active"
     },
     {

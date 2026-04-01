@@ -1,5 +1,6 @@
 import { serviceRegistryDocument } from "@/config/services/index";
 import { pricingDefinition as cbhPricingDefinitionDocument, serviceDefinition as cbhServiceDefinitionDocument } from "@/config/services/cbh/bundle";
+import { pricingDefinition as cbrPricingDefinitionDocument, serviceDefinition as cbrServiceDefinitionDocument } from "@/config/services/cbr/bundle";
 import { pricingDefinition as ccePricingDefinitionDocument, serviceDefinition as cceServiceDefinitionDocument } from "@/config/services/cce/bundle";
 import { pricingDefinition as cciPricingDefinitionDocument, serviceDefinition as cciServiceDefinitionDocument } from "@/config/services/cci/bundle";
 import { pricingDefinition as dcsPricingDefinitionDocument, serviceDefinition as dcsServiceDefinitionDocument } from "@/config/services/dcs/bundle";
@@ -13,6 +14,7 @@ import { pricingDefinition as modelartsPricingDefinitionDocument, serviceDefinit
 import { pricingDefinition as natPricingDefinitionDocument, serviceDefinition as natServiceDefinitionDocument } from "@/config/services/nat/bundle";
 import { pricingDefinition as obsPricingDefinitionDocument, serviceDefinition as obsServiceDefinitionDocument } from "@/config/services/obs/bundle";
 import { pricingDefinition as rdsPricingDefinitionDocument, serviceDefinition as rdsServiceDefinitionDocument } from "@/config/services/rds/bundle";
+import { pricingDefinition as sfsPricingDefinitionDocument, serviceDefinition as sfsServiceDefinitionDocument } from "@/config/services/sfs/bundle";
 import { pricingDefinition as vpcepPricingDefinitionDocument, serviceDefinition as vpcepServiceDefinitionDocument } from "@/config/services/vpcep/bundle";
 import { pricingDefinition as vpnPricingDefinitionDocument, serviceDefinition as vpnServiceDefinitionDocument } from "@/config/services/vpn/bundle";
 import { pricingDefinition as workspacePricingDefinitionDocument, serviceDefinition as workspaceServiceDefinitionDocument } from "@/config/services/workspace/bundle";
@@ -431,6 +433,10 @@ const definitionDocuments = {
     service: parseServiceDefinition(cbhServiceDefinitionDocument),
     pricing: parsePricingDefinition(cbhPricingDefinitionDocument),
   },
+  cbr: {
+    service: parseServiceDefinition(cbrServiceDefinitionDocument),
+    pricing: parsePricingDefinition(cbrPricingDefinitionDocument),
+  },
   cce: {
     service: parseServiceDefinition(cceServiceDefinitionDocument),
     pricing: parsePricingDefinition(ccePricingDefinitionDocument),
@@ -482,6 +488,10 @@ const definitionDocuments = {
   rds: {
     service: parseServiceDefinition(rdsServiceDefinitionDocument),
     pricing: parsePricingDefinition(rdsPricingDefinitionDocument),
+  },
+  sfs: {
+    service: parseServiceDefinition(sfsServiceDefinitionDocument),
+    pricing: parsePricingDefinition(sfsPricingDefinitionDocument),
   },
   vpcep: {
     service: parseServiceDefinition(vpcepServiceDefinitionDocument),

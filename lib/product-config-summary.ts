@@ -163,6 +163,23 @@ export function getProductConfigSummary(product: AppProduct): string {
     return parts.join(" · ") || product.serviceName;
   }
 
+  if (product.productType === "cbr") {
+    const parts = [
+      typeof product.config.region === "string" ? product.config.region : null,
+      typeof product.config.vaultType === "string" ? product.config.vaultType : null,
+      typeof product.config.vaultCapacityGb === "number" ? `${product.config.vaultCapacityGb} GB` : null,
+      typeof product.config.billingMode === "string" ? product.config.billingMode : null,
+      typeof product.config.durationMonths === "number" && product.config.billingMode === "Yearly/Monthly"
+        ? `${product.config.durationMonths}mo`
+        : null,
+      typeof product.config.usageHours === "number" && product.config.billingMode === "Pay-per-use"
+        ? `${product.config.usageHours}h`
+        : null,
+    ].filter(Boolean);
+
+    return parts.join(" · ") || product.serviceName;
+  }
+
   if (product.productType === "elb") {
     const selectedProtocols = Array.isArray(product.config.selectedProtocols)
       ? product.config.selectedProtocols.filter((value): value is string => typeof value === "string")
@@ -220,6 +237,24 @@ export function getProductConfigSummary(product: AppProduct): string {
       typeof product.config.durationMonths === "number" && product.config.chargeMode === "Enhanced 95"
         ? null
         : typeof product.config.usageHours === "number" && product.config.billingMode === "Pay-per-use"
+        ? `${product.config.usageHours}h`
+        : null,
+    ].filter(Boolean);
+
+    return parts.join(" · ") || product.serviceName;
+  }
+
+  if (product.productType === "sfs") {
+    const parts = [
+      typeof product.config.region === "string" ? product.config.region : null,
+      typeof product.config.fileSystemType === "string" ? product.config.fileSystemType : null,
+      typeof product.config.type === "string" ? product.config.type : null,
+      typeof product.config.storageSpaceGb === "number" ? `${product.config.storageSpaceGb} GB` : null,
+      typeof product.config.billingMode === "string" ? product.config.billingMode : null,
+      typeof product.config.durationMonths === "number" && product.config.billingMode === "Yearly/Monthly"
+        ? `${product.config.durationMonths}mo`
+        : null,
+      typeof product.config.usageHours === "number" && product.config.billingMode === "Pay-per-use"
         ? `${product.config.usageHours}h`
         : null,
     ].filter(Boolean);

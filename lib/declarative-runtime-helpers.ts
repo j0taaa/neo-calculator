@@ -1,4 +1,5 @@
 import { cbhDefaults, cbhPricingReference, estimateCbhConfiguration, listCbhDurationMonths, listCbhEditions, listCbhInstanceTypes } from "@/lib/cbh-catalog";
+import { cbrDefaults, cbrPricingReference, estimateCbrConfiguration, listCbrDurationMonths, listCbrVaultTypes } from "@/lib/cbr-catalog";
 import { buildObsHuaweiPayload, convertObsCapacityToGb, convertObsRequestInputToCount, estimateObsConfiguration, getObsRedundancyOptions, getObsStorageClassOptions, listObsProductTypes, listObsRedundancies, listObsRestorationTypes, listObsStorageClasses, normalizeObsPositiveNumber, obsPricingReference, shouldShowObsPullTraffic, type ObsCapacityUnit, type ObsEstimateInput, type ObsPricingCatalog, type ObsProductType, type ObsRedundancy, type ObsRestorationType, type ObsStorageClass } from "@/lib/obs-catalog";
 import { eipDefaults, eipSharedBandwidthMinimumMbit, eipSharedEnhanced95MinimumMbit, estimateEipConfiguration, eipPricingReference } from "@/lib/eip-catalog";
 import { elbDefaults, elbDedicatedProtocolOptions, elbFixedSpecOptions, estimateElbConfiguration, elbPricingReference, getElbBillingOptions, shouldShowElbSharedBandwidth, shouldShowElbSharedChargeMode, shouldShowElbSharedTraffic } from "@/lib/elb-catalog";
@@ -13,6 +14,7 @@ import { estimateFlexusRdsConfiguration, flexusRdsDefaults, flexusRdsPricingRefe
 import { directConnectDefaults, directConnectPricingReference, estimateDirectConnectConfiguration, listDirectConnectDurationMonths, listDirectConnectPortSpeeds } from "@/lib/direct-connect-catalog";
 import { estimateRdsConfiguration, isRdsEngine, isRdsInstanceClass, isRdsInstanceType, isRdsStorageType, isRdsVersion, listRdsEngines, listRdsInstanceClasses, listRdsInstanceTypes, listRdsSizes, listRdsStorageTypes, listRdsVersions, rdsDefaults, rdsPricingReference } from "@/lib/rds-catalog";
 import { estimateVpcepConfiguration, listVpcepServiceCategories, vpcepDefaults, vpcepPricingReference } from "@/lib/vpcep-catalog";
+import { estimateSfsConfiguration, listSfsDurationMonths, listSfsFileSystemTypes, listSfsStorageSpaceOptions, listSfsTypes, sfsDefaults, sfsPricingReference } from "@/lib/sfs-catalog";
 import { buildEvsProductMutationBodies, buildEvsSplitNotice, evsDiskSizeBounds, formatObsRequestInputValue, getGpSsd2IopsBounds, getGpSsd2RequestedIops, getGpSsd2RequestedThroughput, getGpSsd2ThroughputBounds, getObsRequestUnits, normalizeGpSsd2Iops, normalizeGpSsd2Throughput, obsStorageSizeBounds, parsePositiveNumber, splitEvsDiskSizes, systemDiskOptions } from "@/lib/configurable-runtime-utils";
 import { getBatchDescription, getBatchDiskSize, getBatchDiskType, getBatchObsAmount, getBatchObsProductType, getBatchObsRedundancy, getBatchObsStorageClass, getBatchObsStorageSize, getBatchObsUnit, getNestedRecord, parseBatchQuantity } from "@/lib/batch-input-utils";
 import { formatFlavorAmount, getDiskPriceForBillingOption, isRecord } from "@/lib/calculator-page-helpers";
@@ -157,6 +159,7 @@ export const declarativeRuntimeHelpers = {
   estimateObsConfiguration,
   buildObsHuaweiPayload,
   estimateCbhConfiguration,
+  estimateCbrConfiguration,
   estimateEipConfiguration,
   estimateElbConfiguration,
   estimateNatConfiguration,
@@ -169,6 +172,7 @@ export const declarativeRuntimeHelpers = {
   estimateFlexusRdsConfiguration,
   estimateRdsConfiguration,
   estimateVpcepConfiguration,
+  estimateSfsConfiguration,
   estimateDcsConfiguration,
   getElbBillingOptions,
   shouldShowElbSharedBandwidth,
@@ -201,6 +205,8 @@ export const declarativeRuntimeHelpers = {
   listCbhInstanceTypes,
   listCbhEditions,
   listCbhDurationMonths,
+  listCbrVaultTypes,
+  listCbrDurationMonths,
   listRdsVersions,
   listRdsInstanceTypes,
   listRdsInstanceClasses,
@@ -212,6 +218,10 @@ export const declarativeRuntimeHelpers = {
   listDcsArchitectures,
   listDcsReplicas,
   listDcsSpecifications,
+  listSfsFileSystemTypes,
+  listSfsTypes,
+  listSfsStorageSpaceOptions,
+  listSfsDurationMonths,
   getBatchDescription,
   getBatchDiskSize,
   getBatchDiskType,
@@ -248,6 +258,7 @@ export const declarativeRuntimeHelpers = {
   elbFixedSpecOptions,
   cceDefaults,
   cbhDefaults,
+  cbrDefaults,
   dcsDefaults,
   natDefaults,
   modelArtsDefaults,
@@ -258,10 +269,12 @@ export const declarativeRuntimeHelpers = {
   flexusRdsDefaults,
   rdsDefaults,
   vpcepDefaults,
+  sfsDefaults,
   eipPricingReference,
   elbPricingReference,
   ccePricingReference,
   cbhPricingReference,
+  cbrPricingReference,
   dcsPricingReference,
   natPricingReference,
   modelArtsPricingReference,
@@ -272,6 +285,7 @@ export const declarativeRuntimeHelpers = {
   flexusRdsPricingReference,
   rdsPricingReference,
   vpcepPricingReference,
+  sfsPricingReference,
   huaweiRegions,
   isRecord,
   asArray,
