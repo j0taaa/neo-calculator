@@ -268,7 +268,15 @@ export function useConfigurableServiceRuntime({
       try {
         const response = await fetch(`/api/catalog/${activeCatalogSource.route}?region=${encodeURIComponent(regionValue)}`, { cache: "no-store" });
         const rawBody = await response.text();
-        const payload = rawBody ? JSON.parse(rawBody) as Record<string, unknown> : {};
+        let payload: Record<string, unknown> = {};
+        if (rawBody) {
+          try {
+            payload = JSON.parse(rawBody) as Record<string, unknown>;
+          } catch {
+            const contentType = response.headers.get("content-type") ?? "unknown content-type";
+            throw new Error(`Failed to load ${selectedServiceCode} pricing: received non-JSON response (${contentType})`);
+          }
+        }
         const catalogPath = activeCatalogSource.catalogPath ?? "catalog";
         const regionIdPath = activeCatalogSource.regionIdPath ?? "catalogRegionId";
         const errorPath = activeCatalogSource.errorPath ?? "error";

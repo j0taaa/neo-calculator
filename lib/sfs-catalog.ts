@@ -4,6 +4,7 @@ export type SfsUiBillingMode = "Pay-per-use" | "Yearly/Monthly";
 export type SfsBillingMode = "ONDEMAND" | "MONTHLY" | "YEARLY";
 export type SfsFileSystemType = "General";
 export type SfsType = "General" | "Capacity-Oriented";
+export type SfsStorageUnit = "GB" | "TB";
 
 export interface SfsPlan extends AmountPlan<SfsBillingMode> {
   productId: string | null;
@@ -59,6 +60,8 @@ export interface SfsEstimate {
 export const sfsDefaults = {
   fileSystemType: "General" as SfsFileSystemType,
   type: "Capacity-Oriented" as SfsType,
+  storageSpaceAmount: 100,
+  storageSpaceUnit: "GB" as SfsStorageUnit,
   storageSpaceGb: 100,
   durationMonths: 1,
   usageHours: 744,
@@ -88,6 +91,27 @@ function getStorageLabel(storageSpaceGb: number) {
     return `${storageSpaceGb / 1024}TB`;
   }
   return `${storageSpaceGb}GB`;
+}
+
+export function getSfsStorageUnitOptions() {
+  return ["GB", "TB"] as const;
+}
+
+export function convertSfsStorageToGb(amount: number, unit: SfsStorageUnit) {
+  if (!Number.isFinite(amount) || amount <= 0) {
+    return null;
+  }
+
+  const normalizedAmount = Math.floor(amount);
+  return unit === "TB" ? normalizedAmount * 1024 : normalizedAmount;
+}
+
+export function inferSfsStorageUnitFromGb(storageSpaceGb: number): SfsStorageUnit {
+  return storageSpaceGb >= 1024 && storageSpaceGb % 1024 === 0 ? "TB" : "GB";
+}
+
+export function inferSfsStorageAmountFromGb(storageSpaceGb: number) {
+  return inferSfsStorageUnitFromGb(storageSpaceGb) === "TB" ? storageSpaceGb / 1024 : storageSpaceGb;
 }
 
 function getAverageMonthlyAmount(amount: number, usageHours: number | null) {
@@ -144,6 +168,10 @@ export function findSfsPackageTier(catalog: SfsPricingCatalog, storageSpaceGb: n
 
 export function findSfsPaygTier(catalog: SfsPricingCatalog) {
   return catalog.paygTiers[0] ?? null;
+}
+
+export function hasSfsPackagePricing(catalog: SfsPricingCatalog | null | undefined) {
+  return Array.isArray(catalog?.packageTiers) && catalog.packageTiers.length > 0;
 }
 
 function findMonthlyPlan(tier: SfsPackageTier) {
@@ -258,4 +286,3 @@ export function estimateSfsConfiguration(catalog: SfsPricingCatalog, input: SfsE
     notes,
   };
 }
-

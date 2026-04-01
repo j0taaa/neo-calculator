@@ -14,7 +14,7 @@ import { estimateFlexusRdsConfiguration, flexusRdsDefaults, flexusRdsPricingRefe
 import { directConnectDefaults, directConnectPricingReference, estimateDirectConnectConfiguration, listDirectConnectDurationMonths, listDirectConnectPortSpeeds } from "@/lib/direct-connect-catalog";
 import { estimateRdsConfiguration, isRdsEngine, isRdsInstanceClass, isRdsInstanceType, isRdsStorageType, isRdsVersion, listRdsEngines, listRdsInstanceClasses, listRdsInstanceTypes, listRdsSizes, listRdsStorageTypes, listRdsVersions, rdsDefaults, rdsPricingReference } from "@/lib/rds-catalog";
 import { estimateVpcepConfiguration, listVpcepServiceCategories, vpcepDefaults, vpcepPricingReference } from "@/lib/vpcep-catalog";
-import { estimateSfsConfiguration, listSfsDurationMonths, listSfsFileSystemTypes, listSfsStorageSpaceOptions, listSfsTypes, sfsDefaults, sfsPricingReference } from "@/lib/sfs-catalog";
+import { convertSfsStorageToGb, estimateSfsConfiguration, getSfsStorageUnitOptions, hasSfsPackagePricing, inferSfsStorageAmountFromGb, inferSfsStorageUnitFromGb, listSfsDurationMonths, listSfsFileSystemTypes, listSfsStorageSpaceOptions, listSfsTypes, sfsDefaults, sfsPricingReference } from "@/lib/sfs-catalog";
 import { buildEvsProductMutationBodies, buildEvsSplitNotice, evsDiskSizeBounds, formatObsRequestInputValue, getGpSsd2IopsBounds, getGpSsd2RequestedIops, getGpSsd2RequestedThroughput, getGpSsd2ThroughputBounds, getObsRequestUnits, normalizeGpSsd2Iops, normalizeGpSsd2Throughput, obsStorageSizeBounds, parsePositiveNumber, splitEvsDiskSizes, systemDiskOptions } from "@/lib/configurable-runtime-utils";
 import { getBatchDescription, getBatchDiskSize, getBatchDiskType, getBatchObsAmount, getBatchObsProductType, getBatchObsRedundancy, getBatchObsStorageClass, getBatchObsStorageSize, getBatchObsUnit, getNestedRecord, parseBatchQuantity } from "@/lib/batch-input-utils";
 import { formatFlavorAmount, getDiskPriceForBillingOption, isRecord } from "@/lib/calculator-page-helpers";
@@ -173,7 +173,11 @@ export const declarativeRuntimeHelpers = {
   estimateRdsConfiguration,
   estimateVpcepConfiguration,
   estimateSfsConfiguration,
+  hasSfsPackagePricing,
   estimateDcsConfiguration,
+  convertSfsStorageToGb,
+  inferSfsStorageUnitFromGb,
+  inferSfsStorageAmountFromGb,
   getElbBillingOptions,
   shouldShowElbSharedBandwidth,
   shouldShowElbSharedChargeMode,
@@ -222,6 +226,7 @@ export const declarativeRuntimeHelpers = {
   listSfsTypes,
   listSfsStorageSpaceOptions,
   listSfsDurationMonths,
+  getSfsStorageUnitOptions,
   getBatchDescription,
   getBatchDiskSize,
   getBatchDiskType,

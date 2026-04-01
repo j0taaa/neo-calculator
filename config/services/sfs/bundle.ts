@@ -1,6 +1,6 @@
 import type { ConfigurableServiceBundleDefinition } from "@/lib/configurable-service-bundle-types";
 import type { PricingDefinition, ServiceDefinition } from "@/lib/service-config-types";
-import { and, call, coalesce, eq, ifElse, ref, template } from "@/lib/typed-declarative-runtime-ops";
+import { and, call, coalesce, eq, ifElse, not, ref, template } from "@/lib/typed-declarative-runtime-ops";
 
 export const serviceDefinition = {
   version: 1,
@@ -13,19 +13,21 @@ export const serviceDefinition = {
   defaults: {
     fileSystemType: "General",
     type: "Capacity-Oriented",
-    storageSpaceGb: 100,
+    storageSpaceAmount: 100,
+    storageSpaceUnit: "GB",
     durationMonths: 1,
     quantity: 1,
   },
   fields: [
     { id: "fileSystemType", type: "select", label: "File System Type", required: true, options: ["General"] },
     { id: "type", type: "select", label: "Type", required: true, optionsSource: "catalog.typeOptions" },
-    { id: "storageSpaceGb", type: "select", label: "Storage Space", required: true, optionsSource: "catalog.storageSpaceOptions" },
+    { id: "storageSpaceAmount", type: "number", label: "Storage Space", required: true, min: 1, step: 1 },
+    { id: "storageSpaceUnit", type: "select", label: "Storage Unit", required: true, options: ["GB", "TB"] },
     { id: "durationMonths", type: "select", label: "Required Duration", required: true, optionsSource: "catalog.durationMonthOptions", visibleWhen: { field: "billingMode", equals: "Yearly/Monthly" } },
     { id: "quantity", type: "number", label: "Quantity", required: true, min: 1, step: 1 },
   ],
   summary: {
-    selectionTemplate: "{fileSystemType} | {type} | {storageSpaceGb} GB | {quantity}",
+    selectionTemplate: "{fileSystemType} | {type} | {storageSpaceAmount} {storageSpaceUnit} | {quantity}",
     notes: [
       "This calculator models the Scalable File Service General workflow from the Huawei sfs catalog.",
       "The current live catalog exposes package pricing for Capacity-Oriented storage and pay-per-use pricing for General storage.",
@@ -130,8 +132,10 @@ export const configurableServiceBundle = {
         ),
       },
       { key: "type", value: call("resolveOption", ref("values.type"), ref("derived.typeOptions"), ref("helpers.sfsDefaults.type")) },
-      { key: "storageSpaceOptions", value: ifElse(ref("catalog"), call("listSfsStorageSpaceOptions", ref("catalog")), [100, 500, 1024, 5120, 10240, 30720, 51200, 102400, 204800]) },
-      { key: "storageSpaceGb", value: call("resolveNumberOption", ref("values.storageSpaceGb"), ref("derived.storageSpaceOptions"), ref("helpers.sfsDefaults.storageSpaceGb")) },
+      { key: "storageSpaceUnitOptions", value: call("getSfsStorageUnitOptions") },
+      { key: "storageSpaceUnit", value: call("resolveOption", ref("values.storageSpaceUnit"), ref("derived.storageSpaceUnitOptions"), ref("helpers.sfsDefaults.storageSpaceUnit")) },
+      { key: "storageSpaceAmount", value: call("clampInteger", ref("values.storageSpaceAmount"), 1) },
+      { key: "storageSpaceGb", value: call("convertSfsStorageToGb", ref("derived.storageSpaceAmount"), ref("derived.storageSpaceUnit")) },
       { key: "durationMonthOptions", value: ifElse(ref("catalog"), call("listSfsDurationMonths", ref("catalog"), ref("derived.type")), [1, 2, 3, 4, 5, 6, 7, 8, 12]) },
       { key: "durationMonths", value: call("resolveNumberOption", ref("values.durationMonths"), ref("derived.durationMonthOptions"), ref("helpers.sfsDefaults.durationMonths")) },
       { key: "quantity", value: call("clampInteger", ref("values.quantity"), 1) },
@@ -155,14 +159,16 @@ export const configurableServiceBundle = {
     syncValues: {
       fileSystemType: ref("derived.fileSystemType"),
       type: ref("derived.type"),
-      storageSpaceGb: ref("derived.storageSpaceGb"),
+      storageSpaceAmount: ref("derived.storageSpaceAmount"),
+      storageSpaceUnit: ref("derived.storageSpaceUnit"),
       durationMonths: ref("derived.durationMonths"),
       quantity: ref("derived.quantity"),
     },
     fieldRuntime: {
       fileSystemType: { options: call("optionList", ref("derived.fileSystemTypeOptions")) },
       type: { options: call("optionList", ref("derived.typeOptions")) },
-      storageSpaceGb: { options: call("optionList", ref("derived.storageSpaceOptions")) },
+      storageSpaceAmount: { min: 1, normalize: ref("derived.storageSpaceAmount") },
+      storageSpaceUnit: { options: call("optionList", ref("derived.storageSpaceUnitOptions")) },
       durationMonths: { options: call("optionList", ref("derived.durationMonthOptions")) },
       quantity: { min: 1, normalize: ref("derived.quantity") },
     },
@@ -170,14 +176,21 @@ export const configurableServiceBundle = {
     addToListError: ifElse(
       ref("derived.estimate"),
       null,
-      call("firstMeaningfulText", ref("pricingError"), "Scalable File Service pricing is unavailable for the current selection."),
+      ifElse(
+        and(eq(ref("billingMode"), "Yearly/Monthly"), not(call("hasSfsPackagePricing", ref("catalog")))),
+        "Huawei's live SFS catalog does not expose Yearly/Monthly package pricing for this region. Switch to Pay-per-use or use a region such as LA-Santiago.",
+        call("firstMeaningfulText", ref("pricingError"), "Scalable File Service pricing is unavailable for the current selection."),
+      ),
     ),
     selectionSummary: ifElse(
       ref("derived.estimate"),
       template("Selected specifications: {fileSystemType} | {type} | {storageSpace} | {term} | {quantity} | {estimate}", {
         fileSystemType: ref("derived.fileSystemType"),
         type: ref("derived.type"),
-        storageSpace: template("{storageSpaceGb} GB", { storageSpaceGb: ref("derived.storageSpaceGb") }),
+        storageSpace: template("{storageSpaceAmount} {storageSpaceUnit}", {
+          storageSpaceAmount: ref("derived.storageSpaceAmount"),
+          storageSpaceUnit: ref("derived.storageSpaceUnit"),
+        }),
         term: ifElse(eq(ref("billingMode"), "Pay-per-use"), template("{hours}h", { hours: ref("usageHoursValue") }), template("{months}mo", { months: ref("derived.durationMonths") })),
         quantity: template("{quantity} file system{suffix}", {
           quantity: ref("derived.quantity"),
@@ -185,7 +198,11 @@ export const configurableServiceBundle = {
         }),
         estimate: call("formatFlavorAmount", ref("derived.estimate.currency"), ref("derived.estimate.amount"), ref("derived.estimate.suffix")),
       }),
-      "Selected specifications:",
+      ifElse(
+        and(eq(ref("billingMode"), "Yearly/Monthly"), not(call("hasSfsPackagePricing", ref("catalog")))),
+        "Selected specifications: Yearly/Monthly package pricing unavailable for this region.",
+        "Selected specifications:",
+      ),
     ),
     selectionNotes: ifElse(
       ref("derived.estimate"),
@@ -199,7 +216,11 @@ export const configurableServiceBundle = {
         ],
         call("asArray", ref("derived.estimate.notes")),
       ),
-      [],
+      ifElse(
+        and(eq(ref("billingMode"), "Yearly/Monthly"), not(call("hasSfsPackagePricing", ref("catalog")))),
+        ["Huawei's live SFS catalog does not expose Yearly/Monthly package pricing for this region. Switch to Pay-per-use or use a region such as LA-Santiago."],
+        [],
+      ),
     ),
     referenceNote: template(
       "Pricing sourced from Huawei Scalable File Service calculator API for {region}. Sources: {pricingUrl}, {productUrl}, and {calculatorApi}",
@@ -227,6 +248,8 @@ export const configurableServiceBundle = {
           billingMode: ifElse(eq(ref("billingMode"), "Pay-per-use"), "Pay-per-use", "Yearly/Monthly"),
           fileSystemType: ref("derived.fileSystemType"),
           type: ref("derived.type"),
+          storageSpaceAmount: ref("derived.storageSpaceAmount"),
+          storageSpaceUnit: ref("derived.storageSpaceUnit"),
           storageSpaceGb: ref("derived.storageSpaceGb"),
           durationMonths: ifElse(eq(ref("billingMode"), "Yearly/Monthly"), ref("derived.durationMonths"), null),
           usageHours: ifElse(eq(ref("billingMode"), "Pay-per-use"), ref("usageHoursValue"), null),
@@ -250,7 +273,17 @@ export const configurableServiceBundle = {
         values: {
           fileSystemType: coalesce(ref("product.config.fileSystemType"), ref("helpers.sfsDefaults.fileSystemType")),
           type: coalesce(ref("product.config.type"), ref("helpers.sfsDefaults.type")),
-          storageSpaceGb: call("integerString", ref("product.config.storageSpaceGb"), ref("helpers.sfsDefaults.storageSpaceGb"), 1),
+          storageSpaceAmount: call(
+            "integerString",
+            coalesce(ref("product.config.storageSpaceAmount"), call("inferSfsStorageAmountFromGb", coalesce(ref("product.config.storageSpaceGb"), ref("helpers.sfsDefaults.storageSpaceGb")))),
+            ref("helpers.sfsDefaults.storageSpaceAmount"),
+            1,
+          ),
+          storageSpaceUnit: coalesce(
+            ref("product.config.storageSpaceUnit"),
+            call("inferSfsStorageUnitFromGb", coalesce(ref("product.config.storageSpaceGb"), ref("helpers.sfsDefaults.storageSpaceGb"))),
+            ref("helpers.sfsDefaults.storageSpaceUnit"),
+          ),
           durationMonths: call("integerString", ref("product.config.durationMonths"), ref("helpers.sfsDefaults.durationMonths"), 1, 12),
           quantity: call("integerString", ref("product.config.quantity"), ref("helpers.sfsDefaults.quantity"), 1),
         },
@@ -267,4 +300,3 @@ export const configurableServiceBundle = {
 
 export const pricing = pricingDefinition;
 export const service = serviceDefinition;
-

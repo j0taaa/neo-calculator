@@ -21,12 +21,23 @@ export async function GET(request: Request) {
     );
   }
 
-  const catalog = await fetchSfsPricingCatalog(catalogRegionId);
+  try {
+    const catalog = await fetchSfsPricingCatalog(catalogRegionId);
 
-  return Response.json({
-    region: regionKey,
-    catalogRegionId,
-    catalog,
-  });
+    return Response.json({
+      region: regionKey,
+      catalogRegionId,
+      catalog,
+    });
+  } catch (error) {
+    return Response.json(
+      {
+        region: regionKey,
+        catalogRegionId,
+        catalog: null,
+        error: error instanceof Error ? error.message : "Failed to load Scalable File Service pricing.",
+      },
+      { status: 502 },
+    );
+  }
 }
-
