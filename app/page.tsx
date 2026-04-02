@@ -1768,7 +1768,29 @@ export default function Home() {
     <div className="min-h-screen bg-zinc-100 p-4 text-zinc-900 lg:p-6">
       <div className="mx-auto flex max-w-[1680px] flex-col gap-4">
         <header className="rounded-xl border border-zinc-200 bg-white/90 px-4 py-3 backdrop-blur lg:px-6">
-          <div className="flex items-center justify-end gap-3">
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between lg:gap-6">
+              <div className="justify-self-start">
+                <Link href="/" className="block">
+                  <p className="text-xs font-medium tracking-[0.22em] text-zinc-500 uppercase">NeoCalculator</p>
+                </Link>
+              </div>
+              <nav className="flex items-center gap-2">
+                <Link
+                  href="/projects"
+                  className="rounded-full px-4 py-2 text-sm font-medium text-zinc-600 transition hover:bg-zinc-100 hover:text-zinc-950"
+                >
+                  Projects
+                </Link>
+                <Link
+                  href="/"
+                  className="rounded-full bg-zinc-950 px-4 py-2 text-sm font-medium text-white transition hover:bg-zinc-800"
+                >
+                  Dashboard
+                </Link>
+              </nav>
+            </div>
+            <div className="flex items-center justify-end gap-3">
               {isSignedIn ? (
                 <div className="hidden text-right sm:block">
                   <p className="text-sm font-medium text-zinc-900">{session?.user.name || session?.user.email}</p>
@@ -1853,6 +1875,7 @@ export default function Home() {
               ) : (
                 <div className="h-8 w-44" aria-hidden="true" />
               )}
+            </div>
           </div>
         </header>
 
