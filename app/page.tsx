@@ -1843,7 +1843,8 @@ export default function Home() {
         handleCancelEdit();
       }
 
-      setAddToListMessage("Product deleted.");
+      setAddToListMessage("");
+      setCartCopyNotice("Product deleted.");
     } catch (error) {
       setAddToListMessage(error instanceof Error ? error.message : "Unable to delete product");
     } finally {
