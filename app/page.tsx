@@ -2664,7 +2664,7 @@ export default function Home() {
                           <div className="text-left sm:text-right">
                             <p className="text-lg font-semibold text-zinc-950">{priceSummary.amount}</p>
                             <p className="text-sm text-zinc-500">{priceSummary.timeframe ?? "Saved item"}</p>
-                            <div className="mt-3 flex flex-wrap gap-2 sm:justify-end">
+                            <div className="mt-3 flex items-center gap-2 sm:justify-end">
                               {isEditingProduct ? (
                                 <>
                                   <Button
