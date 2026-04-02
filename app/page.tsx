@@ -121,6 +121,23 @@ function getCalculatorFocusTarget(group: HTMLElement) {
   return null;
 }
 
+function getCalculatorActionButton() {
+  const button = document.querySelector<HTMLElement>("[data-calculator-add-button]");
+  if (!button || !isVisibleCalculatorElement(button)) {
+    return null;
+  }
+
+  if (button instanceof HTMLButtonElement && button.disabled) {
+    return null;
+  }
+
+  if (button.getAttribute("aria-disabled") === "true") {
+    return null;
+  }
+
+  return button;
+}
+
 function appendProductToProjects(
   current: AppProject[],
   payload: AppProduct & { listId: string; projectId: string },
@@ -2055,8 +2072,30 @@ export default function Home() {
     return true;
   }, [activeTab]);
 
+  const triggerCalculatorAddShortcut = useCallback(() => {
+    if (activeTab !== "calculator") {
+      return false;
+    }
+
+    const actionButton = getCalculatorActionButton();
+    if (!actionButton) {
+      return false;
+    }
+
+    actionButton.click();
+    return true;
+  }, [activeTab]);
+
   useEffect(() => {
     const handleAltDigitShortcut = (event: KeyboardEvent) => {
+      if (event.altKey && !event.ctrlKey && !event.metaKey && !event.shiftKey && event.key.toLowerCase() === "a") {
+        if (triggerCalculatorAddShortcut()) {
+          event.preventDefault();
+          event.stopPropagation();
+        }
+        return;
+      }
+
       if (!event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) {
         return;
       }
@@ -2075,7 +2114,7 @@ export default function Home() {
 
     document.addEventListener("keydown", handleAltDigitShortcut, true);
     return () => document.removeEventListener("keydown", handleAltDigitShortcut, true);
-  }, [focusCalculatorInputByIndex]);
+  }, [focusCalculatorInputByIndex, triggerCalculatorAddShortcut]);
 
   useEffect(() => {
     const handlePointerDown = (event: MouseEvent) => {
@@ -2951,7 +2990,11 @@ export default function Home() {
                               Cancel
                             </Button>
                           ) : null}
-                          <Button onClick={handleAddToList} disabled={addToListPending || !selectedListId || !isSignedIn}>
+                          <Button
+                            data-calculator-add-button
+                            onClick={handleAddToList}
+                            disabled={addToListPending || !selectedListId || !isSignedIn}
+                          >
                             {addToListPending ? (editingProductId ? "Saving..." : "Adding...") : editingProductId ? "Save Changes" : "Add to List"}
                           </Button>
                         </div>
