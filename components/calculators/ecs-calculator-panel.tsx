@@ -107,7 +107,6 @@ export function EcsCalculatorPanel({
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <p className="text-sm font-medium">Flavor</p>
-            <p className="text-sm text-zinc-500">Only flavors meeting the minimum vCPU and RAM filters appear here.</p>
           </div>
           <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
             {showFlexusLToggleVisible ? (
