@@ -118,6 +118,30 @@ function appendProductToProjects(
   );
 }
 
+function removeProductFromProjects(
+  current: AppProject[],
+  payload: { id: string; listId: string; projectId: string; updatedAt: string },
+) {
+  return current.map((project) =>
+    project.id === payload.projectId
+      ? {
+          ...project,
+          updatedAt: payload.updatedAt,
+          lists: project.lists.map((list) =>
+            list.id === payload.listId
+              ? {
+                  ...list,
+                  updatedAt: payload.updatedAt,
+                  productCount: Math.max(0, list.productCount - 1),
+                  products: list.products.filter((item) => item.id !== payload.id),
+                }
+              : list,
+          ),
+        }
+      : project,
+  );
+}
+
 function getProductOrderTimestamp(product: AppProduct, fallbackIndex: number) {
   const rawTimestamp = product.createdAt ?? product.updatedAt;
   const parsedTimestamp = rawTimestamp ? Date.parse(rawTimestamp) : Number.NaN;
@@ -1864,6 +1888,57 @@ export default function Home() {
     setSelectedCartItemIds([]);
   }, []);
 
+  const selectAllVisibleCartItems = useCallback(() => {
+    setSelectedCartItemIds(filteredCartProducts.map((product) => product.id));
+  }, [filteredCartProducts]);
+
+  const handleCutSelectedCartItems = useCallback(async () => {
+    if (!selectedListId || selectedCartItems.length === 0) {
+      return;
+    }
+
+    const copied = await copyText(JSON.stringify(selectedCartItems, null, 2));
+    if (!copied) {
+      setCartClipboardMessageIsError(true);
+      setCartClipboardMessage("Clipboard access is unavailable in this browser.");
+      return;
+    }
+
+    setCartClipboardMessage("");
+    setCartClipboardMessageIsError(false);
+    const selectedIds = new Set(selectedCartItems.map((product) => product.id));
+    const editingSelectionRemoved = editingProductId != null && selectedIds.has(editingProductId);
+
+    try {
+      for (const product of selectedCartItems) {
+        const response = await fetch(`/api/lists/${selectedListId}/products/${product.id}`, {
+          method: "DELETE",
+        });
+        const payload = (await response.json().catch(() => null)) as
+          | { id: string; listId: string; projectId: string; deleted: true; updatedAt: string }
+          | { error?: string }
+          | null;
+
+        if (!response.ok || !payload || !("projectId" in payload)) {
+          throw new Error(getResponseError(payload, `Unable to cut ${product.title}`));
+        }
+
+        setProjects((current) => removeProductFromProjects(current, payload));
+      }
+
+      if (editingSelectionRemoved) {
+        handleCancelEdit();
+      }
+
+      clearCartItemSelection();
+      setAddToListMessage("");
+      setCartCopyNotice(`${selectedCartItems.length} item${selectedCartItems.length === 1 ? "" : "s"} cut`);
+    } catch (error) {
+      setCartClipboardMessageIsError(true);
+      setCartClipboardMessage(error instanceof Error ? error.message : "Unable to cut cart items.");
+    }
+  }, [clearCartItemSelection, editingProductId, handleCancelEdit, selectedCartItems, selectedListId, setAddToListMessage]);
+
   const handlePasteCartItemsFromText = useCallback(async (clipboardText: string) => {
     if (!isSignedIn) {
       setCartClipboardMessageIsError(true);
@@ -1960,6 +2035,21 @@ export default function Home() {
         return;
       }
 
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "a") {
+        if (isEditableTarget(event.target) || !selectedList || filteredCartProducts.length === 0) {
+          return;
+        }
+
+        const selectedText = window.getSelection()?.toString().trim();
+        if (selectedText) {
+          return;
+        }
+
+        event.preventDefault();
+        selectAllVisibleCartItems();
+        return;
+      }
+
       if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "c") {
         if (isEditableTarget(event.target)) {
           return;
@@ -1977,6 +2067,25 @@ export default function Home() {
         event.preventDefault();
         void copyText(JSON.stringify(selectedCartItems, null, 2));
         setCartCopyNotice(`${selectedCartItems.length} element${selectedCartItems.length === 1 ? "" : "s"} copied`);
+        return;
+      }
+
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "x") {
+        if (isEditableTarget(event.target)) {
+          return;
+        }
+
+        const selectedText = window.getSelection()?.toString().trim();
+        if (selectedText) {
+          return;
+        }
+
+        if (!selectedCartItems.length) {
+          return;
+        }
+
+        event.preventDefault();
+        void handleCutSelectedCartItems();
         return;
       }
 
@@ -2009,7 +2118,18 @@ export default function Home() {
       window.removeEventListener("keydown", handleShortcut);
       window.removeEventListener("paste", handlePaste);
     };
-  }, [clearCartItemSelection, handlePasteCartItemsFromText, isSignedIn, selectedCartItemCount, selectedCartItems, selectedListId]);
+  }, [
+    clearCartItemSelection,
+    filteredCartProducts,
+    handleCutSelectedCartItems,
+    handlePasteCartItemsFromText,
+    isSignedIn,
+    selectAllVisibleCartItems,
+    selectedCartItemCount,
+    selectedCartItems,
+    selectedList,
+    selectedListId,
+  ]);
 
   const activeProjectCloneTargetRegion = activeProject ? projectCloneTargetRegions[activeProject.id] ?? "" : "";
   const activeProjectCloneTargetBillingMode = activeProject ? projectCloneTargetBillingModes[activeProject.id] ?? "" : "";
