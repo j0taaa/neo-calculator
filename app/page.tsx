@@ -1845,7 +1845,7 @@ export default function Home() {
     setSelectedCartItemIds([]);
   }, []);
 
-  const handlePasteCartItemsFromClipboard = useCallback(async () => {
+  const handlePasteCartItemsFromText = useCallback(async (clipboardText: string) => {
     if (!isSignedIn) {
       setCartClipboardMessageIsError(true);
       setCartClipboardMessage("Sign in to paste cart items.");
@@ -1855,21 +1855,6 @@ export default function Home() {
     if (!selectedListId) {
       setCartClipboardMessageIsError(true);
       setCartClipboardMessage("Select a cart before pasting items.");
-      return;
-    }
-
-    if (typeof navigator === "undefined" || !navigator.clipboard?.readText) {
-      setCartClipboardMessageIsError(true);
-      setCartClipboardMessage("Clipboard read is unavailable in this browser.");
-      return;
-    }
-
-    let clipboardText = "";
-    try {
-      clipboardText = await navigator.clipboard.readText();
-    } catch {
-      setCartClipboardMessageIsError(true);
-      setCartClipboardMessage("Unable to read clipboard contents.");
       return;
     }
 
@@ -1975,30 +1960,36 @@ export default function Home() {
         return;
       }
 
-      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "v") {
-        if (isEditableTarget(event.target) || !isSignedIn || !selectedListId) {
-          return;
-        }
-
-        event.preventDefault();
-        void handlePasteCartItemsFromClipboard();
-        return;
-      }
-
       if (event.key === "Escape" && selectedCartItemCount > 0 && !isEditableTarget(event.target)) {
         event.preventDefault();
         clearCartItemSelection();
       }
     };
 
+    const handlePaste = (event: ClipboardEvent) => {
+      if (isEditableTarget(event.target) || !isSignedIn || !selectedListId) {
+        return;
+      }
+
+      const clipboardText = event.clipboardData?.getData("text");
+      if (!clipboardText?.trim()) {
+        return;
+      }
+
+      event.preventDefault();
+      void handlePasteCartItemsFromText(clipboardText);
+    };
+
     document.addEventListener("mousedown", handlePointerDown);
     window.addEventListener("keydown", handleShortcut);
+    window.addEventListener("paste", handlePaste);
 
     return () => {
       document.removeEventListener("mousedown", handlePointerDown);
       window.removeEventListener("keydown", handleShortcut);
+      window.removeEventListener("paste", handlePaste);
     };
-  }, [clearCartItemSelection, handlePasteCartItemsFromClipboard, isSignedIn, selectedCartItemCount, selectedCartItems, selectedListId]);
+  }, [clearCartItemSelection, handlePasteCartItemsFromText, isSignedIn, selectedCartItemCount, selectedCartItems, selectedListId]);
 
   const activeProjectCloneTargetRegion = activeProject ? projectCloneTargetRegions[activeProject.id] ?? "" : "";
   const activeProjectCloneTargetBillingMode = activeProject ? projectCloneTargetBillingModes[activeProject.id] ?? "" : "";
