@@ -58,11 +58,7 @@ export function CalculatorDiskConfigSection({
       <section className="space-y-3">
         <div>
           <p className="text-sm font-medium">{mode === "evs" ? "Volume Type" : "System Disk"}</p>
-          <p className="mt-1 text-sm text-zinc-500">
-            {mode === "evs"
-              ? "Choose the EVS disk type and capacity you want to price."
-              : "Choose the disk type attached to the ECS instance."}
-          </p>
+          {mode === "evs" ? <p className="mt-1 text-sm text-zinc-500">Choose the EVS disk type and capacity you want to price.</p> : null}
         </div>
         <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
           <Select
