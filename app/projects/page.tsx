@@ -2219,7 +2219,6 @@ export default function ProjectsPage() {
             <div className="flex items-center justify-between gap-3">
               <div>
                 <CardTitle>My Projects</CardTitle>
-                <p className="mt-1 text-sm text-zinc-500">The same project controls from the sidebar, with expandable carts and products.</p>
               </div>
               <Badge variant="secondary">{projects.length}</Badge>
             </div>
