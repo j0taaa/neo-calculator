@@ -125,6 +125,25 @@ function isCalculatorSelectTrigger(element: HTMLElement) {
   return element.getAttribute("role") === "combobox" || element.getAttribute("data-slot") === "select-trigger";
 }
 
+function getShortcutDigit(event: Pick<KeyboardEvent, "key" | "code">) {
+  const keyDigit = Number(event.key);
+  if (Number.isInteger(keyDigit) && keyDigit >= 0 && keyDigit <= 9) {
+    return keyDigit;
+  }
+
+  const codeMatch = /^Digit([0-9])$/.exec(event.code);
+  if (codeMatch) {
+    return Number(codeMatch[1]);
+  }
+
+  const numpadMatch = /^Numpad([0-9])$/.exec(event.code);
+  if (numpadMatch) {
+    return Number(numpadMatch[1]);
+  }
+
+  return null;
+}
+
 function getVisibleOpenCalculatorSelectItems() {
   return Array.from(document.querySelectorAll<HTMLElement>("[data-slot='select-content'] [data-slot='select-item']"))
     .filter((item) => isVisibleCalculatorElement(item) && !item.hasAttribute("data-disabled"));
@@ -262,13 +281,14 @@ function OptionGrid({
   onChange: (value: BillingOption) => void;
 }) {
   return (
-    <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-2 2xl:grid-cols-3">
-      {items.map((item) => (
+    <div data-option-grid className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-2 2xl:grid-cols-3">
+      {items.map((item, index) => (
         <Button
           key={item}
           type="button"
           variant={item === value ? "default" : "secondary"}
           className="h-11 justify-start rounded-md"
+          data-option-grid-button={String(index + 1)}
           data-calculator-focus-target={item === value ? "" : undefined}
           aria-pressed={item === value}
           onClick={() => onChange(item)}
@@ -2139,8 +2159,8 @@ export default function Home() {
         && !event.metaKey
         && !event.shiftKey
       ) {
-        const digit = Number(event.key);
-        if (Number.isInteger(digit) && digit >= 0 && digit <= 9) {
+        const digit = getShortcutDigit(event);
+        if (digit != null) {
           const targetIndex = digit === 0 ? 9 : digit - 1;
           setIsAwaitingCalculatorSelectOptionShortcut(false);
           event.preventDefault();
@@ -2149,6 +2169,27 @@ export default function Home() {
             chooseOpenCalculatorSelectItem(targetIndex);
           }, 0);
           return;
+        }
+      }
+
+      if (!event.altKey && !event.ctrlKey && !event.metaKey && !event.shiftKey) {
+        const target = event.target instanceof HTMLElement ? event.target : null;
+        const optionGrid = target?.closest<HTMLElement>("[data-option-grid]");
+        if (optionGrid) {
+          const digit = getShortcutDigit(event);
+          if (digit != null && digit >= 1) {
+            const nextBillingMode = calculatorBillingOptions[digit - 1];
+            if (nextBillingMode) {
+              event.preventDefault();
+              event.stopPropagation();
+              setBillingMode(nextBillingMode);
+              window.requestAnimationFrame(() => {
+                const targetButton = optionGrid.querySelector<HTMLElement>(`[data-option-grid-button="${digit}"]`);
+                targetButton?.focus();
+              });
+              return;
+            }
+          }
         }
       }
 
@@ -2164,8 +2205,8 @@ export default function Home() {
         return;
       }
 
-      const digit = Number(event.key);
-      if (!Number.isInteger(digit) || digit < 0 || digit > 9) {
+      const digit = getShortcutDigit(event);
+      if (digit == null) {
         return;
       }
 
@@ -2178,7 +2219,7 @@ export default function Home() {
 
     document.addEventListener("keydown", handleAltDigitShortcut, true);
     return () => document.removeEventListener("keydown", handleAltDigitShortcut, true);
-  }, [focusCalculatorInputByIndex, isAwaitingCalculatorSelectOptionShortcut, triggerCalculatorAddShortcut]);
+  }, [calculatorBillingOptions, focusCalculatorInputByIndex, isAwaitingCalculatorSelectOptionShortcut, setBillingMode, triggerCalculatorAddShortcut]);
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
