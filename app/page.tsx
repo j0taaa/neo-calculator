@@ -188,6 +188,7 @@ export default function Home() {
   const [isCartFiltersOpen, setIsCartFiltersOpen] = useState(false);
   const [cartServiceFilter, setCartServiceFilter] = useState("__all");
   const [cartSortOption, setCartSortOption] = useState<CartSortOption>("default");
+  const [selectedCartItemIds, setSelectedCartItemIds] = useState<string[]>([]);
   const [activeModal, setActiveModal] = useState<ActiveModal>(null);
   const [importCartTargetProjectId, setImportCartTargetProjectId] = useState<string | null>(null);
   const [importCartPendingProjectId, setImportCartPendingProjectId] = useState<string | null>(null);
@@ -284,6 +285,10 @@ export default function Home() {
     }
   }, [cartServiceFilter, cartSortOption, normalizedCartSearchQuery, selectedCartProducts]);
   const hasActiveCartFilters = normalizedCartSearchQuery.length > 0 || cartServiceFilter !== "__all" || cartSortOption !== "default";
+  const selectedCartItemCount = useMemo(
+    () => selectedCartItemIds.filter((productId) => selectedCartProducts.some((product) => product.id === productId)).length,
+    [selectedCartItemIds, selectedCartProducts],
+  );
   const activeProject =
     activeModal == null
       ? null
@@ -457,7 +462,13 @@ export default function Home() {
     setCartServiceFilter("__all");
     setCartSortOption("default");
     setIsCartFiltersOpen(false);
+    setSelectedCartItemIds([]);
   }, [selectedList?.id]);
+
+  useEffect(() => {
+    const availableProductIds = new Set(selectedCartProducts.map((product) => product.id));
+    setSelectedCartItemIds((current) => current.filter((productId) => availableProductIds.has(productId)));
+  }, [selectedCartProducts]);
 
   useEffect(() => {
     if (!openProjectMenuId && !isCartMenuOpen && !isProjectCreateMenuOpen) {
@@ -1784,6 +1795,16 @@ export default function Home() {
     }
   };
 
+  const toggleCartItemSelection = useCallback((productId: string) => {
+    setSelectedCartItemIds((current) =>
+      current.includes(productId) ? current.filter((currentId) => currentId !== productId) : [...current, productId],
+    );
+  }, []);
+
+  const clearCartItemSelection = useCallback(() => {
+    setSelectedCartItemIds([]);
+  }, []);
+
   const activeProjectCloneTargetRegion = activeProject ? projectCloneTargetRegions[activeProject.id] ?? "" : "";
   const activeProjectCloneTargetBillingMode = activeProject ? projectCloneTargetBillingModes[activeProject.id] ?? "" : "";
   const activeProjectCloneMessage = activeProject ? projectCloneMessages[activeProject.id] ?? "" : "";
@@ -2803,6 +2824,16 @@ export default function Home() {
                   </div>
                 </div>
               ) : null}
+              {selectedList && selectedCartItemCount > 0 ? (
+                <div className="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-sm text-blue-900">
+                  <p className="font-medium">
+                    {selectedCartItemCount} item{selectedCartItemCount === 1 ? "" : "s"} selected
+                  </p>
+                  <Button type="button" variant="ghost" size="sm" className="h-8 text-blue-700 hover:text-blue-800" onClick={clearCartItemSelection}>
+                    Stop selecting
+                  </Button>
+                </div>
+              ) : null}
             </CardHeader>
             <Separator />
             <CardContent className="px-0">
@@ -2830,12 +2861,27 @@ export default function Home() {
                     const serviceMeta = getServiceMeta(product.serviceCode, product.serviceName);
                     const priceSummary = splitProductPriceSummary(product);
                     const isEditingProduct = editingProductId === product.id;
+                    const isSelectedProduct = selectedCartItemIds.includes(product.id);
 
                     return (
                       <div
                         key={product.id}
-                        className={`rounded-lg border p-4 ${
-                          isEditingProduct ? "border-zinc-950 bg-zinc-50" : "border-zinc-200 bg-white"
+                        role="button"
+                        tabIndex={0}
+                        aria-pressed={isSelectedProduct}
+                        onClick={() => toggleCartItemSelection(product.id)}
+                        onKeyDown={(event) => {
+                          if (event.key === "Enter" || event.key === " ") {
+                            event.preventDefault();
+                            toggleCartItemSelection(product.id);
+                          }
+                        }}
+                        className={`rounded-lg border p-4 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 ${
+                          isSelectedProduct
+                            ? "border-blue-500 bg-blue-50 shadow-sm"
+                            : isEditingProduct
+                              ? "border-zinc-950 bg-zinc-50"
+                              : "border-zinc-200 bg-white"
                         }`}
                       >
                         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
@@ -2853,6 +2899,7 @@ export default function Home() {
                               <div className="min-w-0">
                                 <div className="flex flex-wrap items-center gap-2">
                                   <p className="truncate font-medium">{product.title}</p>
+                                  {isSelectedProduct ? <Badge className="bg-blue-600 text-white hover:bg-blue-600">Selected</Badge> : null}
                                   {isEditingProduct ? <Badge>Editing</Badge> : null}
                                 </div>
                                 <p className="mt-1 text-sm text-zinc-500">{getProductConfigSummary(product)}</p>
@@ -2872,7 +2919,10 @@ export default function Home() {
                                     type="button"
                                     variant="outline"
                                     size="sm"
-                                    onClick={handleCancelEdit}
+                                    onClick={(event) => {
+                                      event.stopPropagation();
+                                      handleCancelEdit();
+                                    }}
                                     disabled={addToListPending || deletingProductId === product.id}
                                   >
                                     Cancel
@@ -2880,7 +2930,10 @@ export default function Home() {
                                   <Button
                                     type="button"
                                     size="sm"
-                                    onClick={handleAddToList}
+                                    onClick={(event) => {
+                                      event.stopPropagation();
+                                      handleAddToList();
+                                    }}
                                     disabled={addToListPending || !selectedListId || !isSignedIn || deletingProductId === product.id}
                                   >
                                     {addToListPending ? "Saving..." : "Save Changes"}
@@ -2891,7 +2944,10 @@ export default function Home() {
                                   type="button"
                                   variant="outline"
                                   size="icon"
-                                  onClick={() => handleEditProduct(product)}
+                                  onClick={(event) => {
+                                    event.stopPropagation();
+                                    handleEditProduct(product);
+                                  }}
                                   disabled={deletingProductId === product.id}
                                   aria-label={`Edit ${product.title}`}
                                 >
@@ -2902,7 +2958,10 @@ export default function Home() {
                                 type="button"
                                 variant="outline"
                                 size="icon"
-                                onClick={() => handleDeleteProduct(product)}
+                                onClick={(event) => {
+                                  event.stopPropagation();
+                                  handleDeleteProduct(product);
+                                }}
                                 disabled={deletingProductId === product.id}
                                 aria-label={deletingProductId === product.id ? `Deleting ${product.title}` : `Delete ${product.title}`}
                               >
