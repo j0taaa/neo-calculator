@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 
@@ -10,6 +11,7 @@ import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
+import { findServiceCatalogEntry } from "@/lib/service-config";
 import { formatDate, formatDateTime, formatNumber } from "@/lib/utils";
 import { useSessionContext } from "@/components/session-provider";
 import { huaweiRegions, type HuaweiRegionKey } from "@/lib/huawei-regions";
@@ -109,6 +111,10 @@ type ResourceExportModalState = {
 } | null;
 
 const billingOptions: BillingOption[] = ["Pay-per-use", "RI", "Yearly/Monthly", "One-time"];
+
+function getServiceMeta(serviceCode: string, serviceName: string) {
+  return findServiceCatalogEntry(serviceCode, serviceName);
+}
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
@@ -2596,18 +2602,34 @@ export default function ProjectsPage() {
                                             <div className="space-y-2">
                                               {list.products.map((product) => {
                                                 const specsSummary = getProductSpecsSummary(product);
+                                                const serviceMeta = getServiceMeta(product.serviceCode, product.serviceName);
 
                                                 return (
                                                   <div key={product.id} className="rounded-lg border bg-white p-3">
                                                     <div className="flex items-start justify-between gap-3">
-                                                      <div className="min-w-0">
-                                                        <p className="font-medium text-zinc-950">{product.title}</p>
-                                                        <p className="mt-1 text-sm text-zinc-500">
+                                                      <div className="flex min-w-0 items-start gap-3">
+                                                        {serviceMeta ? (
+                                                          <Image
+                                                            src={serviceMeta.icon}
+                                                            alt=""
+                                                            width={36}
+                                                            height={36}
+                                                            className="mt-0.5 size-9 shrink-0 rounded-md object-contain"
+                                                          />
+                                                        ) : (
+                                                          <div className="mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-md bg-zinc-100 text-xs font-medium text-zinc-500">
+                                                            {product.serviceCode.slice(0, 2).toUpperCase()}
+                                                          </div>
+                                                        )}
+                                                        <div className="min-w-0">
+                                                          <p className="font-medium text-zinc-950">{product.title}</p>
+                                                          <p className="mt-1 text-sm text-zinc-500">
                                                           {product.serviceName} · Qty {product.quantity}
-                                                        </p>
-                                                        {specsSummary ? (
-                                                          <p className="mt-1 text-xs text-zinc-400">{specsSummary}</p>
-                                                        ) : null}
+                                                          </p>
+                                                          {specsSummary ? (
+                                                            <p className="mt-1 text-xs text-zinc-400">{specsSummary}</p>
+                                                          ) : null}
+                                                        </div>
                                                       </div>
                                                       <Badge variant="outline">{product.quantity}</Badge>
                                                     </div>
