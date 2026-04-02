@@ -121,6 +121,10 @@ function getCalculatorFocusTarget(group: HTMLElement) {
   return null;
 }
 
+function isCalculatorSelectTrigger(element: HTMLElement) {
+  return element.getAttribute("role") === "combobox" || element.getAttribute("data-slot") === "select-trigger";
+}
+
 function getCalculatorActionButton() {
   const button = document.querySelector<HTMLElement>("[data-calculator-add-button]");
   if (!button || !isVisibleCalculatorElement(button)) {
@@ -2068,6 +2072,11 @@ export default function Home() {
     focusTarget.focus();
     if (focusTarget instanceof HTMLInputElement || focusTarget instanceof HTMLTextAreaElement) {
       focusTarget.select();
+      return true;
+    }
+
+    if (isCalculatorSelectTrigger(focusTarget)) {
+      focusTarget.click();
     }
 
     return true;
