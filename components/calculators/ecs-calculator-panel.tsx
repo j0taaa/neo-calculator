@@ -82,19 +82,21 @@ export function EcsCalculatorPanel({
     <>
       <section className="space-y-3">
         <div className="grid gap-4 md:grid-cols-2">
-          <div className="space-y-2">
+          <div className="space-y-2" data-calculator-focus-group>
             <p className="text-sm font-medium">Minimum vCPUs</p>
             <Input
               value={minVcpuValue}
+              data-calculator-focus-target
               onChange={(event) => onMinVcpuChange(event.target.value)}
               inputMode="numeric"
               placeholder="Show flavors with at least this many vCPUs"
             />
           </div>
-          <div className="space-y-2">
+          <div className="space-y-2" data-calculator-focus-group>
             <p className="text-sm font-medium">Minimum Memory (GiB)</p>
             <Input
               value={minRamValue}
+              data-calculator-focus-target
               onChange={(event) => onMinRamChange(event.target.value)}
               inputMode="numeric"
               placeholder="Show flavors with at least this much RAM"
@@ -110,8 +112,9 @@ export function EcsCalculatorPanel({
           </div>
           <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
             {showFlexusLToggleVisible ? (
-              <label className="flex cursor-pointer items-center gap-2 rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-700">
+              <label data-calculator-focus-group className="flex cursor-pointer items-center gap-2 rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-700">
                 <Checkbox
+                  data-calculator-focus-target
                   checked={showFlexusLChecked}
                   onCheckedChange={(checked) => onShowFlexusLChange(Boolean(checked))}
                   aria-label="Show Flexus L"
@@ -119,13 +122,15 @@ export function EcsCalculatorPanel({
                 <span>Show Flexus L</span>
               </label>
             ) : null}
-            <div className="w-full sm:w-44">
+            <div className="w-full sm:w-44" data-calculator-focus-group>
               <Input
                 value={flavorQuery}
+                data-calculator-focus-target
                 onChange={(event) => onFlavorQueryChange(event.target.value)}
                 placeholder="Search flavors"
               />
             </div>
+            <div data-calculator-focus-group>
             <Select
               value={flavorSort}
               onValueChange={(value) => {
@@ -134,7 +139,7 @@ export function EcsCalculatorPanel({
                 }
               }}
             >
-              <SelectTrigger className="w-full bg-white sm:w-52">
+              <SelectTrigger data-calculator-focus-target className="w-full bg-white sm:w-52">
                 <SelectValue>{flavorSortOptions.find((option) => option.value === flavorSort)?.label ?? flavorSort}</SelectValue>
               </SelectTrigger>
               <SelectContent>
@@ -145,6 +150,8 @@ export function EcsCalculatorPanel({
                 ))}
               </SelectContent>
             </Select>
+            </div>
+            <div data-calculator-focus-group>
             <Select
               value={String(flavorPageSize)}
               onValueChange={(value) => {
@@ -157,7 +164,7 @@ export function EcsCalculatorPanel({
                 }
               }}
             >
-              <SelectTrigger className="w-full bg-white sm:w-36">
+              <SelectTrigger data-calculator-focus-target className="w-full bg-white sm:w-36">
                 <SelectValue>{`${flavorPageSize} per page`}</SelectValue>
               </SelectTrigger>
               <SelectContent>
@@ -168,10 +175,11 @@ export function EcsCalculatorPanel({
                 ))}
               </SelectContent>
             </Select>
+            </div>
           </div>
         </div>
 
-        <div className="rounded-xl border bg-zinc-50 p-3">
+        <div className="rounded-xl border bg-zinc-50 p-3" data-calculator-focus-group>
           {catalogFlavorsError ? <p className="mb-3 text-sm text-red-600">{catalogFlavorsError}</p> : null}
           {catalogFlavorsLastCompletedAt ? (
             <p className="mb-3 text-xs text-zinc-500">Last synced: {formatDateTime(catalogFlavorsLastCompletedAt)}</p>
@@ -190,6 +198,8 @@ export function EcsCalculatorPanel({
                 <button
                   key={flavor.name}
                   type="button"
+                  data-calculator-focus-target={isSelected ? "" : undefined}
+                  aria-pressed={isSelected}
                   className={`flex w-full items-center justify-between rounded-lg border px-3 py-3 text-left ${
                     isSelected ? "border-zinc-950 bg-white" : "border-zinc-200 bg-white/80"
                   }`}

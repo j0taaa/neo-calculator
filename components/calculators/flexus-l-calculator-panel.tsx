@@ -35,7 +35,7 @@ export function FlexusLCalculatorPanel({
           <p className="text-sm font-medium">Plan</p>
           <p className="mt-1 text-sm text-zinc-500">Flexus L uses fixed public plans with bundled system disk, bandwidth, and monthly traffic.</p>
         </div>
-        <div className="space-y-2">
+        <div className="space-y-2" data-calculator-focus-group>
           {plans.map((plan) => {
             const isSelected = selectedPlanId === plan.id;
 
@@ -43,6 +43,8 @@ export function FlexusLCalculatorPanel({
               <button
                 key={plan.id}
                 type="button"
+                data-calculator-focus-target={isSelected ? "" : undefined}
+                aria-pressed={isSelected}
                 className={`flex w-full items-center justify-between rounded-lg border px-3 py-3 text-left ${
                   isSelected ? "border-zinc-950 bg-white" : "border-zinc-200 bg-white/80"
                 }`}

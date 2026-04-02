@@ -94,6 +94,33 @@ function isEditableTarget(target: EventTarget | null): boolean {
   );
 }
 
+function isVisibleCalculatorElement(element: HTMLElement) {
+  const style = window.getComputedStyle(element);
+  return style.display !== "none" && style.visibility !== "hidden" && element.getClientRects().length > 0;
+}
+
+function getCalculatorFocusTarget(group: HTMLElement) {
+  const preferredSelectors = [
+    "[data-calculator-focus-target]:not([disabled])",
+    "input:not([type='hidden']):not([disabled])",
+    "textarea:not([disabled])",
+    "button[aria-pressed='true']:not([disabled])",
+    "button[role='combobox']:not([disabled])",
+    "button[data-state='checked']:not([disabled])",
+    "button:not([disabled])",
+    "[tabindex]:not([tabindex='-1'])",
+  ];
+
+  for (const selector of preferredSelectors) {
+    const match = group.querySelector(selector);
+    if (match instanceof HTMLElement && isVisibleCalculatorElement(match)) {
+      return match;
+    }
+  }
+
+  return null;
+}
+
 function appendProductToProjects(
   current: AppProject[],
   payload: AppProduct & { listId: string; projectId: string },
@@ -193,6 +220,7 @@ function OptionGrid({
           type="button"
           variant={item === value ? "default" : "secondary"}
           className="h-11 justify-start rounded-md"
+          data-calculator-focus-target={item === value ? "" : undefined}
           aria-pressed={item === value}
           onClick={() => onChange(item)}
         >
@@ -2000,6 +2028,55 @@ export default function Home() {
     }
   }, [isSignedIn, mutateListProduct, selectedListId]);
 
+  const focusCalculatorInputByIndex = useCallback((index: number) => {
+    if (activeTab !== "calculator") {
+      return false;
+    }
+
+    const shortcutRoot = document.querySelector<HTMLElement>("[data-calculator-shortcut-root]");
+    const groups = Array.from(shortcutRoot?.querySelectorAll<HTMLElement>("[data-calculator-focus-group]") ?? []).filter(
+      isVisibleCalculatorElement,
+    );
+    const targetGroup = groups[index];
+    if (!targetGroup) {
+      return false;
+    }
+
+    const focusTarget = getCalculatorFocusTarget(targetGroup);
+    if (!focusTarget) {
+      return false;
+    }
+
+    focusTarget.focus();
+    if (focusTarget instanceof HTMLInputElement || focusTarget instanceof HTMLTextAreaElement) {
+      focusTarget.select();
+    }
+
+    return true;
+  }, [activeTab]);
+
+  useEffect(() => {
+    const handleAltDigitShortcut = (event: KeyboardEvent) => {
+      if (!event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) {
+        return;
+      }
+
+      const digit = Number(event.key);
+      if (!Number.isInteger(digit) || digit < 0 || digit > 9) {
+        return;
+      }
+
+      const targetIndex = digit === 0 ? 9 : digit - 1;
+      if (focusCalculatorInputByIndex(targetIndex)) {
+        event.preventDefault();
+        event.stopPropagation();
+      }
+    };
+
+    document.addEventListener("keydown", handleAltDigitShortcut, true);
+    return () => document.removeEventListener("keydown", handleAltDigitShortcut, true);
+  }, [focusCalculatorInputByIndex]);
+
   useEffect(() => {
     const handlePointerDown = (event: MouseEvent) => {
       const target = event.target instanceof Element ? event.target : null;
@@ -2880,17 +2957,17 @@ export default function Home() {
                         </div>
                       </div>
                     </div>
-                    <CardContent className="space-y-6 py-5 pb-44">
+                    <CardContent data-calculator-shortcut-root className="space-y-6 py-5 pb-44">
                       <div className="grid gap-4 lg:grid-cols-2">
-                        <div className="space-y-2">
+                        <div className="space-y-2" data-calculator-focus-group>
                           <p className="text-sm text-zinc-600">Description (Optional)</p>
-                          <Input value={selectedService} readOnly className="max-w-sm lg:max-w-none" />
+                          <Input value={selectedService} readOnly data-calculator-focus-target className="max-w-sm lg:max-w-none" />
                         </div>
 
-                        <section className="space-y-3">
+                        <section className="space-y-3" data-calculator-focus-group>
                           <p className="text-sm font-medium">Region</p>
                           <Select value={regionValue} onValueChange={(value) => setRegionValue(value as HuaweiRegionKey)}>
-                            <SelectTrigger className="max-w-sm bg-white lg:max-w-none">
+                            <SelectTrigger data-calculator-focus-target className="max-w-sm bg-white lg:max-w-none">
                               <SelectValue>{huaweiRegions[regionValue].full}</SelectValue>
                             </SelectTrigger>
                             <SelectContent>
@@ -2906,7 +2983,7 @@ export default function Home() {
 
                       {showBillingHeader ? (
                         <section className={`grid gap-4 ${billingMode === "Pay-per-use" && showSharedUsageHours ? "xl:grid-cols-[minmax(0,1fr)_340px]" : ""}`}>
-                          <div className="space-y-3">
+                          <div className="space-y-3" data-calculator-focus-group>
                             <p className="text-sm font-medium">Billing Mode</p>
                             <OptionGrid
                               items={calculatorBillingOptions}
@@ -2917,7 +2994,7 @@ export default function Home() {
                             />
                           </div>
                           {billingMode === "Pay-per-use" && showSharedUsageHours ? (
-                            <div className="space-y-3">
+                            <div className="space-y-3" data-calculator-focus-group>
                               <p className="text-sm font-medium">Usage Hours</p>
                               <div className="flex items-center gap-3">
                                 <div className="flex items-center overflow-hidden rounded-lg border border-zinc-200 bg-white">
@@ -2931,6 +3008,7 @@ export default function Home() {
                                   </Button>
                                   <Input
                                     value={usageHours}
+                                    data-calculator-focus-target
                                     onChange={(event) => {
                                       const digitsOnly = event.target.value.replace(/\D/g, "");
                                       if (digitsOnly === "") {

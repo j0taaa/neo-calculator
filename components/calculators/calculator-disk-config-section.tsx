@@ -61,6 +61,7 @@ export function CalculatorDiskConfigSection({
           {mode === "evs" ? <p className="mt-1 text-sm text-zinc-500">Choose the EVS disk type and capacity you want to price.</p> : null}
         </div>
         <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
+          <div data-calculator-focus-group>
           <Select
             value={systemDiskType}
             onValueChange={(value) => {
@@ -69,7 +70,7 @@ export function CalculatorDiskConfigSection({
               }
             }}
           >
-            <SelectTrigger className="w-full bg-white lg:w-72">
+            <SelectTrigger data-calculator-focus-target className="w-full bg-white lg:w-72">
               <SelectValue>{systemDiskType}</SelectValue>
             </SelectTrigger>
             <SelectContent>
@@ -80,8 +81,9 @@ export function CalculatorDiskConfigSection({
               ))}
             </SelectContent>
           </Select>
+          </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3" data-calculator-focus-group>
             <div className="flex items-center overflow-hidden rounded-lg border border-zinc-200 bg-white">
               <Button
                 type="button"
@@ -93,6 +95,7 @@ export function CalculatorDiskConfigSection({
               </Button>
               <Input
                 value={systemDiskSize}
+                data-calculator-focus-target
                 onChange={(event) => {
                   const digitsOnly = event.target.value.replace(/\D/g, "");
                   onSystemDiskSizeChange(digitsOnly);
@@ -116,10 +119,11 @@ export function CalculatorDiskConfigSection({
 
         {showGpSsd2Controls && gpSsd2IopsRange && gpSsd2ThroughputRange ? (
           <div className="grid gap-4 md:grid-cols-2">
-            <div className="space-y-2">
+            <div className="space-y-2" data-calculator-focus-group>
               <p className="text-sm font-medium">IOPS</p>
               <Input
                 value={gpSsd2Iops}
+                data-calculator-focus-target
                 onChange={(event) => {
                   const digitsOnly = event.target.value.replace(/\D/g, "");
                   onGpSsd2IopsChange(digitsOnly);
@@ -132,10 +136,11 @@ export function CalculatorDiskConfigSection({
                 {gpSsd2IopsRange.min}-{gpSsd2IopsRange.max} IOPS, capped at 500 IOPS per GiB.
               </p>
             </div>
-            <div className="space-y-2">
+            <div className="space-y-2" data-calculator-focus-group>
               <p className="text-sm font-medium">Throughput (MB/s)</p>
               <Input
                 value={gpSsd2Throughput}
+                data-calculator-focus-target
                 onChange={(event) => {
                   const digitsOnly = event.target.value.replace(/\D/g, "");
                   onGpSsd2ThroughputChange(digitsOnly);

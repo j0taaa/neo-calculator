@@ -116,10 +116,15 @@ export function ConfigurableServicePanel({
             const hint = getFieldHint(field);
 
             return (
-              <div key={field.definition.id} className={field.definition.type === "checkbox" ? "space-y-2 md:col-span-2" : "space-y-2"}>
+              <div
+                key={field.definition.id}
+                data-calculator-focus-group
+                className={field.definition.type === "checkbox" ? "space-y-2 md:col-span-2" : "space-y-2"}
+              >
                 {field.definition.type === "checkbox" ? (
                   <label className="flex items-start gap-3 rounded-lg border border-zinc-200 bg-white px-3 py-3 text-sm text-zinc-700">
                     <Checkbox
+                      data-calculator-focus-target
                       checked={field.value === "true"}
                       disabled={field.disabled}
                       onCheckedChange={(checked) => field.onChange(checked === true ? "true" : "false")}
@@ -142,7 +147,7 @@ export function ConfigurableServicePanel({
                           }
                         }}
                       >
-                        <SelectTrigger className="bg-white">
+                        <SelectTrigger data-calculator-focus-target className="bg-white">
                           <SelectValue>{field.options?.find((option) => option.value === field.value)?.label ?? field.value}</SelectValue>
                         </SelectTrigger>
                         <SelectContent>
@@ -167,6 +172,7 @@ export function ConfigurableServicePanel({
                           </Button>
                           <Input
                             value={field.value}
+                            data-calculator-focus-target
                             onChange={(event) => field.onChange(sanitizeNumberInput(event.target.value, field.definition.inputMode))}
                             onBlur={field.onBlur}
                             inputMode={field.definition.inputMode ?? "numeric"}
