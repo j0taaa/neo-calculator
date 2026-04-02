@@ -285,6 +285,10 @@ export default function Home() {
     }
   }, [cartServiceFilter, cartSortOption, normalizedCartSearchQuery, selectedCartProducts]);
   const hasActiveCartFilters = normalizedCartSearchQuery.length > 0 || cartServiceFilter !== "__all" || cartSortOption !== "default";
+  const selectedCartItems = useMemo(
+    () => selectedCartProducts.filter((product) => selectedCartItemIds.includes(product.id)),
+    [selectedCartItemIds, selectedCartProducts],
+  );
   const selectedCartItemCount = useMemo(
     () => selectedCartItemIds.filter((productId) => selectedCartProducts.some((product) => product.id === productId)).length,
     [selectedCartItemIds, selectedCartProducts],
@@ -432,6 +436,32 @@ export default function Home() {
         setIsSearchOpen(true);
         searchInputRef.current?.focus();
         searchInputRef.current?.select();
+        return;
+      }
+
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "c") {
+        const target = event.target;
+        if (
+          target instanceof HTMLElement
+          && (target.isContentEditable
+            || target instanceof HTMLInputElement
+            || target instanceof HTMLTextAreaElement
+            || target instanceof HTMLSelectElement)
+        ) {
+          return;
+        }
+
+        const selectedText = window.getSelection()?.toString().trim();
+        if (selectedText) {
+          return;
+        }
+
+        if (!selectedCartItems.length) {
+          return;
+        }
+
+        event.preventDefault();
+        void copyText(JSON.stringify(selectedCartItems, null, 2));
       }
     };
 
@@ -442,7 +472,7 @@ export default function Home() {
       document.removeEventListener("mousedown", handlePointerDown);
       window.removeEventListener("keydown", handleShortcut);
     };
-  }, []);
+  }, [selectedCartItems]);
 
   useEffect(() => {
     if (!isSearchOpen) {
