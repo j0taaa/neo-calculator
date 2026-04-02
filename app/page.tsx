@@ -1898,7 +1898,8 @@ export default function Home() {
 
       setSelectedCartItemIds(createdIds);
       setCartClipboardMessageIsError(false);
-      setCartClipboardMessage(`Pasted ${createdIds.length} item${createdIds.length === 1 ? "" : "s"} from clipboard.`);
+      setCartClipboardMessage("");
+      setCartCopyNotice(`Pasted ${createdIds.length} item${createdIds.length === 1 ? "" : "s"} from clipboard.`);
     } catch (error) {
       setCartClipboardMessageIsError(true);
       setCartClipboardMessage(error instanceof Error ? error.message : "Unable to paste cart items.");
@@ -3027,8 +3028,8 @@ export default function Home() {
                   </Button>
                 </div>
               ) : null}
-              {selectedList && cartClipboardMessage ? (
-                <p className={`mt-3 text-xs ${cartClipboardMessageIsError ? "text-red-600" : "text-zinc-500"}`}>{cartClipboardMessage}</p>
+              {selectedList && cartClipboardMessage && cartClipboardMessageIsError ? (
+                <p className="mt-3 text-xs text-red-600">{cartClipboardMessage}</p>
               ) : null}
             </CardHeader>
             <Separator />
