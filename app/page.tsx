@@ -1766,7 +1766,7 @@ export default function Home() {
 
   return (
     <div className="min-h-screen bg-zinc-100 p-4 text-zinc-900 lg:p-6">
-      <div className="mx-auto flex max-w-[1680px] flex-col gap-4">
+      <div className="mx-auto flex w-full max-w-none flex-col gap-4">
         <header className="rounded-xl border border-zinc-200 bg-white/90 px-4 py-3 backdrop-blur lg:px-6">
           <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between lg:gap-6">
@@ -2030,7 +2030,7 @@ export default function Home() {
           }}
         />
 
-        <main className="relative z-0 grid items-start gap-4 xl:grid-cols-[340px_minmax(0,1fr)_340px]">
+        <main className="relative z-0 grid items-start gap-4 xl:grid-cols-[24%_minmax(0,52%)_24%]">
           <Card className="overflow-hidden xl:sticky xl:top-24 xl:max-h-[calc(100vh-7rem)]">
             <CardHeader className="pb-3">
               <div className="flex items-center justify-between">
