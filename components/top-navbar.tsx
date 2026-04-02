@@ -36,16 +36,6 @@ export function TopNavbar() {
         </div>
         <nav className="justify-self-center flex items-center gap-2">
           <Link
-            href="/"
-            className={`rounded-full px-4 py-2 text-sm font-medium transition ${
-              isActive(pathname, "/")
-                ? "bg-zinc-950 text-white"
-                : "text-zinc-600 hover:bg-zinc-100 hover:text-zinc-950"
-            }`}
-          >
-            Dashboard
-          </Link>
-          <Link
             href="/projects"
             className={`rounded-full px-4 py-2 text-sm font-medium transition ${
               isActive(pathname, "/projects")
@@ -54,6 +44,16 @@ export function TopNavbar() {
             }`}
           >
             Projects
+          </Link>
+          <Link
+            href="/"
+            className={`rounded-full px-4 py-2 text-sm font-medium transition ${
+              isActive(pathname, "/")
+                ? "bg-zinc-950 text-white"
+                : "text-zinc-600 hover:bg-zinc-100 hover:text-zinc-950"
+            }`}
+          >
+            Dashboard
           </Link>
         </nav>
         <div className="justify-self-end flex items-center gap-2">
