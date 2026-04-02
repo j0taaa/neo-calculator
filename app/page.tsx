@@ -99,7 +99,7 @@ function OptionGrid({
           key={item}
           type="button"
           variant={item === value ? "default" : "secondary"}
-          className="justify-start rounded-md"
+          className="h-11 justify-start rounded-md"
           aria-pressed={item === value}
           onClick={() => onChange(item)}
         >
