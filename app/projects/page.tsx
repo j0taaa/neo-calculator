@@ -2599,7 +2599,7 @@ export default function ProjectsPage() {
                                               This cart does not have products yet.
                                             </div>
                                           ) : (
-                                            <div className="space-y-2">
+                                            <div className="grid grid-cols-1 gap-2 xl:grid-cols-2">
                                               {list.products.map((product) => {
                                                 const specsSummary = getProductSpecsSummary(product);
                                                 const serviceMeta = getServiceMeta(product.serviceCode, product.serviceName);
