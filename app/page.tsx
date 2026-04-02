@@ -108,13 +108,19 @@ function appendProductToProjects(
                   ...list,
                   updatedAt: payload.updatedAt,
                   productCount: list.productCount + 1,
-                  products: [payload, ...list.products],
+                  products: [...list.products, payload],
                 }
               : list,
           ),
         }
       : project,
   );
+}
+
+function getProductOrderTimestamp(product: AppProduct, fallbackIndex: number) {
+  const rawTimestamp = product.createdAt ?? product.updatedAt;
+  const parsedTimestamp = rawTimestamp ? Date.parse(rawTimestamp) : Number.NaN;
+  return Number.isFinite(parsedTimestamp) ? parsedTimestamp : fallbackIndex;
 }
 
 function toClipboardProductMutationBody(value: unknown): ProductMutationBody | null {
@@ -346,7 +352,17 @@ export default function Home() {
       case "price-asc":
         return [...nextProducts].sort((left, right) => parsePriceAmount(left) - parsePriceAmount(right));
       default:
-        return nextProducts;
+        return [...nextProducts]
+          .map((product, index) => ({ product, index }))
+          .sort((left, right) => {
+            const leftTimestamp = getProductOrderTimestamp(left.product, left.index);
+            const rightTimestamp = getProductOrderTimestamp(right.product, right.index);
+            if (leftTimestamp !== rightTimestamp) {
+              return leftTimestamp - rightTimestamp;
+            }
+            return left.index - right.index;
+          })
+          .map(({ product }) => product);
     }
   }, [cartServiceFilter, cartSortOption, normalizedCartSearchQuery, selectedCartProducts]);
   const hasActiveCartFilters = normalizedCartSearchQuery.length > 0 || cartServiceFilter !== "__all" || cartSortOption !== "default";
