@@ -25,7 +25,7 @@ export function TopNavbar() {
 
   const showSessionUi = hasMounted && !isPending;
 
-  if (pathname === "/") {
+  if (pathname === "/" || pathname === "/projects") {
     return null;
   }
 

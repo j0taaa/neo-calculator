@@ -11,6 +11,7 @@ import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
+import { authClient } from "@/lib/auth-client";
 import { findServiceCatalogEntry } from "@/lib/service-config";
 import { formatDate, formatDateTime, formatNumber } from "@/lib/utils";
 import { useSessionContext } from "@/components/session-provider";
@@ -22,7 +23,7 @@ import {
   downloadProjectWorkbookFile,
   downloadTextFile,
 } from "@/lib/resource-export";
-import { ArrowRightLeft, Check, ChevronDown, ChevronRight, Copy, Download, Link2, MoreHorizontal, Pencil, Plus, RefreshCw, Share2, ShoppingCart, Trash2, Upload, X } from "lucide-react";
+import { ArrowRightLeft, Check, ChevronDown, ChevronRight, Copy, Download, Link2, MoreHorizontal, Pencil, Plus, RefreshCw, Search, Share2, ShoppingCart, Trash2, Upload, X } from "lucide-react";
 
 type BillingOption = "Pay-per-use" | "RI" | "Yearly/Monthly" | "One-time";
 
@@ -2153,6 +2154,68 @@ export default function ProjectsPage() {
   return (
     <main className="min-h-screen bg-zinc-100 px-4 py-8 sm:px-6 lg:px-8">
       <div className="mx-auto max-w-6xl space-y-6">
+        <header className="rounded-xl border border-zinc-200 bg-white/90 px-4 py-3 backdrop-blur lg:px-6">
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+            <div className="flex flex-col gap-3 lg:flex-1 lg:flex-row lg:items-center lg:gap-6">
+              <div className="justify-self-start">
+                <Link href="/" className="block">
+                  <p className="text-xs font-medium tracking-[0.22em] text-zinc-500 uppercase">NeoCalculator</p>
+                </Link>
+              </div>
+              <nav className="flex items-center gap-2">
+                <Link
+                  href="/projects"
+                  className="rounded-full bg-zinc-950 px-4 py-2 text-sm font-medium text-white transition hover:bg-zinc-800"
+                >
+                  Projects
+                </Link>
+                <Link
+                  href="/"
+                  className="rounded-full px-4 py-2 text-sm font-medium text-zinc-600 transition hover:bg-zinc-100 hover:text-zinc-950"
+                >
+                  Dashboard
+                </Link>
+              </nav>
+              <Link
+                href="/"
+                className="flex h-11 w-full items-center justify-between rounded-full border border-zinc-200 bg-white px-4 text-left shadow-[0_18px_40px_-34px_rgba(15,23,42,0.35)] transition hover:border-zinc-300 lg:max-w-xl"
+              >
+                <span className="flex min-w-0 items-center gap-3">
+                  <Search className="size-4 text-zinc-400" />
+                  <span className="truncate text-sm text-zinc-500">Search service name</span>
+                </span>
+                <span className="rounded-full border border-zinc-200 bg-zinc-50 px-3 py-1 text-xs font-medium text-zinc-500">
+                  Ctrl K
+                </span>
+              </Link>
+            </div>
+            <div className="flex items-center justify-end gap-3">
+              {showSessionState && session ? (
+                <div className="hidden text-right sm:block">
+                  <p className="text-sm font-medium text-zinc-900">{session.user.name || session.user.email}</p>
+                  <p className="text-xs text-zinc-500">{session.user.email}</p>
+                </div>
+              ) : showSessionState ? null : <div className="hidden h-9 w-40 sm:block" aria-hidden="true" />}
+              {showSessionState && session ? (
+                <Button type="button" variant="outline" onClick={() => authClient.signOut()}>
+                  Sign Out
+                </Button>
+              ) : showSessionState ? (
+                <>
+                  <Link href="/sign-in" className={buttonVariants({ variant: "outline" })}>
+                    Sign In
+                  </Link>
+                  <Link href="/sign-up" className={buttonVariants()}>
+                    Create Account
+                  </Link>
+                </>
+              ) : (
+                <div className="h-8 w-44" aria-hidden="true" />
+              )}
+            </div>
+          </div>
+        </header>
+
         {!showSessionState ? (
           <Card>
             <CardContent className="py-12 text-center text-zinc-500">Checking session...</CardContent>
