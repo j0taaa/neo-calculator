@@ -75,7 +75,7 @@ export function CalculatorDiskConfigSection({
             </SelectTrigger>
             <SelectContent>
               {systemDiskOptions.map((option) => (
-                <SelectItem key={option} value={option}>
+                <SelectItem key={option} value={option} onClick={() => onSystemDiskTypeChange(option)}>
                   {option}
                 </SelectItem>
               ))}

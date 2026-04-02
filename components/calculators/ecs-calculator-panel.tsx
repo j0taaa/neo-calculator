@@ -144,7 +144,7 @@ export function EcsCalculatorPanel({
               </SelectTrigger>
               <SelectContent>
                 {flavorSortOptions.map((option) => (
-                  <SelectItem key={option.value} value={option.value}>
+                  <SelectItem key={option.value} value={option.value} onClick={() => onFlavorSortChange(option.value)}>
                     {option.label}
                   </SelectItem>
                 ))}
@@ -169,7 +169,7 @@ export function EcsCalculatorPanel({
               </SelectTrigger>
               <SelectContent>
                 {flavorPageSizeOptions.map((option) => (
-                  <SelectItem key={option} value={String(option)}>
+                  <SelectItem key={option} value={String(option)} onClick={() => onFlavorPageSizeChange(option)}>
                     {option} per page
                   </SelectItem>
                 ))}

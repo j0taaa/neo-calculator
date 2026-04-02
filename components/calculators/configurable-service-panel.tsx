@@ -152,7 +152,7 @@ export function ConfigurableServicePanel({
                         </SelectTrigger>
                         <SelectContent>
                           {(field.options ?? []).map((option) => (
-                            <SelectItem key={option.value} value={option.value}>
+                            <SelectItem key={option.value} value={option.value} onClick={() => field.onChange(option.value)}>
                               {option.label}
                             </SelectItem>
                           ))}
@@ -206,7 +206,7 @@ export function ConfigurableServicePanel({
                               </SelectTrigger>
                               <SelectContent>
                                 {(group.unitField.options ?? []).map((option) => (
-                                  <SelectItem key={option.value} value={option.value}>
+                                  <SelectItem key={option.value} value={option.value} onClick={() => group.unitField.onChange(option.value)}>
                                     {option.label}
                                   </SelectItem>
                                 ))}

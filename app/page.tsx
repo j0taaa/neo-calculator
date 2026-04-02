@@ -125,6 +125,34 @@ function isCalculatorSelectTrigger(element: HTMLElement) {
   return element.getAttribute("role") === "combobox" || element.getAttribute("data-slot") === "select-trigger";
 }
 
+function getVisibleOpenCalculatorSelectItems() {
+  return Array.from(document.querySelectorAll<HTMLElement>("[data-slot='select-content'] [data-slot='select-item']"))
+    .filter((item) => isVisibleCalculatorElement(item) && !item.hasAttribute("data-disabled"));
+}
+
+function chooseOpenCalculatorSelectItem(index: number) {
+  const visibleItems = getVisibleOpenCalculatorSelectItems().slice(0, 10);
+  const targetItem = visibleItems[index];
+  if (!targetItem) {
+    return false;
+  }
+
+  const rect = targetItem.getBoundingClientRect();
+  const clientX = rect.left + rect.width / 2;
+  const clientY = rect.top + rect.height / 2;
+  const target = document.elementFromPoint(clientX, clientY);
+  if (!(target instanceof HTMLElement)) {
+    return false;
+  }
+
+  target.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true, button: 0, clientX, clientY, pointerId: 1, pointerType: "mouse" }));
+  target.dispatchEvent(new MouseEvent("mousedown", { bubbles: true, button: 0, clientX, clientY }));
+  target.dispatchEvent(new PointerEvent("pointerup", { bubbles: true, button: 0, clientX, clientY, pointerId: 1, pointerType: "mouse" }));
+  target.dispatchEvent(new MouseEvent("mouseup", { bubbles: true, button: 0, clientX, clientY }));
+  target.click();
+  return true;
+}
+
 function getCalculatorActionButton() {
   const button = document.querySelector<HTMLElement>("[data-calculator-add-button]");
   if (!button || !isVisibleCalculatorElement(button)) {
@@ -263,6 +291,8 @@ export default function Home() {
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [activeSuggestionIndex, setActiveSuggestionIndex] = useState(0);
   const [isAltShortcutGuideVisible, setIsAltShortcutGuideVisible] = useState(false);
+  const [isAwaitingCalculatorSelectOptionShortcut, setIsAwaitingCalculatorSelectOptionShortcut] = useState(false);
+  const [altShortcutGuideRefreshTick, setAltShortcutGuideRefreshTick] = useState(0);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [cookieValue, setCookieValue] = useState("");
   const [cookieDraft, setCookieDraft] = useState("");
@@ -2076,7 +2106,11 @@ export default function Home() {
     }
 
     if (isCalculatorSelectTrigger(focusTarget)) {
+      setIsAwaitingCalculatorSelectOptionShortcut(true);
       focusTarget.click();
+      window.setTimeout(() => {
+        setAltShortcutGuideRefreshTick((current) => current + 1);
+      }, 0);
     }
 
     return true;
@@ -2098,6 +2132,26 @@ export default function Home() {
 
   useEffect(() => {
     const handleAltDigitShortcut = (event: KeyboardEvent) => {
+      if (
+        isAwaitingCalculatorSelectOptionShortcut
+        && !event.altKey
+        && !event.ctrlKey
+        && !event.metaKey
+        && !event.shiftKey
+      ) {
+        const digit = Number(event.key);
+        if (Number.isInteger(digit) && digit >= 0 && digit <= 9) {
+          const targetIndex = digit === 0 ? 9 : digit - 1;
+          setIsAwaitingCalculatorSelectOptionShortcut(false);
+          event.preventDefault();
+          event.stopPropagation();
+          window.setTimeout(() => {
+            chooseOpenCalculatorSelectItem(targetIndex);
+          }, 0);
+          return;
+        }
+      }
+
       if (event.altKey && !event.ctrlKey && !event.metaKey && !event.shiftKey && event.key.toLowerCase() === "a") {
         if (triggerCalculatorAddShortcut()) {
           event.preventDefault();
@@ -2124,12 +2178,16 @@ export default function Home() {
 
     document.addEventListener("keydown", handleAltDigitShortcut, true);
     return () => document.removeEventListener("keydown", handleAltDigitShortcut, true);
-  }, [focusCalculatorInputByIndex, triggerCalculatorAddShortcut]);
+  }, [focusCalculatorInputByIndex, isAwaitingCalculatorSelectOptionShortcut, triggerCalculatorAddShortcut]);
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Alt" && !event.ctrlKey && !event.metaKey) {
         setIsAltShortcutGuideVisible(true);
+      }
+
+      if (event.key === "Escape") {
+        setIsAwaitingCalculatorSelectOptionShortcut(false);
       }
     };
 
@@ -2156,32 +2214,66 @@ export default function Home() {
         group.removeAttribute("data-calculator-shortcut-index");
         group.removeAttribute("data-calculator-shortcut-visible");
       });
+      getVisibleOpenCalculatorSelectItems().forEach((item) => {
+        item.removeAttribute("data-calculator-shortcut-index");
+        item.removeAttribute("data-calculator-shortcut-visible");
+      });
       actionButton?.removeAttribute("data-calculator-shortcut-index");
       actionButton?.removeAttribute("data-calculator-shortcut-visible");
     };
 
     clearShortcutAttributes();
 
-    if (!isAltShortcutGuideVisible || activeTab !== "calculator") {
+    if ((!isAltShortcutGuideVisible && !isAwaitingCalculatorSelectOptionShortcut) || activeTab !== "calculator") {
       return clearShortcutAttributes;
     }
 
-    groups
-      .filter(isVisibleCalculatorElement)
-      .slice(0, 10)
-      .forEach((group, index) => {
-        group.setAttribute("data-calculator-shortcut-index", index === 9 ? "0" : String(index + 1));
-        group.setAttribute("data-calculator-shortcut-visible", "true");
-      });
+    const syncShortcutAttributes = () => {
+      clearShortcutAttributes();
+      const visibleOpenSelectItems = getVisibleOpenCalculatorSelectItems();
 
-    const visibleActionButton = getCalculatorActionButton();
-    if (visibleActionButton) {
-      visibleActionButton.setAttribute("data-calculator-shortcut-index", "A");
-      visibleActionButton.setAttribute("data-calculator-shortcut-visible", "true");
-    }
+      if (isAltShortcutGuideVisible) {
+        groups
+          .filter(isVisibleCalculatorElement)
+          .slice(0, 10)
+          .forEach((group, index) => {
+            group.setAttribute("data-calculator-shortcut-index", index === 9 ? "0" : String(index + 1));
+            group.setAttribute("data-calculator-shortcut-visible", "true");
+          });
+      }
 
-    return clearShortcutAttributes;
-  }, [activeTab, isAltShortcutGuideVisible]);
+      visibleOpenSelectItems
+        .slice(0, 10)
+        .forEach((item, index) => {
+          item.setAttribute("data-calculator-shortcut-index", index === 9 ? "0" : String(index + 1));
+          item.setAttribute("data-calculator-shortcut-visible", "true");
+        });
+
+      const visibleActionButton = getCalculatorActionButton();
+      if (visibleActionButton && isAltShortcutGuideVisible) {
+        visibleActionButton.setAttribute("data-calculator-shortcut-index", "A");
+        visibleActionButton.setAttribute("data-calculator-shortcut-visible", "true");
+      }
+    };
+
+    syncShortcutAttributes();
+
+    const observer = new MutationObserver(() => {
+      syncShortcutAttributes();
+    });
+
+    observer.observe(document.body, {
+      subtree: true,
+      childList: true,
+      attributes: true,
+      attributeFilter: ["data-open", "data-starting-style", "data-ending-style", "data-highlighted"],
+    });
+
+    return () => {
+      observer.disconnect();
+      clearShortcutAttributes();
+    };
+  }, [activeTab, altShortcutGuideRefreshTick, isAltShortcutGuideVisible, isAwaitingCalculatorSelectOptionShortcut]);
 
   useEffect(() => {
     const handlePointerDown = (event: MouseEvent) => {
@@ -3082,7 +3174,7 @@ export default function Home() {
                             </SelectTrigger>
                             <SelectContent>
                               {Object.entries(huaweiRegions).map(([value, labels]) => (
-                                <SelectItem key={value} value={value}>
+                                <SelectItem key={value} value={value} onClick={() => setRegionValue(value as HuaweiRegionKey)}>
                                   {labels.short}
                                 </SelectItem>
                               ))}
