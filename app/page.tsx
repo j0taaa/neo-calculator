@@ -2162,7 +2162,7 @@ export default function Home() {
         />
 
         <main className="relative z-0 grid items-start gap-4 xl:grid-cols-[24%_minmax(0,52%)_24%]">
-          <Card className="overflow-hidden xl:sticky xl:top-20 xl:max-h-[calc(100vh-6rem)]">
+          <Card className="overflow-hidden xl:sticky xl:top-16 xl:max-h-[calc(100vh-5rem)]">
             <CardHeader className="pb-3">
               <div className="flex items-center justify-between">
                 <div>
@@ -2688,7 +2688,7 @@ export default function Home() {
             </Tabs>
           </Card>
 
-          <Card className="overflow-hidden xl:sticky xl:top-20 xl:max-h-[calc(100vh-6rem)]">
+          <Card className="overflow-hidden xl:sticky xl:top-16 xl:max-h-[calc(100vh-5rem)]">
             <CardHeader className="pb-3">
               <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-start">
                 <div className="min-w-0">
