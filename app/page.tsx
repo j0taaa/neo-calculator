@@ -258,6 +258,7 @@ export default function Home() {
   const [selectedService, setSelectedService] = useState("Elastic Cloud Server");
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [activeSuggestionIndex, setActiveSuggestionIndex] = useState(0);
+  const [isAltShortcutGuideVisible, setIsAltShortcutGuideVisible] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [cookieValue, setCookieValue] = useState("");
   const [cookieDraft, setCookieDraft] = useState("");
@@ -2115,6 +2116,63 @@ export default function Home() {
     document.addEventListener("keydown", handleAltDigitShortcut, true);
     return () => document.removeEventListener("keydown", handleAltDigitShortcut, true);
   }, [focusCalculatorInputByIndex, triggerCalculatorAddShortcut]);
+
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Alt" && !event.ctrlKey && !event.metaKey) {
+        setIsAltShortcutGuideVisible(true);
+      }
+    };
+
+    const clearGuide = () => setIsAltShortcutGuideVisible(false);
+
+    window.addEventListener("keydown", handleKeyDown, true);
+    window.addEventListener("keyup", clearGuide, true);
+    window.addEventListener("blur", clearGuide);
+
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown, true);
+      window.removeEventListener("keyup", clearGuide, true);
+      window.removeEventListener("blur", clearGuide);
+    };
+  }, []);
+
+  useEffect(() => {
+    const shortcutRoot = document.querySelector<HTMLElement>("[data-calculator-shortcut-root]");
+    const groups = Array.from(shortcutRoot?.querySelectorAll<HTMLElement>("[data-calculator-focus-group]") ?? []);
+    const actionButton = document.querySelector<HTMLElement>("[data-calculator-add-button]");
+
+    const clearShortcutAttributes = () => {
+      groups.forEach((group) => {
+        group.removeAttribute("data-calculator-shortcut-index");
+        group.removeAttribute("data-calculator-shortcut-visible");
+      });
+      actionButton?.removeAttribute("data-calculator-shortcut-index");
+      actionButton?.removeAttribute("data-calculator-shortcut-visible");
+    };
+
+    clearShortcutAttributes();
+
+    if (!isAltShortcutGuideVisible || activeTab !== "calculator") {
+      return clearShortcutAttributes;
+    }
+
+    groups
+      .filter(isVisibleCalculatorElement)
+      .slice(0, 10)
+      .forEach((group, index) => {
+        group.setAttribute("data-calculator-shortcut-index", index === 9 ? "0" : String(index + 1));
+        group.setAttribute("data-calculator-shortcut-visible", "true");
+      });
+
+    const visibleActionButton = getCalculatorActionButton();
+    if (visibleActionButton) {
+      visibleActionButton.setAttribute("data-calculator-shortcut-index", "A");
+      visibleActionButton.setAttribute("data-calculator-shortcut-visible", "true");
+    }
+
+    return clearShortcutAttributes;
+  }, [activeTab, isAltShortcutGuideVisible]);
 
   useEffect(() => {
     const handlePointerDown = (event: MouseEvent) => {

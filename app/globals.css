@@ -127,3 +127,32 @@
     @apply font-sans;
   }
 }
+
+@layer components {
+  [data-calculator-focus-group][data-calculator-shortcut-visible="true"],
+  [data-calculator-add-button][data-calculator-shortcut-visible="true"] {
+    position: relative;
+  }
+
+  [data-calculator-focus-group][data-calculator-shortcut-visible="true"]::after,
+  [data-calculator-add-button][data-calculator-shortcut-visible="true"]::after {
+    content: attr(data-calculator-shortcut-index);
+    position: absolute;
+    top: -0.65rem;
+    left: 0.75rem;
+    z-index: 20;
+    min-width: 1.5rem;
+    height: 1.5rem;
+    padding: 0 0.375rem;
+    border-radius: 9999px;
+    border: 1px solid color-mix(in oklab, var(--color-primary) 18%, white);
+    background: color-mix(in oklab, var(--color-primary) 88%, white);
+    color: var(--color-primary-foreground);
+    font-size: 0.75rem;
+    font-weight: 700;
+    line-height: 1.5rem;
+    text-align: center;
+    box-shadow: 0 10px 30px -18px color-mix(in oklab, var(--color-primary) 50%, black);
+    pointer-events: none;
+  }
+}
