@@ -2212,7 +2212,7 @@ export default function Home() {
         </div>
       ) : null}
       <div className="mx-auto flex w-full max-w-none flex-col gap-4">
-        <header className="rounded-xl border border-zinc-200 bg-white/90 px-4 py-3 backdrop-blur lg:px-6">
+        <header className="relative z-30 rounded-xl border border-zinc-200 bg-white/90 px-4 py-3 backdrop-blur lg:px-6">
           <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
             <div className="flex flex-col gap-3 lg:flex-1 lg:flex-row lg:items-center lg:gap-6">
               <div className="justify-self-start">
