@@ -191,6 +191,15 @@ db.exec(`
     FOREIGN KEY (user_id) REFERENCES user(id) ON DELETE CASCADE,
     FOREIGN KEY (granted_by_user_id) REFERENCES user(id) ON DELETE CASCADE
   );
+
+  CREATE TABLE IF NOT EXISTS api_key (
+    id TEXT PRIMARY KEY,
+    user_id TEXT NOT NULL,
+    key_hash TEXT NOT NULL UNIQUE,
+    created_at TEXT NOT NULL,
+    last_used_at TEXT,
+    FOREIGN KEY (user_id) REFERENCES user(id) ON DELETE CASCADE
+  );
 `);
 
 db.exec(`
@@ -201,6 +210,8 @@ db.exec(`
   CREATE INDEX IF NOT EXISTS share_link_resource_idx ON share_link (resource_type, resource_id);
   CREATE INDEX IF NOT EXISTS project_collaborator_user_idx ON project_collaborator (user_id);
   CREATE INDEX IF NOT EXISTS project_list_collaborator_user_idx ON project_list_collaborator (user_id);
+  CREATE INDEX IF NOT EXISTS api_key_user_id_idx ON api_key (user_id);
+  CREATE INDEX IF NOT EXISTS api_key_hash_idx ON api_key (key_hash);
 `);
 
 ensureColumn("project_list", "huawei_cart_key", "TEXT");

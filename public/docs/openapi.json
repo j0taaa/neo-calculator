@@ -1,0 +1,859 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "NeoCalculator API",
+    "description": "API for NeoCalculator - A better version of the Huawei Cloud calculator. Use this API to access pricing information and manage your projects and lists programmatically.",
+    "version": "1.0.0",
+    "contact": {
+      "name": "NeoCalculator Support"
+    }
+  },
+  "servers": [
+    {
+      "url": "/api/v1",
+      "description": "Current version"
+    }
+  ],
+  "tags": [
+    {
+      "name": "Public",
+      "description": "Public endpoints that do not require authentication"
+    },
+    {
+      "name": "Private",
+      "description": "Private endpoints that require an API key"
+    }
+  ],
+  "paths": {
+    "/public/services": {
+      "get": {
+        "tags": ["Public"],
+        "summary": "List all available services",
+        "description": "Returns a list of all services available in the calculator with their codes, names, and categories.",
+        "operationId": "listServices",
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "services": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "code": { "type": "string", "example": "vpn" },
+                          "name": { "type": "string", "example": "Virtual Private Network" },
+                          "category": { "type": "string", "example": "Networking" },
+                          "pricingUrl": { "type": "string", "example": "/api/v1/public/catalog/vpn/pricing" }
+                        }
+                      }
+                    },
+                    "total": { "type": "integer", "example": 24 }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/public/regions": {
+      "get": {
+        "tags": ["Public"],
+        "summary": "List all available regions",
+        "description": "Returns a list of all Huawei Cloud regions available in the calculator.",
+        "operationId": "listRegions",
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "regions": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "code": { "type": "string", "example": "la-sao-paulo1" },
+                          "short": { "type": "string", "example": "LA-Sao Paulo1" },
+                          "full": { "type": "string", "example": "Sao Paulo, Brazil (1)" },
+                          "catalogRegionId": { "type": "string", "example": "sa-brazil-1", "nullable": true }
+                        }
+                      }
+                    },
+                    "total": { "type": "integer", "example": 24 }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/public/catalog/{service}/pricing": {
+      "get": {
+        "tags": ["Public"],
+        "summary": "Get pricing catalog for a service",
+        "description": "Returns the pricing catalog for a specific service in the specified region. The catalog contains all available pricing options, specifications, and rates.",
+        "operationId": "getServicePricing",
+        "parameters": [
+          {
+            "name": "service",
+            "in": "path",
+            "required": true,
+            "description": "The service code (e.g., vpn, cce, eip)",
+            "schema": {
+              "type": "string",
+              "example": "vpn"
+            }
+          },
+          {
+            "name": "region",
+            "in": "query",
+            "required": false,
+            "description": "The region code (defaults to la-sao-paulo1)",
+            "schema": {
+              "type": "string",
+              "default": "la-sao-paulo1",
+              "example": "la-sao-paulo1"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "service": { "type": "string", "example": "vpn" },
+                    "region": { "type": "string", "example": "la-sao-paulo1" },
+                    "catalogRegionId": { "type": "string", "example": "sa-brazil-1" },
+                    "catalog": {
+                      "type": "object",
+                      "description": "The pricing catalog for the service. Structure varies by service."
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid region or service",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" }
+              }
+            }
+          },
+          "404": {
+            "description": "Service not found",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/private/projects": {
+      "get": {
+        "tags": ["Private"],
+        "summary": "List all projects",
+        "description": "Returns all projects accessible to the authenticated user, including projects they own and projects they have access to through collaboration.",
+        "operationId": "listProjects",
+        "security": [{ "ApiKeyAuth": [] }],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": { "$ref": "#/components/schemas/Project" }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Invalid or missing API key",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": ["Private"],
+        "summary": "Create a new project",
+        "description": "Creates a new project for the authenticated user.",
+        "operationId": "createProject",
+        "security": [{ "ApiKeyAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["name"],
+                "properties": {
+                  "name": { "type": "string", "example": "My Project" },
+                  "description": { "type": "string", "nullable": true, "example": "Project description" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Project created successfully",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Project" }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request body",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" }
+              }
+            }
+          },
+          "401": {
+            "description": "Invalid or missing API key",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/private/projects/{projectId}": {
+      "get": {
+        "tags": ["Private"],
+        "summary": "Get a project by ID",
+        "description": "Returns a specific project by ID if the user has access.",
+        "operationId": "getProject",
+        "security": [{ "ApiKeyAuth": [] }],
+        "parameters": [
+          {
+            "name": "projectId",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "format": "uuid" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Project" }
+              }
+            }
+          },
+          "401": {
+            "description": "Invalid or missing API key",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" }
+              }
+            }
+          },
+          "404": {
+            "description": "Project not found",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": ["Private"],
+        "summary": "Update a project",
+        "description": "Updates a project's name and/or description. Only the project owner can rename a project.",
+        "operationId": "updateProject",
+        "security": [{ "ApiKeyAuth": [] }],
+        "parameters": [
+          {
+            "name": "projectId",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "format": "uuid" }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": { "type": "string", "example": "Updated Project Name" },
+                  "description": { "type": "string", "nullable": true, "example": "Updated description" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Project updated successfully",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Project" }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request body",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" }
+              }
+            }
+          },
+          "401": {
+            "description": "Invalid or missing API key",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" }
+              }
+            }
+          },
+          "403": {
+            "description": "Not authorized to update this project",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" }
+              }
+            }
+          },
+          "404": {
+            "description": "Project not found",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": ["Private"],
+        "summary": "Delete a project",
+        "description": "Deletes a project and all its lists. Only the project owner can delete a project.",
+        "operationId": "deleteProject",
+        "security": [{ "ApiKeyAuth": [] }],
+        "parameters": [
+          {
+            "name": "projectId",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "format": "uuid" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Project deleted successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": { "type": "string" },
+                    "deleted": { "type": "boolean" }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Invalid or missing API key",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" }
+              }
+            }
+          },
+          "403": {
+            "description": "Not authorized to delete this project",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" }
+              }
+            }
+          },
+          "404": {
+            "description": "Project not found",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/private/projects/{projectId}/lists": {
+      "post": {
+        "tags": ["Private"],
+        "summary": "Create a new list in a project",
+        "description": "Creates a new list (cart) in the specified project. Optionally imports products from a Huawei cart.",
+        "operationId": "createList",
+        "security": [{ "ApiKeyAuth": [] }],
+        "parameters": [
+          {
+            "name": "projectId",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "format": "uuid" }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": { "type": "string", "example": "My List" },
+                  "huaweiCartKey": { "type": "string", "nullable": true, "description": "Optional Huawei cart key to import from" },
+                  "cookie": { "type": "string", "nullable": true, "description": "Cookie for Huawei cart authentication if required" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "List created successfully",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/List" }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request body",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" }
+              }
+            }
+          },
+          "401": {
+            "description": "Invalid or missing API key",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" }
+              }
+            }
+          },
+          "403": {
+            "description": "Not authorized to create lists in this project",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" }
+              }
+            }
+          },
+          "404": {
+            "description": "Project not found",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/private/lists/{listId}": {
+      "get": {
+        "tags": ["Private"],
+        "summary": "Get a list by ID",
+        "description": "Returns a specific list by ID if the user has access.",
+        "operationId": "getList",
+        "security": [{ "ApiKeyAuth": [] }],
+        "parameters": [
+          {
+            "name": "listId",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "format": "uuid" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/List" }
+              }
+            }
+          },
+          "401": {
+            "description": "Invalid or missing API key",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" }
+              }
+            }
+          },
+          "404": {
+            "description": "List not found",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": ["Private"],
+        "summary": "Update a list",
+        "description": "Updates a list's name, Huawei cart link, or moves it to another project.",
+        "operationId": "updateList",
+        "security": [{ "ApiKeyAuth": [] }],
+        "parameters": [
+          {
+            "name": "listId",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "format": "uuid" }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": { "type": "string", "nullable": true },
+                  "huaweiCartKey": { "type": "string", "nullable": true },
+                  "huaweiCartName": { "type": "string", "nullable": true },
+                  "projectId": { "type": "string", "format": "uuid", "nullable": true }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "List updated successfully",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/List" }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request body",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" }
+              }
+            }
+          },
+          "401": {
+            "description": "Invalid or missing API key",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" }
+              }
+            }
+          },
+          "403": {
+            "description": "Not authorized to update this list",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" }
+              }
+            }
+          },
+          "404": {
+            "description": "List not found",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": ["Private"],
+        "summary": "Delete a list",
+        "description": "Deletes a list and all its products. Only the list owner can delete a list.",
+        "operationId": "deleteList",
+        "security": [{ "ApiKeyAuth": [] }],
+        "parameters": [
+          {
+            "name": "listId",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "format": "uuid" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List deleted successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": { "type": "string" },
+                    "projectId": { "type": "string" },
+                    "deleted": { "type": "boolean" }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Invalid or missing API key",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" }
+              }
+            }
+          },
+          "403": {
+            "description": "Not authorized to delete this list",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" }
+              }
+            }
+          },
+          "404": {
+            "description": "List not found",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/private/lists/{listId}/products": {
+      "get": {
+        "tags": ["Private"],
+        "summary": "List products in a list",
+        "description": "Returns all products in the specified list.",
+        "operationId": "listProducts",
+        "security": [{ "ApiKeyAuth": [] }],
+        "parameters": [
+          {
+            "name": "listId",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "format": "uuid" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": { "$ref": "#/components/schemas/Product" }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Invalid or missing API key",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" }
+              }
+            }
+          },
+          "404": {
+            "description": "List not found",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": ["Private"],
+        "summary": "Add a product to a list",
+        "description": "Adds a new product to the specified list.",
+        "operationId": "addProduct",
+        "security": [{ "ApiKeyAuth": [] }],
+        "parameters": [
+          {
+            "name": "listId",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "format": "uuid" }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["serviceCode", "serviceName", "productType", "title"],
+                "properties": {
+                  "serviceCode": { "type": "string", "example": "vpn" },
+                  "serviceName": { "type": "string", "example": "VPN" },
+                  "productType": { "type": "string", "example": "vpn" },
+                  "title": { "type": "string", "example": "VPN Gateway" },
+                  "quantity": { "type": "integer", "default": 1, "minimum": 1 },
+                  "config": { "type": "object", "description": "Service-specific configuration" },
+                  "pricing": { "type": "object", "nullable": true, "description": "Pricing information" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Product added successfully",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Product" }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request body",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" }
+              }
+            }
+          },
+          "401": {
+            "description": "Invalid or missing API key",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" }
+              }
+            }
+          },
+          "403": {
+            "description": "Not authorized to edit this list",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" }
+              }
+            }
+          },
+          "404": {
+            "description": "List not found",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "ApiKeyAuth": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "X-API-Key",
+        "description": "Your NeoCalculator API key. Generate one in your account settings."
+      }
+    },
+    "schemas": {
+      "Error": {
+        "type": "object",
+        "properties": {
+          "error": { "type": "string", "example": "Something went wrong" }
+        }
+      },
+      "Project": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string", "format": "uuid" },
+          "name": { "type": "string" },
+          "description": { "type": "string", "nullable": true },
+          "ownerUserId": { "type": "string" },
+          "accessLevel": { "type": "string", "enum": ["owner", "project_collaborator", "list_collaborator"] },
+          "canRename": { "type": "boolean" },
+          "canDelete": { "type": "boolean" },
+          "canCreateLists": { "type": "boolean" },
+          "canClone": { "type": "boolean" },
+          "canShare": { "type": "boolean" },
+          "canSyncHuawei": { "type": "boolean" },
+          "lists": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/List" }
+          },
+          "createdAt": { "type": "string", "format": "date-time" },
+          "updatedAt": { "type": "string", "format": "date-time" }
+        }
+      },
+      "List": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string", "format": "uuid" },
+          "projectId": { "type": "string", "format": "uuid" },
+          "name": { "type": "string" },
+          "ownerUserId": { "type": "string" },
+          "accessLevel": { "type": "string", "enum": ["owner", "project_collaborator", "list_collaborator"] },
+          "huaweiCartKey": { "type": "string", "nullable": true },
+          "huaweiCartName": { "type": "string", "nullable": true },
+          "huaweiLastSyncedAt": { "type": "string", "nullable": true, "format": "date-time" },
+          "huaweiLastError": { "type": "string", "nullable": true },
+          "productCount": { "type": "integer" },
+          "products": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/Product" }
+          },
+          "createdAt": { "type": "string", "format": "date-time" },
+          "updatedAt": { "type": "string", "format": "date-time" }
+        }
+      },
+      "Product": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string", "format": "uuid" },
+          "serviceCode": { "type": "string" },
+          "serviceName": { "type": "string" },
+          "productType": { "type": "string" },
+          "title": { "type": "string" },
+          "quantity": { "type": "integer" },
+          "config": { "type": "object" },
+          "pricing": { "type": "object", "nullable": true },
+          "createdAt": { "type": "string", "format": "date-time" },
+          "updatedAt": { "type": "string", "format": "date-time" }
+        }
+      }
+    }
+  }
+}

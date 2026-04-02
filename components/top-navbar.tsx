@@ -60,6 +60,12 @@ export function TopNavbar() {
           </Link>
         </nav>
         <div className="justify-self-end flex items-center gap-2">
+          <Link
+            href="/docs"
+            className="rounded-full px-4 py-2 text-sm font-medium text-zinc-600 transition hover:bg-zinc-100 hover:text-zinc-950"
+          >
+            Docs
+          </Link>
           {!showSessionUi ? (
             <div className="h-9 w-52" aria-hidden="true" />
           ) : session ? (
