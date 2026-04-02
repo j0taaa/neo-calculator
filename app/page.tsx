@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 
 import { CalculatorPanelRouter } from "@/components/calculators/calculator-panel-router";
-import { ActionMenu, ActionModal, HomeNavLink, type ActionMenuItem } from "@/components/home-page-shell-parts";
+import { ActionMenu, ActionModal, type ActionMenuItem } from "@/components/home-page-shell-parts";
 import { ServiceBatchAddPanel } from "@/components/calculators/service-batch-add-panel";
 import { UnsupportedServicePanel } from "@/components/calculators/unsupported-service-panel";
 import { Badge } from "@/components/ui/badge";
@@ -1767,21 +1767,8 @@ export default function Home() {
   return (
     <div className="min-h-screen bg-zinc-100 p-4 text-zinc-900 lg:p-6">
       <div className="mx-auto flex max-w-[1680px] flex-col gap-4">
-        <header className="sticky top-0 z-50 rounded-xl border border-zinc-200 bg-white/90 px-4 py-3 backdrop-blur lg:px-6">
-          <div className="grid grid-cols-[1fr_auto] items-center gap-4 lg:grid-cols-[1fr_auto_1fr]">
-            <div className="justify-self-start">
-              <p className="text-xs font-medium tracking-[0.22em] text-zinc-500 uppercase">NeoCalculator</p>
-              <p className="text-sm text-zinc-600">Calculator, carts, and projects.</p>
-            </div>
-            <nav className="hidden items-center gap-2 lg:flex lg:justify-self-center">
-              <HomeNavLink href="/projects" active={false}>
-                Projects
-              </HomeNavLink>
-              <HomeNavLink href="/" active>
-                Dashboard
-              </HomeNavLink>
-            </nav>
-            <div className="flex items-center justify-self-end gap-3">
+        <header className="rounded-xl border border-zinc-200 bg-white/90 px-4 py-3 backdrop-blur lg:px-6">
+          <div className="flex items-center justify-end gap-3">
               {isSignedIn ? (
                 <div className="hidden text-right sm:block">
                   <p className="text-sm font-medium text-zinc-900">{session?.user.name || session?.user.email}</p>
@@ -1866,16 +1853,7 @@ export default function Home() {
               ) : (
                 <div className="h-8 w-44" aria-hidden="true" />
               )}
-            </div>
           </div>
-          <nav className="mt-3 flex items-center gap-2 lg:hidden">
-            <HomeNavLink href="/projects" active={false}>
-              Projects
-            </HomeNavLink>
-            <HomeNavLink href="/" active>
-              Dashboard
-            </HomeNavLink>
-          </nav>
         </header>
 
         <div className="relative z-30 px-1 py-1 sm:px-2">

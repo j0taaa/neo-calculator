@@ -25,10 +25,6 @@ export function TopNavbar() {
 
   const showSessionUi = hasMounted && !isPending;
 
-  if (pathname === "/") {
-    return null;
-  }
-
   return (
     <header className="sticky top-0 z-50 border-b border-zinc-200 bg-white/90 backdrop-blur">
       <div className="mx-auto grid max-w-[1600px] grid-cols-[1fr_auto_1fr] items-center px-4 py-3 lg:px-6">
@@ -49,18 +45,16 @@ export function TopNavbar() {
           >
             Dashboard
           </Link>
-          {showSessionUi && session && (
-            <Link
-              href="/projects"
-              className={`rounded-full px-4 py-2 text-sm font-medium transition ${
-                isActive(pathname, "/projects")
-                  ? "bg-zinc-950 text-white"
-                  : "text-zinc-600 hover:bg-zinc-100 hover:text-zinc-950"
-              }`}
-            >
-              Projects
-            </Link>
-          )}
+          <Link
+            href="/projects"
+            className={`rounded-full px-4 py-2 text-sm font-medium transition ${
+              isActive(pathname, "/projects")
+                ? "bg-zinc-950 text-white"
+                : "text-zinc-600 hover:bg-zinc-100 hover:text-zinc-950"
+            }`}
+          >
+            Projects
+          </Link>
         </nav>
         <div className="justify-self-end flex items-center gap-2">
           {!showSessionUi ? (
