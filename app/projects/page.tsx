@@ -20,7 +20,7 @@ import {
   downloadProjectWorkbookFile,
   downloadTextFile,
 } from "@/lib/resource-export";
-import { ArrowRightLeft, Check, ChevronDown, ChevronRight, Copy, Download, Link2, MoreHorizontal, Pencil, RefreshCw, Share2, Trash2, Upload, X } from "lucide-react";
+import { ArrowRightLeft, Check, ChevronDown, ChevronRight, Copy, Download, Link2, MoreHorizontal, Pencil, Plus, RefreshCw, Share2, Trash2, Upload, X } from "lucide-react";
 
 type BillingOption = "Pay-per-use" | "RI" | "Yearly/Monthly" | "One-time";
 
@@ -91,6 +91,7 @@ type ActionMenuItem = {
 };
 
 type ActiveModal =
+  | { kind: "project-add-cart"; projectId: string }
   | { kind: "project-huawei"; projectId: string }
   | { kind: "project-clone"; projectId: string }
   | { kind: "project-share"; projectId: string }
@@ -1208,6 +1209,7 @@ export default function ProjectsPage() {
       setExpandedLists((current) => ({ ...current, [payload.id]: true }));
       setListDrafts((current) => ({ ...current, [projectId]: "" }));
       setListBaseDrafts((current) => ({ ...current, [projectId]: "" }));
+      setActiveModal((current) => (current?.kind === "project-add-cart" && current.projectId === projectId ? null : current));
 
       if (baseCartKey) {
         await loadHuaweiCarts();
@@ -2350,6 +2352,15 @@ export default function ProjectsPage() {
                             </>
                           ) : (
                             <>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                aria-label={`Add cart to ${project.name}`}
+                                onClick={() => openActionModal({ kind: "project-add-cart", projectId: project.id })}
+                                disabled={listPendingProjectId === project.id}
+                              >
+                                <Plus className="size-4" />
+                              </Button>
                               {project.canShare ? (
                                 <Button
                                   variant="ghost"
@@ -2388,48 +2399,6 @@ export default function ProjectsPage() {
                       {isExpanded ? (
                         <div className="border-t border-zinc-100 p-5">
                           <div className="space-y-4">
-                            <div className="flex flex-col gap-2 sm:flex-row">
-                              <Input
-                                value={listDrafts[project.id] ?? ""}
-                                onChange={(event) => setListDrafts((current) => ({ ...current, [project.id]: event.target.value }))}
-                                placeholder="New cart name"
-                              />
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => void handleCreateList(project.id)}
-                                disabled={listPendingProjectId === project.id}
-                              >
-                                {listPendingProjectId === project.id ? "Adding..." : "Add Cart"}
-                              </Button>
-                            </div>
-
-                            <Select
-                              value={listBaseDrafts[project.id] || "__blank"}
-                              onValueChange={(value) => {
-                                const nextValue = value && value !== "__blank" ? value : "";
-                                setListBaseDrafts((current) => ({
-                                  ...current,
-                                  [project.id]: nextValue,
-                                }));
-                              }}
-                            >
-                              <SelectTrigger className="bg-white">
-                                <SelectValue>
-                                  {listBaseDrafts[project.id]
-                                    ? `Base: ${huaweiCarts.find((cart) => cart.key === listBaseDrafts[project.id])?.name ?? "Huawei cart"}`
-                                    : "Base: Blank Neo cart"}
-                                </SelectValue>
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="__blank">Blank Neo cart</SelectItem>
-                                {huaweiCarts.map((cart) => (
-                                  <SelectItem key={cart.key} value={cart.key} disabled={Boolean(cart.associatedListId)}>
-                                    {cart.name}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
                             {projectHuaweiMessage || cloneMessage || projectImportMessage || projectExportMessage || projectShareMessage ? (
                               <div className="rounded-xl border bg-zinc-50 p-3">
                                 <div className="space-y-1 text-xs">
@@ -2700,7 +2669,9 @@ export default function ProjectsPage() {
       {activeModal && activeProject ? (
         <ActionModal
           title={
-            activeModal.kind === "project-huawei"
+            activeModal.kind === "project-add-cart"
+              ? "Add Cart"
+              : activeModal.kind === "project-huawei"
               ? "Create Huawei Carts"
               : activeModal.kind === "project-clone"
                 ? "Clone Project"
@@ -2715,7 +2686,9 @@ export default function ProjectsPage() {
                         : "Share Cart"
           }
           description={
-            activeModal.kind === "project-huawei"
+            activeModal.kind === "project-add-cart"
+              ? "Create a new cart in this project. Optionally start from one of the imported Huawei carts."
+              : activeModal.kind === "project-huawei"
               ? "Create or update one Huawei cart for every NeoCalculator cart in this project."
               : activeModal.kind === "project-clone"
                 ? "Clone every cart in this project into a new project, with optional region and billing conversion."
@@ -2731,6 +2704,55 @@ export default function ProjectsPage() {
           }
           onClose={() => setActiveModal(null)}
         >
+          {activeModal.kind === "project-add-cart" ? (
+            <>
+              <Input
+                value={listDrafts[activeProject.id] ?? ""}
+                onChange={(event) => setListDrafts((current) => ({ ...current, [activeProject.id]: event.target.value }))}
+                placeholder="New cart name"
+                autoFocus
+              />
+              <Select
+                value={listBaseDrafts[activeProject.id] || "__blank"}
+                onValueChange={(value) => {
+                  const nextValue = value && value !== "__blank" ? value : "";
+                  setListBaseDrafts((current) => ({
+                    ...current,
+                    [activeProject.id]: nextValue,
+                  }));
+                }}
+              >
+                <SelectTrigger className="bg-white">
+                  <SelectValue>
+                    {listBaseDrafts[activeProject.id]
+                      ? `Base: ${huaweiCarts.find((cart) => cart.key === listBaseDrafts[activeProject.id])?.name ?? "Huawei cart"}`
+                      : "Base: Blank Neo cart"}
+                  </SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__blank">Blank Neo cart</SelectItem>
+                  {huaweiCarts.map((cart) => (
+                    <SelectItem key={cart.key} value={cart.key} disabled={Boolean(cart.associatedListId)}>
+                      {cart.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {!cookieValue.trim() && listBaseDrafts[activeProject.id] ? (
+                <p className="text-sm text-zinc-500">Save a Huawei Cloud cookie on the dashboard before using a Huawei cart as the base.</p>
+              ) : null}
+              <div className="flex justify-end">
+                <Button
+                  variant="outline"
+                  onClick={() => void handleCreateList(activeProject.id)}
+                  disabled={listPendingProjectId === activeProject.id}
+                >
+                  {listPendingProjectId === activeProject.id ? "Adding..." : "Add Cart"}
+                </Button>
+              </div>
+            </>
+          ) : null}
+
           {activeModal.kind === "project-huawei" ? (
             <>
               {activeProjectHuaweiMessage ? (
