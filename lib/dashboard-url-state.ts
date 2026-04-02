@@ -2,6 +2,7 @@ import type { HuaweiRegionKey } from "@/lib/huawei-regions";
 import type { BillingOption } from "@/lib/calculator-page-helpers";
 
 export type ActiveModalKind =
+  | "project-add-cart"
   | "project-huawei"
   | "project-clone"
   | "project-share"
@@ -35,7 +36,7 @@ export type DashboardUrlState = {
 };
 
 const dashboardTabs = ["calculator", "batch-add"] as const;
-const modalKinds = ["project-huawei", "project-clone", "project-share", "list-link", "list-clone", "list-share"] as const;
+const modalKinds = ["project-add-cart", "project-huawei", "project-clone", "project-share", "list-link", "list-clone", "list-share"] as const;
 
 function isDashboardTab(value: unknown): value is DashboardTab {
   return typeof value === "string" && (dashboardTabs as readonly string[]).includes(value);

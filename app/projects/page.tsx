@@ -7,6 +7,7 @@ import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState, useS
 import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { ProjectAddCartModalContent } from "@/components/project-add-cart-modal-content";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -2792,52 +2793,17 @@ export default function ProjectsPage() {
           onClose={() => setActiveModal(null)}
         >
           {activeModal.kind === "project-add-cart" ? (
-            <>
-              <Input
-                value={listDrafts[activeProject.id] ?? ""}
-                onChange={(event) => setListDrafts((current) => ({ ...current, [activeProject.id]: event.target.value }))}
-                placeholder="New cart name"
-                autoFocus
-              />
-              <Select
-                value={listBaseDrafts[activeProject.id] || "__blank"}
-                onValueChange={(value) => {
-                  const nextValue = value && value !== "__blank" ? value : "";
-                  setListBaseDrafts((current) => ({
-                    ...current,
-                    [activeProject.id]: nextValue,
-                  }));
-                }}
-              >
-                <SelectTrigger className="bg-white">
-                  <SelectValue>
-                    {listBaseDrafts[activeProject.id]
-                      ? `Base: ${huaweiCarts.find((cart) => cart.key === listBaseDrafts[activeProject.id])?.name ?? "Huawei cart"}`
-                      : "Base: Blank Neo cart"}
-                  </SelectValue>
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="__blank">Blank Neo cart</SelectItem>
-                  {huaweiCarts.map((cart) => (
-                    <SelectItem key={cart.key} value={cart.key} disabled={Boolean(cart.associatedListId)}>
-                      {cart.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {!cookieValue.trim() && listBaseDrafts[activeProject.id] ? (
-                <p className="text-sm text-zinc-500">Save a Huawei Cloud cookie on the dashboard before using a Huawei cart as the base.</p>
-              ) : null}
-              <div className="flex justify-end">
-                <Button
-                  variant="outline"
-                  onClick={() => void handleCreateList(activeProject.id)}
-                  disabled={listPendingProjectId === activeProject.id}
-                >
-                  {listPendingProjectId === activeProject.id ? "Adding..." : "Add Cart"}
-                </Button>
-              </div>
-            </>
+            <ProjectAddCartModalContent
+              projectId={activeProject.id}
+              listName={listDrafts[activeProject.id] ?? ""}
+              onListNameChange={(value) => setListDrafts((current) => ({ ...current, [activeProject.id]: value }))}
+              baseCartKey={listBaseDrafts[activeProject.id] ?? ""}
+              onBaseCartKeyChange={(value) => setListBaseDrafts((current) => ({ ...current, [activeProject.id]: value }))}
+              huaweiCarts={huaweiCarts}
+              cookieValue={cookieValue}
+              pending={listPendingProjectId === activeProject.id}
+              onSubmit={() => void handleCreateList(activeProject.id)}
+            />
           ) : null}
 
           {activeModal.kind === "project-huawei" ? (

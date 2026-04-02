@@ -6,6 +6,7 @@ import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react"
 
 import { CalculatorPanelRouter } from "@/components/calculators/calculator-panel-router";
 import { ActionMenu, ActionModal, type ActionMenuItem } from "@/components/home-page-shell-parts";
+import { ProjectAddCartModalContent } from "@/components/project-add-cart-modal-content";
 import { ServiceBatchAddPanel } from "@/components/calculators/service-batch-add-panel";
 import { UnsupportedServicePanel } from "@/components/calculators/unsupported-service-panel";
 import { Badge } from "@/components/ui/badge";
@@ -34,7 +35,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Check, ChevronDown, ChevronRight, Copy, Download, Link2, Pencil, RefreshCw, RotateCcw, Search, Share2, SlidersHorizontal, Trash2, Upload, UserCircle2, X } from "lucide-react";
+import { Check, ChevronDown, ChevronRight, Copy, Download, Link2, Pencil, Plus, RefreshCw, RotateCcw, Search, Share2, SlidersHorizontal, Trash2, Upload, UserCircle2, X } from "lucide-react";
 import {
   copyText,
   getCartCloneDefaultName,
@@ -963,6 +964,7 @@ export default function Home() {
       setListDrafts((current) => ({ ...current, [projectId]: "" }));
       setListBaseDrafts((current) => ({ ...current, [projectId]: "" }));
       setExpandedProjects((current) => ({ ...current, [projectId]: true }));
+      setActiveModal((current) => (current?.kind === "project-add-cart" && "projectId" in current && current.projectId === projectId ? null : current));
       setHuaweiActionMessage(baseCartKey ? `Imported ${list.name} from Huawei Cloud Calculator.` : "");
       if (baseCartKey) {
         await loadHuaweiCarts();
@@ -2550,6 +2552,15 @@ export default function Home() {
                               </>
                             ) : (
                               <>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  aria-label={`Add cart to ${project.name}`}
+                                  onClick={() => openActionModal({ kind: "project-add-cart", projectId: project.id })}
+                                  disabled={listPendingProjectId === project.id}
+                                >
+                                  <Plus className="size-4" />
+                                </Button>
                                 {project.canShare ? (
                                   <Button
                                     variant="ghost"
@@ -2592,49 +2603,6 @@ export default function Home() {
                         {isExpanded ? (
                           <div className="border-t border-zinc-100 px-3 py-3">
                             <div className="space-y-2">
-                              <div className="flex gap-2">
-                                <Input
-                                  value={listDrafts[project.id] ?? ""}
-                                  onChange={(event) => setListDrafts((current) => ({ ...current, [project.id]: event.target.value }))}
-                                  placeholder="New list name"
-                                />
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={() => handleCreateList(project.id)}
-                                  disabled={listPendingProjectId === project.id}
-                                >
-                                  {listPendingProjectId === project.id ? "Adding..." : "Add List"}
-                                </Button>
-                              </div>
-                              <Select
-                                value={listBaseDrafts[project.id] || "__blank"}
-                                onValueChange={(value) => {
-                                  const nextValue = value && value !== "__blank" ? value : "";
-                                  setListBaseDrafts((current) => ({
-                                    ...current,
-                                    [project.id]: nextValue,
-                                  }));
-                                }}
-                              >
-                                <SelectTrigger className="bg-white">
-                                  <SelectValue>
-                                    {listBaseDrafts[project.id]
-                                      ? `Base: ${huaweiCarts.find((cart) => cart.key === listBaseDrafts[project.id])?.name ?? "Huawei cart"}`
-                                      : "Base: Blank Neo cart"}
-                                  </SelectValue>
-                                </SelectTrigger>
-                                <SelectContent>
-                                  <SelectItem value="__blank">Blank Neo cart</SelectItem>
-                                  {huaweiCarts.map((cart) => {
-                                    return (
-                                      <SelectItem key={cart.key} value={cart.key} disabled={Boolean(cart.associatedListId)}>
-                                        {cart.name}
-                                      </SelectItem>
-                                    );
-                                  })}
-                                </SelectContent>
-                              </Select>
                               {projectHuaweiMessage || projectCloneMessage || projectImportMessage || projectExportMessage || projectShareMessage ? (
                                 <div className="rounded-lg border bg-zinc-50 p-3">
                                   <div className="space-y-1 text-xs">
@@ -3226,7 +3194,9 @@ export default function Home() {
         {activeModal && activeProject ? (
           <ActionModal
             title={
-              activeModal.kind === "project-huawei"
+              activeModal.kind === "project-add-cart"
+                ? "Add Cart"
+                : activeModal.kind === "project-huawei"
                 ? "Create Huawei Carts"
                 : activeModal.kind === "project-clone"
                   ? "Clone Project"
@@ -3239,7 +3209,9 @@ export default function Home() {
                         : "Share Cart"
             }
             description={
-              activeModal.kind === "project-huawei"
+              activeModal.kind === "project-add-cart"
+                ? "Create a new cart in this project. Optionally start from one of the imported Huawei carts."
+                : activeModal.kind === "project-huawei"
                 ? "Create or update one Huawei cart for every NeoCalculator cart in this project."
                 : activeModal.kind === "project-clone"
                   ? "Clone every cart in this project into a new project, with optional region and billing conversion."
@@ -3253,6 +3225,20 @@ export default function Home() {
             }
             onClose={() => setActiveModal(null)}
           >
+            {activeModal.kind === "project-add-cart" ? (
+              <ProjectAddCartModalContent
+                projectId={activeProject.id}
+                listName={listDrafts[activeProject.id] ?? ""}
+                onListNameChange={(value) => setListDrafts((current) => ({ ...current, [activeProject.id]: value }))}
+                baseCartKey={listBaseDrafts[activeProject.id] ?? ""}
+                onBaseCartKeyChange={(value) => setListBaseDrafts((current) => ({ ...current, [activeProject.id]: value }))}
+                huaweiCarts={huaweiCarts}
+                cookieValue={cookieValue}
+                pending={listPendingProjectId === activeProject.id}
+                onSubmit={() => void handleCreateList(activeProject.id)}
+              />
+            ) : null}
+
             {activeModal.kind === "project-huawei" ? (
               <>
                 {activeProjectHuaweiMessage ? (
