@@ -34,7 +34,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Check, ChevronDown, ChevronRight, Copy, Download, Link2, Pencil, RefreshCw, Search, Share2, Trash2, Upload, UserCircle2, X } from "lucide-react";
+import { Check, ChevronDown, ChevronRight, Copy, Download, Link2, Pencil, RefreshCw, RotateCcw, Search, Share2, SlidersHorizontal, Trash2, Upload, UserCircle2, X } from "lucide-react";
 import {
   copyText,
   getCartCloneDefaultName,
@@ -65,6 +65,8 @@ type ActiveModal =
   | { kind: ActiveModalKind; projectId: string }
   | { kind: ActiveModalKind; listId: string }
   | null;
+
+type CartSortOption = "default" | "title-asc" | "title-desc" | "price-desc" | "price-asc";
 
 type ResourceExportModalState = {
   title: string;
@@ -182,12 +184,17 @@ export default function Home() {
   const [openProjectMenuId, setOpenProjectMenuId] = useState<string | null>(null);
   const [isProjectCreateMenuOpen, setIsProjectCreateMenuOpen] = useState(false);
   const [isCartMenuOpen, setIsCartMenuOpen] = useState(false);
+  const [cartSearchQuery, setCartSearchQuery] = useState("");
+  const [isCartFiltersOpen, setIsCartFiltersOpen] = useState(false);
+  const [cartServiceFilter, setCartServiceFilter] = useState("__all");
+  const [cartSortOption, setCartSortOption] = useState<CartSortOption>("default");
   const [activeModal, setActiveModal] = useState<ActiveModal>(null);
   const [importCartTargetProjectId, setImportCartTargetProjectId] = useState<string | null>(null);
   const [importCartPendingProjectId, setImportCartPendingProjectId] = useState<string | null>(null);
   const searchAreaRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const profileAreaRef = useRef<HTMLDivElement>(null);
+  const cartFilterAreaRef = useRef<HTMLDivElement>(null);
   const projectImportInputRef = useRef<HTMLInputElement>(null);
   const cartImportInputRef = useRef<HTMLInputElement>(null);
   const listboxId = `${useId()}-services`;
@@ -223,7 +230,60 @@ export default function Home() {
   );
   const selectedProject = projects.find((project) => project.lists.some((list) => list.id === selectedListId)) ?? null;
   const selectedList = selectedProject?.lists.find((list) => list.id === selectedListId) ?? null;
-  const selectedCartProducts = selectedList?.products ?? [];
+  const selectedCartProducts = useMemo(() => selectedList?.products ?? [], [selectedList?.products]);
+  const normalizedCartSearchQuery = cartSearchQuery.trim().toLowerCase();
+  const cartServiceFilterOptions = useMemo(() => {
+    const seen = new Map<string, string>();
+    selectedCartProducts.forEach((product) => {
+      if (!seen.has(product.serviceCode)) {
+        seen.set(product.serviceCode, product.serviceName);
+      }
+    });
+    return Array.from(seen.entries()).map(([serviceCode, serviceName]) => ({ serviceCode, serviceName }));
+  }, [selectedCartProducts]);
+  const filteredCartProducts = useMemo(() => {
+    const matchesSearch = (product: AppProduct) => {
+      if (!normalizedCartSearchQuery) {
+        return true;
+      }
+
+      const haystack = [
+        product.title,
+        product.serviceName,
+        product.serviceCode,
+        product.productType,
+        getProductConfigSummary(product),
+      ]
+        .join(" ")
+        .toLowerCase();
+      return haystack.includes(normalizedCartSearchQuery);
+    };
+
+    const matchesService = (product: AppProduct) => {
+      return cartServiceFilter === "__all" || product.serviceCode === cartServiceFilter;
+    };
+
+    const parsePriceAmount = (product: AppProduct) => {
+      const amountText = splitProductPriceSummary(product).amount.replace(/[^0-9.]+/g, "");
+      const amount = Number(amountText);
+      return Number.isFinite(amount) ? amount : 0;
+    };
+
+    const nextProducts = selectedCartProducts.filter((product) => matchesSearch(product) && matchesService(product));
+    switch (cartSortOption) {
+      case "title-asc":
+        return [...nextProducts].sort((left, right) => left.title.localeCompare(right.title));
+      case "title-desc":
+        return [...nextProducts].sort((left, right) => right.title.localeCompare(left.title));
+      case "price-desc":
+        return [...nextProducts].sort((left, right) => parsePriceAmount(right) - parsePriceAmount(left));
+      case "price-asc":
+        return [...nextProducts].sort((left, right) => parsePriceAmount(left) - parsePriceAmount(right));
+      default:
+        return nextProducts;
+    }
+  }, [cartServiceFilter, cartSortOption, normalizedCartSearchQuery, selectedCartProducts]);
+  const hasActiveCartFilters = normalizedCartSearchQuery.length > 0 || cartServiceFilter !== "__all" || cartSortOption !== "default";
   const activeProject =
     activeModal == null
       ? null
@@ -348,6 +408,12 @@ export default function Home() {
       }
 
       setIsProfileOpen(false);
+
+      if (cartFilterAreaRef.current?.contains(event.target as Node)) {
+        return;
+      }
+
+      setIsCartFiltersOpen(false);
     };
 
     const handleShortcut = (event: KeyboardEvent) => {
@@ -380,6 +446,13 @@ export default function Home() {
 
     return () => window.clearTimeout(timeoutId);
   }, [isSearchOpen]);
+
+  useEffect(() => {
+    setCartSearchQuery("");
+    setCartServiceFilter("__all");
+    setCartSortOption("default");
+    setIsCartFiltersOpen(false);
+  }, [selectedList?.id]);
 
   useEffect(() => {
     if (!openProjectMenuId && !isCartMenuOpen && !isProjectCreateMenuOpen) {
@@ -2617,7 +2690,11 @@ export default function Home() {
                   ) : null}
                 </div>
                 <div className="flex flex-wrap items-center gap-2 lg:justify-end">
-                  <Badge variant="outline">{selectedCartProducts.length} items</Badge>
+                  <Badge variant="outline">
+                    {filteredCartProducts.length === selectedCartProducts.length
+                      ? `${selectedCartProducts.length} items`
+                      : `${filteredCartProducts.length} of ${selectedCartProducts.length} items`}
+                  </Badge>
                   {selectedList?.huaweiCartKey ? <Badge variant="secondary">Huawei linked</Badge> : null}
                   {selectedList?.canShare ? (
                     <Button
@@ -2640,6 +2717,87 @@ export default function Home() {
                   ) : null}
                 </div>
               </div>
+              {selectedList ? (
+                <div className="mt-3 flex items-center gap-2">
+                  <div className="relative min-w-0 flex-1">
+                    <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-zinc-400" />
+                    <Input
+                      value={cartSearchQuery}
+                      onChange={(event) => setCartSearchQuery(event.target.value)}
+                      placeholder="Search cart items"
+                      className="h-10 bg-white pl-9"
+                      aria-label="Search cart items"
+                    />
+                  </div>
+                  <div ref={cartFilterAreaRef} className="relative">
+                    <Button
+                      type="button"
+                      variant={isCartFiltersOpen || hasActiveCartFilters ? "default" : "outline"}
+                      size="icon"
+                      onClick={() => setIsCartFiltersOpen((current) => !current)}
+                      aria-label="Open cart filters"
+                      aria-expanded={isCartFiltersOpen}
+                    >
+                      <SlidersHorizontal className="size-4" />
+                    </Button>
+                    {isCartFiltersOpen ? (
+                      <div className="absolute top-full right-0 z-20 mt-2 w-72 rounded-xl border border-zinc-200 bg-white p-3 shadow-[0_18px_40px_-30px_rgba(15,23,42,0.35)]">
+                        <div className="flex items-center justify-between gap-3">
+                          <p className="text-sm font-medium text-zinc-950">Filter & Sort</p>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            className="h-8 px-2"
+                            onClick={() => {
+                              setCartSearchQuery("");
+                              setCartServiceFilter("__all");
+                              setCartSortOption("default");
+                            }}
+                            disabled={!hasActiveCartFilters}
+                          >
+                            <RotateCcw className="size-4" />
+                            Default
+                          </Button>
+                        </div>
+                        <div className="mt-3 space-y-3">
+                          <div className="space-y-1.5">
+                            <p className="text-xs font-medium tracking-[0.16em] text-zinc-500 uppercase">Service</p>
+                            <Select value={cartServiceFilter} onValueChange={setCartServiceFilter}>
+                              <SelectTrigger className="bg-white">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="__all">All services</SelectItem>
+                                {cartServiceFilterOptions.map((option) => (
+                                  <SelectItem key={option.serviceCode} value={option.serviceCode}>
+                                    {option.serviceName}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <div className="space-y-1.5">
+                            <p className="text-xs font-medium tracking-[0.16em] text-zinc-500 uppercase">Order</p>
+                            <Select value={cartSortOption} onValueChange={(value) => setCartSortOption(value as CartSortOption)}>
+                              <SelectTrigger className="bg-white">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="default">Saved order</SelectItem>
+                                <SelectItem value="title-asc">Title A-Z</SelectItem>
+                                <SelectItem value="title-desc">Title Z-A</SelectItem>
+                                <SelectItem value="price-desc">Price high to low</SelectItem>
+                                <SelectItem value="price-asc">Price low to high</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        </div>
+                      </div>
+                    ) : null}
+                  </div>
+                </div>
+              ) : null}
             </CardHeader>
             <Separator />
             <CardContent className="px-0">
@@ -2657,7 +2815,13 @@ export default function Home() {
                     </div>
                   ) : null}
 
-                  {selectedCartProducts.map((product) => {
+                  {selectedList && selectedCartProducts.length > 0 && filteredCartProducts.length === 0 ? (
+                    <div className="rounded-lg border border-dashed bg-zinc-50 p-4 text-sm text-zinc-500">
+                      No cart items matched the current search or filter settings.
+                    </div>
+                  ) : null}
+
+                  {filteredCartProducts.map((product) => {
                     const serviceMeta = getServiceMeta(product.serviceCode, product.serviceName);
                     const priceSummary = splitProductPriceSummary(product);
                     const isEditingProduct = editingProductId === product.id;
