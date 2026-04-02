@@ -17,6 +17,7 @@ test("service registry exposes the legacy service catalog and supported service 
   expect(findServiceCatalogEntry("OBS")?.name).toBe("Object Storage Service");
   expect(supportedCalculatorServiceCodes).toContain("EVS");
   expect(supportedBatchAddServiceCodes).toContain("EVS");
+  expect(configurableServiceCodes.every((serviceCode) => supportedBatchAddServiceCodes.includes(serviceCode))).toBe(true);
 });
 
 test("EVS pilot definition loads from typed TS config with declarative conditional fields", () => {

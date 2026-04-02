@@ -556,8 +556,11 @@ for (const metadata of serviceRegistry.definitions) {
 
 export const serviceCatalog = serviceRegistry.services;
 export const supportedCalculatorServiceCodes = [...serviceRegistry.supportedCalculatorServiceCodes];
-export const supportedBatchAddServiceCodes = [...serviceRegistry.supportedBatchAddServiceCodes];
 export const configurableServiceCodes = [...configurableServiceBundles.keys()];
+export const supportedBatchAddServiceCodes = Array.from(new Set([
+  ...serviceRegistry.supportedBatchAddServiceCodes,
+  ...configurableServiceCodes,
+]));
 
 export function findServiceCatalogEntry(serviceCode: string, serviceName?: string) {
   return serviceCatalog.find((service) => service.code === serviceCode)

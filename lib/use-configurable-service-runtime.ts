@@ -80,6 +80,54 @@ function stringifyConfigValue(value: unknown) {
   return String(value);
 }
 
+function normalizeBatchFieldValue(fieldType: ServiceDefinition["fields"][number]["type"], value: unknown) {
+  if (fieldType === "checkbox") {
+    return value === true || value === "true" || value === "Enabled" ? "true" : "false";
+  }
+
+  return stringifyConfigValue(value);
+}
+
+function toPositiveInteger(value: unknown, fallback: number) {
+  const parsed = typeof value === "number" ? value : Number(value);
+  if (!Number.isFinite(parsed)) {
+    return fallback;
+  }
+  return Math.max(1, Math.floor(parsed));
+}
+
+function toPositiveNumberString(value: unknown, fallback: string) {
+  if (typeof value === "string" && value.trim().length > 0) {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) && parsed > 0 ? value : fallback;
+  }
+
+  if (typeof value === "number" && Number.isFinite(value) && value > 0) {
+    return String(value);
+  }
+
+  return fallback;
+}
+
+function parseBatchExampleValue(fieldType: ServiceDefinition["fields"][number]["type"], value: unknown) {
+  if (value == null) {
+    return fieldType === "checkbox" ? false : value;
+  }
+
+  if (fieldType === "checkbox") {
+    return value === true || value === "true" || value === "Enabled";
+  }
+
+  if (fieldType === "number") {
+    const parsed = typeof value === "number" ? value : Number(value);
+    if (Number.isFinite(parsed)) {
+      return parsed;
+    }
+  }
+
+  return value;
+}
+
 function toBillingMode(value: unknown, fallback: BillingOption): BillingOption {
   return value === "RI" || value === "Yearly/Monthly" || value === "Pay-per-use" || value === "One-time" ? value : fallback;
 }
@@ -88,6 +136,47 @@ function buildDefaultValues(definition: ServiceDefinition) {
   return Object.fromEntries(
     definition.fields.map((field) => [field.id, stringifyConfigValue(definition.defaults[field.id])]),
   ) as Record<string, string>;
+}
+
+function buildGenericBatchPlaceholder(definition: ServiceDefinition, values: Record<string, string>) {
+  const example = Object.fromEntries(
+    definition.fields.map((field) => {
+      const activeValue = values[field.id];
+      const defaultValue = definition.defaults[field.id];
+      return [field.id, parseBatchExampleValue(field.type, activeValue !== undefined && activeValue !== "" ? activeValue : defaultValue)];
+    }),
+  );
+
+  return JSON.stringify([example], null, 2);
+}
+
+function buildGenericBatchDefaults(definition: ServiceDefinition, values: Record<string, string>, billingMode: BillingOption, usageHours: string) {
+  const lines = [
+    "Unspecified keys use the current calculator values.",
+    `billingMode: ${billingMode}`,
+  ];
+
+  if (usageHours.trim().length > 0) {
+    lines.push(`usageHours: ${usageHours}`);
+  }
+
+  for (const field of definition.fields) {
+    const value = values[field.id];
+    if (value == null || value === "") {
+      continue;
+    }
+    lines.push(`${field.id}: ${value}`);
+  }
+
+  return lines.join("\n");
+}
+
+function buildGenericBatchValidation(definition: ServiceDefinition) {
+  return [
+    "Provide a non-empty JSON array of objects.",
+    "Each object may override any field id for this service.",
+    `Supported field ids: ${definition.fields.map((field) => field.id).join(", ")}`,
+  ].join("\n");
 }
 
 function readPath(value: unknown, path: string) {
@@ -1133,6 +1222,176 @@ export function useConfigurableServiceRuntime({
     }
   }, [replaceServiceValues, setBillingMode, updateUsageHours]);
 
+  const buildScopedCatalogView = useCallback((values: Record<string, string>, nextBillingMode: BillingOption, nextUsageHours: string, nextUsageHoursValue: number, nextInstanceCountValue: number) => {
+    if (!selectedServiceDefinition) {
+      return null;
+    }
+
+    const baseScope = buildRuntimeScope({
+      definition: selectedServiceDefinition,
+      selectedServiceCode,
+      selectedService,
+      values,
+      catalog,
+      catalogRegionId,
+      pricingError,
+      regionValue,
+      billingMode: nextBillingMode,
+      usageHours: nextUsageHours,
+      usageHoursValue: nextUsageHoursValue,
+      instanceCountValue: nextInstanceCountValue,
+    });
+
+    if (typedRuntimeDefinition) {
+      if (typedRuntimeDefinition.catalogView) {
+        return evaluateDeclarativeValue(typedRuntimeDefinition.catalogView, baseScope);
+      }
+      return evaluateDeclarativeDerivedValues(typedRuntimeDefinition.derived, baseScope);
+    }
+
+    if (!runtimeDefinition?.catalogViewExpression) {
+      return null;
+    }
+
+    return evaluateDefinitionExpression(runtimeDefinition.catalogViewExpression, baseScope);
+  }, [
+    catalog,
+    catalogRegionId,
+    pricingError,
+    regionValue,
+    runtimeDefinition?.catalogViewExpression,
+    selectedService,
+    selectedServiceCode,
+    selectedServiceDefinition,
+    typedRuntimeDefinition,
+  ]);
+
+  const buildBatchScopeForItem = useCallback((item: unknown) => {
+    if (!selectedServiceDefinition || !isRecord(item)) {
+      return null;
+    }
+
+    const itemConfig = isRecord(item.config) ? item.config : null;
+    const mergedItemValues = {
+      ...(itemConfig ?? {}),
+      ...item,
+    };
+
+    let values = {
+      ...buildDefaultValues(selectedServiceDefinition),
+      ...activeValues,
+    };
+
+    for (const field of selectedServiceDefinition.fields) {
+      if (mergedItemValues[field.id] !== undefined) {
+        values = {
+          ...values,
+          [field.id]: normalizeBatchFieldValue(field.type, mergedItemValues[field.id]),
+        };
+      }
+    }
+
+    let nextBillingMode = toBillingMode(
+      mergedItemValues.billingMode ?? mergedItemValues.mode ?? values.billingMode ?? billingMode,
+      billingMode,
+    );
+    let nextUsageHours = toPositiveNumberString(
+      mergedItemValues.usageHours ?? mergedItemValues.hours ?? values.usageHours,
+      usageHours,
+    );
+    let nextUsageHoursValue = toPositiveInteger(
+      mergedItemValues.usageHours ?? mergedItemValues.hours ?? values.usageHours,
+      usageHoursValue,
+    );
+    let nextInstanceCountValue = toPositiveInteger(
+      mergedItemValues.instanceCount ?? mergedItemValues.quantity ?? values.quantity,
+      instanceCountValue,
+    );
+
+    for (let iteration = 0; iteration < 3; iteration += 1) {
+      const nextCatalogView = buildScopedCatalogView(values, nextBillingMode, nextUsageHours, nextUsageHoursValue, nextInstanceCountValue);
+      const syncedValues = evaluateConfiguredValue<Record<string, unknown>>(
+        typedRuntimeDefinition,
+        runtimeDefinition?.syncValuesExpression,
+        typedRuntimeDefinition?.syncValues,
+        buildRuntimeScope({
+          definition: selectedServiceDefinition,
+          selectedServiceCode,
+          selectedService,
+          values,
+          catalog,
+          catalogRegionId,
+          pricingError,
+          regionValue,
+          billingMode: nextBillingMode,
+          usageHours: nextUsageHours,
+          usageHoursValue: nextUsageHoursValue,
+          instanceCountValue: nextInstanceCountValue,
+          item,
+          derived: nextCatalogView,
+        }),
+      );
+
+      if (!syncedValues || !isRecord(syncedValues)) {
+        return {
+          values,
+          billingMode: nextBillingMode,
+          usageHours: nextUsageHours,
+          usageHoursValue: nextUsageHoursValue,
+          instanceCountValue: nextInstanceCountValue,
+          catalogView: nextCatalogView,
+        };
+      }
+
+      const normalizedValues = Object.fromEntries(
+        Object.entries(syncedValues).map(([key, value]) => [key, stringifyConfigValue(value)]),
+      ) as Record<string, string>;
+
+      const hasDiff = Object.keys(normalizedValues).some((key) => values[key] !== normalizedValues[key]);
+      if (!hasDiff) {
+        return {
+          values,
+          billingMode: nextBillingMode,
+          usageHours: nextUsageHours,
+          usageHoursValue: nextUsageHoursValue,
+          instanceCountValue: nextInstanceCountValue,
+          catalogView: nextCatalogView,
+        };
+      }
+
+      values = { ...values, ...normalizedValues };
+      nextBillingMode = toBillingMode(values.billingMode || nextBillingMode, nextBillingMode);
+      nextUsageHours = toPositiveNumberString(values.usageHours, nextUsageHours);
+      nextUsageHoursValue = toPositiveInteger(values.usageHours, nextUsageHoursValue);
+      nextInstanceCountValue = toPositiveInteger(values.quantity, nextInstanceCountValue);
+    }
+
+    return {
+      values,
+      billingMode: nextBillingMode,
+      usageHours: nextUsageHours,
+      usageHoursValue: nextUsageHoursValue,
+      instanceCountValue: nextInstanceCountValue,
+      catalogView: buildScopedCatalogView(values, nextBillingMode, nextUsageHours, nextUsageHoursValue, nextInstanceCountValue),
+    };
+  }, [
+    activeValues,
+    billingMode,
+    buildScopedCatalogView,
+    catalog,
+    catalogRegionId,
+    instanceCountValue,
+    pricingError,
+    regionValue,
+    runtimeDefinition?.syncValuesExpression,
+    selectedService,
+    selectedServiceCode,
+    selectedServiceDefinition,
+    typedRuntimeDefinition,
+    usageHours,
+    usageHoursValue,
+  ]);
+
   const buildRequestBodies = useCallback((): ProductMutationBody | ProductMutationBody[] | null => {
     if (!selectedServiceDefinition || (!runtimeDefinition?.buildRequestBodiesExpression && !typedRuntimeDefinition?.buildRequestBodies)) {
       return null;
@@ -1179,30 +1438,91 @@ export function useConfigurableServiceRuntime({
   ]);
 
   const buildBatchRequestBodies = useCallback((item: unknown): ProductMutationBody[] | null => {
-    if (!selectedServiceDefinition || (!runtimeDefinition?.buildBatchRequestBodiesExpression && !typedRuntimeDefinition?.buildBatchRequestBodies)) {
+    if (!selectedServiceDefinition) {
       return null;
     }
 
-    const result = evaluateConfiguredValue<ProductMutationBody[] | ProductMutationBody | null>(
+    if (runtimeDefinition?.buildBatchRequestBodiesExpression || typedRuntimeDefinition?.buildBatchRequestBodies) {
+      const result = evaluateConfiguredValue<ProductMutationBody[] | ProductMutationBody | null>(
+        typedRuntimeDefinition,
+        runtimeDefinition?.buildBatchRequestBodiesExpression,
+        typedRuntimeDefinition?.buildBatchRequestBodies,
+        buildRuntimeScope({
+          definition: selectedServiceDefinition,
+          selectedServiceCode,
+          selectedService,
+          values: activeValues,
+          catalog,
+          catalogRegionId,
+          pricingError,
+          regionValue,
+          billingMode,
+          usageHours,
+          usageHoursValue,
+          instanceCountValue,
+          item,
+          derived: catalogView,
+          estimate,
+        }),
+      );
+
+      if (!result) {
+        return null;
+      }
+      return Array.isArray(result) ? result : [result];
+    }
+
+    if (!runtimeDefinition?.buildRequestBodiesExpression && !typedRuntimeDefinition?.buildRequestBodies) {
+      return null;
+    }
+
+    const batchScope = buildBatchScopeForItem(item);
+    if (!batchScope) {
+      return null;
+    }
+
+    const batchEstimate = evaluateConfiguredValue<DeclarativeEstimateRecord>(
       typedRuntimeDefinition,
-      runtimeDefinition?.buildBatchRequestBodiesExpression,
-      typedRuntimeDefinition?.buildBatchRequestBodies,
+      runtimeDefinition?.estimateExpression,
+      typedRuntimeDefinition?.estimate,
       buildRuntimeScope({
         definition: selectedServiceDefinition,
         selectedServiceCode,
         selectedService,
-        values: activeValues,
+        values: batchScope.values,
         catalog,
         catalogRegionId,
         pricingError,
         regionValue,
-        billingMode,
-        usageHours,
-        usageHoursValue,
-        instanceCountValue,
+        billingMode: batchScope.billingMode,
+        usageHours: batchScope.usageHours,
+        usageHoursValue: batchScope.usageHoursValue,
+        instanceCountValue: batchScope.instanceCountValue,
         item,
-        derived: catalogView,
-        estimate,
+        derived: batchScope.catalogView,
+      }),
+    );
+
+    const result = evaluateConfiguredValue<ProductMutationBody[] | ProductMutationBody | null>(
+      typedRuntimeDefinition,
+      runtimeDefinition?.buildRequestBodiesExpression,
+      typedRuntimeDefinition?.buildRequestBodies,
+      buildRuntimeScope({
+        definition: selectedServiceDefinition,
+        selectedServiceCode,
+        selectedService,
+        values: batchScope.values,
+        catalog,
+        catalogRegionId,
+        pricingError,
+        regionValue,
+        billingMode: batchScope.billingMode,
+        usageHours: batchScope.usageHours,
+        usageHoursValue: batchScope.usageHoursValue,
+        instanceCountValue: batchScope.instanceCountValue,
+        item,
+        derived: batchScope.catalogView,
+        estimate: batchEstimate,
       }),
     );
 
@@ -1220,7 +1540,10 @@ export function useConfigurableServiceRuntime({
     instanceCountValue,
     pricingError,
     regionValue,
+    buildBatchScopeForItem,
+    runtimeDefinition?.estimateExpression,
     runtimeDefinition?.buildBatchRequestBodiesExpression,
+    runtimeDefinition?.buildRequestBodiesExpression,
     selectedService,
     selectedServiceCode,
     selectedServiceDefinition,
@@ -1434,7 +1757,7 @@ export function useConfigurableServiceRuntime({
   ]);
 
   const batchPanel = useMemo(() => {
-    if (!selectedServiceDefinition || (!runtimeDefinition?.batchPanel && !typedRuntimeDefinition?.batchPanel)) {
+    if (!selectedServiceDefinition) {
       return null;
     }
 
@@ -1465,6 +1788,19 @@ export function useConfigurableServiceRuntime({
     const legacyBatchPanel = runtimeDefinition?.batchPanel;
     const typedBatchPanel = typedRuntimeDefinition?.batchPanel;
 
+    if (!legacyBatchPanel && !typedBatchPanel) {
+      if (!isConfigurableService || (!runtimeDefinition?.buildRequestBodiesExpression && !typedRuntimeDefinition?.buildRequestBodies)) {
+        return null;
+      }
+
+      return {
+        placeholder: buildGenericBatchPlaceholder(selectedServiceDefinition, activeValues),
+        description: `Add a JSON array of ${selectedService} configurations. Each row can override any field id for this service.`,
+        defaults: buildGenericBatchDefaults(selectedServiceDefinition, activeValues, billingMode, usageHours),
+        validation: buildGenericBatchValidation(selectedServiceDefinition),
+      };
+    }
+
     return {
       placeholder: evaluateBatchExpression(legacyBatchPanel?.placeholderExpression, typedBatchPanel?.placeholder),
       description: evaluateBatchExpression(legacyBatchPanel?.descriptionExpression, typedBatchPanel?.description),
@@ -1479,8 +1815,10 @@ export function useConfigurableServiceRuntime({
     catalogView,
     estimate,
     instanceCountValue,
+    isConfigurableService,
     pricingError,
     regionValue,
+    runtimeDefinition?.buildRequestBodiesExpression,
     runtimeDefinition?.batchPanel,
     selectedService,
     selectedServiceCode,

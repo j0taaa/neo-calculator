@@ -2891,7 +2891,7 @@ export default function Home() {
                 ) : (
                   <UnsupportedServicePanel
                     title={`Batch add not implemented yet for ${selectedService}`}
-                    description={`Batch input currently supports ${supportedBatchAddServiceCodes.join(", ")} only. Select Elastic Cloud Server, Flexus L Instance, Elastic Volume Service, or Object Storage Service to use it.`}
+                    description={`Batch input currently supports ${supportedBatchAddServiceCodes.join(", ")} only.`}
                   />
                 )}
               </TabsContent>
@@ -2999,7 +2999,7 @@ export default function Home() {
                         <div className="mt-3 space-y-3">
                           <div className="space-y-1.5">
                             <p className="text-xs font-medium tracking-[0.16em] text-zinc-500 uppercase">Service</p>
-                            <Select value={cartServiceFilter} onValueChange={setCartServiceFilter}>
+                            <Select value={cartServiceFilter} onValueChange={(value) => setCartServiceFilter(value ?? "__all")}>
                               <SelectTrigger className="bg-white">
                                 <SelectValue />
                               </SelectTrigger>
