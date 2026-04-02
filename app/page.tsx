@@ -397,6 +397,11 @@ export default function Home() {
 
   useEffect(() => {
     const handlePointerDown = (event: MouseEvent) => {
+      const target = event.target instanceof Element ? event.target : null;
+      if (target?.closest("[data-slot='select-content']")) {
+        return;
+      }
+
       if (searchAreaRef.current?.contains(event.target as Node)) {
         return;
       }
