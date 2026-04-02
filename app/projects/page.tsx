@@ -22,7 +22,7 @@ import {
   downloadProjectWorkbookFile,
   downloadTextFile,
 } from "@/lib/resource-export";
-import { ArrowRightLeft, Check, ChevronDown, ChevronRight, Copy, Download, Link2, MoreHorizontal, Pencil, Plus, RefreshCw, Share2, Trash2, Upload, X } from "lucide-react";
+import { ArrowRightLeft, Check, ChevronDown, ChevronRight, Copy, Download, Link2, MoreHorizontal, Pencil, Plus, RefreshCw, Share2, ShoppingCart, Trash2, Upload, X } from "lucide-react";
 
 type BillingOption = "Pay-per-use" | "RI" | "Yearly/Monthly" | "One-time";
 
@@ -2510,7 +2510,10 @@ export default function ProjectsPage() {
                                             <div className="flex items-start justify-between gap-3">
                                               <div className="min-w-0">
                                                 <div className="flex flex-wrap items-center gap-2">
-                                                  <p className="font-medium text-zinc-950">{list.name}</p>
+                                                  <div className="flex min-w-0 items-center gap-2">
+                                                    <ShoppingCart className="size-4 shrink-0 text-zinc-500" />
+                                                    <p className="truncate font-medium text-zinc-950">{list.name}</p>
+                                                  </div>
                                                   {list.huaweiCartKey ? <Badge variant="secondary">Huawei linked</Badge> : null}
                                                 </div>
                                                 <p className="mt-1 text-sm text-zinc-500">
