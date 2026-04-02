@@ -83,6 +83,68 @@ function isBillingOption(value: unknown): value is BillingOption {
   return value === "Pay-per-use" || value === "RI" || value === "Yearly/Monthly" || value === "One-time";
 }
 
+function isEditableTarget(target: EventTarget | null): boolean {
+  return (
+    target instanceof HTMLElement
+    && (target.isContentEditable
+      || target instanceof HTMLInputElement
+      || target instanceof HTMLTextAreaElement
+      || target instanceof HTMLSelectElement)
+  );
+}
+
+function appendProductToProjects(
+  current: AppProject[],
+  payload: AppProduct & { listId: string; projectId: string },
+) {
+  return current.map((project) =>
+    project.id === payload.projectId
+      ? {
+          ...project,
+          updatedAt: payload.updatedAt,
+          lists: project.lists.map((list) =>
+            list.id === payload.listId
+              ? {
+                  ...list,
+                  updatedAt: payload.updatedAt,
+                  productCount: list.productCount + 1,
+                  products: [payload, ...list.products],
+                }
+              : list,
+          ),
+        }
+      : project,
+  );
+}
+
+function toClipboardProductMutationBody(value: unknown): ProductMutationBody | null {
+  if (typeof value !== "object" || value === null) {
+    return null;
+  }
+
+  const record = value as Record<string, unknown>;
+  const serviceCode = typeof record.serviceCode === "string" ? record.serviceCode.trim() : "";
+  const serviceName = typeof record.serviceName === "string" ? record.serviceName.trim() : "";
+  const productType = typeof record.productType === "string" ? record.productType.trim() : "";
+  const title = typeof record.title === "string" ? record.title.trim() : "";
+  const quantityValue = typeof record.quantity === "number" ? record.quantity : Number(record.quantity);
+  const quantity = Number.isFinite(quantityValue) ? Math.max(1, Math.floor(quantityValue)) : 1;
+
+  if (!serviceCode || !serviceName || !productType || !title) {
+    return null;
+  }
+
+  return {
+    serviceCode,
+    serviceName,
+    productType,
+    title,
+    quantity,
+    config: record.config ?? {},
+    pricing: record.pricing ?? null,
+  };
+}
+
 function OptionGrid({
   items,
   value,
@@ -189,6 +251,8 @@ export default function Home() {
   const [cartServiceFilter, setCartServiceFilter] = useState("__all");
   const [cartSortOption, setCartSortOption] = useState<CartSortOption>("default");
   const [selectedCartItemIds, setSelectedCartItemIds] = useState<string[]>([]);
+  const [cartClipboardMessage, setCartClipboardMessage] = useState("");
+  const [cartClipboardMessageIsError, setCartClipboardMessageIsError] = useState(false);
   const [activeModal, setActiveModal] = useState<ActiveModal>(null);
   const [importCartTargetProjectId, setImportCartTargetProjectId] = useState<string | null>(null);
   const [importCartPendingProjectId, setImportCartPendingProjectId] = useState<string | null>(null);
@@ -440,14 +504,7 @@ export default function Home() {
       }
 
       if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "c") {
-        const target = event.target;
-        if (
-          target instanceof HTMLElement
-          && (target.isContentEditable
-            || target instanceof HTMLInputElement
-            || target instanceof HTMLTextAreaElement
-            || target instanceof HTMLSelectElement)
-        ) {
+        if (isEditableTarget(event.target)) {
           return;
         }
 
@@ -462,6 +519,22 @@ export default function Home() {
 
         event.preventDefault();
         void copyText(JSON.stringify(selectedCartItems, null, 2));
+        return;
+      }
+
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "v") {
+        if (isEditableTarget(event.target) || !isSignedIn || !selectedListId) {
+          return;
+        }
+
+        event.preventDefault();
+        void handlePasteCartItemsFromClipboard();
+        return;
+      }
+
+      if (event.key === "Escape" && selectedCartItemCount > 0 && !isEditableTarget(event.target)) {
+        event.preventDefault();
+        clearCartItemSelection();
       }
     };
 
@@ -472,7 +545,7 @@ export default function Home() {
       document.removeEventListener("mousedown", handlePointerDown);
       window.removeEventListener("keydown", handleShortcut);
     };
-  }, [selectedCartItems]);
+  }, [clearCartItemSelection, handlePasteCartItemsFromClipboard, isSignedIn, selectedCartItemCount, selectedCartItems, selectedListId]);
 
   useEffect(() => {
     if (!isSearchOpen) {
@@ -493,6 +566,8 @@ export default function Home() {
     setCartSortOption("default");
     setIsCartFiltersOpen(false);
     setSelectedCartItemIds([]);
+    setCartClipboardMessage("");
+    setCartClipboardMessageIsError(false);
   }, [selectedList?.id]);
 
   useEffect(() => {
@@ -1835,6 +1910,81 @@ export default function Home() {
     setSelectedCartItemIds([]);
   }, []);
 
+  const handlePasteCartItemsFromClipboard = useCallback(async () => {
+    if (!isSignedIn) {
+      setCartClipboardMessageIsError(true);
+      setCartClipboardMessage("Sign in to paste cart items.");
+      return;
+    }
+
+    if (!selectedListId) {
+      setCartClipboardMessageIsError(true);
+      setCartClipboardMessage("Select a cart before pasting items.");
+      return;
+    }
+
+    if (typeof navigator === "undefined" || !navigator.clipboard?.readText) {
+      setCartClipboardMessageIsError(true);
+      setCartClipboardMessage("Clipboard read is unavailable in this browser.");
+      return;
+    }
+
+    let clipboardText = "";
+    try {
+      clipboardText = await navigator.clipboard.readText();
+    } catch {
+      setCartClipboardMessageIsError(true);
+      setCartClipboardMessage("Unable to read clipboard contents.");
+      return;
+    }
+
+    let parsedClipboard: unknown;
+    try {
+      parsedClipboard = JSON.parse(clipboardText);
+    } catch {
+      setCartClipboardMessageIsError(true);
+      setCartClipboardMessage("Clipboard does not contain valid JSON.");
+      return;
+    }
+
+    if (!Array.isArray(parsedClipboard) || parsedClipboard.length === 0) {
+      setCartClipboardMessageIsError(true);
+      setCartClipboardMessage("Clipboard JSON must be a non-empty array of cart items.");
+      return;
+    }
+
+    const requestBodies = parsedClipboard
+      .map((item) => toClipboardProductMutationBody(item))
+      .filter((item): item is ProductMutationBody => item !== null);
+
+    if (requestBodies.length !== parsedClipboard.length) {
+      setCartClipboardMessageIsError(true);
+      setCartClipboardMessage("Clipboard JSON includes one or more invalid cart items.");
+      return;
+    }
+
+    try {
+      const createdIds: string[] = [];
+      for (const requestBody of requestBodies) {
+        const createdPayload = await mutateListProduct(
+          `/api/lists/${selectedListId}/products`,
+          "POST",
+          requestBody,
+          "Unable to paste cart items",
+        );
+        createdIds.push(createdPayload.id);
+        setProjects((current) => appendProductToProjects(current, createdPayload));
+      }
+
+      setSelectedCartItemIds(createdIds);
+      setCartClipboardMessageIsError(false);
+      setCartClipboardMessage(`Pasted ${createdIds.length} item${createdIds.length === 1 ? "" : "s"} from clipboard.`);
+    } catch (error) {
+      setCartClipboardMessageIsError(true);
+      setCartClipboardMessage(error instanceof Error ? error.message : "Unable to paste cart items.");
+    }
+  }, [isSignedIn, mutateListProduct, selectedListId]);
+
   const activeProjectCloneTargetRegion = activeProject ? projectCloneTargetRegions[activeProject.id] ?? "" : "";
   const activeProjectCloneTargetBillingMode = activeProject ? projectCloneTargetBillingModes[activeProject.id] ?? "" : "";
   const activeProjectCloneMessage = activeProject ? projectCloneMessages[activeProject.id] ?? "" : "";
@@ -2863,6 +3013,9 @@ export default function Home() {
                     Stop selecting
                   </Button>
                 </div>
+              ) : null}
+              {selectedList && cartClipboardMessage ? (
+                <p className={`mt-3 text-xs ${cartClipboardMessageIsError ? "text-red-600" : "text-zinc-500"}`}>{cartClipboardMessage}</p>
               ) : null}
             </CardHeader>
             <Separator />
