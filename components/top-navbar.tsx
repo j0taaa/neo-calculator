@@ -31,7 +31,6 @@ export function TopNavbar() {
         <div className="justify-self-start">
           <Link href="/" className="block">
             <p className="text-xs font-medium tracking-[0.22em] text-zinc-500 uppercase">NeoCalculator</p>
-            <p className="text-sm text-zinc-600">Calculator, carts, and projects.</p>
           </Link>
         </div>
         <nav className="justify-self-center flex items-center gap-2">
