@@ -253,6 +253,7 @@ export default function Home() {
   const [selectedCartItemIds, setSelectedCartItemIds] = useState<string[]>([]);
   const [cartClipboardMessage, setCartClipboardMessage] = useState("");
   const [cartClipboardMessageIsError, setCartClipboardMessageIsError] = useState(false);
+  const [cartCopyNotice, setCartCopyNotice] = useState("");
   const [activeModal, setActiveModal] = useState<ActiveModal>(null);
   const [importCartTargetProjectId, setImportCartTargetProjectId] = useState<string | null>(null);
   const [importCartPendingProjectId, setImportCartPendingProjectId] = useState<string | null>(null);
@@ -489,7 +490,20 @@ export default function Home() {
     setSelectedCartItemIds([]);
     setCartClipboardMessage("");
     setCartClipboardMessageIsError(false);
+    setCartCopyNotice("");
   }, [selectedList?.id]);
+
+  useEffect(() => {
+    if (!cartCopyNotice) {
+      return;
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      setCartCopyNotice("");
+    }, 2200);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [cartCopyNotice]);
 
   useEffect(() => {
     const availableProductIds = new Set(selectedCartProducts.map((product) => product.id));
@@ -1957,6 +1971,7 @@ export default function Home() {
 
         event.preventDefault();
         void copyText(JSON.stringify(selectedCartItems, null, 2));
+        setCartCopyNotice(`${selectedCartItems.length} element${selectedCartItems.length === 1 ? "" : "s"} copied`);
         return;
       }
 
@@ -2058,6 +2073,13 @@ export default function Home() {
 
   return (
     <div className="min-h-screen bg-zinc-100 p-4 text-zinc-900 lg:p-6">
+      {cartCopyNotice ? (
+        <div className="pointer-events-none fixed top-3 left-1/2 z-[80] -translate-x-1/2 px-4">
+          <div className="rounded-full border border-blue-200 bg-blue-50 px-4 py-2 text-sm font-medium text-blue-900 shadow-[0_18px_40px_-28px_rgba(37,99,235,0.45)]">
+            {cartCopyNotice}
+          </div>
+        </div>
+      ) : null}
       <div className="mx-auto flex w-full max-w-none flex-col gap-4">
         <header className="rounded-xl border border-zinc-200 bg-white/90 px-4 py-3 backdrop-blur lg:px-6">
           <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
