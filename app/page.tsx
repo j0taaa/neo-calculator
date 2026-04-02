@@ -469,85 +469,6 @@ export default function Home() {
   }, [queueUrlStateFromLocation]);
 
   useEffect(() => {
-    const handlePointerDown = (event: MouseEvent) => {
-      const target = event.target instanceof Element ? event.target : null;
-      if (target?.closest("[data-slot='select-content']")) {
-        return;
-      }
-
-      if (searchAreaRef.current?.contains(event.target as Node)) {
-        return;
-      }
-
-      setIsSearchOpen(false);
-
-      if (profileAreaRef.current?.contains(event.target as Node)) {
-        return;
-      }
-
-      setIsProfileOpen(false);
-
-      if (cartFilterAreaRef.current?.contains(event.target as Node)) {
-        return;
-      }
-
-      setIsCartFiltersOpen(false);
-    };
-
-    const handleShortcut = (event: KeyboardEvent) => {
-      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "k") {
-        event.preventDefault();
-        setIsSearchOpen(true);
-        searchInputRef.current?.focus();
-        searchInputRef.current?.select();
-        return;
-      }
-
-      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "c") {
-        if (isEditableTarget(event.target)) {
-          return;
-        }
-
-        const selectedText = window.getSelection()?.toString().trim();
-        if (selectedText) {
-          return;
-        }
-
-        if (!selectedCartItems.length) {
-          return;
-        }
-
-        event.preventDefault();
-        void copyText(JSON.stringify(selectedCartItems, null, 2));
-        return;
-      }
-
-      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "v") {
-        if (isEditableTarget(event.target) || !isSignedIn || !selectedListId) {
-          return;
-        }
-
-        event.preventDefault();
-        void handlePasteCartItemsFromClipboard();
-        return;
-      }
-
-      if (event.key === "Escape" && selectedCartItemCount > 0 && !isEditableTarget(event.target)) {
-        event.preventDefault();
-        clearCartItemSelection();
-      }
-    };
-
-    document.addEventListener("mousedown", handlePointerDown);
-    window.addEventListener("keydown", handleShortcut);
-
-    return () => {
-      document.removeEventListener("mousedown", handlePointerDown);
-      window.removeEventListener("keydown", handleShortcut);
-    };
-  }, [clearCartItemSelection, handlePasteCartItemsFromClipboard, isSignedIn, selectedCartItemCount, selectedCartItems, selectedListId]);
-
-  useEffect(() => {
     if (!isSearchOpen) {
       return;
     }
@@ -1984,6 +1905,85 @@ export default function Home() {
       setCartClipboardMessage(error instanceof Error ? error.message : "Unable to paste cart items.");
     }
   }, [isSignedIn, mutateListProduct, selectedListId]);
+
+  useEffect(() => {
+    const handlePointerDown = (event: MouseEvent) => {
+      const target = event.target instanceof Element ? event.target : null;
+      if (target?.closest("[data-slot='select-content']")) {
+        return;
+      }
+
+      if (searchAreaRef.current?.contains(event.target as Node)) {
+        return;
+      }
+
+      setIsSearchOpen(false);
+
+      if (profileAreaRef.current?.contains(event.target as Node)) {
+        return;
+      }
+
+      setIsProfileOpen(false);
+
+      if (cartFilterAreaRef.current?.contains(event.target as Node)) {
+        return;
+      }
+
+      setIsCartFiltersOpen(false);
+    };
+
+    const handleShortcut = (event: KeyboardEvent) => {
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "k") {
+        event.preventDefault();
+        setIsSearchOpen(true);
+        searchInputRef.current?.focus();
+        searchInputRef.current?.select();
+        return;
+      }
+
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "c") {
+        if (isEditableTarget(event.target)) {
+          return;
+        }
+
+        const selectedText = window.getSelection()?.toString().trim();
+        if (selectedText) {
+          return;
+        }
+
+        if (!selectedCartItems.length) {
+          return;
+        }
+
+        event.preventDefault();
+        void copyText(JSON.stringify(selectedCartItems, null, 2));
+        return;
+      }
+
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "v") {
+        if (isEditableTarget(event.target) || !isSignedIn || !selectedListId) {
+          return;
+        }
+
+        event.preventDefault();
+        void handlePasteCartItemsFromClipboard();
+        return;
+      }
+
+      if (event.key === "Escape" && selectedCartItemCount > 0 && !isEditableTarget(event.target)) {
+        event.preventDefault();
+        clearCartItemSelection();
+      }
+    };
+
+    document.addEventListener("mousedown", handlePointerDown);
+    window.addEventListener("keydown", handleShortcut);
+
+    return () => {
+      document.removeEventListener("mousedown", handlePointerDown);
+      window.removeEventListener("keydown", handleShortcut);
+    };
+  }, [clearCartItemSelection, handlePasteCartItemsFromClipboard, isSignedIn, selectedCartItemCount, selectedCartItems, selectedListId]);
 
   const activeProjectCloneTargetRegion = activeProject ? projectCloneTargetRegions[activeProject.id] ?? "" : "";
   const activeProjectCloneTargetBillingMode = activeProject ? projectCloneTargetBillingModes[activeProject.id] ?? "" : "";
