@@ -2156,8 +2156,8 @@ export default function ProjectsPage() {
     <main className="min-h-screen bg-zinc-100 px-4 py-8 sm:px-6 lg:px-8">
       <div className="mx-auto max-w-6xl space-y-6">
         <header className="rounded-xl border border-zinc-200 bg-white/90 px-4 py-3 backdrop-blur lg:px-6">
-          <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-            <div className="flex flex-col gap-3 lg:flex-1 lg:flex-row lg:items-center lg:gap-6">
+          <div className="flex flex-col gap-3 lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(320px,40rem)_minmax(0,1fr)] lg:items-center lg:gap-6">
+            <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:gap-6">
               <div className="justify-self-start">
                 <Link href="/" className="block">
                   <p className="text-xs font-medium tracking-[0.22em] text-zinc-500 uppercase">NeoCalculator</p>
@@ -2177,20 +2177,20 @@ export default function ProjectsPage() {
                   Dashboard
                 </Link>
               </nav>
-              <Link
-                href="/"
-                className="flex h-11 w-full items-center justify-between rounded-full border border-zinc-200 bg-white px-4 text-left shadow-[0_18px_40px_-34px_rgba(15,23,42,0.35)] transition hover:border-zinc-300 lg:max-w-xl"
-              >
-                <span className="flex min-w-0 items-center gap-3">
-                  <Search className="size-4 text-zinc-400" />
-                  <span className="truncate text-sm text-zinc-500">Search service name</span>
-                </span>
-                <span className="rounded-full border border-zinc-200 bg-zinc-50 px-3 py-1 text-xs font-medium text-zinc-500">
-                  Ctrl K
-                </span>
-              </Link>
             </div>
-            <div className="flex items-center justify-end gap-3">
+            <Link
+              href="/"
+              className="flex h-11 w-full items-center justify-between rounded-full border border-zinc-200 bg-white px-4 text-left shadow-[0_18px_40px_-34px_rgba(15,23,42,0.35)] transition hover:border-zinc-300 lg:mx-auto lg:max-w-3xl"
+            >
+              <span className="flex min-w-0 items-center gap-3">
+                <Search className="size-4 text-zinc-400" />
+                <span className="truncate text-sm text-zinc-500">Search service name</span>
+              </span>
+              <span className="rounded-full border border-zinc-200 bg-zinc-50 px-3 py-1 text-xs font-medium text-zinc-500">
+                Ctrl K
+              </span>
+            </Link>
+            <div className="flex items-center justify-end gap-3 lg:min-w-0">
               {showSessionState && session ? (
                 <div className="hidden text-right sm:block">
                   <p className="text-sm font-medium text-zinc-900">{session.user.name || session.user.email}</p>

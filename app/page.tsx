@@ -2213,8 +2213,8 @@ export default function Home() {
       ) : null}
       <div className="mx-auto flex w-full max-w-none flex-col gap-4">
         <header className="relative z-30 rounded-xl border border-zinc-200 bg-white/90 px-4 py-3 backdrop-blur lg:px-6">
-          <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-            <div className="flex flex-col gap-3 lg:flex-1 lg:flex-row lg:items-center lg:gap-6">
+          <div className="flex flex-col gap-3 lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(320px,40rem)_minmax(0,1fr)] lg:items-center lg:gap-6">
+            <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:gap-6">
               <div className="justify-self-start">
                 <Link href="/" className="block">
                   <p className="text-xs font-medium tracking-[0.22em] text-zinc-500 uppercase">NeoCalculator</p>
@@ -2234,25 +2234,25 @@ export default function Home() {
                   Dashboard
                 </Link>
               </nav>
-              <button
-                type="button"
-                className="flex h-11 w-full items-center justify-between rounded-full border border-zinc-200 bg-white px-4 text-left shadow-[0_18px_40px_-34px_rgba(15,23,42,0.35)] transition hover:border-zinc-300 lg:max-w-xl"
-                onClick={() => setIsSearchOpen(true)}
-                aria-label="Open service search"
-                aria-expanded={isSearchOpen}
-              >
-                <span className="flex min-w-0 items-center gap-3">
-                  <Search className="size-4 text-zinc-400" />
-                  <span className={`truncate text-sm ${query ? "text-zinc-900" : "text-zinc-500"}`}>
-                    {query || "Search service name"}
-                  </span>
-                </span>
-                <span className="rounded-full border border-zinc-200 bg-zinc-50 px-3 py-1 text-xs font-medium text-zinc-500">
-                  Ctrl K
-                </span>
-              </button>
             </div>
-            <div className="flex items-center justify-end gap-3">
+            <button
+              type="button"
+              className="flex h-11 w-full items-center justify-between rounded-full border border-zinc-200 bg-white px-4 text-left shadow-[0_18px_40px_-34px_rgba(15,23,42,0.35)] transition hover:border-zinc-300 lg:mx-auto lg:max-w-3xl"
+              onClick={() => setIsSearchOpen(true)}
+              aria-label="Open service search"
+              aria-expanded={isSearchOpen}
+            >
+              <span className="flex min-w-0 items-center gap-3">
+                <Search className="size-4 text-zinc-400" />
+                <span className={`truncate text-sm ${query ? "text-zinc-900" : "text-zinc-500"}`}>
+                  {query || "Search service name"}
+                </span>
+              </span>
+              <span className="rounded-full border border-zinc-200 bg-zinc-50 px-3 py-1 text-xs font-medium text-zinc-500">
+                Ctrl K
+              </span>
+            </button>
+            <div className="flex items-center justify-end gap-3 lg:min-w-0">
               {isSignedIn ? (
                 <div className="hidden text-right sm:block">
                   <p className="text-sm font-medium text-zinc-900">{session?.user.name || session?.user.email}</p>
