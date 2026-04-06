@@ -1,10 +1,20 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import type { ComponentProps } from "react";
 
 import { ConfigurableServicePanel } from "@/components/calculators/configurable-service-panel";
-import { EcsCalculatorPanel } from "@/components/calculators/ecs-calculator-panel";
-import { FlexusLCalculatorPanel } from "@/components/calculators/flexus-l-calculator-panel";
+
+// Lazy load special calculator panels
+const EcsCalculatorPanel = dynamic(
+  () => import("@/components/calculators/ecs-calculator-panel").then((mod) => mod.EcsCalculatorPanel),
+  { ssr: false },
+);
+
+const FlexusLCalculatorPanel = dynamic(
+  () => import("@/components/calculators/flexus-l-calculator-panel").then((mod) => mod.FlexusLCalculatorPanel),
+  { ssr: false },
+);
 
 type CalculatorPanelRouterProps = {
   activeServiceCode: string;

@@ -1,17 +1,23 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import Image from "next/image";
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 
 import { CalculatorPanelRouter } from "@/components/calculators/calculator-panel-router";
 import { ActionMenu, ActionModal, type ActionMenuItem } from "@/components/home-page-shell-parts";
 import { ProjectAddCartModalContent } from "@/components/project-add-cart-modal-content";
-import { ServiceBatchAddPanel } from "@/components/calculators/service-batch-add-panel";
 import { UnsupportedServicePanel } from "@/components/calculators/unsupported-service-panel";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+
+// Lazy load heavy calculator components
+const ServiceBatchAddPanel = dynamic(
+  () => import("@/components/calculators/service-batch-add-panel").then((mod) => mod.ServiceBatchAddPanel),
+  { ssr: false },
+);
 
 import {
   findServiceCatalogEntry,
