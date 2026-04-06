@@ -2529,28 +2529,7 @@ export default function Home() {
       ) : null}
       <div className="mx-auto flex w-full max-w-none flex-col gap-4">
         <header className="relative z-30 rounded-xl border border-zinc-200 bg-white/90 px-4 py-3 backdrop-blur lg:px-6">
-          <div className="flex flex-col gap-3 lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(320px,40rem)_minmax(0,1fr)] lg:items-center lg:gap-6">
-            <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:gap-6">
-              <div className="justify-self-start">
-                <Link href="/" className="block">
-                  <p className="text-xs font-medium tracking-[0.22em] text-zinc-500 uppercase">NeoCalculator</p>
-                </Link>
-              </div>
-              <nav className="flex items-center gap-2">
-                <Link
-                  href="/projects"
-                  className="rounded-full px-4 py-2 text-sm font-medium text-zinc-600 transition hover:bg-zinc-100 hover:text-zinc-950"
-                >
-                  Projects
-                </Link>
-                <Link
-                  href="/"
-                  className="rounded-full bg-zinc-950 px-4 py-2 text-sm font-medium text-white transition hover:bg-zinc-800"
-                >
-                  Dashboard
-                </Link>
-              </nav>
-            </div>
+          <div className="flex flex-col gap-3 lg:grid lg:grid-cols-[minmax(320px,40rem)_minmax(0,1fr)] lg:items-center lg:gap-6">
             <button
               type="button"
               className="flex h-11 w-full items-center justify-between rounded-full border border-zinc-200 bg-white px-4 text-left shadow-[0_18px_40px_-34px_rgba(15,23,42,0.35)] transition hover:border-zinc-300 lg:mx-auto lg:max-w-3xl"
