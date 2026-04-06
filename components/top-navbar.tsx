@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useSyncExternalStore, useState, useRef, useEffect } from "react";
-import { Search, RefreshCw, UserCircle2 } from "lucide-react";
+import { Key, Search, RefreshCw, Copy, Check, Settings } from "lucide-react";
 import { authClient } from "@/lib/auth-client";
 import { useSessionContext } from "@/components/session-provider";
 import { useNavbar } from "@/components/navbar-context";
@@ -14,6 +14,12 @@ function isActive(pathname: string, href: string) {
     return pathname === "/";
   }
   return pathname === href || pathname.startsWith(`${href}/`);
+}
+
+interface ApiKeyData {
+  id: string;
+  createdAt: string;
+  lastUsedAt: string | null;
 }
 
 export function TopNavbar() {
@@ -29,22 +35,99 @@ export function TopNavbar() {
   const showSessionUi = hasMounted && !isPending;
   const isSignedIn = !!session;
 
-  // Cookie dropdown state (only used when config has cookie handlers)
-  const [isCookieOpen, setIsCookieOpen] = useState(false);
-  const [cookieDraft, setCookieDraft] = useState(() => config.cookieValue || "");
-  const cookieRef = useRef<HTMLDivElement>(null);
+  // Settings dropdown state
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [settingsTab, setSettingsTab] = useState<"cookie" | "apikey">("cookie");
+  const settingsRef = useRef<HTMLDivElement>(null);
 
+  // Cookie state
+  const [cookieDraft, setCookieDraft] = useState(() => config.cookieValue || "");
+
+  // API key state
+  const [apiKey, setApiKey] = useState<ApiKeyData | null>(null);
+  const [newKey, setNewKey] = useState<string | null>(null);
+  const [apiKeyLoading, setApiKeyLoading] = useState(false);
+  const [copied, setCopied] = useState(false);
+
+  const fetchApiKey = async () => {
+    setApiKeyLoading(true);
+    try {
+      const response = await fetch("/api/api-keys");
+      if (response.ok) {
+        const data = await response.json();
+        setApiKey(data.key || null);
+      }
+    } catch (error) {
+      console.error("Failed to fetch API key:", error);
+    } finally {
+      setApiKeyLoading(false);
+    }
+  };
+
+  const generateApiKey = async () => {
+    setApiKeyLoading(true);
+    setNewKey(null);
+    try {
+      const response = await fetch("/api/api-keys", { method: "POST" });
+      if (response.ok) {
+        const data = await response.json();
+        setNewKey(data.key);
+        setApiKey({
+          id: data.id,
+          createdAt: data.createdAt,
+          lastUsedAt: null,
+        });
+      }
+    } catch (error) {
+      console.error("Failed to generate API key:", error);
+    } finally {
+      setApiKeyLoading(false);
+    }
+  };
+
+  const revokeApiKey = async () => {
+    if (!confirm("Are you sure you want to revoke your API key? This cannot be undone.")) {
+      return;
+    }
+    setApiKeyLoading(true);
+    try {
+      const response = await fetch("/api/api-keys", { method: "DELETE" });
+      if (response.ok) {
+        setApiKey(null);
+        setNewKey(null);
+      }
+    } catch (error) {
+      console.error("Failed to revoke API key:", error);
+    } finally {
+      setApiKeyLoading(false);
+    }
+  };
+
+  const copyToClipboard = (text: string) => {
+    navigator.clipboard.writeText(text);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  // Load API key when settings opens
+  useEffect(() => {
+    if (isSettingsOpen && isSignedIn) {
+      fetchApiKey();
+    }
+  }, [isSettingsOpen, isSignedIn]);
+
+  // Handle click outside settings
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
-      if (cookieRef.current && !cookieRef.current.contains(event.target as Node)) {
-        setIsCookieOpen(false);
+      if (settingsRef.current && !settingsRef.current.contains(event.target as Node)) {
+        setIsSettingsOpen(false);
       }
     }
-    if (isCookieOpen) {
+    if (isSettingsOpen) {
       document.addEventListener("mousedown", handleClickOutside);
     }
     return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, [isCookieOpen]);
+  }, [isSettingsOpen]);
 
   const isDashboard = pathname === "/";
   const isProjects = pathname === "/projects";
@@ -143,40 +226,72 @@ export function TopNavbar() {
 
               {/* Dashboard-specific buttons */}
               {showDashboardExtras && (
-                <>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="icon"
-                    className="size-9"
-                    aria-label="Reload Huawei carts"
-                    onClick={() => config.loadHuaweiCarts?.()}
-                    disabled={config.huaweiCartsLoading || !config.cookieValueSaved}
-                  >
-                    <RefreshCw className={`size-4 ${config.huaweiCartsLoading ? "animate-spin" : ""}`} />
-                  </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="icon"
+                  className="size-9"
+                  aria-label="Reload Huawei carts"
+                  onClick={() => config.loadHuaweiCarts?.()}
+                  disabled={config.huaweiCartsLoading || !config.cookieValueSaved}
+                >
+                  <RefreshCw className={`size-4 ${config.huaweiCartsLoading ? "animate-spin" : ""}`} />
+                </Button>
+              )}
 
-                  <div ref={cookieRef} className="relative">
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      className="size-9 rounded-full border border-zinc-200"
-                      aria-label="Open Huawei cookie settings"
-                      onClick={() => setIsCookieOpen((current) => !current)}
-                    >
-                      <UserCircle2 className="size-5" />
-                    </Button>
+              {/* Settings Dropdown */}
+              <div ref={settingsRef} className="relative">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="size-9 rounded-full border border-zinc-200"
+                  aria-label="Open settings"
+                  onClick={() => setIsSettingsOpen((current) => !current)}
+                >
+                  <Settings className="size-4" />
+                </Button>
 
-                    {isCookieOpen && (
-                      <div className="absolute top-full right-0 z-50 mt-3 w-[min(92vw,380px)] rounded-2xl border border-zinc-200 bg-white p-4 shadow-[0_28px_80px_-40px_rgba(15,23,42,0.45)]">
-                        <div className="space-y-1">
-                          <p className="text-sm font-semibold text-zinc-950">Huawei Cloud Cookie</p>
-                          <p className="text-sm text-zinc-500">
-                            Paste your website cookie string. It will be saved locally in this browser.
-                          </p>
-                        </div>
-                        <div className="mt-4 space-y-3">
+                {isSettingsOpen && (
+                  <div className="absolute top-full right-0 z-50 mt-3 w-[min(92vw,420px)] rounded-2xl border border-zinc-200 bg-white shadow-[0_28px_80px_-40px_rgba(15,23,42,0.45)]">
+                    {/* Tabs */}
+                    <div className="flex border-b border-zinc-100">
+                      {showDashboardExtras && (
+                        <button
+                          type="button"
+                          onClick={() => setSettingsTab("cookie")}
+                          className={`flex-1 px-4 py-3 text-sm font-medium transition ${
+                            settingsTab === "cookie"
+                              ? "border-b-2 border-zinc-900 text-zinc-900"
+                              : "text-zinc-500 hover:text-zinc-700"
+                          }`}
+                        >
+                          Cookie
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => setSettingsTab("apikey")}
+                        className={`flex-1 px-4 py-3 text-sm font-medium transition ${
+                          settingsTab === "apikey"
+                            ? "border-b-2 border-zinc-900 text-zinc-900"
+                            : "text-zinc-500 hover:text-zinc-700"
+                        }`}
+                      >
+                        API Key
+                      </button>
+                    </div>
+
+                    {/* Tab Content */}
+                    <div className="p-4">
+                      {settingsTab === "cookie" && showDashboardExtras && (
+                        <div className="space-y-3">
+                          <div>
+                            <p className="text-sm font-semibold text-zinc-950">Huawei Cloud Cookie</p>
+                            <p className="text-sm text-zinc-500">
+                              Paste your website cookie string. It will be saved locally in this browser.
+                            </p>
+                          </div>
                           <textarea
                             value={cookieDraft}
                             onChange={(event) => setCookieDraft(event.target.value)}
@@ -191,30 +306,120 @@ export function TopNavbar() {
                             <Button
                               type="button"
                               variant="outline"
+                              size="sm"
                               onClick={() => {
                                 setCookieDraft(config.cookieValue || "");
-                                setIsCookieOpen(false);
+                                setIsSettingsOpen(false);
                               }}
                             >
                               Cancel
                             </Button>
                             <Button
                               type="button"
+                              size="sm"
                               onClick={() => {
                                 config.onCookieChange?.(cookieDraft);
                                 config.onSaveCookie?.();
-                                setIsCookieOpen(false);
+                                setIsSettingsOpen(false);
                               }}
                             >
                               Save Cookie
                             </Button>
                           </div>
                         </div>
-                      </div>
-                    )}
+                      )}
+
+                      {settingsTab === "apikey" && (
+                        <div className="space-y-4">
+                          <div className="flex items-center gap-2">
+                            <Key className="size-4 text-zinc-500" />
+                            <p className="text-sm font-semibold text-zinc-950">API Key</p>
+                          </div>
+                          <p className="text-xs text-zinc-500">
+                            Use your API key to access NeoCalculator programmatically via the API.
+                          </p>
+
+                          {apiKeyLoading ? (
+                            <div className="flex items-center justify-center py-4">
+                              <RefreshCw className="size-4 animate-spin text-zinc-400" />
+                            </div>
+                          ) : newKey ? (
+                            <div className="space-y-3 rounded-lg border border-amber-200 bg-amber-50 p-3">
+                              <p className="text-xs font-medium text-amber-800">
+                                Save this key now! It won&apos;t be shown again.
+                              </p>
+                              <div className="flex items-center gap-2">
+                                <code className="flex-1 rounded bg-white px-2 py-1 font-mono text-xs text-zinc-900 break-all">
+                                  {newKey}
+                                </code>
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  size="icon"
+                                  className="size-7 shrink-0"
+                                  onClick={() => copyToClipboard(newKey)}
+                                >
+                                  {copied ? <Check className="size-3 text-green-600" /> : <Copy className="size-3" />}
+                                </Button>
+                              </div>
+                              {copied && <p className="text-xs text-green-600">Copied to clipboard!</p>}
+                            </div>
+                          ) : apiKey ? (
+                            <div className="space-y-3">
+                              <div className="rounded-lg border border-zinc-200 bg-zinc-50 p-3">
+                                <div className="space-y-1">
+                                  <p className="text-xs text-zinc-500">Key ID</p>
+                                  <p className="font-mono text-sm text-zinc-900">{apiKey.id}</p>
+                                </div>
+                                <div className="mt-2 flex items-center gap-4 text-xs text-zinc-500">
+                                  <span>Created: {new Date(apiKey.createdAt).toLocaleDateString()}</span>
+                                  {apiKey.lastUsedAt && (
+                                    <span>Last used: {new Date(apiKey.lastUsedAt).toLocaleDateString()}</span>
+                                  )}
+                                </div>
+                              </div>
+                              <div className="flex gap-2">
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={generateApiKey}
+                                  disabled={apiKeyLoading}
+                                >
+                                  <RefreshCw className="mr-1 size-3" />
+                                  Regenerate
+                                </Button>
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={revokeApiKey}
+                                  disabled={apiKeyLoading}
+                                  className="text-red-600 hover:bg-red-50"
+                                >
+                                  Revoke
+                                </Button>
+                              </div>
+                            </div>
+                          ) : (
+                            <Button type="button" onClick={generateApiKey} disabled={apiKeyLoading}>
+                              <Key className="mr-2 size-4" />
+                              Generate API Key
+                            </Button>
+                          )}
+
+                          <div className="border-t border-zinc-100 pt-3">
+                            <p className="text-xs text-zinc-500">
+                              Use the key in the <code className="rounded bg-zinc-100 px-1">X-API-Key</code> header
+                              when making requests to private API endpoints.
+                            </p>
+                          </div>
+                        </div>
+                      )}
+                    </div>
                   </div>
-                </>
-              )}
+                )}
+              </div>
 
               <Button type="button" variant="outline" size="sm" onClick={() => authClient.signOut()}>
                 Sign Out
