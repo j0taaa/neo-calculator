@@ -1,6 +1,7 @@
 .env.local
 .DS_Store
 .next/
+node_modules/.cache/
 data/
 data.db
 node_modules/
