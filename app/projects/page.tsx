@@ -2155,7 +2155,7 @@ export default function ProjectsPage() {
   return (
     <main className="min-h-screen bg-zinc-100 px-4 py-8 sm:px-6 lg:px-8">
       <div className="mx-auto max-w-6xl space-y-6">
-        <header className="rounded-xl border border-zinc-200 bg-white/90 px-4 py-3 backdrop-blur lg:px-6">
+        <div className="rounded-xl border border-zinc-200 bg-white/90 px-4 py-3 backdrop-blur lg:px-6">
           <div className="flex flex-col gap-3 lg:grid lg:grid-cols-[minmax(320px,40rem)_minmax(0,1fr)] lg:items-center lg:gap-6">
             <Link
               href="/"
@@ -2194,7 +2194,7 @@ export default function ProjectsPage() {
               )}
             </div>
           </div>
-        </header>
+        </div>
 
         {!showSessionState ? (
           <Card>

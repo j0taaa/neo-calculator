@@ -2528,7 +2528,7 @@ export default function Home() {
         </div>
       ) : null}
       <div className="mx-auto flex w-full max-w-none flex-col gap-4">
-        <header className="relative z-30 rounded-xl border border-zinc-200 bg-white/90 px-4 py-3 backdrop-blur lg:px-6">
+        <div className="relative z-30 rounded-xl border border-zinc-200 bg-white/90 px-4 py-3 backdrop-blur lg:px-6">
           <div className="flex flex-col gap-3 lg:grid lg:grid-cols-[minmax(320px,40rem)_minmax(0,1fr)] lg:items-center lg:gap-6">
             <button
               type="button"
@@ -2634,7 +2634,7 @@ export default function Home() {
               )}
             </div>
           </div>
-        </header>
+        </div>
 
         {isSearchOpen ? (
           <div className="fixed inset-0 z-[60] bg-zinc-950/10 px-4 py-6 backdrop-blur-sm lg:px-6">
