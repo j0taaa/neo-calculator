@@ -25,10 +25,6 @@ export function TopNavbar() {
 
   const showSessionUi = hasMounted && !isPending;
 
-  if (pathname === "/" || pathname === "/projects") {
-    return null;
-  }
-
   return (
     <header className="sticky top-0 z-50 border-b border-zinc-200 bg-white/90 backdrop-blur">
       <div className="mx-auto grid max-w-[1600px] grid-cols-[1fr_auto_1fr] items-center px-4 py-3 lg:px-6">
