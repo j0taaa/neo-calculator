@@ -1,7 +1,6 @@
 "use client";
 
 import Image from "next/image";
-import Link from "next/link";
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 
 import { CalculatorPanelRouter } from "@/components/calculators/calculator-panel-router";
@@ -10,10 +9,10 @@ import { ProjectAddCartModalContent } from "@/components/project-add-cart-modal-
 import { ServiceBatchAddPanel } from "@/components/calculators/service-batch-add-panel";
 import { UnsupportedServicePanel } from "@/components/calculators/unsupported-service-panel";
 import { Badge } from "@/components/ui/badge";
-import { Button, buttonVariants } from "@/components/ui/button";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { authClient } from "@/lib/auth-client";
+
 import {
   findServiceCatalogEntry,
   getConfigurableServiceBundleByCode,
@@ -22,6 +21,7 @@ import {
   supportedCalculatorServiceCodes,
 } from "@/lib/service-config";
 import { useSessionContext } from "@/components/session-provider";
+import { useNavbar } from "@/components/navbar-context";
 import { formatDate, formatDateTime, formatNumber } from "@/lib/utils";
 import { huaweiRegions, type HuaweiRegionKey } from "@/lib/huawei-regions";
 import {
@@ -35,7 +35,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Check, ChevronDown, ChevronRight, Copy, Download, Link2, Pencil, Plus, RefreshCw, RotateCcw, Search, Share2, SlidersHorizontal, Trash2, Upload, UserCircle2, X } from "lucide-react";
+import { Check, ChevronDown, ChevronRight, Copy, Download, Link2, Pencil, Plus, RefreshCw, RotateCcw, Search, Share2, SlidersHorizontal, Trash2, Upload, X } from "lucide-react";
 import {
   copyText,
   getCartCloneDefaultName,
@@ -302,6 +302,7 @@ function OptionGrid({
 
 export default function Home() {
   const { session, isPending: isSessionPending } = useSessionContext();
+  const { setConfig } = useNavbar();
   const [hasMounted, setHasMounted] = useState(false);
   const showSessionState = hasMounted && !isSessionPending;
   const isSignedIn = showSessionState && Boolean(session);
@@ -313,7 +314,6 @@ export default function Home() {
   const [isAltShortcutGuideVisible, setIsAltShortcutGuideVisible] = useState(false);
   const [isAwaitingCalculatorSelectOptionShortcut, setIsAwaitingCalculatorSelectOptionShortcut] = useState(false);
   const [altShortcutGuideRefreshTick, setAltShortcutGuideRefreshTick] = useState(0);
-  const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [cookieValue, setCookieValue] = useState("");
   const [cookieDraft, setCookieDraft] = useState("");
   const [regionValue, setRegionValue] = useState<HuaweiRegionKey>("la-sao-paulo1");
@@ -819,12 +819,26 @@ export default function Home() {
     }
   };
 
-  const handleSaveCookie = () => {
+  const handleSaveCookie = useCallback(() => {
     window.localStorage.setItem("neoCalculator.huaweiCookie", cookieDraft);
     setCookieValue(cookieDraft);
-    setIsProfileOpen(false);
     setHuaweiActionMessage("");
-  };
+  }, [cookieDraft]);
+
+  // Sync navbar config
+  useEffect(() => {
+    setConfig({
+      searchQuery: query,
+      onSearchClick: () => setIsSearchOpen(true),
+      cookieValue,
+      cookieValueSaved: cookieValue,
+      onCookieChange: setCookieDraft,
+      onSaveCookie: handleSaveCookie,
+      huaweiCartsLoading,
+      loadHuaweiCarts,
+      showHuaweiCarts: true,
+    });
+  }, [query, cookieValue, huaweiCartsLoading, loadHuaweiCarts, setConfig, handleSaveCookie]);
 
   const reloadProjectsSnapshot = async (preferredListId?: string, preferredProjectId?: string) => {
     const response = await fetch("/api/projects", { cache: "no-store" });
@@ -2333,8 +2347,6 @@ export default function Home() {
         return;
       }
 
-      setIsProfileOpen(false);
-
       if (cartFilterAreaRef.current?.contains(event.target as Node)) {
         return;
       }
@@ -2528,114 +2540,6 @@ export default function Home() {
         </div>
       ) : null}
       <div className="mx-auto flex w-full max-w-none flex-col gap-4">
-        <div className="relative z-30 rounded-xl border border-zinc-200 bg-white/90 px-4 py-3 backdrop-blur lg:px-6">
-          <div className="flex flex-col gap-3 lg:grid lg:grid-cols-[minmax(320px,40rem)_minmax(0,1fr)] lg:items-center lg:gap-6">
-            <button
-              type="button"
-              className="flex h-11 w-full items-center justify-between rounded-full border border-zinc-200 bg-white px-4 text-left shadow-[0_18px_40px_-34px_rgba(15,23,42,0.35)] transition hover:border-zinc-300 lg:mx-auto lg:max-w-3xl"
-              onClick={() => setIsSearchOpen(true)}
-              aria-label="Open service search"
-              aria-expanded={isSearchOpen}
-            >
-              <span className="flex min-w-0 items-center gap-3">
-                <Search className="size-4 text-zinc-400" />
-                <span className={`truncate text-sm ${query ? "text-zinc-900" : "text-zinc-500"}`}>
-                  {query || "Search service name"}
-                </span>
-              </span>
-              <span className="rounded-full border border-zinc-200 bg-zinc-50 px-3 py-1 text-xs font-medium text-zinc-500">
-                Ctrl K
-              </span>
-            </button>
-            <div className="flex items-center justify-end gap-3 lg:min-w-0">
-              {isSignedIn ? (
-                <div className="hidden text-right sm:block">
-                  <p className="text-sm font-medium text-zinc-900">{session?.user.name || session?.user.email}</p>
-                  <p className="text-xs text-zinc-500">{session?.user.email}</p>
-                </div>
-              ) : showSessionState ? null : <div className="hidden h-9 w-40 sm:block" aria-hidden="true" />}
-              <Button
-                type="button"
-                variant="outline"
-                size="icon"
-                className="size-10"
-                aria-label="Reload Huawei carts"
-                onClick={() => void loadHuaweiCarts()}
-                disabled={huaweiCartsLoading || !cookieValue.trim()}
-              >
-                <RefreshCw className={`size-4 ${huaweiCartsLoading ? "animate-spin" : ""}`} />
-              </Button>
-              <div ref={profileAreaRef} className="relative">
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  className="size-10 rounded-full border border-zinc-200"
-                  aria-label="Open Huawei cookie settings"
-                  aria-expanded={isProfileOpen}
-                  onClick={() => setIsProfileOpen((current) => !current)}
-                >
-                  <UserCircle2 className="size-5" />
-                </Button>
-
-                {isProfileOpen ? (
-                  <div className="absolute top-full right-0 z-50 mt-3 w-[min(92vw,380px)] rounded-2xl border border-zinc-200 bg-white p-4 shadow-[0_28px_80px_-40px_rgba(15,23,42,0.45)]">
-                    <div className="space-y-1">
-                      <p className="text-sm font-semibold text-zinc-950">Huawei Cloud Cookie</p>
-                      <p className="text-sm text-zinc-500">
-                        Paste your website cookie string. It will be saved locally in this browser and works even before you sign in.
-                      </p>
-                    </div>
-                    <div className="mt-4 space-y-3">
-                      <textarea
-                        value={cookieDraft}
-                        onChange={(event) => setCookieDraft(event.target.value)}
-                        className="min-h-32 w-full rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-900 outline-none transition focus:border-zinc-400 focus:ring-3 focus:ring-zinc-200"
-                        placeholder="cookie_name=value; other_cookie=value;"
-                      />
-                      <div className="flex items-center justify-between gap-3 text-xs text-zinc-500">
-                        <span>{cookieValue ? "Cookie saved locally" : "No cookie saved yet"}</span>
-                        <span>{cookieDraft.length} chars</span>
-                      </div>
-                      <div className="flex justify-end gap-2">
-                        <Button
-                          type="button"
-                          variant="outline"
-                          onClick={() => {
-                            setCookieDraft(cookieValue);
-                            setIsProfileOpen(false);
-                          }}
-                        >
-                          Cancel
-                        </Button>
-                        <Button type="button" onClick={handleSaveCookie}>
-                          Save Cookie
-                        </Button>
-                      </div>
-                    </div>
-                  </div>
-                ) : null}
-              </div>
-              {isSignedIn ? (
-                <Button type="button" variant="outline" onClick={() => authClient.signOut()}>
-                  Sign Out
-                </Button>
-              ) : showSessionState ? (
-                <>
-                  <Link href="/sign-in" className={buttonVariants({ variant: "outline" })}>
-                    Sign In
-                  </Link>
-                  <Link href="/sign-up" className={buttonVariants()}>
-                    Create Account
-                  </Link>
-                </>
-              ) : (
-                <div className="h-8 w-44" aria-hidden="true" />
-              )}
-            </div>
-          </div>
-        </div>
-
         {isSearchOpen ? (
           <div className="fixed inset-0 z-[60] bg-zinc-950/10 px-4 py-6 backdrop-blur-sm lg:px-6">
             <div className="mx-auto flex w-full max-w-[1680px] justify-center">
