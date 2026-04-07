@@ -3,11 +3,12 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useSyncExternalStore, useState, useRef, useEffect } from "react";
-import { Key, Search, RefreshCw, Copy, Check, Settings } from "lucide-react";
+import { Key, Search, RefreshCw, Copy, Check, Settings, Download, Loader2 } from "lucide-react";
 import { authClient } from "@/lib/auth-client";
 import { useSessionContext } from "@/components/session-provider";
 import { useNavbar } from "@/components/navbar-context";
 import { Button } from "@/components/ui/button";
+import { huaweiRegions, type HuaweiRegionKey } from "@/lib/huawei-regions";
 
 function isActive(pathname: string, href: string) {
   if (href === "/") {
@@ -37,7 +38,7 @@ export function TopNavbar() {
 
   // Settings dropdown state
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-  const [settingsTab, setSettingsTab] = useState<"cookie" | "apikey">("cookie");
+  const [settingsTab, setSettingsTab] = useState<"cookie" | "apikey" | "export">("cookie");
   const settingsRef = useRef<HTMLDivElement>(null);
 
   // Cookie state
@@ -48,6 +49,11 @@ export function TopNavbar() {
   const [newKey, setNewKey] = useState<string | null>(null);
   const [apiKeyLoading, setApiKeyLoading] = useState(false);
   const [copied, setCopied] = useState(false);
+
+  // Export state
+  const [selectedRegions, setSelectedRegions] = useState<Set<HuaweiRegionKey>>(new Set(["la-sao-paulo1"]));
+  const [exportLoading, setExportLoading] = useState(false);
+  const [exportError, setExportError] = useState<string | null>(null);
 
   const fetchApiKey = async () => {
     setApiKeyLoading(true);
@@ -107,6 +113,51 @@ export function TopNavbar() {
     navigator.clipboard.writeText(text);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
+  };
+
+  const toggleRegion = (region: HuaweiRegionKey) => {
+    setSelectedRegions((prev) => {
+      const next = new Set(prev);
+      if (next.has(region)) {
+        next.delete(region);
+      } else {
+        next.add(region);
+      }
+      return next;
+    });
+  };
+
+  const handleExportCatalog = async () => {
+    if (selectedRegions.size === 0) {
+      setExportError("Please select at least one region");
+      return;
+    }
+
+    setExportLoading(true);
+    setExportError(null);
+
+    try {
+      const regionsParam = Array.from(selectedRegions).join(",");
+      const response = await fetch(`/api/catalog/full-export?regions=${encodeURIComponent(regionsParam)}`);
+
+      if (!response.ok) {
+        const error = await response.json().catch(() => null);
+        throw new Error(error?.error || "Failed to fetch catalog data");
+      }
+
+      const data = await response.json();
+
+      // Dynamically import the Excel generation function
+      const { downloadFullCatalogExcel } = await import("@/lib/resource-export");
+      await downloadFullCatalogExcel(data);
+
+      setIsSettingsOpen(false);
+    } catch (error) {
+      console.error("Export failed:", error);
+      setExportError(error instanceof Error ? error.message : "Export failed");
+    } finally {
+      setExportLoading(false);
+    }
   };
 
   // Load API key when settings opens
@@ -280,6 +331,17 @@ export function TopNavbar() {
                       >
                         API Key
                       </button>
+                      <button
+                        type="button"
+                        onClick={() => setSettingsTab("export")}
+                        className={`flex-1 px-4 py-3 text-sm font-medium transition ${
+                          settingsTab === "export"
+                            ? "border-b-2 border-zinc-900 text-zinc-900"
+                            : "text-zinc-500 hover:text-zinc-700"
+                        }`}
+                      >
+                        Export
+                      </button>
                     </div>
 
                     {/* Tab Content */}
@@ -414,6 +476,67 @@ export function TopNavbar() {
                               when making requests to private API endpoints.
                             </p>
                           </div>
+                        </div>
+                      )}
+
+                      {settingsTab === "export" && (
+                        <div className="space-y-4">
+                          <div className="flex items-center gap-2">
+                            <Download className="size-4 text-zinc-500" />
+                            <p className="text-sm font-semibold text-zinc-950">Download Price Catalog</p>
+                          </div>
+                          <p className="text-xs text-zinc-500">
+                            Export the complete Huawei Cloud pricing catalog as an Excel file.
+                            One sheet per service with pricing for each region.
+                          </p>
+
+                          <div className="space-y-2">
+                            <p className="text-xs font-medium text-zinc-700">Select Regions:</p>
+                            <div className="max-h-48 overflow-y-auto rounded-lg border border-zinc-200 p-2">
+                              {Object.entries(huaweiRegions).map(([key, region]) => (
+                                <label
+                                  key={key}
+                                  className="flex cursor-pointer items-center gap-2 rounded px-2 py-1.5 hover:bg-zinc-50"
+                                >
+                                  <input
+                                    type="checkbox"
+                                    checked={selectedRegions.has(key as HuaweiRegionKey)}
+                                    onChange={() => toggleRegion(key as HuaweiRegionKey)}
+                                    className="size-3.5 rounded border-zinc-300"
+                                  />
+                                  <span className="text-xs text-zinc-700">{region.short}</span>
+                                </label>
+                              ))}
+                            </div>
+                            <p className="text-xs text-zinc-500">
+                              {selectedRegions.size} region{selectedRegions.size !== 1 ? "s" : ""} selected
+                            </p>
+                          </div>
+
+                          {exportError && (
+                            <div className="rounded-lg border border-red-200 bg-red-50 p-2">
+                              <p className="text-xs text-red-600">{exportError}</p>
+                            </div>
+                          )}
+
+                          <Button
+                            type="button"
+                            onClick={handleExportCatalog}
+                            disabled={exportLoading || selectedRegions.size === 0}
+                            className="w-full"
+                          >
+                            {exportLoading ? (
+                              <>
+                                <Loader2 className="mr-2 size-4 animate-spin" />
+                                Generating Excel...
+                              </>
+                            ) : (
+                              <>
+                                <Download className="mr-2 size-4" />
+                                Download Catalog
+                              </>
+                            )}
+                          </Button>
                         </div>
                       )}
                     </div>
