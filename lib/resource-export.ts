@@ -625,6 +625,16 @@ type CatalogData = {
 type FullCatalogExportData = {
   regions: string[];
   catalogs: Record<string, Record<string, CatalogData>>;
+  flexusLPlans?: Array<{
+    id: string;
+    title: string;
+    vcpu: number;
+    ramGiB: number;
+    systemDiskGiB: number;
+    peakBandwidthMbit: number;
+    dataPackageTiB: number;
+    monthlyPriceUsd: number;
+  }>;
   generatedAt: string;
 };
 
@@ -889,6 +899,184 @@ export async function buildFullCatalogWorkbookBuffer(
     for (let i = 2; i <= regions.length * 2 + 1; i++) {
       worksheet.getColumn(i).width = 20;
     }
+  }
+
+  // Add ECS Flavors sheet (special handling - not from service config)
+  if (exportData.catalogs["ECS"]) {
+    const sheetName = getUniqueSheetName("ECS Flavors", usedNames);
+    const worksheet = workbook.addWorksheet(sheetName);
+    worksheet.views = [{ showGridLines: false }];
+
+    // Title row
+    const titleRow = worksheet.addRow(["ECS Flavors - All Regions"]);
+    titleRow.height = 30;
+    titleRow.getCell(1).font = { name: "Arial", size: 16, bold: true };
+    worksheet.mergeCells(`A1:${String.fromCharCode(65 + regions.length * 2)}1`);
+    worksheet.addRow([]);
+
+    // Headers
+    const headers = ["Flavor", "vCPUs", "RAM (GiB)", "Family"];
+    for (const region of regions) {
+      const regionInfo = huaweiRegions[region as keyof typeof huaweiRegions];
+      headers.push(`${regionInfo?.short || region} - Pay-per-use`);
+      headers.push(`${regionInfo?.short || region} - Monthly`);
+    }
+
+    const headerRow = worksheet.addRow(headers);
+    headerRow.height = 25;
+    headerRow.eachCell((cell) => {
+      cell.font = { name: "Arial", size: 10, bold: true, color: { argb: "FFFFFF" } };
+      cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "003366" } };
+      cell.alignment = { horizontal: "center", vertical: "middle" };
+      cell.border = {
+        top: { style: "thin", color: { argb: "000000" } },
+        bottom: { style: "thin", color: { argb: "000000" } },
+        left: { style: "thin", color: { argb: "000000" } },
+        right: { style: "thin", color: { argb: "000000" } },
+      };
+    });
+
+    // Collect all unique flavors across regions
+    const allFlavors = new Map<string, { cpu: number; ramGiB: number; family: string; prices: Record<string, { ondemand?: number; monthly?: number }> }>();
+
+    for (const region of regions) {
+      const catalog = exportData.catalogs["ECS"][region] as { flavors?: Array<{ resourceSpecCode: string; cpu: number; ramGiB: number; family: string; prices: { ONDEMAND?: number; MONTHLY?: number } }> };
+      if (catalog?.flavors) {
+        for (const flavor of catalog.flavors) {
+          if (!allFlavors.has(flavor.resourceSpecCode)) {
+            allFlavors.set(flavor.resourceSpecCode, {
+              cpu: flavor.cpu,
+              ramGiB: flavor.ramGiB,
+              family: flavor.family,
+              prices: {},
+            });
+          }
+          allFlavors.get(flavor.resourceSpecCode)!.prices[region] = {
+            ondemand: flavor.prices.ONDEMAND,
+            monthly: flavor.prices.MONTHLY,
+          };
+        }
+      }
+    }
+
+    // Sort flavors by family, then by CPU, then by RAM
+    const sortedFlavors = Array.from(allFlavors.entries()).sort((a, b) => {
+      if (a[1].family !== b[1].family) return a[1].family.localeCompare(b[1].family);
+      if (a[1].cpu !== b[1].cpu) return a[1].cpu - b[1].cpu;
+      return a[1].ramGiB - b[1].ramGiB;
+    });
+
+    // Add data rows
+    for (const [flavorCode, flavorData] of sortedFlavors) {
+      const rowData: (string | number)[] = [flavorCode, flavorData.cpu, flavorData.ramGiB, flavorData.family];
+
+      for (const region of regions) {
+        const prices = flavorData.prices[region];
+        if (prices) {
+          rowData.push(prices.ondemand !== undefined ? prices.ondemand : "");
+          rowData.push(prices.monthly !== undefined ? prices.monthly : "");
+        } else {
+          rowData.push("", "");
+        }
+      }
+
+      const row = worksheet.addRow(rowData);
+      row.height = 20;
+      row.eachCell((cell, colNum) => {
+        cell.font = { name: "Arial", size: 10 };
+        cell.border = {
+          top: { style: "thin", color: { argb: "000000" } },
+          bottom: { style: "thin", color: { argb: "000000" } },
+          left: { style: "thin", color: { argb: "000000" } },
+          right: { style: "thin", color: { argb: "000000" } },
+        };
+        if (colNum <= 4) {
+          cell.alignment = { horizontal: colNum === 1 ? "left" : "center", vertical: "middle" };
+        } else {
+          cell.alignment = { horizontal: "right", vertical: "middle" };
+          cell.numFmt = '"$"* #,##0.0000';
+        }
+      });
+    }
+
+    // Set column widths
+    worksheet.getColumn(1).width = 30;
+    worksheet.getColumn(2).width = 10;
+    worksheet.getColumn(3).width = 12;
+    worksheet.getColumn(4).width = 25;
+    for (let i = 5; i <= regions.length * 2 + 4; i++) {
+      worksheet.getColumn(i).width = 20;
+    }
+  }
+
+  // Add Flexus L Plans sheet (static data)
+  if (exportData.flexusLPlans && exportData.flexusLPlans.length > 0) {
+    const sheetName = getUniqueSheetName("Flexus L Plans", usedNames);
+    const worksheet = workbook.addWorksheet(sheetName);
+    worksheet.views = [{ showGridLines: false }];
+
+    // Title row
+    const titleRow = worksheet.addRow(["Flexus L Plans"]);
+    titleRow.height = 30;
+    titleRow.getCell(1).font = { name: "Arial", size: 16, bold: true };
+    worksheet.mergeCells("A1:G1");
+    worksheet.addRow([]);
+
+    // Headers
+    const headers = ["Plan", "vCPUs", "RAM (GiB)", "System Disk (GiB)", "Peak Bandwidth (Mbit/s)", "Data Package (TB)", "Monthly Price (USD)"];
+    const headerRow = worksheet.addRow(headers);
+    headerRow.height = 25;
+    headerRow.eachCell((cell) => {
+      cell.font = { name: "Arial", size: 10, bold: true, color: { argb: "FFFFFF" } };
+      cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "003366" } };
+      cell.alignment = { horizontal: "center", vertical: "middle" };
+      cell.border = {
+        top: { style: "thin", color: { argb: "000000" } },
+        bottom: { style: "thin", color: { argb: "000000" } },
+        left: { style: "thin", color: { argb: "000000" } },
+        right: { style: "thin", color: { argb: "000000" } },
+      };
+    });
+
+    // Add data rows
+    for (const plan of exportData.flexusLPlans) {
+      const row = worksheet.addRow([
+        plan.title,
+        plan.vcpu,
+        plan.ramGiB,
+        plan.systemDiskGiB,
+        plan.peakBandwidthMbit,
+        plan.dataPackageTiB,
+        plan.monthlyPriceUsd,
+      ]);
+      row.height = 22;
+      row.eachCell((cell, colNum) => {
+        cell.font = { name: "Arial", size: 10 };
+        cell.border = {
+          top: { style: "thin", color: { argb: "000000" } },
+          bottom: { style: "thin", color: { argb: "000000" } },
+          left: { style: "thin", color: { argb: "000000" } },
+          right: { style: "thin", color: { argb: "000000" } },
+        };
+        if (colNum === 1) {
+          cell.alignment = { horizontal: "left", vertical: "middle" };
+        } else if (colNum === 7) {
+          cell.alignment = { horizontal: "right", vertical: "middle" };
+          cell.numFmt = '"$"* #,##0.00';
+        } else {
+          cell.alignment = { horizontal: "center", vertical: "middle" };
+        }
+      });
+    }
+
+    // Set column widths
+    worksheet.getColumn(1).width = 20;
+    worksheet.getColumn(2).width = 10;
+    worksheet.getColumn(3).width = 12;
+    worksheet.getColumn(4).width = 18;
+    worksheet.getColumn(5).width = 22;
+    worksheet.getColumn(6).width = 18;
+    worksheet.getColumn(7).width = 20;
   }
 
   const buffer = await workbook.xlsx.writeBuffer();

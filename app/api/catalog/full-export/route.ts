@@ -1,5 +1,6 @@
 import { huaweiRegions, type HuaweiRegionKey } from "@/lib/huawei-regions";
 import { serviceCatalog } from "@/lib/service-config";
+import { flexusLPlans } from "@/lib/flexus-l-catalog";
 
 export const runtime = "nodejs";
 
@@ -121,6 +122,7 @@ export async function GET(request: Request) {
   return Response.json({
     regions: selectedRegions,
     catalogs: catalogsByService,
+    flexusLPlans: flexusLPlans, // Add Flexus L plans
     generatedAt: new Date().toISOString(),
   });
 }
