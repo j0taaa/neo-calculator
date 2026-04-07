@@ -58,6 +58,10 @@ async function fetchServiceCatalog(
     }
 
     const data = await response.json();
+    // ECS returns data at top level (flavors array), others have catalog property
+    if (serviceCode === "ECS") {
+      return data; // Return full response for ECS (has flavors at top level)
+    }
     return data.catalog;
   } catch {
     return null;

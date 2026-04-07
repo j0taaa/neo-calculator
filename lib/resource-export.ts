@@ -597,34 +597,11 @@ export async function downloadProjectWorkbookFile(project: ExportProjectLike, sh
   );
 }
 
-// Types for full catalog export
-type CatalogTier = {
-  resourceSpecCode?: string;
-  plans?: Array<{
-    billingMode?: string;
-    periodNum?: number | null;
-    amount?: number;
-    tiers?: Array<{
-      start?: number;
-      end?: number | null;
-      amount?: number;
-    }>;
-  }>;
-  [key: string]: unknown;
-};
-
-type CatalogData = {
-  gateways?: CatalogTier[];
-  publicBandwidth?: CatalogTier[];
-  tiers?: CatalogTier[];
-  disks?: CatalogTier[];
-  volumes?: CatalogTier[];
-  [key: string]: unknown;
-};
+// ==================== FULL CATALOG EXPORT ====================
 
 type FullCatalogExportData = {
   regions: string[];
-  catalogs: Record<string, Record<string, CatalogData>>;
+  catalogs: Record<string, Record<string, unknown>>;
   flexusLPlans?: Array<{
     id: string;
     title: string;
@@ -638,23 +615,155 @@ type FullCatalogExportData = {
   generatedAt: string;
 };
 
-// Extract pricing tiers from catalog data for a component
-function extractCatalogComponentTiers(catalog: CatalogData, componentKey: string): CatalogTier[] {
-  const keys = componentKey.split(".");
-  let current: unknown = catalog;
+type PriceInfo = { ondemand?: number; monthly?: number };
 
-  for (const key of keys) {
-    if (typeof current !== "object" || current === null) {
-      return [];
+// Extract label from a catalog item
+function getItemLabel(item: unknown): string {
+  if (!item || typeof item !== "object") return "Unknown";
+  const obj = item as Record<string, unknown>;
+
+  const parts: string[] = [];
+  if (typeof obj.specification === "string") parts.push(obj.specification);
+  if (typeof obj.mode === "string") parts.push(obj.mode);
+  if (typeof obj.allocation === "string") parts.push(obj.allocation);
+  if (typeof obj.storageClass === "string") parts.push(obj.storageClass);
+  if (typeof obj.redundancy === "string") parts.push(obj.redundancy);
+  if (typeof obj.productType === "string") parts.push(obj.productType);
+  if (typeof obj.label === "string") parts.push(obj.label);
+  if (typeof obj.name === "string") parts.push(obj.name);
+
+  if (parts.length === 0 && typeof obj.resourceSpecCode === "string") {
+    return obj.resourceSpecCode;
+  }
+  return parts.join(" | ") || "Unknown";
+}
+
+// Extract prices from various catalog item formats
+function extractPrices(item: unknown): PriceInfo {
+  const prices: PriceInfo = {};
+  if (!item || typeof item !== "object") return prices;
+
+  const obj = item as Record<string, unknown>;
+
+  // Handle plans array (VPN, NAT, ELB, etc.)
+  if (Array.isArray(obj.plans)) {
+    for (const plan of obj.plans) {
+      if (!plan || typeof plan !== "object") continue;
+      const planObj = plan as Record<string, unknown>;
+      const billingMode = String(planObj.billingMode || "").toUpperCase();
+
+      let amount: number | undefined;
+      if (typeof planObj.amount === "number") {
+        amount = planObj.amount;
+      } else if (Array.isArray(planObj.tiers) && planObj.tiers.length > 0) {
+        // Get flat tier or first tier
+        const flatTier = planObj.tiers.find((t: unknown) => {
+          if (!t || typeof t !== "object") return false;
+          const tObj = t as Record<string, unknown>;
+          return tObj.start === 0 && (tObj.end === null || tObj.end === undefined);
+        });
+        if (flatTier && typeof flatTier === "object") {
+          amount = (flatTier as Record<string, unknown>).amount as number;
+        } else {
+          amount = (planObj.tiers[0] as Record<string, unknown>)?.amount as number;
+        }
+      }
+
+      if (amount === undefined || !Number.isFinite(amount)) continue;
+
+      if (billingMode === "ONDEMAND" || billingMode === "PAY-PER-USE") {
+        if (prices.ondemand === undefined) prices.ondemand = amount;
+      } else if (billingMode === "MONTHLY") {
+        prices.monthly = amount;
+      } else if (billingMode === "YEARLY") {
+        // Convert yearly to monthly if no monthly exists
+        if (prices.monthly === undefined) prices.monthly = amount / 12;
+      }
     }
-    current = (current as Record<string, unknown>)[key];
   }
 
-  if (!Array.isArray(current)) {
-    return [];
+  // Handle direct rate objects (EIP dedicated/shared)
+  if (obj.eipRates && typeof obj.eipRates === "object") {
+    const rates = obj.eipRates as Record<string, unknown>;
+    if (typeof rates.ONDEMAND === "number") prices.ondemand = rates.ONDEMAND;
+    if (typeof rates.MONTHLY === "number" && rates.MONTHLY > 0) prices.monthly = rates.MONTHLY;
+  }
+  if (obj.bandwidthRates && typeof obj.bandwidthRates === "object") {
+    const rates = obj.bandwidthRates as Record<string, unknown>;
+    if (prices.ondemand === undefined && typeof rates.ONDEMAND === "number") prices.ondemand = rates.ONDEMAND;
+    if (prices.monthly === undefined && typeof rates.MONTHLY === "number" && rates.MONTHLY > 0) prices.monthly = rates.MONTHLY;
   }
 
-  return current as CatalogTier[];
+  // Handle storageRate (OBS)
+  if (obj.storageRate && typeof obj.storageRate === "object") {
+    const rate = obj.storageRate as Record<string, unknown>;
+    if (typeof rate.amount === "number") prices.ondemand = rate.amount;
+  }
+
+  // Handle direct amount/price properties
+  if (typeof obj.amount === "number" && prices.ondemand === undefined) {
+    prices.ondemand = obj.amount;
+  }
+
+  // Handle direct ONDEMAND/MONTHLY properties
+  if (typeof obj.ONDEMAND === "number" && prices.ondemand === undefined) {
+    prices.ondemand = obj.ONDEMAND;
+  }
+  if (typeof obj.MONTHLY === "number" && prices.monthly === undefined) {
+    prices.monthly = obj.MONTHLY;
+  }
+
+  return prices;
+}
+
+// Find all pricing components in a catalog
+function findCatalogComponents(catalog: unknown): Array<{ label: string; items: unknown[] }> {
+  if (!catalog || typeof catalog !== "object") return [];
+
+  const components: Array<{ label: string; items: unknown[] }> = [];
+  const catalogObj = catalog as Record<string, unknown>;
+
+  // Skip these keys
+  const skipKeys = ["currency", "regionId", "diskPricing", "lastCompletedAt", "syncing"];
+
+  for (const [key, value] of Object.entries(catalogObj)) {
+    if (skipKeys.includes(key)) continue;
+
+    // Handle arrays of pricing items
+    if (Array.isArray(value) && value.length > 0) {
+      const firstItem = value[0];
+      if (firstItem && typeof firstItem === "object") {
+        // Check if it looks like a pricing item
+        const itemObj = firstItem as Record<string, unknown>;
+        if (itemObj.plans || itemObj.resourceSpecCode || itemObj.storageRate || itemObj.amount !== undefined) {
+          components.push({
+            label: formatComponentLabel(key),
+            items: value,
+          });
+        }
+      }
+    }
+    // Handle nested objects with rates (EIP dedicated/shared)
+    else if (value && typeof value === "object") {
+      const nestedObj = value as Record<string, unknown>;
+      if (nestedObj.eipRates || nestedObj.bandwidthRates || nestedObj.ONDEMAND !== undefined) {
+        components.push({
+          label: formatComponentLabel(key),
+          items: [value],
+        });
+      }
+    }
+  }
+
+  return components;
+}
+
+function formatComponentLabel(key: string): string {
+  return key
+    .replace(/([A-Z])/g, " $1")
+    .replace(/^./, (s) => s.toUpperCase())
+    .replace(/_/g, " ")
+    .trim();
 }
 
 // Build Excel workbook for full catalog export
@@ -668,7 +777,6 @@ export async function buildFullCatalogWorkbookBuffer(
   const usedNames = new Set<string>();
   const regions = exportData.regions;
 
-  // Style constants
   const dataStyle = {
     font: { name: "Arial", size: 10 },
     border: {
@@ -679,112 +787,66 @@ export async function buildFullCatalogWorkbookBuffer(
     },
   };
 
-  // For each service
+  // Process each service
   for (const serviceCode of serviceCodes) {
+    // Skip ECS - handled separately
+    if (serviceCode === "ECS") continue;
+
     const catalogs = exportData.catalogs[serviceCode];
-    if (!catalogs || Object.keys(catalogs).length === 0) {
-      continue;
-    }
+    if (!catalogs || typeof catalogs !== "object") continue;
+
+    const catalogsByRegion = catalogs as Record<string, unknown>;
+    if (Object.keys(catalogsByRegion).length === 0) continue;
 
     const serviceName = serviceNames[serviceCode] || serviceCode;
     const sheetName = getUniqueSheetName(serviceName, usedNames);
     const worksheet = workbook.addWorksheet(sheetName);
     worksheet.views = [{ showGridLines: false }];
 
+    const maxCols = regions.length * 2 + 1;
+
     // Title row
     const titleRow = worksheet.addRow([serviceName]);
     titleRow.height = 30;
     titleRow.getCell(1).font = { name: "Arial", size: 16, bold: true };
-    titleRow.getCell(1).alignment = { horizontal: "left", vertical: "middle" };
-    worksheet.mergeCells(`A${titleRow.number}:${String.fromCharCode(65 + regions.length)}${titleRow.number}`);
-
-    // Empty row
+    worksheet.mergeCells(`A1:${String.fromCharCode(65 + Math.min(maxCols - 1, 25))}1`);
     worksheet.addRow([]);
 
-    // Get the first non-null catalog to determine structure
-    const firstCatalog = Object.values(catalogs)[0] as CatalogData;
+    // Get first catalog to determine structure
+    const firstCatalog = Object.values(catalogsByRegion)[0];
     if (!firstCatalog) continue;
 
-    // Determine which components this service has
-    const componentKeys: Array<{ key: string; label: string }> = [];
+    const components = findCatalogComponents(firstCatalog);
 
-    if (firstCatalog.gateways && firstCatalog.gateways.length > 0) {
-      componentKeys.push({ key: "gateways", label: "Gateway" });
-    }
-    if (firstCatalog.publicBandwidth && firstCatalog.publicBandwidth.length > 0) {
-      componentKeys.push({ key: "publicBandwidth", label: "Public Bandwidth" });
-    }
-    if (firstCatalog.tiers && firstCatalog.tiers.length > 0) {
-      componentKeys.push({ key: "tiers", label: "Tiers" });
-    }
-    if (firstCatalog.disks && firstCatalog.disks.length > 0) {
-      componentKeys.push({ key: "disks", label: "Disks" });
-    }
-    if (firstCatalog.volumes && firstCatalog.volumes.length > 0) {
-      componentKeys.push({ key: "volumes", label: "Volumes" });
+    if (components.length === 0) {
+      const noteRow = worksheet.addRow(["No pricing data available"]);
+      noteRow.getCell(1).font = { name: "Arial", size: 10, italic: true, color: { argb: "666666" } };
+      continue;
     }
 
-    // Check for other array properties that might be pricing components
-    for (const [key, value] of Object.entries(firstCatalog)) {
-      if (Array.isArray(value) && value.length > 0 && !["gateways", "publicBandwidth", "tiers", "disks", "volumes"].includes(key)) {
-        componentKeys.push({ key, label: key.charAt(0).toUpperCase() + key.slice(1) });
-      }
-    }
+    // Create table for each component
+    for (const component of components) {
+      // Component header
+      const compHeaderRow = worksheet.addRow([component.label]);
+      compHeaderRow.height = 25;
+      compHeaderRow.getCell(1).font = { name: "Arial", size: 12, bold: true, color: { argb: "003366" } };
+      worksheet.mergeCells(`A${compHeaderRow.number}:${String.fromCharCode(65 + Math.min(maxCols - 1, 25))}${compHeaderRow.number}`);
 
-    // If no specific components found, use the whole catalog as one component
-    if (componentKeys.length === 0) {
-      componentKeys.push({ key: "root", label: "Pricing" });
-    }
-
-    // For each component, create a table
-    for (const component of componentKeys) {
-      // Component header row
-      const componentHeaderRow = worksheet.addRow([component.label]);
-      componentHeaderRow.height = 25;
-      componentHeaderRow.getCell(1).font = { name: "Arial", size: 12, bold: true, color: { argb: "003366" } };
-      worksheet.mergeCells(`A${componentHeaderRow.number}:${String.fromCharCode(65 + regions.length)}${componentHeaderRow.number}`);
-
-      // Build headers: Specification | Region1 Pay-per-use | Region1 Monthly | Region2 Pay-per-use | Region2 Monthly | ...
+      // Headers: Specification | Region1 Pay-per-use | Region1 Monthly | ...
       const headers = ["Specification"];
-      const headerSubLabels: string[] = [""]; // Track sub-labels for merged header row
       for (const region of regions) {
         const regionInfo = huaweiRegions[region as keyof typeof huaweiRegions];
         const regionName = regionInfo?.short || region;
         headers.push(`${regionName} - Pay-per-use`);
         headers.push(`${regionName} - Monthly`);
-        headerSubLabels.push(regionName, regionName);
       }
 
-      // Region header row (merged cells for each region)
-      const regionHeaderRow = worksheet.addRow([""]);
-      regionHeaderRow.height = 20;
-      let colIndex = 2;
-      for (let i = 0; i < regions.length; i++) {
-        const regionInfo = huaweiRegions[regions[i] as keyof typeof huaweiRegions];
-        const regionName = regionInfo?.short || regions[i];
-        const startCol = String.fromCharCode(65 + Math.min(colIndex - 1, 25));
-        const endCol = String.fromCharCode(65 + Math.min(colIndex, 25));
-        worksheet.mergeCells(`${startCol}${regionHeaderRow.number}:${endCol}${regionHeaderRow.number}`);
-        regionHeaderRow.getCell(colIndex).value = regionName;
-        regionHeaderRow.getCell(colIndex).font = { name: "Arial", size: 10, bold: true };
-        regionHeaderRow.getCell(colIndex).alignment = { horizontal: "center", vertical: "middle" };
-        regionHeaderRow.getCell(colIndex).fill = { type: "pattern", pattern: "solid", fgColor: { argb: "E0E0E0" } };
-        colIndex += 2;
-      }
-
-      // Price type header row (Pay-per-use | Monthly | Pay-per-use | Monthly | ...)
       const headerRow = worksheet.addRow(headers);
       headerRow.height = 25;
-      headerRow.eachCell((cell, colNum) => {
-        if (colNum === 1) {
-          cell.font = { name: "Arial", size: 11, bold: true, color: { argb: "FFFFFF" } };
-          cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "003366" } };
-          cell.alignment = { horizontal: "center", vertical: "middle" };
-        } else {
-          cell.font = { name: "Arial", size: 10, bold: true, color: { argb: "FFFFFF" } };
-          cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "003366" } };
-          cell.alignment = { horizontal: "center", vertical: "middle" };
-        }
+      headerRow.eachCell((cell) => {
+        cell.font = { name: "Arial", size: 10, bold: true, color: { argb: "FFFFFF" } };
+        cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "003366" } };
+        cell.alignment = { horizontal: "center", vertical: "middle" };
         cell.border = {
           top: { style: "thin", color: { argb: "000000" } },
           bottom: { style: "thin", color: { argb: "000000" } },
@@ -793,76 +855,37 @@ export async function buildFullCatalogWorkbookBuffer(
         };
       });
 
-      // Collect all tiers from all regions
-      const allTiers = new Map<string, Map<string, { ondemand?: number; monthly?: number; yearly?: number; ri?: number }>>();
+      // Collect all items across regions
+      const allLabels = new Set<string>();
+      const pricesByRegion = new Map<string, Map<string, PriceInfo>>();
 
       for (const region of regions) {
-        const catalog = catalogs[region] as CatalogData;
+        const catalog = catalogsByRegion[region];
         if (!catalog) continue;
 
-        const tiers = component.key === "root"
-          ? [{ resourceSpecCode: "default" } as CatalogTier]
-          : extractCatalogComponentTiers(catalog, component.key);
+        const regionComponents = findCatalogComponents(catalog);
+        const matchingComponent = regionComponents.find(c => c.label === component.label);
+        if (!matchingComponent) continue;
 
-        for (const tier of tiers) {
-          const specCode = String(tier.resourceSpecCode || (tier as Record<string, unknown>).specification || "default");
-          if (!allTiers.has(specCode)) {
-            allTiers.set(specCode, new Map<string, { ondemand?: number; monthly?: number; yearly?: number; ri?: number }>());
-          }
+        const regionPrices = new Map<string, PriceInfo>();
+        pricesByRegion.set(region, regionPrices);
 
-          const regionPrices = allTiers.get(specCode)!;
-          if (!regionPrices.has(region)) {
-            regionPrices.set(region, {});
-          }
-
-          const prices = regionPrices.get(region)!;
-
-          // Extract prices from plans
-          if (tier.plans && Array.isArray(tier.plans)) {
-            for (const plan of tier.plans) {
-              const billingMode = plan.billingMode?.toUpperCase();
-              if (billingMode === "ONDEMAND" || billingMode === "PAY-PER-USE") {
-                if (plan.amount !== undefined) {
-                  prices.ondemand = plan.amount;
-                }
-                // Check for tiered pricing
-                if (plan.tiers && plan.tiers.length > 0) {
-                  const flatTier = plan.tiers.find(t => t.start === 0 && (t.end === null || t.end === undefined));
-                  if (flatTier) {
-                    prices.ondemand = flatTier.amount;
-                  }
-                }
-              } else if (billingMode === "MONTHLY") {
-                prices.monthly = plan.amount;
-              } else if (billingMode === "YEARLY") {
-                prices.yearly = plan.amount;
-              } else if (billingMode === "RI") {
-                prices.ri = plan.amount;
-              }
-            }
-          }
-
-          // Check for direct amount/price properties
-          if (typeof tier.amount === "number") {
-            prices.ondemand = tier.amount;
-          }
-          if (typeof tier.price === "number") {
-            prices.ondemand = tier.price as number;
-          }
+        for (const item of matchingComponent.items) {
+          const label = getItemLabel(item);
+          allLabels.add(label);
+          regionPrices.set(label, extractPrices(item));
         }
       }
 
-      // Add data rows for each tier
-      for (const [specCode, regionPrices] of allTiers) {
-        const rowData: (string | number)[] = [specCode];
+      // Add data rows
+      for (const label of allLabels) {
+        const rowData: (string | number)[] = [label];
 
-        // For each region, add Pay-per-use and Monthly prices
         for (const region of regions) {
-          const prices = regionPrices.get(region);
+          const regionPrices = pricesByRegion.get(region);
+          const prices = regionPrices?.get(label);
           if (prices) {
-            // Pay-per-use column
             rowData.push(prices.ondemand !== undefined ? prices.ondemand : "");
-            // Monthly column
             rowData.push(prices.monthly !== undefined ? prices.monthly : "");
           } else {
             rowData.push("", "");
@@ -871,50 +894,42 @@ export async function buildFullCatalogWorkbookBuffer(
 
         const row = worksheet.addRow(rowData);
         row.height = 22;
-
-        // Apply styling
         row.eachCell((cell, colNum) => {
           Object.assign(cell, dataStyle);
           cell.alignment = { horizontal: colNum === 1 ? "left" : "right", vertical: "middle" };
-          // Format price cells with currency format
           if (colNum > 1) {
             cell.numFmt = '"$"* #,##0.0000';
           }
         });
       }
 
-      // If no tiers found, add a note
-      if (allTiers.size === 0) {
+      if (allLabels.size === 0) {
         const noteRow = worksheet.addRow(["No pricing data available"]);
         noteRow.getCell(1).font = { name: "Arial", size: 10, italic: true, color: { argb: "666666" } };
-        worksheet.mergeCells(`A${noteRow.number}:${String.fromCharCode(65 + Math.min(regions.length * 2, 25))}${noteRow.number}`);
       }
 
-      // Empty row after table
       worksheet.addRow([]);
     }
 
     // Set column widths
     worksheet.getColumn(1).width = 35;
-    for (let i = 2; i <= regions.length * 2 + 1; i++) {
+    for (let i = 2; i <= maxCols; i++) {
       worksheet.getColumn(i).width = 20;
     }
   }
 
-  // Add ECS Flavors sheet (special handling - not from service config)
+  // Add ECS Flavors sheet
   if (exportData.catalogs["ECS"]) {
     const sheetName = getUniqueSheetName("ECS Flavors", usedNames);
     const worksheet = workbook.addWorksheet(sheetName);
     worksheet.views = [{ showGridLines: false }];
 
-    // Title row
-    const titleRow = worksheet.addRow(["ECS Flavors - All Regions"]);
+    const titleRow = worksheet.addRow(["ECS Flavors"]);
     titleRow.height = 30;
     titleRow.getCell(1).font = { name: "Arial", size: 16, bold: true };
     worksheet.mergeCells(`A1:${String.fromCharCode(65 + regions.length * 2)}1`);
     worksheet.addRow([]);
 
-    // Headers
     const headers = ["Flavor", "vCPUs", "RAM (GiB)", "Family"];
     for (const region of regions) {
       const regionInfo = huaweiRegions[region as keyof typeof huaweiRegions];
@@ -936,8 +951,8 @@ export async function buildFullCatalogWorkbookBuffer(
       };
     });
 
-    // Collect all unique flavors across regions
-    const allFlavors = new Map<string, { cpu: number; ramGiB: number; family: string; prices: Record<string, { ondemand?: number; monthly?: number }> }>();
+    // Collect all flavors
+    const allFlavors = new Map<string, { cpu: number; ramGiB: number; family: string; prices: Record<string, PriceInfo> }>();
 
     for (const region of regions) {
       const catalog = exportData.catalogs["ECS"][region] as { flavors?: Array<{ resourceSpecCode: string; cpu: number; ramGiB: number; family: string; prices: { ONDEMAND?: number; MONTHLY?: number } }> };
@@ -959,14 +974,12 @@ export async function buildFullCatalogWorkbookBuffer(
       }
     }
 
-    // Sort flavors by family, then by CPU, then by RAM
     const sortedFlavors = Array.from(allFlavors.entries()).sort((a, b) => {
       if (a[1].family !== b[1].family) return a[1].family.localeCompare(b[1].family);
       if (a[1].cpu !== b[1].cpu) return a[1].cpu - b[1].cpu;
       return a[1].ramGiB - b[1].ramGiB;
     });
 
-    // Add data rows
     for (const [flavorCode, flavorData] of sortedFlavors) {
       const rowData: (string | number)[] = [flavorCode, flavorData.cpu, flavorData.ramGiB, flavorData.family];
 
@@ -999,7 +1012,6 @@ export async function buildFullCatalogWorkbookBuffer(
       });
     }
 
-    // Set column widths
     worksheet.getColumn(1).width = 30;
     worksheet.getColumn(2).width = 10;
     worksheet.getColumn(3).width = 12;
@@ -1009,20 +1021,18 @@ export async function buildFullCatalogWorkbookBuffer(
     }
   }
 
-  // Add Flexus L Plans sheet (static data)
+  // Add Flexus L Plans sheet
   if (exportData.flexusLPlans && exportData.flexusLPlans.length > 0) {
     const sheetName = getUniqueSheetName("Flexus L Plans", usedNames);
     const worksheet = workbook.addWorksheet(sheetName);
     worksheet.views = [{ showGridLines: false }];
 
-    // Title row
     const titleRow = worksheet.addRow(["Flexus L Plans"]);
     titleRow.height = 30;
     titleRow.getCell(1).font = { name: "Arial", size: 16, bold: true };
     worksheet.mergeCells("A1:G1");
     worksheet.addRow([]);
 
-    // Headers
     const headers = ["Plan", "vCPUs", "RAM (GiB)", "System Disk (GiB)", "Peak Bandwidth (Mbit/s)", "Data Package (TB)", "Monthly Price (USD)"];
     const headerRow = worksheet.addRow(headers);
     headerRow.height = 25;
@@ -1038,7 +1048,6 @@ export async function buildFullCatalogWorkbookBuffer(
       };
     });
 
-    // Add data rows
     for (const plan of exportData.flexusLPlans) {
       const row = worksheet.addRow([
         plan.title,
@@ -1069,7 +1078,6 @@ export async function buildFullCatalogWorkbookBuffer(
       });
     }
 
-    // Set column widths
     worksheet.getColumn(1).width = 20;
     worksheet.getColumn(2).width = 10;
     worksheet.getColumn(3).width = 12;
@@ -1083,13 +1091,10 @@ export async function buildFullCatalogWorkbookBuffer(
   return buffer as ArrayBuffer;
 }
 
-// Download full catalog as Excel
 export async function downloadFullCatalogExcel(exportData: FullCatalogExportData) {
-  // Get service info from service catalog
   const serviceNames: Record<string, string> = {};
   const serviceCodes: string[] = [];
 
-  // Import service catalog dynamically to avoid circular dependencies
   const { serviceCatalog } = await import("@/lib/service-config");
   for (const service of serviceCatalog) {
     serviceNames[service.code] = service.name;
