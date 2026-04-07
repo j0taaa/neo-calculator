@@ -659,18 +659,6 @@ export async function buildFullCatalogWorkbookBuffer(
   const regions = exportData.regions;
 
   // Style constants
-  const headerStyle = {
-    font: { name: "Arial", size: 11, bold: true, color: { argb: "FFFFFF" } },
-    fill: { type: "pattern" as const, pattern: "solid" as const, fgColor: { argb: "003366" } },
-    alignment: { horizontal: "center" as const, vertical: "middle" as const },
-    border: {
-      top: { style: "thin" as const, color: { argb: "000000" } },
-      bottom: { style: "thin" as const, color: { argb: "000000" } },
-      left: { style: "thin" as const, color: { argb: "000000" } },
-      right: { style: "thin" as const, color: { argb: "000000" } },
-    },
-  };
-
   const dataStyle = {
     font: { name: "Arial", size: 10 },
     border: {
@@ -746,17 +734,53 @@ export async function buildFullCatalogWorkbookBuffer(
       componentHeaderRow.getCell(1).font = { name: "Arial", size: 12, bold: true, color: { argb: "003366" } };
       worksheet.mergeCells(`A${componentHeaderRow.number}:${String.fromCharCode(65 + regions.length)}${componentHeaderRow.number}`);
 
-      // Build headers: Specification | Region1 | Region2 | ...
+      // Build headers: Specification | Region1 Pay-per-use | Region1 Monthly | Region2 Pay-per-use | Region2 Monthly | ...
       const headers = ["Specification"];
+      const headerSubLabels: string[] = [""]; // Track sub-labels for merged header row
       for (const region of regions) {
         const regionInfo = huaweiRegions[region as keyof typeof huaweiRegions];
-        headers.push(regionInfo?.short || region);
+        const regionName = regionInfo?.short || region;
+        headers.push(`${regionName} - Pay-per-use`);
+        headers.push(`${regionName} - Monthly`);
+        headerSubLabels.push(regionName, regionName);
       }
 
+      // Region header row (merged cells for each region)
+      const regionHeaderRow = worksheet.addRow([""]);
+      regionHeaderRow.height = 20;
+      let colIndex = 2;
+      for (let i = 0; i < regions.length; i++) {
+        const regionInfo = huaweiRegions[regions[i] as keyof typeof huaweiRegions];
+        const regionName = regionInfo?.short || regions[i];
+        const startCol = String.fromCharCode(65 + Math.min(colIndex - 1, 25));
+        const endCol = String.fromCharCode(65 + Math.min(colIndex, 25));
+        worksheet.mergeCells(`${startCol}${regionHeaderRow.number}:${endCol}${regionHeaderRow.number}`);
+        regionHeaderRow.getCell(colIndex).value = regionName;
+        regionHeaderRow.getCell(colIndex).font = { name: "Arial", size: 10, bold: true };
+        regionHeaderRow.getCell(colIndex).alignment = { horizontal: "center", vertical: "middle" };
+        regionHeaderRow.getCell(colIndex).fill = { type: "pattern", pattern: "solid", fgColor: { argb: "E0E0E0" } };
+        colIndex += 2;
+      }
+
+      // Price type header row (Pay-per-use | Monthly | Pay-per-use | Monthly | ...)
       const headerRow = worksheet.addRow(headers);
       headerRow.height = 25;
-      headerRow.eachCell((cell) => {
-        Object.assign(cell, headerStyle);
+      headerRow.eachCell((cell, colNum) => {
+        if (colNum === 1) {
+          cell.font = { name: "Arial", size: 11, bold: true, color: { argb: "FFFFFF" } };
+          cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "003366" } };
+          cell.alignment = { horizontal: "center", vertical: "middle" };
+        } else {
+          cell.font = { name: "Arial", size: 10, bold: true, color: { argb: "FFFFFF" } };
+          cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "003366" } };
+          cell.alignment = { horizontal: "center", vertical: "middle" };
+        }
+        cell.border = {
+          top: { style: "thin", color: { argb: "000000" } },
+          bottom: { style: "thin", color: { argb: "000000" } },
+          left: { style: "thin", color: { argb: "000000" } },
+          right: { style: "thin", color: { argb: "000000" } },
+        };
       });
 
       // Collect all tiers from all regions
@@ -820,39 +844,32 @@ export async function buildFullCatalogWorkbookBuffer(
 
       // Add data rows for each tier
       for (const [specCode, regionPrices] of allTiers) {
-        const row = worksheet.addRow([specCode]);
-        row.height = 22;
+        const rowData: (string | number)[] = [specCode];
 
-        // For each region, add pricing info
-        for (let i = 0; i < regions.length; i++) {
-          const region = regions[i];
+        // For each region, add Pay-per-use and Monthly prices
+        for (const region of regions) {
           const prices = regionPrices.get(region);
-
           if (prices) {
-            const priceParts: string[] = [];
-            if (prices.ondemand !== undefined) {
-              priceParts.push(`Pay-per-use: $${prices.ondemand.toFixed(4)}`);
-            }
-            if (prices.monthly !== undefined) {
-              priceParts.push(`Monthly: $${prices.monthly.toFixed(4)}`);
-            }
-            if (prices.yearly !== undefined) {
-              priceParts.push(`Yearly: $${prices.yearly.toFixed(4)}`);
-            }
-            if (prices.ri !== undefined) {
-              priceParts.push(`RI: $${prices.ri.toFixed(4)}`);
-            }
-
-            row.getCell(i + 2).value = priceParts.join("\n") || "N/A";
+            // Pay-per-use column
+            rowData.push(prices.ondemand !== undefined ? prices.ondemand : "");
+            // Monthly column
+            rowData.push(prices.monthly !== undefined ? prices.monthly : "");
           } else {
-            row.getCell(i + 2).value = "N/A";
+            rowData.push("", "");
           }
         }
+
+        const row = worksheet.addRow(rowData);
+        row.height = 22;
 
         // Apply styling
         row.eachCell((cell, colNum) => {
           Object.assign(cell, dataStyle);
-          cell.alignment = { horizontal: colNum === 1 ? "left" : "center", vertical: "top", wrapText: true };
+          cell.alignment = { horizontal: colNum === 1 ? "left" : "right", vertical: "middle" };
+          // Format price cells with currency format
+          if (colNum > 1) {
+            cell.numFmt = '"$"* #,##0.0000';
+          }
         });
       }
 
@@ -860,7 +877,7 @@ export async function buildFullCatalogWorkbookBuffer(
       if (allTiers.size === 0) {
         const noteRow = worksheet.addRow(["No pricing data available"]);
         noteRow.getCell(1).font = { name: "Arial", size: 10, italic: true, color: { argb: "666666" } };
-        worksheet.mergeCells(`A${noteRow.number}:${String.fromCharCode(65 + regions.length)}${noteRow.number}`);
+        worksheet.mergeCells(`A${noteRow.number}:${String.fromCharCode(65 + Math.min(regions.length * 2, 25))}${noteRow.number}`);
       }
 
       // Empty row after table
@@ -868,9 +885,9 @@ export async function buildFullCatalogWorkbookBuffer(
     }
 
     // Set column widths
-    worksheet.getColumn(1).width = 30;
-    for (let i = 2; i <= regions.length + 1; i++) {
-      worksheet.getColumn(i).width = 35;
+    worksheet.getColumn(1).width = 35;
+    for (let i = 2; i <= regions.length * 2 + 1; i++) {
+      worksheet.getColumn(i).width = 20;
     }
   }
 
