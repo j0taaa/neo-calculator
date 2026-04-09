@@ -1,4 +1,4 @@
-import type { RegionalPricingCatalog } from "@/lib/pricing-catalog-types";
+import { orderedSet, type RegionalPricingCatalog } from "@/lib/pricing-catalog-types";
 
 export type CcmUiBillingMode = "One-time";
 export type CcmCertificateType = "OV" | "OV Pro" | "EV" | "EV Pro" | "DV" | "DV(Basic)";
@@ -81,7 +81,7 @@ export function listCcmCertificateTypes(catalog: CcmPricingCatalog) {
   for (const tier of catalog.baseTiers) {
     values.add(tier.certificateType);
   }
-  return certificateTypeOrder.filter((value) => values.has(value));
+  return orderedSet(values, certificateTypeOrder);
 }
 
 export function listCcmAuthorities(catalog: CcmPricingCatalog, certificateType: CcmCertificateType) {
@@ -91,7 +91,7 @@ export function listCcmAuthorities(catalog: CcmPricingCatalog, certificateType: 
       values.add(tier.certificateAuthority);
     }
   }
-  return certificateAuthorityOrder.filter((value) => values.has(value));
+  return orderedSet(values, certificateAuthorityOrder);
 }
 
 export function listCcmDomainTypes(catalog: CcmPricingCatalog, input: { certificateType: CcmCertificateType; certificateAuthority: CcmCertificateAuthority }) {
@@ -112,7 +112,7 @@ export function listCcmDomainTypes(catalog: CcmPricingCatalog, input: { certific
       }
     }
   }
-  return domainTypeOrder.filter((value) => values.has(value));
+  return orderedSet(values, domainTypeOrder);
 }
 
 export function listCcmValidityPeriods(catalog: CcmPricingCatalog, input: {
@@ -141,7 +141,7 @@ export function listCcmValidityPeriods(catalog: CcmPricingCatalog, input: {
       }
     }
   }
-  return [...validityOrder].filter((value) => values.has(value));
+  return orderedSet(values, validityOrder);
 }
 
 export function findCcmBaseTier(catalog: CcmPricingCatalog, input: {

@@ -117,14 +117,38 @@
 }
 
 @layer base {
-  * {
+  *,
+  *::before,
+  *::after {
     @apply border-border outline-ring/50;
+  }
+  button,
+  [role="button"],
+  a,
+  [role="tab"],
+  [role="menuitem"],
+  [role="option"],
+  summary,
+  label,
+  select,
+  input[type="checkbox"],
+  input[type="radio"] {
+    cursor: pointer;
   }
   body {
     @apply bg-background text-foreground;
   }
   html {
-    @apply font-sans;
+    @apply font-sans scroll-smooth;
+  }
+}
+
+@layer utilities {
+  .bg-grid-pattern {
+    background-image:
+      linear-gradient(to right, oklch(0.88 0 0 / 40%) 1px, transparent 1px),
+      linear-gradient(to bottom, oklch(0.88 0 0 / 40%) 1px, transparent 1px);
+    background-size: 48px 48px;
   }
 }
 

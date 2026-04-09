@@ -327,7 +327,7 @@ export const configurableServiceBundle = {
     catalog: { route: "rds-pricing" },
     showSharedUsageHours: false,
     derived: [
-      { key: "engineOptions", value: ifElse(ref("catalog"), call("listRdsEngines", ref("catalog")), ["MySQL", "PostgreSQL"]) },
+      { key: "engineOptions", value: ifElse(ref("catalog"), call("listRdsEngines", ref("catalog")), []) },
       { key: "engine", value: call("resolveOption", ref("values.engine"), ref("derived.engineOptions"), ref("helpers.rdsDefaults.engine")) },
       {
         key: "versionOptions",

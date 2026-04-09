@@ -26,3 +26,26 @@ curl 'https://portal-intl.huaweicloud.com/api/cbc/global/rest/BSS/billing/rating
 Always take the more declarative approach to adding new services to the website. Follow the example of DCS, for example.
 
 ECS and Flexus L (for now) are the only ones that shouldn't follow this pattern
+
+## Important Discovery About Huawei Product Data
+
+**CRITICAL: The `specDesc` field in Huawei product data is ALWAYS EMPTY.**
+
+When creating parsers for new services, NEVER use `specDesc` as a data source. Instead:
+- Use `productSpecSysDesc` for descriptive text
+- Use `resourceSpecCode` for specification codes
+- Use `keyword-map` extractor with `textPaths: ["productSpecSysDesc", "resourceSpecCode"]` to extract labels from combined text
+
+Example of correct parser field definitions:
+```typescript
+{ key: "label", required: true, extractor: { kind: "keyword-map", textPaths: ["productSpecSysDesc", "resourceSpecCode"], mappings: [
+  { keywords: ["advanced"], value: "Advanced" },
+  { keywords: ["basic"], value: "Basic" },
+] } }
+```
+
+**Do NOT do this:**
+```typescript
+// WRONG - specDesc is empty!
+{ key: "label", required: true, extractor: { kind: "path-or-template", path: "specDesc" } }
+```

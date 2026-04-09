@@ -38,3 +38,9 @@ export interface CapacityRateTier {
   upToGb: number | null;
   amountPerGb: number;
 }
+
+export function orderedSet<T>(available: Set<T> | ReadonlySet<T>, preferredOrder: readonly T[]): T[] {
+  const ordered = preferredOrder.filter((v) => available.has(v));
+  const extras = [...available].filter((v) => !preferredOrder.includes(v)).sort();
+  return [...ordered, ...extras];
+}

@@ -209,7 +209,7 @@ export const configurableServiceBundle = {
     catalog: { route: "flexus-rds-pricing" },
     showSharedUsageHours: false,
     derived: [
-      { key: "engineOptions", value: ifElse(ref("catalog"), call("listFlexusRdsEngines", ref("catalog")), ["MySQL", "PostgreSQL"]) },
+      { key: "engineOptions", value: ifElse(ref("catalog"), call("listFlexusRdsEngines", ref("catalog")), []) },
       { key: "engine", value: call("resolveOption", ref("values.engine"), ref("derived.engineOptions"), ref("helpers.flexusRdsDefaults.engine")) },
       {
         key: "versionOptions",
@@ -218,7 +218,7 @@ export const configurableServiceBundle = {
       { key: "version", value: call("resolveOption", ref("values.version"), ref("derived.versionOptions"), ref("helpers.flexusRdsDefaults.version")) },
       {
         key: "instanceTypeOptions",
-        value: ifElse(ref("catalog"), call("listFlexusRdsInstanceTypes", ref("catalog"), ref("derived.engine")), ["Primary/Standby", "Single"]),
+        value: ifElse(ref("catalog"), call("listFlexusRdsInstanceTypes", ref("catalog"), ref("derived.engine")), []),
       },
       { key: "instanceType", value: call("resolveOption", ref("values.instanceType"), ref("derived.instanceTypeOptions"), ref("helpers.flexusRdsDefaults.instanceType")) },
       { key: "instanceClass", value: "Lightweight" },

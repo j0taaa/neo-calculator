@@ -29,6 +29,7 @@ export type FlavorCard = {
   priceSuffix: string;
   priceModeLabel: string;
   flavorPrice: string | null;
+  riPrice: string | null;
   description: string | null;
   productType: "ecs" | "flexus-l";
   serviceCode: string;
@@ -299,6 +300,7 @@ export function toFlavorCard<SystemDiskOption extends string>(
     priceSuffix: preferredPrice?.suffix ?? "",
     priceModeLabel: preferredPrice?.label ?? "Unavailable",
     flavorPrice: preferredPrice ? formatFlavorAmount(flavor.currency, preferredPrice.amount, preferredPrice.suffix) : null,
+    riPrice: flavor.prices["RI"] ? formatFlavorAmount(flavor.currency, flavor.prices["RI"], "/yr") : null,
     description: flavor.description,
     productType: "ecs",
     serviceCode: "ECS",
@@ -322,6 +324,7 @@ export function toFlexusLFlavorCard(plan: FlexusLPlanLike, billingOption: Billin
     priceSuffix,
     priceModeLabel,
     flavorPrice: formatFlavorAmount("USD", plan.monthlyPriceUsd, priceSuffix),
+    riPrice: null,
     description: `Flexus L bundled plan with ${plan.systemDiskGiB} GiB system disk, ${plan.peakBandwidthMbit} Mbit/s peak bandwidth, and ${plan.dataPackageTiB} TB/month.`,
     productType: "flexus-l",
     serviceCode: "Flexus L",

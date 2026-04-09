@@ -180,6 +180,10 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 function readPath(value: unknown, path: string) {
+  if (typeof path !== "string") {
+    console.warn("[declarative-pricing-engine] readPath called with non-string path:", path, "value:", value);
+    return undefined;
+  }
   const parts = path.split(".");
   let current: unknown = value;
   for (let index = 0; index < parts.length; index += 1) {

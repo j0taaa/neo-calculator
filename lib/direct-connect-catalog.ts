@@ -1,4 +1,4 @@
-import type { RegionalPricingCatalog } from "@/lib/pricing-catalog-types";
+import { orderedSet, type RegionalPricingCatalog } from "@/lib/pricing-catalog-types";
 
 export type DirectConnectPortSpeed = "1GE" | "10GE" | "40GE" | "100GE";
 export type DirectConnectBillingMode = "MONTHLY" | "YEARLY";
@@ -84,7 +84,7 @@ export function listDirectConnectPortSpeeds(catalog: DirectConnectPricingCatalog
       values.add(tier.portSpeed);
     }
   }
-  return speedOrder.filter((speed) => values.has(speed));
+  return orderedSet(values, speedOrder);
 }
 
 export function listDirectConnectDurationMonths(catalog: DirectConnectPricingCatalog, portSpeed: DirectConnectPortSpeed) {

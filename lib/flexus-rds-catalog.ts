@@ -1,4 +1,4 @@
-import type { RegionalPricingCatalog, ResourcePricingTierWithProducts } from "@/lib/pricing-catalog-types";
+import { orderedSet, type RegionalPricingCatalog, type ResourcePricingTierWithProducts } from "@/lib/pricing-catalog-types";
 
 export type FlexusRdsEngine = "MySQL" | "PostgreSQL";
 export type FlexusRdsVersion = "8.0" | "5.7" | "12" | "11" | "10" | "9.6" | "9.5";
@@ -104,7 +104,7 @@ export function listFlexusRdsEngines(catalog: FlexusRdsPricingCatalog) {
       values.add(tier.engine);
     }
   }
-  return engineOrder.filter((value) => values.has(value));
+  return orderedSet(values, engineOrder);
 }
 
 export function listFlexusRdsVersions(engine: FlexusRdsEngine) {
@@ -118,7 +118,7 @@ export function listFlexusRdsInstanceTypes(catalog: FlexusRdsPricingCatalog, eng
       values.add(tier.instanceType);
     }
   }
-  return instanceTypeOrder.filter((value) => values.has(value));
+  return orderedSet(values, instanceTypeOrder);
 }
 
 export function listFlexusRdsSizes(

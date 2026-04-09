@@ -1,4 +1,4 @@
-import type { PricingRateSet, RegionalPricingCatalog, ResourcePricingTierWithProducts } from "@/lib/pricing-catalog-types";
+import { orderedSet, type PricingRateSet, type RegionalPricingCatalog, type ResourcePricingTierWithProducts } from "@/lib/pricing-catalog-types";
 
 export type WorkspaceCpuOption = "2 vCPUs" | "4 vCPUs" | "8 vCPUs";
 export type WorkspaceMemoryOption = "4 GB" | "8 GB" | "16 GB" | "32 GB";
@@ -103,7 +103,7 @@ export function listWorkspaceCpuOptions(catalog: WorkspacePricingCatalog) {
     }
   }
 
-  return cpuOrder.filter((value) => values.has(value));
+  return orderedSet(values, cpuOrder);
 }
 
 export function listWorkspaceMemoryOptions(catalog: WorkspacePricingCatalog, cpu: WorkspaceCpuOption) {
@@ -114,7 +114,7 @@ export function listWorkspaceMemoryOptions(catalog: WorkspacePricingCatalog, cpu
     }
   }
 
-  return memoryOrder.filter((value) => values.has(value));
+  return orderedSet(values, memoryOrder);
 }
 
 export function listWorkspaceDiskTypes(catalog: WorkspacePricingCatalog) {
@@ -125,7 +125,7 @@ export function listWorkspaceDiskTypes(catalog: WorkspacePricingCatalog) {
     }
   }
 
-  return diskTypeOrder.filter((value) => values.has(value));
+  return orderedSet(values, diskTypeOrder);
 }
 
 export function findWorkspaceDesktopTier(catalog: WorkspacePricingCatalog, cpu: WorkspaceCpuOption, memory: WorkspaceMemoryOption) {

@@ -12,6 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { OptionGrid } from "@/components/ui/option-grid";
 
 import {
   findServiceCatalogEntry,
@@ -269,35 +270,6 @@ function toClipboardProductMutationBody(value: unknown): ProductMutationBody | n
     config: record.config ?? {},
     pricing: record.pricing ?? null,
   };
-}
-
-function OptionGrid({
-  items,
-  value,
-  onChange,
-}: {
-  items: BillingOption[];
-  value: BillingOption;
-  onChange: (value: BillingOption) => void;
-}) {
-  return (
-    <div data-option-grid className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-2 2xl:grid-cols-3">
-      {items.map((item, index) => (
-        <Button
-          key={item}
-          type="button"
-          variant={item === value ? "default" : "secondary"}
-          className="h-11 justify-start rounded-md"
-          data-option-grid-button={String(index + 1)}
-          data-calculator-focus-target={item === value ? "" : undefined}
-          aria-pressed={item === value}
-          onClick={() => onChange(item)}
-        >
-          {item}
-        </Button>
-      ))}
-    </div>
-  );
 }
 
 export default function Home() {
@@ -2531,7 +2503,7 @@ export default function Home() {
       : [];
 
   return (
-    <div className="min-h-screen bg-zinc-100 p-4 text-zinc-900 lg:p-6">
+    <div className="min-h-screen bg-zinc-100 bg-grid-pattern p-5 text-zinc-900 lg:p-8">
       {cartCopyNotice ? (
         <div className="pointer-events-none fixed top-3 left-1/2 z-[80] -translate-x-1/2 px-4">
           <div className="rounded-full border border-blue-200 bg-blue-50 px-4 py-2 text-sm font-medium text-blue-900 shadow-[0_18px_40px_-28px_rgba(37,99,235,0.45)]">
@@ -2693,8 +2665,8 @@ export default function Home() {
           }}
         />
 
-        <main className="relative z-0 grid items-start gap-4 xl:grid-cols-[24%_minmax(0,52%)_24%]">
-          <Card className="overflow-hidden xl:sticky xl:top-1 xl:max-h-[calc(100vh-0.25rem)]">
+        <main className="relative z-0 grid items-start gap-8 xl:justify-center xl:grid-cols-[340px_780px_340px] 2xl:grid-cols-[380px_880px_380px]">
+          <Card className="overflow-hidden shadow-sm xl:sticky xl:top-1 xl:max-h-[calc(100vh-0.25rem)]">
             <CardHeader className="pb-3">
               <div className="flex items-center justify-between">
                 <div>
@@ -2994,7 +2966,7 @@ export default function Home() {
             </CardContent>
           </Card>
 
-          <Card className="overflow-visible">
+          <Card className="overflow-visible shadow-sm">
             <Tabs value={activeTab} onValueChange={setActiveTab}>
               <CardHeader className="space-y-4">
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -3019,7 +2991,8 @@ export default function Home() {
               <TabsContent value="calculator">
                 {isSelectedServiceImplemented ? (
                   <>
-                    <div className="fixed right-4 bottom-4 left-4 z-40 grid gap-3 rounded-2xl border border-zinc-200 bg-white/95 px-4 py-3 shadow-[0_24px_70px_-32px_rgba(15,23,42,0.45)] backdrop-blur xl:left-1/2 xl:w-[min(920px,calc(100vw-48rem))] xl:-translate-x-1/2 xl:grid-cols-[minmax(0,1fr)_auto] xl:items-center">
+                    <div className="fixed right-4 bottom-4 left-4 z-40 grid gap-3 overflow-hidden rounded-2xl border border-zinc-200 bg-white/95 px-4 py-3 shadow-[0_24px_70px_-32px_rgba(15,23,42,0.45)] backdrop-blur xl:left-1/2 xl:w-[min(740px,780px)] xl:-translate-x-1/2 xl:grid-cols-[minmax(0,1fr)_auto] xl:items-center">
+                      <div className="pointer-events-none absolute top-0 left-0 h-full w-1 bg-gradient-to-b from-zinc-900 via-zinc-700 to-zinc-900" />
                       <div className="min-w-0">
                         <p className="text-[2.125rem] leading-none font-semibold tracking-tight text-zinc-950">{selectedEstimateParts.amount}</p>
                         <p className="mt-0.5 leading-tight text-sm text-zinc-500">
@@ -3077,13 +3050,14 @@ export default function Home() {
                             data-calculator-add-button
                             onClick={handleAddToList}
                             disabled={addToListPending || !selectedListId || !isSignedIn}
+                            className="bg-zinc-950 hover:bg-zinc-800"
                           >
                             {addToListPending ? (editingProductId ? "Saving..." : "Adding...") : editingProductId ? "Save Changes" : "Add to List"}
                           </Button>
                         </div>
                       </div>
                     </div>
-                    <CardContent data-calculator-shortcut-root className="space-y-6 py-5 pb-44">
+                    <CardContent data-calculator-shortcut-root className="space-y-4 py-5 pb-44">
                       <div className="grid gap-4 lg:grid-cols-2">
                         <div className="space-y-2" data-calculator-focus-group>
                           <p className="text-sm text-zinc-600">Description (Optional)</p>
@@ -3112,11 +3086,12 @@ export default function Home() {
                           <div className="space-y-3" data-calculator-focus-group>
                             <p className="text-sm font-medium">Billing Mode</p>
                             <OptionGrid
-                              items={calculatorBillingOptions}
+                              items={calculatorBillingOptions.map((o) => ({ value: o, label: o }))}
                               value={billingMode}
                               onChange={(value) => {
-                                setBillingMode(value);
+                                setBillingMode(value as BillingOption);
                               }}
+                              name="Billing Mode"
                             />
                           </div>
                           {billingMode === "Pay-per-use" && showSharedUsageHours ? (
@@ -3191,7 +3166,7 @@ export default function Home() {
             </Tabs>
           </Card>
 
-          <Card className="overflow-hidden xl:sticky xl:top-1 xl:max-h-[calc(100vh-0.25rem)]">
+          <Card className="overflow-hidden shadow-sm xl:sticky xl:top-1 xl:max-h-[calc(100vh-0.25rem)]">
             <CardHeader className="pb-3">
               <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-start">
                 <div className="min-w-0">

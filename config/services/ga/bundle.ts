@@ -120,7 +120,7 @@ export const configurableServiceBundle = {
     catalog: { route: "ga-pricing" },
     showSharedUsageHours: false,
     derived: [
-      { key: "accessPointOptions", value: ifElse(ref("catalog"), call("listGaAccessPoints", ref("catalog"), ref("regionValue")), [ref("helpers.gaDefaults.accessPoint")]) },
+      { key: "accessPointOptions", value: ifElse(ref("catalog"), call("listGaAccessPoints", ref("catalog"), ref("regionValue")), []) },
       { key: "accessPoint", value: call("resolveOption", ref("values.accessPoint"), ref("derived.accessPointOptions"), ref("helpers.gaDefaults.accessPoint")) },
       { key: "trafficGb", value: call("clampNumber", ref("values.trafficGb"), 0) },
       { key: "usageHours", value: call("clampInteger", ref("values.usageHours"), 1, 87600) },

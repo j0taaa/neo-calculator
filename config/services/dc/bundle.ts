@@ -107,9 +107,9 @@ export const configurableServiceBundle = {
     catalog: { route: "direct-connect-pricing" },
     showSharedUsageHours: false,
     derived: [
-      { key: "portSpeedOptions", value: ifElse(ref("catalog"), call("listDirectConnectPortSpeeds", ref("catalog")), ["1GE", "10GE", "40GE", "100GE"]) },
+      { key: "portSpeedOptions", value: ifElse(ref("catalog"), call("listDirectConnectPortSpeeds", ref("catalog")), []) },
       { key: "portSpeed", value: call("resolveOption", ref("values.portSpeed"), ref("derived.portSpeedOptions"), ref("helpers.directConnectDefaults.portSpeed")) },
-      { key: "durationMonthOptions", value: ifElse(ref("catalog"), call("listDirectConnectDurationMonths", ref("catalog"), ref("derived.portSpeed")), [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]) },
+      { key: "durationMonthOptions", value: ifElse(ref("catalog"), call("listDirectConnectDurationMonths", ref("catalog"), ref("derived.portSpeed")), []) },
       { key: "durationMonths", value: call("resolveNumberOption", ref("values.durationMonths"), ref("derived.durationMonthOptions"), ref("helpers.directConnectDefaults.durationMonths")) },
       { key: "quantity", value: call("clampInteger", ref("values.quantity"), 1) },
       {

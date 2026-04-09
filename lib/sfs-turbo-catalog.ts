@@ -1,4 +1,4 @@
-import type { AmountPlan, RegionalPricingCatalog } from "@/lib/pricing-catalog-types";
+import { orderedSet, type AmountPlan, type RegionalPricingCatalog } from "@/lib/pricing-catalog-types";
 
 export type SfsTurboUiBillingMode = "Pay-per-use" | "Yearly/Monthly";
 export type SfsTurboBillingMode = "ONDEMAND" | "MONTHLY" | "YEARLY";
@@ -115,7 +115,7 @@ export function listSfsTurboGenerations(catalog: SfsTurboPricingCatalog) {
   for (const tier of catalog.tiers) {
     values.add(tier.generation);
   }
-  return generationOrder.filter((value) => values.has(value));
+  return orderedSet(values, generationOrder);
 }
 
 export function listSfsTurboTypes(catalog: SfsTurboPricingCatalog, generation: SfsTurboGeneration) {
@@ -125,7 +125,7 @@ export function listSfsTurboTypes(catalog: SfsTurboPricingCatalog, generation: S
       values.add(tier.type);
     }
   }
-  return typeOrder.filter((value) => values.has(value));
+  return orderedSet(values, typeOrder);
 }
 
 export function listSfsTurboCapacityOptions() {

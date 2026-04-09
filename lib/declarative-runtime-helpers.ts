@@ -21,6 +21,18 @@ import { estimateRdsConfiguration, isRdsEngine, isRdsInstanceClass, isRdsInstanc
 import { estimateVpcepConfiguration, listVpcepServiceCategories, vpcepDefaults, vpcepPricingReference } from "@/lib/vpcep-catalog";
 import { convertSfsStorageToGb, estimateSfsConfiguration, getSfsStorageUnitOptions, hasSfsPackagePricing, inferSfsStorageAmountFromGb, inferSfsStorageUnitFromGb, listSfsDurationMonths, listSfsFileSystemTypes, listSfsStorageSpaceOptions, listSfsTypes, sfsDefaults, sfsPricingReference } from "@/lib/sfs-catalog";
 import { estimateSfsTurboConfiguration, listSfsTurboBillingOptions, listSfsTurboCapacityOptions, listSfsTurboDurationMonths, listSfsTurboGenerations, listSfsTurboTypes, sfsTurboDefaults, sfsTurboPricingReference } from "@/lib/sfs-turbo-catalog";
+import { estimateGesConfiguration, gesDefaults, gesPricingReference, listGesGraphSizes } from "@/lib/ges-catalog";
+import { estimateHssConfiguration, hssDefaults, hssPricingReference, listHssEditions } from "@/lib/hss-catalog";
+import { estimateDewConfiguration, dewDefaults, dewPricingReference, listDewKeyTypes } from "@/lib/dew-catalog";
+import { estimateSmnConfiguration, smnDefaults, smnPricingReference, listSmnProtocolTypes } from "@/lib/smn-catalog";
+import { estimateDwsConfiguration, dwsDefaults, dwsPricingReference, listDwsSpecifications } from "@/lib/dws-catalog";
+import { estimateDliConfiguration, dliDefaults, dliPricingReference, listDliBillingItems, listDliSpecifications } from "@/lib/dli-catalog";
+import { estimateCdmConfiguration, cdmDefaults, cdmPricingReference, listCdmInstanceTypes } from "@/lib/cdm-catalog";
+import { estimateDdsConfiguration, ddsDefaults, ddsPricingReference, listDdsDbTypes, listDdsSpecifications } from "@/lib/dds-catalog";
+import { estimateWafConfiguration, wafDefaults, wafPricingReference, listWafEditions } from "@/lib/waf-catalog";
+import { estimateCfwConfiguration, cfwDefaults, cfwPricingReference, listCfwEditions } from "@/lib/cfw-catalog";
+import { estimateCseConfiguration, cseDefaults, csePricingReference, listCseSpecifications } from "@/lib/cse-catalog";
+import { disDefaults, disPricingReference, estimateDisConfiguration, listDisTypes } from "@/lib/dis-catalog";
 import { buildEvsProductMutationBodies, buildEvsSplitNotice, evsDiskSizeBounds, formatObsRequestInputValue, getGpSsd2IopsBounds, getGpSsd2RequestedIops, getGpSsd2RequestedThroughput, getGpSsd2ThroughputBounds, getObsRequestUnits, normalizeGpSsd2Iops, normalizeGpSsd2Throughput, obsStorageSizeBounds, parsePositiveNumber, splitEvsDiskSizes, systemDiskOptions } from "@/lib/configurable-runtime-utils";
 import { getBatchDescription, getBatchDiskSize, getBatchDiskType, getBatchObsAmount, getBatchObsProductType, getBatchObsRedundancy, getBatchObsStorageClass, getBatchObsStorageSize, getBatchObsUnit, getNestedRecord, parseBatchQuantity } from "@/lib/batch-input-utils";
 import { formatFlavorAmount, getDiskPriceForBillingOption, isRecord } from "@/lib/calculator-page-helpers";
@@ -187,6 +199,18 @@ export const declarativeRuntimeHelpers = {
   estimateSfsTurboConfiguration,
   hasSfsPackagePricing,
   estimateDcsConfiguration,
+  estimateGesConfiguration,
+  estimateCseConfiguration,
+  estimateDisConfiguration,
+  estimateHssConfiguration,
+  estimateDewConfiguration,
+  estimateSmnConfiguration,
+  estimateDwsConfiguration,
+  estimateDliConfiguration,
+  estimateCdmConfiguration,
+  estimateDdsConfiguration,
+  estimateWafConfiguration,
+  estimateCfwConfiguration,
   convertSfsStorageToGb,
   inferSfsStorageUnitFromGb,
   inferSfsStorageAmountFromGb,
@@ -250,6 +274,20 @@ export const declarativeRuntimeHelpers = {
   listSfsTurboCapacityOptions,
   listSfsTurboDurationMonths,
   listSfsTurboBillingOptions,
+  listGesGraphSizes,
+  listHssEditions,
+  listDewKeyTypes,
+  listSmnProtocolTypes,
+  listCseSpecifications,
+  listDisTypes,
+  listDwsSpecifications,
+  listDliBillingItems,
+  listDliSpecifications,
+  listCdmInstanceTypes,
+  listDdsDbTypes,
+  listDdsSpecifications,
+  listWafEditions,
+  listCfwEditions,
   getBatchDescription,
   getBatchDiskSize,
   getBatchDiskType,
@@ -305,6 +343,18 @@ export const declarativeRuntimeHelpers = {
   vpcepDefaults,
   sfsDefaults,
   sfsTurboDefaults,
+  gesDefaults,
+  hssDefaults,
+  dewDefaults,
+  smnDefaults,
+  cseDefaults,
+  disDefaults,
+  dwsDefaults,
+  dliDefaults,
+  cdmDefaults,
+  ddsDefaults,
+  wafDefaults,
+  cfwDefaults,
   apigPricingReference,
   eipPricingReference,
   elbPricingReference,
@@ -327,6 +377,18 @@ export const declarativeRuntimeHelpers = {
   vpcepPricingReference,
   sfsPricingReference,
   sfsTurboPricingReference,
+  gesPricingReference,
+  hssPricingReference,
+  dewPricingReference,
+  smnPricingReference,
+  csePricingReference,
+  disPricingReference,
+  dwsPricingReference,
+  dliPricingReference,
+  cdmPricingReference,
+  ddsPricingReference,
+  wafPricingReference,
+  cfwPricingReference,
   huaweiRegions,
   isRecord,
   asArray,

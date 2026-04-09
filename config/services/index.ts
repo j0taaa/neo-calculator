@@ -29,7 +29,19 @@ export const serviceRegistryDocument = {
     "ER",
     "APIG",
     "LTS",
-    "GA"
+    "GA",
+    "GES",
+    "CSE",
+    "DIS",
+    "HSS",
+    "DEW",
+    "SMN",
+    "DWS",
+    "DLI",
+    "CDM",
+    "DDS",
+    "WAF",
+    "CFW"
   ],
   "supportedBatchAddServiceCodes": [
     "ECS",
@@ -214,6 +226,90 @@ export const serviceRegistryDocument = {
       "serviceDefinitionPath": "./ga/bundle.ts",
       "pricingDefinitionPath": "./ga/bundle.ts",
       "status": "active"
+    },
+    {
+      "serviceCode": "GES",
+      "definitionId": "ges",
+      "serviceDefinitionPath": "./ges/bundle.ts",
+      "pricingDefinitionPath": "./ges/bundle.ts",
+      "status": "active"
+    },
+    {
+      "serviceCode": "CSE",
+      "definitionId": "cse",
+      "serviceDefinitionPath": "./cse/bundle.ts",
+      "pricingDefinitionPath": "./cse/bundle.ts",
+      "status": "active"
+    },
+    {
+      "serviceCode": "DIS",
+      "definitionId": "dis",
+      "serviceDefinitionPath": "./dis/bundle.ts",
+      "pricingDefinitionPath": "./dis/bundle.ts",
+      "status": "active"
+    },
+    {
+      "serviceCode": "HSS",
+      "definitionId": "hss",
+      "serviceDefinitionPath": "./hss/bundle.ts",
+      "pricingDefinitionPath": "./hss/bundle.ts",
+      "status": "active"
+    },
+    {
+      "serviceCode": "DEW",
+      "definitionId": "dew",
+      "serviceDefinitionPath": "./dew/bundle.ts",
+      "pricingDefinitionPath": "./dew/bundle.ts",
+      "status": "active"
+    },
+    {
+      "serviceCode": "SMN",
+      "definitionId": "smn",
+      "serviceDefinitionPath": "./smn/bundle.ts",
+      "pricingDefinitionPath": "./smn/bundle.ts",
+      "status": "active"
+    },
+    {
+      "serviceCode": "DWS",
+      "definitionId": "dws",
+      "serviceDefinitionPath": "./dws/bundle.ts",
+      "pricingDefinitionPath": "./dws/bundle.ts",
+      "status": "active"
+    },
+    {
+      "serviceCode": "DLI",
+      "definitionId": "dli",
+      "serviceDefinitionPath": "./dli/bundle.ts",
+      "pricingDefinitionPath": "./dli/bundle.ts",
+      "status": "active"
+    },
+    {
+      "serviceCode": "CDM",
+      "definitionId": "cdm",
+      "serviceDefinitionPath": "./cdm/bundle.ts",
+      "pricingDefinitionPath": "./cdm/bundle.ts",
+      "status": "active"
+    },
+    {
+      "serviceCode": "DDS",
+      "definitionId": "dds",
+      "serviceDefinitionPath": "./dds/bundle.ts",
+      "pricingDefinitionPath": "./dds/bundle.ts",
+      "status": "active"
+    },
+    {
+      "serviceCode": "WAF",
+      "definitionId": "waf",
+      "serviceDefinitionPath": "./waf/bundle.ts",
+      "pricingDefinitionPath": "./waf/bundle.ts",
+      "status": "active"
+    },
+    {
+      "serviceCode": "CFW",
+      "definitionId": "cfw",
+      "serviceDefinitionPath": "./cfw/bundle.ts",
+      "pricingDefinitionPath": "./cfw/bundle.ts",
+      "status": "active"
     }
   ],
   "services": [
@@ -336,6 +432,11 @@ export const serviceRegistryDocument = {
       "name": "Graph Engine Service",
       "code": "GES",
       "icon": "https://res-static.hc-cdn.cn/cloudbu-site/public/product-banner-icon/AI/ges.png"
+    },
+    {
+      "name": "Cloud Service Engine",
+      "code": "CSE",
+      "icon": "https://res-static.hc-cdn.cn/cloudbu-site/public/product-banner-icon/Middleware/CSE.png"
     },
     {
       "name": "Document Database Service",

@@ -233,16 +233,16 @@ export const configurableServiceBundle = {
     derived: [
       { key: "typeOptions", value: ["SSL Certificates"] },
       { key: "type", value: call("resolveOption", ref("values.type"), ref("derived.typeOptions"), ref("helpers.ccmDefaults.type")) },
-      { key: "certificateTypeOptions", value: ifElse(ref("catalog"), call("listCcmCertificateTypes", ref("catalog")), [ref("helpers.ccmDefaults.certificateType")]) },
+      { key: "certificateTypeOptions", value: ifElse(ref("catalog"), call("listCcmCertificateTypes", ref("catalog")), []) },
       { key: "certificateType", value: call("resolveOption", ref("values.certificateType"), ref("derived.certificateTypeOptions"), ref("helpers.ccmDefaults.certificateType")) },
-      { key: "certificateAuthorityOptions", value: ifElse(ref("catalog"), call("listCcmAuthorities", ref("catalog"), ref("derived.certificateType")), [ref("helpers.ccmDefaults.certificateAuthority")]) },
+      { key: "certificateAuthorityOptions", value: ifElse(ref("catalog"), call("listCcmAuthorities", ref("catalog"), ref("derived.certificateType")), []) },
       { key: "certificateAuthority", value: call("resolveOption", ref("values.certificateAuthority"), ref("derived.certificateAuthorityOptions"), ref("helpers.ccmDefaults.certificateAuthority")) },
       {
         key: "domainTypeOptions",
         value: ifElse(
           ref("catalog"),
           call("listCcmDomainTypes", ref("catalog"), { certificateType: ref("derived.certificateType"), certificateAuthority: ref("derived.certificateAuthority") }),
-          [ref("helpers.ccmDefaults.domainType")],
+          [],
         ),
       },
       { key: "domainType", value: call("resolveOption", ref("values.domainType"), ref("derived.domainTypeOptions"), ref("helpers.ccmDefaults.domainType")) },
@@ -255,7 +255,7 @@ export const configurableServiceBundle = {
             certificateAuthority: ref("derived.certificateAuthority"),
             domainType: ref("derived.domainType"),
           }),
-          [ref("helpers.ccmDefaults.validityPeriodYears")],
+          [],
         ),
       },
       { key: "validityPeriodYears", value: call("resolveNumberOption", ref("values.validityPeriodYears"), ref("derived.validityPeriodOptions"), ref("helpers.ccmDefaults.validityPeriodYears")) },

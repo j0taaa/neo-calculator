@@ -142,7 +142,7 @@ export const configurableServiceBundle = {
     catalog: { route: "apig-pricing" },
     showSharedUsageHours: false,
     derived: [
-      { key: "editionOptions", value: ifElse(ref("catalog"), call("listApigEditions", ref("catalog")), [ref("helpers.apigDefaults.edition")]) },
+      { key: "editionOptions", value: ifElse(ref("catalog"), call("listApigEditions", ref("catalog")), []) },
       { key: "edition", value: call("resolveOption", ref("values.edition"), ref("derived.editionOptions"), ref("helpers.apigDefaults.edition")) },
       { key: "publicOutboundAccess", value: eq(call("boolString", ref("values.publicOutboundAccess")), "true") },
       { key: "bandwidthMbit", value: call("clampInteger", ref("values.bandwidthMbit"), 1) },

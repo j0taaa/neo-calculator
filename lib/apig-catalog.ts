@@ -1,4 +1,4 @@
-import type { RegionalPricingCatalog } from "@/lib/pricing-catalog-types";
+import { orderedSet, type RegionalPricingCatalog } from "@/lib/pricing-catalog-types";
 
 export type ApigEdition =
   | "Basic"
@@ -138,7 +138,7 @@ export function listApigEditions(catalog: ApigPricingCatalog) {
       values.add(tier.edition);
     }
   }
-  return editionOrder.filter((edition) => values.has(edition));
+  return orderedSet(values, editionOrder);
 }
 
 export function findApigEditionTier(catalog: ApigPricingCatalog, edition: ApigEdition) {

@@ -123,7 +123,7 @@ export const configurableServiceBundle = {
     catalog: { route: "vpcep-pricing" },
     showSharedUsageHours: false,
     derived: [
-      { key: "serviceCategoryOptions", value: ifElse(ref("catalog"), call("listVpcepServiceCategories", ref("catalog")), ["Basic Edition"]) },
+      { key: "serviceCategoryOptions", value: ifElse(ref("catalog"), call("listVpcepServiceCategories", ref("catalog")), []) },
       { key: "serviceCategory", value: call("resolveOption", ref("values.serviceCategory"), ref("derived.serviceCategoryOptions"), ref("helpers.vpcepDefaults.serviceCategory")) },
       { key: "usageHours", value: call("clampInteger", ref("values.usageHours"), 1, 87600) },
       { key: "trafficGb", value: call("clampNumber", ref("values.trafficGb"), 0) },

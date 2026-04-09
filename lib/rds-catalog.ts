@@ -1,4 +1,4 @@
-import type { RegionalPricingCatalog, ResourcePricingTierWithProducts } from "@/lib/pricing-catalog-types";
+import { orderedSet, type RegionalPricingCatalog, type ResourcePricingTierWithProducts } from "@/lib/pricing-catalog-types";
 
 export type RdsEngine = "MySQL" | "PostgreSQL";
 export type RdsVersion = "8.0" | "5.7" | "17" | "16" | "15" | "14" | "13";
@@ -124,7 +124,7 @@ export function listRdsEngines(catalog: RdsPricingCatalog) {
       values.add(tier.engine);
     }
   }
-  return engineOrder.filter((value) => values.has(value));
+  return orderedSet(values, engineOrder);
 }
 
 export function listRdsVersions(catalog: RdsPricingCatalog, engine: RdsEngine) {
@@ -135,7 +135,7 @@ export function listRdsVersions(catalog: RdsPricingCatalog, engine: RdsEngine) {
     }
   }
   const order = engine === "MySQL" ? mysqlVersionOrder : postgresqlVersionOrder;
-  return order.filter((value) => values.has(value));
+  return orderedSet(values, order);
 }
 
 export function listRdsInstanceTypes(catalog: RdsPricingCatalog, options: { engine: RdsEngine; version: RdsVersion }) {
@@ -145,7 +145,7 @@ export function listRdsInstanceTypes(catalog: RdsPricingCatalog, options: { engi
       values.add(tier.instanceType);
     }
   }
-  return instanceTypeOrder.filter((value) => values.has(value));
+  return orderedSet(values, instanceTypeOrder);
 }
 
 export function listRdsInstanceClasses(catalog: RdsPricingCatalog, options: { engine: RdsEngine; version: RdsVersion; instanceType: RdsInstanceType }) {
@@ -160,7 +160,7 @@ export function listRdsInstanceClasses(catalog: RdsPricingCatalog, options: { en
       values.add(tier.instanceClass);
     }
   }
-  return classOrder.filter((value) => values.has(value));
+  return orderedSet(values, classOrder);
 }
 
 export function listRdsSizes(
@@ -202,7 +202,7 @@ export function listRdsStorageTypes(
       values.add(tier.storageType);
     }
   }
-  return storageTypeOrder.filter((value) => values.has(value));
+  return orderedSet(values, storageTypeOrder);
 }
 
 export function findRdsComputeTier(

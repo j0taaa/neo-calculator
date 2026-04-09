@@ -615,7 +615,7 @@ type FullCatalogExportData = {
   generatedAt: string;
 };
 
-type PriceInfo = { ondemand?: number; monthly?: number };
+type PriceInfo = { ondemand?: number; monthly?: number; ri?: number };
 
 // Extract label from a catalog item
 function getItemLabel(item: unknown): string {
@@ -631,11 +631,33 @@ function getItemLabel(item: unknown): string {
   if (typeof obj.productType === "string") parts.push(obj.productType);
   if (typeof obj.label === "string") parts.push(obj.label);
   if (typeof obj.name === "string") parts.push(obj.name);
+  if (typeof obj.type === "string") parts.push(obj.type);
+  if (typeof obj.size === "string") parts.push(obj.size);
+  if (typeof obj.version === "string") parts.push(obj.version);
+  if (typeof obj.instanceType === "string") parts.push(obj.instanceType);
+  if (typeof obj.architecture === "string") parts.push(obj.architecture);
+  if (typeof obj.vaultType === "string") parts.push(obj.vaultType);
+  if (typeof obj.engineType === "string") parts.push(obj.engineType);
+  if (typeof obj.storageSpaceGb === "number") parts.push(`${obj.storageSpaceGb >= 1024 ? `${obj.storageSpaceGb / 1024}TB` : `${obj.storageSpaceGb}GB`}`);
+  if (typeof obj.capacityGb === "number") parts.push(`${obj.capacityGb}GB`);
+  if (typeof obj.memoryGiB === "number") parts.push(`${obj.memoryGiB}GB`);
 
   if (parts.length === 0 && typeof obj.resourceSpecCode === "string") {
     return obj.resourceSpecCode;
   }
   return parts.join(" | ") || "Unknown";
+}
+
+function readRateSet(rateSet: unknown): PriceInfo {
+  const prices: PriceInfo = {};
+  if (!rateSet || typeof rateSet !== "object") return prices;
+  const rs = rateSet as Record<string, unknown>;
+  if (typeof rs.ONDEMAND === "number") prices.ondemand = rs.ONDEMAND;
+  if (typeof rs.MONTHLY === "number" && rs.MONTHLY > 0) prices.monthly = rs.MONTHLY;
+  if (typeof rs.YEARLY === "number") {
+    if (prices.monthly === undefined) prices.monthly = rs.YEARLY / 12;
+  }
+  return prices;
 }
 
 // Extract prices from various catalog item formats
@@ -645,7 +667,12 @@ function extractPrices(item: unknown): PriceInfo {
 
   const obj = item as Record<string, unknown>;
 
-  // Handle plans array (VPN, NAT, ELB, etc.)
+  // Handle prices: {ONDEMAND, MONTHLY, YEARLY} (PricingRateSet - used by NAT, DCS, etc.)
+  if (obj.prices && typeof obj.prices === "object" && !Array.isArray(obj.prices)) {
+    Object.assign(prices, readRateSet(obj.prices));
+  }
+
+  // Handle plans array (VPN, CBR, SFS packageTiers, etc.)
   if (Array.isArray(obj.plans)) {
     for (const plan of obj.plans) {
       if (!plan || typeof plan !== "object") continue;
@@ -656,16 +683,16 @@ function extractPrices(item: unknown): PriceInfo {
       if (typeof planObj.amount === "number") {
         amount = planObj.amount;
       } else if (Array.isArray(planObj.tiers) && planObj.tiers.length > 0) {
-        // Get flat tier or first tier
-        const flatTier = planObj.tiers.find((t: unknown) => {
-          if (!t || typeof t !== "object") return false;
-          const tObj = t as Record<string, unknown>;
-          return tObj.start === 0 && (tObj.end === null || tObj.end === undefined);
-        });
-        if (flatTier && typeof flatTier === "object") {
-          amount = (flatTier as Record<string, unknown>).amount as number;
-        } else {
-          amount = (planObj.tiers[0] as Record<string, unknown>)?.amount as number;
+        // VPN-style division tiers: pick the first tier (start=0) or the lowest
+        const sortedTiers = [...planObj.tiers]
+          .filter((t: unknown) => t && typeof t === "object")
+          .map((t: unknown) => t as Record<string, unknown>)
+          .sort((a, b) => (a.start as number) - (b.start as number));
+        if (sortedTiers.length > 0) {
+          const firstTier = sortedTiers[0];
+          // If there's a single flat tier (end=null), use its amount
+          // Otherwise note it as a division rate (use the first tier's amount)
+          amount = firstTier.amount as number;
         }
       }
 
@@ -674,30 +701,41 @@ function extractPrices(item: unknown): PriceInfo {
       if (billingMode === "ONDEMAND" || billingMode === "PAY-PER-USE") {
         if (prices.ondemand === undefined) prices.ondemand = amount;
       } else if (billingMode === "MONTHLY") {
-        prices.monthly = amount;
+        if (prices.monthly === undefined) prices.monthly = amount;
       } else if (billingMode === "YEARLY") {
-        // Convert yearly to monthly if no monthly exists
         if (prices.monthly === undefined) prices.monthly = amount / 12;
       }
     }
   }
 
-  // Handle direct rate objects (EIP dedicated/shared)
+  // Handle direct rate objects (EIP dedicated/shared, ELB sharedRates)
   if (obj.eipRates && typeof obj.eipRates === "object") {
-    const rates = obj.eipRates as Record<string, unknown>;
-    if (typeof rates.ONDEMAND === "number") prices.ondemand = rates.ONDEMAND;
-    if (typeof rates.MONTHLY === "number" && rates.MONTHLY > 0) prices.monthly = rates.MONTHLY;
+    const rs = readRateSet(obj.eipRates);
+    if (rs.ondemand !== undefined) prices.ondemand = rs.ondemand;
+    if (rs.monthly !== undefined) prices.monthly = rs.monthly;
   }
   if (obj.bandwidthRates && typeof obj.bandwidthRates === "object") {
-    const rates = obj.bandwidthRates as Record<string, unknown>;
-    if (prices.ondemand === undefined && typeof rates.ONDEMAND === "number") prices.ondemand = rates.ONDEMAND;
-    if (prices.monthly === undefined && typeof rates.MONTHLY === "number" && rates.MONTHLY > 0) prices.monthly = rates.MONTHLY;
+    const rs = readRateSet(obj.bandwidthRates);
+    if (prices.ondemand === undefined && rs.ondemand !== undefined) prices.ondemand = rs.ondemand;
+    if (prices.monthly === undefined && rs.monthly !== undefined) prices.monthly = rs.monthly;
+  }
+
+  // Handle sharedRates (ELB) - flat PricingRateSet
+  if (obj.sharedRates && typeof obj.sharedRates === "object" && !Array.isArray(obj.sharedRates)) {
+    const rs = readRateSet(obj.sharedRates);
+    if (rs.ondemand !== undefined) prices.ondemand = rs.ondemand;
+    if (rs.monthly !== undefined) prices.monthly = rs.monthly;
   }
 
   // Handle storageRate (OBS)
   if (obj.storageRate && typeof obj.storageRate === "object") {
     const rate = obj.storageRate as Record<string, unknown>;
     if (typeof rate.amount === "number") prices.ondemand = rate.amount;
+  }
+
+  // Handle ratePerGbHour (SFS paygTiers) and similar rate fields
+  if (typeof obj.ratePerGbHour === "number" && prices.ondemand === undefined) {
+    prices.ondemand = obj.ratePerGbHour;
   }
 
   // Handle direct amount/price properties
@@ -723,8 +761,8 @@ function findCatalogComponents(catalog: unknown): Array<{ label: string; items: 
   const components: Array<{ label: string; items: unknown[] }> = [];
   const catalogObj = catalog as Record<string, unknown>;
 
-  // Skip these keys
-  const skipKeys = ["currency", "regionId", "diskPricing", "lastCompletedAt", "syncing"];
+  // Skip these keys - non-pricing metadata or auxiliary scalars
+  const skipKeys = ["currency", "regionId", "diskPricing", "lastCompletedAt", "syncing", "edition", "bandwidthRatePerMbitHour", "productIds"];
 
   for (const [key, value] of Object.entries(catalogObj)) {
     if (skipKeys.includes(key)) continue;
@@ -735,7 +773,10 @@ function findCatalogComponents(catalog: unknown): Array<{ label: string; items: 
       if (firstItem && typeof firstItem === "object") {
         // Check if it looks like a pricing item
         const itemObj = firstItem as Record<string, unknown>;
-        if (itemObj.plans || itemObj.resourceSpecCode || itemObj.storageRate || itemObj.amount !== undefined) {
+        if (
+          itemObj.plans || itemObj.resourceSpecCode || itemObj.storageRate ||
+          itemObj.prices || itemObj.ratePerGbHour || itemObj.amount !== undefined
+        ) {
           components.push({
             label: formatComponentLabel(key),
             items: value,
@@ -743,10 +784,13 @@ function findCatalogComponents(catalog: unknown): Array<{ label: string; items: 
         }
       }
     }
-    // Handle nested objects with rates (EIP dedicated/shared)
+    // Handle nested objects with rates (EIP dedicated/shared, ELB sharedRates, etc.)
     else if (value && typeof value === "object") {
       const nestedObj = value as Record<string, unknown>;
-      if (nestedObj.eipRates || nestedObj.bandwidthRates || nestedObj.ONDEMAND !== undefined) {
+      if (
+        nestedObj.eipRates || nestedObj.bandwidthRates || nestedObj.sharedRates ||
+        nestedObj.ONDEMAND !== undefined || nestedObj.prices
+      ) {
         components.push({
           label: formatComponentLabel(key),
           items: [value],
@@ -927,7 +971,7 @@ export async function buildFullCatalogWorkbookBuffer(
     const titleRow = worksheet.addRow(["ECS Flavors"]);
     titleRow.height = 30;
     titleRow.getCell(1).font = { name: "Arial", size: 16, bold: true };
-    worksheet.mergeCells(`A1:${String.fromCharCode(65 + regions.length * 2)}1`);
+    worksheet.mergeCells(`A1:${String.fromCharCode(65 + regions.length * 3)}1`);
     worksheet.addRow([]);
 
     const headers = ["Flavor", "vCPUs", "RAM (GiB)", "Family"];
@@ -935,6 +979,7 @@ export async function buildFullCatalogWorkbookBuffer(
       const regionInfo = huaweiRegions[region as keyof typeof huaweiRegions];
       headers.push(`${regionInfo?.short || region} - Pay-per-use`);
       headers.push(`${regionInfo?.short || region} - Monthly`);
+      headers.push(`${regionInfo?.short || region} - RI`);
     }
 
     const headerRow = worksheet.addRow(headers);
@@ -955,7 +1000,7 @@ export async function buildFullCatalogWorkbookBuffer(
     const allFlavors = new Map<string, { cpu: number; ramGiB: number; family: string; prices: Record<string, PriceInfo> }>();
 
     for (const region of regions) {
-      const catalog = exportData.catalogs["ECS"][region] as { flavors?: Array<{ resourceSpecCode: string; cpu: number; ramGiB: number; family: string; prices: { ONDEMAND?: number; MONTHLY?: number } }> };
+      const catalog = exportData.catalogs["ECS"][region] as { flavors?: Array<{ resourceSpecCode: string; cpu: number; ramGiB: number; family: string; prices: { ONDEMAND?: number; MONTHLY?: number; RI?: number } }> };
       if (catalog?.flavors) {
         for (const flavor of catalog.flavors) {
           if (!allFlavors.has(flavor.resourceSpecCode)) {
@@ -969,6 +1014,7 @@ export async function buildFullCatalogWorkbookBuffer(
           allFlavors.get(flavor.resourceSpecCode)!.prices[region] = {
             ondemand: flavor.prices.ONDEMAND,
             monthly: flavor.prices.MONTHLY,
+            ri: flavor.prices.RI,
           };
         }
       }
@@ -988,8 +1034,9 @@ export async function buildFullCatalogWorkbookBuffer(
         if (prices) {
           rowData.push(prices.ondemand !== undefined ? prices.ondemand : "");
           rowData.push(prices.monthly !== undefined ? prices.monthly : "");
+          rowData.push(prices.ri !== undefined ? prices.ri : "");
         } else {
-          rowData.push("", "");
+          rowData.push("", "", "");
         }
       }
 
@@ -1016,7 +1063,7 @@ export async function buildFullCatalogWorkbookBuffer(
     worksheet.getColumn(2).width = 10;
     worksheet.getColumn(3).width = 12;
     worksheet.getColumn(4).width = 25;
-    for (let i = 5; i <= regions.length * 2 + 4; i++) {
+    for (let i = 5; i <= regions.length * 3 + 4; i++) {
       worksheet.getColumn(i).width = 20;
     }
   }

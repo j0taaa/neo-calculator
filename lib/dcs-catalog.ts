@@ -1,4 +1,4 @@
-import type { PricingRateSet, RegionalPricingCatalog, ResourcePricingTierWithProducts } from "@/lib/pricing-catalog-types";
+import { orderedSet, type PricingRateSet, type RegionalPricingCatalog, type ResourcePricingTierWithProducts } from "@/lib/pricing-catalog-types";
 
 export type DcsVersion = "7.0" | "6.0" | "5.0" | "4.0";
 export type DcsInstanceType = "Single-node" | "Master/Standby" | "Redis Cluster";
@@ -105,7 +105,7 @@ export function listDcsVersions(catalog: DcsPricingCatalog) {
     }
   }
 
-  return versionOrder.filter((value) => values.has(value));
+  return orderedSet(values, versionOrder);
 }
 
 export function listDcsInstanceTypes(catalog: DcsPricingCatalog, version: DcsVersion) {
@@ -116,7 +116,7 @@ export function listDcsInstanceTypes(catalog: DcsPricingCatalog, version: DcsVer
     }
   }
 
-  return instanceTypeOrder.filter((value) => values.has(value));
+  return orderedSet(values, instanceTypeOrder);
 }
 
 export function listDcsArchitectures(catalog: DcsPricingCatalog, options: { version: DcsVersion; instanceType: DcsInstanceType }) {
@@ -127,7 +127,7 @@ export function listDcsArchitectures(catalog: DcsPricingCatalog, options: { vers
     }
   }
 
-  return architectureOrder.filter((value) => values.has(value));
+  return orderedSet(values, architectureOrder);
 }
 
 export function listDcsReplicas(catalog: DcsPricingCatalog, options: { version: DcsVersion; instanceType: DcsInstanceType; architecture: DcsArchitecture }) {

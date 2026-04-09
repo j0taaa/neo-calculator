@@ -136,7 +136,7 @@ export const configurableServiceBundle = {
       { key: "storageSpaceUnit", value: call("resolveOption", ref("values.storageSpaceUnit"), ref("derived.storageSpaceUnitOptions"), ref("helpers.sfsDefaults.storageSpaceUnit")) },
       { key: "storageSpaceAmount", value: call("clampInteger", ref("values.storageSpaceAmount"), 1) },
       { key: "storageSpaceGb", value: call("convertSfsStorageToGb", ref("derived.storageSpaceAmount"), ref("derived.storageSpaceUnit")) },
-      { key: "durationMonthOptions", value: ifElse(ref("catalog"), call("listSfsDurationMonths", ref("catalog"), ref("derived.type")), [1, 2, 3, 4, 5, 6, 7, 8, 12]) },
+      { key: "durationMonthOptions", value: ifElse(ref("catalog"), call("listSfsDurationMonths", ref("catalog"), ref("derived.type")), []) },
       { key: "durationMonths", value: call("resolveNumberOption", ref("values.durationMonths"), ref("derived.durationMonthOptions"), ref("helpers.sfsDefaults.durationMonths")) },
       { key: "quantity", value: call("clampInteger", ref("values.quantity"), 1) },
       {

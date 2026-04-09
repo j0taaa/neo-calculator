@@ -15,6 +15,7 @@ type FlavorListItem = {
   family: string;
   priceModeLabel: string;
   price: string;
+  riPrice: string | null;
   vcpu: string;
   ram: string;
 };
@@ -200,17 +201,17 @@ export function EcsCalculatorPanel({
                   type="button"
                   data-calculator-focus-target={isSelected ? "" : undefined}
                   aria-pressed={isSelected}
-                  className={`flex w-full items-center justify-between rounded-lg border px-3 py-3 text-left ${
+                  className={`flex w-full items-center justify-between gap-3 rounded-lg border px-3 py-3 text-left ${
                     isSelected ? "border-zinc-950 bg-white" : "border-zinc-200 bg-white/80"
                   }`}
                   onClick={() => onSelectFlavor(flavor.name, flavor.vcpu, flavor.ram)}
                 >
-                  <div>
+                  <div className="min-w-0 flex-1">
                     <p className="font-medium text-zinc-950">{flavor.name}</p>
                     <p className="text-sm text-zinc-500">{flavor.family}</p>
                     <p className="text-xs text-zinc-400">{flavor.priceModeLabel}</p>
                   </div>
-                  <div className="text-right text-sm">
+                  <div className="shrink-0 text-right text-sm">
                     <p className="font-medium text-zinc-950">{flavor.price}</p>
                     <p className="text-zinc-500">
                       {flavor.vcpu} vCPUs · {flavor.ram} GiB RAM

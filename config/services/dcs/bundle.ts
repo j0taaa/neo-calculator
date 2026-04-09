@@ -196,11 +196,11 @@ export const configurableServiceBundle = {
     catalog: { route: "dcs-pricing" },
     showSharedUsageHours: false,
     derived: [
-      { key: "versionOptions", value: ifElse(ref("catalog"), call("listDcsVersions", ref("catalog")), ["7.0", "6.0", "5.0", "4.0"]) },
+      { key: "versionOptions", value: ifElse(ref("catalog"), call("listDcsVersions", ref("catalog")), []) },
       { key: "version", value: call("resolveOption", ref("values.version"), ref("derived.versionOptions"), ref("helpers.dcsDefaults.version")) },
       {
         key: "instanceTypeOptions",
-        value: ifElse(ref("catalog"), call("listDcsInstanceTypes", ref("catalog"), ref("derived.version")), ["Single-node", "Master/Standby", "Redis Cluster"]),
+        value: ifElse(ref("catalog"), call("listDcsInstanceTypes", ref("catalog"), ref("derived.version")), []),
       },
       { key: "instanceType", value: call("resolveOption", ref("values.instanceType"), ref("derived.instanceTypeOptions"), ref("helpers.dcsDefaults.instanceType")) },
       {

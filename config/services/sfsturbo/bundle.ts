@@ -132,13 +132,13 @@ export const configurableServiceBundle = {
     derived: [
       { key: "fileSystemTypeOptions", value: ["SFS Turbo"] },
       { key: "fileSystemType", value: call("resolveOption", ref("values.fileSystemType"), ref("derived.fileSystemTypeOptions"), ref("helpers.sfsTurboDefaults.fileSystemType")) },
-      { key: "generationOptions", value: ifElse(ref("catalog"), call("listSfsTurboGenerations", ref("catalog")), [ref("helpers.sfsTurboDefaults.generation")]) },
+      { key: "generationOptions", value: ifElse(ref("catalog"), call("listSfsTurboGenerations", ref("catalog")), []) },
       { key: "generation", value: call("resolveOption", ref("values.generation"), ref("derived.generationOptions"), ref("helpers.sfsTurboDefaults.generation")) },
-      { key: "typeOptions", value: ifElse(ref("catalog"), call("listSfsTurboTypes", ref("catalog"), ref("derived.generation")), [ref("helpers.sfsTurboDefaults.type")]) },
+      { key: "typeOptions", value: ifElse(ref("catalog"), call("listSfsTurboTypes", ref("catalog"), ref("derived.generation")), []) },
       { key: "type", value: call("resolveOption", ref("values.type"), ref("derived.typeOptions"), ref("helpers.sfsTurboDefaults.type")) },
       { key: "capacityOptions", value: call("listSfsTurboCapacityOptions") },
       { key: "capacityTb", value: call("resolveNumberOption", ref("values.capacityTb"), ref("derived.capacityOptions"), ref("helpers.sfsTurboDefaults.capacityTb")) },
-      { key: "durationMonthOptions", value: ifElse(ref("catalog"), call("listSfsTurboDurationMonths", ref("catalog"), { generation: ref("derived.generation"), type: ref("derived.type") }), [1, 12]) },
+      { key: "durationMonthOptions", value: ifElse(ref("catalog"), call("listSfsTurboDurationMonths", ref("catalog"), { generation: ref("derived.generation"), type: ref("derived.type") }), []) },
       { key: "durationMonths", value: call("resolveNumberOption", ref("values.durationMonths"), ref("derived.durationMonthOptions"), ref("helpers.sfsTurboDefaults.durationMonths")) },
       { key: "quantity", value: call("clampInteger", ref("values.quantity"), 1) },
       {

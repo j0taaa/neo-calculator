@@ -93,10 +93,10 @@ export const configurableServiceBundle = {
     catalog: { route: "cbr-pricing" },
     showSharedUsageHours: true,
     derived: [
-      { key: "vaultTypeOptions", value: ifElse(ref("catalog"), call("listCbrVaultTypes", ref("catalog")), [ref("helpers.cbrDefaults.vaultType")]) },
+      { key: "vaultTypeOptions", value: ifElse(ref("catalog"), call("listCbrVaultTypes", ref("catalog")), []) },
       { key: "vaultType", value: call("resolveOption", ref("values.vaultType"), ref("derived.vaultTypeOptions"), ref("helpers.cbrDefaults.vaultType")) },
       { key: "vaultCapacityGb", value: call("clampInteger", ref("values.vaultCapacityGb"), 1) },
-      { key: "durationMonthOptions", value: ifElse(ref("catalog"), call("listCbrDurationMonths", ref("catalog"), ref("derived.vaultType")), [1, 2, 3, 4, 5, 6, 7, 8, 9, 12, 24, 36, 48, 60]) },
+      { key: "durationMonthOptions", value: ifElse(ref("catalog"), call("listCbrDurationMonths", ref("catalog"), ref("derived.vaultType")), []) },
       { key: "durationMonths", value: call("resolveNumberOption", ref("values.durationMonths"), ref("derived.durationMonthOptions"), ref("helpers.cbrDefaults.durationMonths")) },
       { key: "quantity", value: call("clampInteger", ref("values.quantity"), 1) },
       {

@@ -5,8 +5,10 @@ import { pricingDefinition as cbhPricingDefinitionDocument, serviceDefinition as
 import { pricingDefinition as cbrPricingDefinitionDocument, serviceDefinition as cbrServiceDefinitionDocument } from "@/config/services/cbr/bundle";
 import { pricingDefinition as ccePricingDefinitionDocument, serviceDefinition as cceServiceDefinitionDocument } from "@/config/services/cce/bundle";
 import { pricingDefinition as cciPricingDefinitionDocument, serviceDefinition as cciServiceDefinitionDocument } from "@/config/services/cci/bundle";
+import { pricingDefinition as csePricingDefinitionDocument, serviceDefinition as cseServiceDefinitionDocument } from "@/config/services/cse/bundle";
 import { pricingDefinition as dcsPricingDefinitionDocument, serviceDefinition as dcsServiceDefinitionDocument } from "@/config/services/dcs/bundle";
 import { pricingDefinition as dcPricingDefinitionDocument, serviceDefinition as dcServiceDefinitionDocument } from "@/config/services/dc/bundle";
+import { pricingDefinition as disPricingDefinitionDocument, serviceDefinition as disServiceDefinitionDocument } from "@/config/services/dis/bundle";
 import { pricingDefinition as eipPricingDefinitionDocument, serviceDefinition as eipServiceDefinitionDocument } from "@/config/services/eip/bundle";
 import { pricingDefinition as elbPricingDefinitionDocument, serviceDefinition as elbServiceDefinitionDocument } from "@/config/services/elb/bundle";
 import { pricingDefinition as evsPricingDefinitionDocument, serviceDefinition as evsServiceDefinitionDocument } from "@/config/services/evs/bundle";
@@ -14,6 +16,7 @@ import { pricingDefinition as erPricingDefinitionDocument, serviceDefinition as 
 import { pricingDefinition as flexusRdsPricingDefinitionDocument, serviceDefinition as flexusRdsServiceDefinitionDocument } from "@/config/services/flexus-rds/bundle";
 import { pricingDefinition as functionGraphPricingDefinitionDocument, serviceDefinition as functionGraphServiceDefinitionDocument } from "@/config/services/functiongraph/bundle";
 import { pricingDefinition as gaPricingDefinitionDocument, serviceDefinition as gaServiceDefinitionDocument } from "@/config/services/ga/bundle";
+import { pricingDefinition as gesPricingDefinitionDocument, serviceDefinition as gesServiceDefinitionDocument } from "@/config/services/ges/bundle";
 import { pricingDefinition as ltsPricingDefinitionDocument, serviceDefinition as ltsServiceDefinitionDocument } from "@/config/services/lts/bundle";
 import { pricingDefinition as modelartsPricingDefinitionDocument, serviceDefinition as modelartsServiceDefinitionDocument } from "@/config/services/modelarts/bundle";
 import { pricingDefinition as natPricingDefinitionDocument, serviceDefinition as natServiceDefinitionDocument } from "@/config/services/nat/bundle";
@@ -22,6 +25,15 @@ import { pricingDefinition as rdsPricingDefinitionDocument, serviceDefinition as
 import { pricingDefinition as sfsPricingDefinitionDocument, serviceDefinition as sfsServiceDefinitionDocument } from "@/config/services/sfs/bundle";
 import { pricingDefinition as sfsTurboPricingDefinitionDocument, serviceDefinition as sfsTurboServiceDefinitionDocument } from "@/config/services/sfsturbo/bundle";
 import { pricingDefinition as vpcepPricingDefinitionDocument, serviceDefinition as vpcepServiceDefinitionDocument } from "@/config/services/vpcep/bundle";
+import { pricingDefinition as hssPricingDefinitionDocument, serviceDefinition as hssServiceDefinitionDocument } from "@/config/services/hss/bundle";
+import { pricingDefinition as dewPricingDefinitionDocument, serviceDefinition as dewServiceDefinitionDocument } from "@/config/services/dew/bundle";
+import { pricingDefinition as smnPricingDefinitionDocument, serviceDefinition as smnServiceDefinitionDocument } from "@/config/services/smn/bundle";
+import { pricingDefinition as dwsPricingDefinitionDocument, serviceDefinition as dwsServiceDefinitionDocument } from "@/config/services/dws/bundle";
+import { pricingDefinition as dliPricingDefinitionDocument, serviceDefinition as dliServiceDefinitionDocument } from "@/config/services/dli/bundle";
+import { pricingDefinition as cdmPricingDefinitionDocument, serviceDefinition as cdmServiceDefinitionDocument } from "@/config/services/cdm/bundle";
+import { pricingDefinition as ddsPricingDefinitionDocument, serviceDefinition as ddsServiceDefinitionDocument } from "@/config/services/dds/bundle";
+import { pricingDefinition as wafPricingDefinitionDocument, serviceDefinition as wafServiceDefinitionDocument } from "@/config/services/waf/bundle";
+import { pricingDefinition as cfwPricingDefinitionDocument, serviceDefinition as cfwServiceDefinitionDocument } from "@/config/services/cfw/bundle";
 import { pricingDefinition as vpnPricingDefinitionDocument, serviceDefinition as vpnServiceDefinitionDocument } from "@/config/services/vpn/bundle";
 import { pricingDefinition as workspacePricingDefinitionDocument, serviceDefinition as workspaceServiceDefinitionDocument } from "@/config/services/workspace/bundle";
 import {
@@ -459,6 +471,10 @@ const definitionDocuments = {
     service: parseServiceDefinition(cciServiceDefinitionDocument),
     pricing: parsePricingDefinition(cciPricingDefinitionDocument),
   },
+  cse: {
+    service: parseServiceDefinition(cseServiceDefinitionDocument),
+    pricing: parsePricingDefinition(csePricingDefinitionDocument),
+  },
   dcs: {
     service: parseServiceDefinition(dcsServiceDefinitionDocument),
     pricing: parsePricingDefinition(dcsPricingDefinitionDocument),
@@ -466,6 +482,10 @@ const definitionDocuments = {
   dc: {
     service: parseServiceDefinition(dcServiceDefinitionDocument),
     pricing: parsePricingDefinition(dcPricingDefinitionDocument),
+  },
+  dis: {
+    service: parseServiceDefinition(disServiceDefinitionDocument),
+    pricing: parsePricingDefinition(disPricingDefinitionDocument),
   },
   elb: {
     service: parseServiceDefinition(elbServiceDefinitionDocument),
@@ -486,6 +506,10 @@ const definitionDocuments = {
   ga: {
     service: parseServiceDefinition(gaServiceDefinitionDocument),
     pricing: parsePricingDefinition(gaPricingDefinitionDocument),
+  },
+  ges: {
+    service: parseServiceDefinition(gesServiceDefinitionDocument),
+    pricing: parsePricingDefinition(gesPricingDefinitionDocument),
   },
   functiongraph: {
     service: parseServiceDefinition(functionGraphServiceDefinitionDocument),
@@ -534,6 +558,42 @@ const definitionDocuments = {
   workspace: {
     service: parseServiceDefinition(workspaceServiceDefinitionDocument),
     pricing: parsePricingDefinition(workspacePricingDefinitionDocument),
+  },
+  hss: {
+    service: parseServiceDefinition(hssServiceDefinitionDocument),
+    pricing: parsePricingDefinition(hssPricingDefinitionDocument),
+  },
+  dew: {
+    service: parseServiceDefinition(dewServiceDefinitionDocument),
+    pricing: parsePricingDefinition(dewPricingDefinitionDocument),
+  },
+  smn: {
+    service: parseServiceDefinition(smnServiceDefinitionDocument),
+    pricing: parsePricingDefinition(smnPricingDefinitionDocument),
+  },
+  dws: {
+    service: parseServiceDefinition(dwsServiceDefinitionDocument),
+    pricing: parsePricingDefinition(dwsPricingDefinitionDocument),
+  },
+  dli: {
+    service: parseServiceDefinition(dliServiceDefinitionDocument),
+    pricing: parsePricingDefinition(dliPricingDefinitionDocument),
+  },
+  cdm: {
+    service: parseServiceDefinition(cdmServiceDefinitionDocument),
+    pricing: parsePricingDefinition(cdmPricingDefinitionDocument),
+  },
+  dds: {
+    service: parseServiceDefinition(ddsServiceDefinitionDocument),
+    pricing: parsePricingDefinition(ddsPricingDefinitionDocument),
+  },
+  waf: {
+    service: parseServiceDefinition(wafServiceDefinitionDocument),
+    pricing: parsePricingDefinition(wafPricingDefinitionDocument),
+  },
+  cfw: {
+    service: parseServiceDefinition(cfwServiceDefinitionDocument),
+    pricing: parsePricingDefinition(cfwPricingDefinitionDocument),
   },
 } as const;
 

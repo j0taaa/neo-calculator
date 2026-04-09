@@ -3,6 +3,7 @@
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
+import { OptionGrid } from "@/components/ui/option-grid";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { type ServiceDefinition, type ServiceFieldDefinition } from "@/lib/service-config";
 
@@ -79,7 +80,6 @@ function matchesUnitFieldPair(field: ConfigurableServicePanelField, unitField: C
 }
 
 export function ConfigurableServicePanel({
-  definition,
   fields,
   pricingError,
   pricingLoadingMessage,
@@ -106,10 +106,6 @@ export function ConfigurableServicePanel({
   return (
     <>
       <section className="space-y-3">
-        <div>
-          <p className="text-sm font-medium">{definition.serviceName}</p>
-          <p className="mt-1 text-sm text-zinc-500">Rendered from the JSON service definition for this calculator.</p>
-        </div>
         <div className="grid gap-4 md:grid-cols-2">
           {groupedFields.map((group) => {
             const field = group.field;
@@ -137,28 +133,42 @@ export function ConfigurableServicePanel({
                 ) : (
                   <>
                     <p className="text-sm font-medium">{field.definition.label}</p>
-                    {field.definition.type === "select" ? (
-                      <Select
-                        value={field.value}
-                        disabled={field.disabled}
-                        onValueChange={(value) => {
-                          if (value) {
-                            field.onChange(value);
-                          }
-                        }}
-                      >
-                        <SelectTrigger data-calculator-focus-target className="bg-white">
-                          <SelectValue>{field.options?.find((option) => option.value === field.value)?.label ?? field.value}</SelectValue>
-                        </SelectTrigger>
-                        <SelectContent>
-                          {(field.options ?? []).map((option) => (
-                            <SelectItem key={option.value} value={option.value} onClick={() => field.onChange(option.value)}>
-                              {option.label}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    ) : (
+                    {field.definition.type === "select" ? (() => {
+                      const options = field.options ?? [];
+                      if (options.length > 0 && options.length <= 4) {
+                        return (
+                          <OptionGrid
+                            items={options}
+                            value={field.value}
+                            onChange={field.onChange}
+                            disabled={field.disabled}
+                            name={field.definition.label}
+                          />
+                        );
+                      }
+                      return (
+                        <Select
+                          value={field.value}
+                          disabled={field.disabled}
+                          onValueChange={(value) => {
+                            if (value) {
+                              field.onChange(value);
+                            }
+                          }}
+                        >
+                          <SelectTrigger data-calculator-focus-target className="bg-white">
+                            <SelectValue>{options.find((option) => option.value === field.value)?.label ?? field.value}</SelectValue>
+                          </SelectTrigger>
+                          <SelectContent>
+                            {options.map((option) => (
+                              <SelectItem key={option.value} value={option.value} onClick={() => field.onChange(option.value)}>
+                                {option.label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      );
+                    })() : (
                       <div className="flex items-center gap-3">
                         <div className="flex items-center overflow-hidden rounded-lg border border-zinc-200 bg-white">
                           <Button
@@ -234,7 +244,7 @@ export function ConfigurableServicePanel({
         ))}
       </section>
 
-      <div className="rounded-lg border bg-zinc-50 p-3 text-sm text-zinc-600">
+      <div className="text-sm text-zinc-600">
         {selectionSummary}
         {selectionNotes.map((note) => (
           <p key={note} className="mt-2 text-xs text-zinc-500">
@@ -243,7 +253,7 @@ export function ConfigurableServicePanel({
         ))}
       </div>
 
-      {referenceNote ? <div className="rounded-lg border border-dashed bg-zinc-50 p-4 text-sm text-zinc-500">{referenceNote}</div> : null}
+      {referenceNote ? <p className="text-xs text-zinc-500">{referenceNote}</p> : null}
     </>
   );
 }

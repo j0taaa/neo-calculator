@@ -2159,35 +2159,33 @@ export default function ProjectsPage() {
   const isActiveListLinking = activeList ? linkingHuaweiListId === activeList.id : false;
   const isActiveListCloning = activeList ? cloningListId === activeList.id : false;
   const showSessionState = hasMounted && !isSessionPending;
+  const anyProjectExpanded = Object.values(expandedProjects).some(Boolean);
 
   return (
-    <main className="min-h-screen bg-zinc-100 px-4 py-8 sm:px-6 lg:px-8">
-      <div className="mx-auto max-w-6xl space-y-6">
+    <main className="min-h-screen bg-zinc-100 bg-grid-pattern px-4 py-8 sm:px-6 lg:px-8">
+      <div className="mx-auto max-w-[1600px] space-y-6">
         {!showSessionState ? (
           <Card>
             <CardContent className="py-12 text-center text-zinc-500">Checking session...</CardContent>
           </Card>
         ) : null}
         {showSessionState && !session ? (
-          <Card className="mx-auto max-w-xl">
+          <Card className="mx-auto max-w-xl shadow-sm">
             <CardHeader>
               <CardTitle>Sign In To Save And Share</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4 text-sm text-zinc-500">
               <p>The calculator is available without an account, but saved carts, saved projects, and share links require sign-in.</p>
-              <Link href="/" className={buttonVariants()}>
+              <Link href="/" className={buttonVariants({ className: "bg-zinc-950 hover:bg-zinc-800" })}>
                 Open Calculator
               </Link>
             </CardContent>
           </Card>
         ) : null}
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <p className="text-xs font-medium tracking-[0.22em] text-zinc-500 uppercase">Projects</p>
             <h1 className="mt-2 text-3xl font-semibold tracking-tight text-zinc-950">Project Manager</h1>
-            <p className="mt-2 text-sm text-zinc-500">
-              {projects.length} projects, {totals.listCount} carts, {totals.productCount} products.
-            </p>
             {huaweiCartsSyncedAt ? (
               <p className="mt-1 text-xs text-zinc-400">Huawei carts synced {formatDateTime(huaweiCartsSyncedAt)}</p>
             ) : null}
@@ -2224,11 +2222,14 @@ export default function ProjectsPage() {
         />
 
         {showSessionState && session ? (
-        <Card className="overflow-hidden">
+        <Card className="overflow-hidden shadow-sm">
           <CardHeader className="pb-3">
             <div className="flex items-center justify-between gap-3">
               <div>
                 <CardTitle>My Projects</CardTitle>
+                <p className="mt-1 text-sm text-zinc-500">
+                  {projects.length} project{projects.length !== 1 ? "s" : ""}, {totals.listCount} cart{totals.listCount !== 1 ? "s" : ""}, {totals.productCount} product{totals.productCount !== 1 ? "s" : ""}.
+                </p>
               </div>
               <Badge variant="secondary">{projects.length}</Badge>
             </div>
@@ -2238,7 +2239,7 @@ export default function ProjectsPage() {
                 onChange={(event) => setNewProjectName(event.target.value)}
                 placeholder="New project name"
               />
-              <Button variant="outline" size="sm" onClick={handleCreateProject} disabled={newProjectPending}>
+              <Button size="sm" onClick={handleCreateProject} disabled={newProjectPending} className="bg-zinc-950 hover:bg-zinc-800">
                 {newProjectPending ? "Adding..." : "New Project"}
               </Button>
               <ActionMenu
@@ -2256,7 +2257,7 @@ export default function ProjectsPage() {
           <Separator />
           <CardContent className="px-0">
             <ScrollArea className="h-[75vh] px-4">
-              <div className="space-y-4 py-4">
+              <div className={`grid gap-4 py-4 ${anyProjectExpanded ? "grid-cols-1" : "grid-cols-1 xl:grid-cols-2"}`}>
                 {projectsLoading ? (
                   <div className="rounded-lg border border-dashed bg-zinc-50 p-4 text-sm text-zinc-500">Loading projects...</div>
                 ) : null}
@@ -2317,7 +2318,7 @@ export default function ProjectsPage() {
                   ];
 
                   return (
-                    <div key={project.id} className="rounded-2xl border bg-white">
+                    <div key={project.id} className={`rounded-2xl border border-zinc-200 bg-white shadow-sm transition-shadow hover:shadow-md ${isExpanded ? "xl:col-span-2" : ""}`}>
                       <div className="flex items-start gap-3 p-5">
                         <div className="min-w-0 flex-1">
                           {isEditingProject ? (
@@ -2433,11 +2434,11 @@ export default function ProjectsPage() {
                                 </div>
                               </div>
                             ) : null}
-                            <div className="space-y-3">
-                              {project.lists.length === 0 ? (
-                                <div className="rounded-lg border border-dashed bg-zinc-50 p-4 text-sm text-zinc-500">
-                                  This project does not have carts yet.
-                                </div>
+                              <div className={`grid gap-3 grid-cols-1 ${isExpanded ? "" : "lg:grid-cols-2"}`}>
+                                {project.lists.length === 0 ? (
+                                  <div className="rounded-lg border border-dashed bg-zinc-50 p-4 text-sm text-zinc-500">
+                                    This project does not have carts yet.
+                                  </div>
                               ) : null}
 
                               {project.lists.map((list) => {
@@ -2482,7 +2483,7 @@ export default function ProjectsPage() {
                                 ];
 
                                 return (
-                                  <div key={list.id} className="rounded-xl border bg-zinc-50">
+                                  <div key={list.id} className="rounded-xl border border-zinc-100 bg-white shadow-sm transition-shadow hover:shadow-md">
                                     <div className="flex items-start gap-2 p-4">
                                       <div className="min-w-0 flex-1">
                                         {isEditingList ? (
@@ -2581,10 +2582,10 @@ export default function ProjectsPage() {
                                       </Button>
                                     </div>
 
-                                    {isListExpanded ? (
-                                      <div className="border-t border-zinc-200 px-4 py-3">
-                                        <div className="space-y-3">
-                                          {list.huaweiCartKey || list.huaweiLastSyncedAt || list.huaweiLastError || listHuaweiMessage || listCloneMessage || listShareMessage ? (
+                                     {isListExpanded ? (
+                                       <div className="border-t border-zinc-200 px-4 py-3">
+                                         <div className="grid gap-3 grid-cols-1 xl:grid-cols-2">
+                                           {list.huaweiCartKey || list.huaweiLastSyncedAt || list.huaweiLastError || listHuaweiMessage || listCloneMessage || listShareMessage ? (
                                             <div className="rounded-lg border bg-white p-3 text-xs">
                                               <div className="space-y-1">
                                                 {list.huaweiCartKey ? (
@@ -2607,17 +2608,17 @@ export default function ProjectsPage() {
                                             </div>
                                           ) : null}
                                           {list.products.length === 0 ? (
-                                            <div className="rounded-lg border border-dashed bg-white p-4 text-sm text-zinc-500">
+                                            <div className="lg:col-span-2 2xl:col-span-3 rounded-lg border border-dashed bg-white p-4 text-sm text-zinc-500">
                                               This cart does not have products yet.
                                             </div>
                                           ) : (
-                                            <div className="grid grid-cols-1 gap-2 xl:grid-cols-2">
+                                            <div className="grid grid-cols-1 gap-2 lg:grid-cols-2 2xl:grid-cols-3">
                                               {list.products.map((product) => {
                                                 const specsSummary = getProductSpecsSummary(product);
                                                 const serviceMeta = getServiceMeta(product.serviceCode, product.serviceName);
 
                                                 return (
-                                                  <div key={product.id} className="rounded-lg border bg-white p-3">
+                                                  <div key={product.id} className="rounded-lg border border-zinc-100 bg-zinc-50/50 p-3 transition-colors hover:bg-zinc-50">
                                                     <div className="flex items-start justify-between gap-3">
                                                       <div className="flex min-w-0 items-start gap-3">
                                                         {serviceMeta ? (
