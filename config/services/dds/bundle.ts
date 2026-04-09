@@ -93,15 +93,15 @@ export const configurableServiceBundle = {
         },
         {
           key: "vCpus",
-          extractor: { kind: "number-from-pattern", paths: ["productSpecSysDesc", "cpu"], pattern: "(\\d+)\\s*(?:vcpu|vcpus|core)", divideBy: 1 },
+          extractor: { kind: "number-from-pattern", paths: ["productSpecSysDesc", "cpu"], pattern: "(\\d+)\\s*(?:vcpu|vcpus|core)", flags: "i", divideBy: 1 },
         },
         {
           key: "memoryGb",
-          extractor: { kind: "number-from-pattern", paths: ["productSpecSysDesc", "mem"], pattern: "(\\d+)\\s*(?:GB|gb|GiB)", divideBy: 1 },
+          extractor: { kind: "number-from-pattern", paths: ["productSpecSysDesc", "mem"], pattern: "(\\d+)\\s*(?:GB|gb|GiB)", flags: "i", divideBy: 1 },
         },
         {
           key: "specification",
-          extractor: { kind: "path-or-template", path: "spec", template: "{vCpus} vCPUs | {memoryGb} GB" },
+          extractor: { kind: "path-or-template", path: "nonexistent_spec_field", template: "{vCpus} vCPUs | {memoryGb} GB" },
         },
         { key: "prices", extractor: { kind: "rate-set", modes: ["ONDEMAND", "MONTHLY", "YEARLY"] } },
         { key: "productIds.ONDEMAND", extractor: { kind: "plan-product-id", billingMode: "ONDEMAND" } },
