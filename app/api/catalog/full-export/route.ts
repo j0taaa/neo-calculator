@@ -1,68 +1,64 @@
-import { huaweiRegions, type HuaweiRegionKey } from "@/lib/huawei-regions";
+import { getCatalogFetchFn } from "@/lib/catalog-fetch-registry";
+import { getCatalogRegionId, huaweiRegions, type HuaweiRegionKey } from "@/lib/huawei-regions";
 import { serviceCatalog } from "@/lib/service-config";
 import { flexusLPlans } from "@/lib/flexus-l-catalog";
+import { ensureRegionCatalogAvailable, getEcsCatalogLastCompletedAt, isEcsCatalogSyncRunning, listStoredEcsFlavors } from "@/lib/ecs-flavor-catalog";
+import { fetchRegionSystemDiskPricing } from "@/lib/evs-disk-pricing";
 
+export const revalidate = 3600;
 export const runtime = "nodejs";
 
-// Map of service codes to their API route names
-const serviceApiMap: Record<string, string> = {
-  VPN: "vpn-pricing",
-  ECS: "ecs-flavors",
-  CCE: "cce-pricing",
-  CCM: "ccm-pricing",
-  CBR: "cbr-pricing",
-  CBH: "cbh-pricing",
-  DCS: "dcs-pricing",
-  DC: "direct-connect-pricing",
-  EIP: "eip-pricing",
-  ELB: "elb-pricing",
-  ER: "er-pricing",
-  EVS: "evs-pricing",
-  "Flexus RDS": "flexus-rds-pricing",
-  FunctionGraph: "functiongraph-pricing",
-  GA: "ga-pricing",
-  LTS: "lts-pricing",
-  ModelArts: "modelarts-pricing",
-  NAT: "nat-pricing",
-  OBS: "obs-pricing",
-  RDS: "rds-pricing",
-  SFS: "sfs-pricing",
-  "SFS Turbo": "sfs-turbo-pricing",
-  VPC: "vpcep-pricing",
-  Workspace: "workspace-pricing",
-  APIG: "apig-pricing",
-};
+async function limitConcurrency<T>(tasks: (() => Promise<T>)[], maxConcurrent: number): Promise<PromiseSettledResult<T>[]> {
+  const results: PromiseSettledResult<T>[] = [];
+  let index = 0;
 
-// Fetch catalog for a service in a region
-async function fetchServiceCatalog(
-  serviceCode: string,
-  regionKey: HuaweiRegionKey,
-  baseUrl: string,
-): Promise<unknown> {
-  const apiName = serviceApiMap[serviceCode];
-  if (!apiName) {
-    return null;
+  async function runNext(): Promise<void> {
+    while (index < tasks.length) {
+      const currentIndex = index++;
+      try {
+        const value = await tasks[currentIndex]();
+        results[currentIndex] = { status: "fulfilled", value };
+      } catch (reason) {
+        results[currentIndex] = { status: "rejected", reason };
+      }
+    }
   }
 
-  try {
-    const response = await fetch(
-      `${baseUrl}/api/catalog/${apiName}?region=${regionKey}`,
-      {
-        headers: { Accept: "application/json" },
-        signal: AbortSignal.timeout(15000),
-      },
-    );
+  const workers = Array.from({ length: Math.min(maxConcurrent, tasks.length) }, () => runNext());
+  await Promise.all(workers);
+  return results;
+}
 
-    if (!response.ok) {
+async function fetchServiceCatalogDirect(
+  serviceCode: string,
+  regionKey: HuaweiRegionKey,
+): Promise<unknown> {
+  if (serviceCode === "ECS") {
+    const catalogRegionId = getCatalogRegionId(regionKey);
+    if (!catalogRegionId) return null;
+
+    try {
+      await ensureRegionCatalogAvailable(catalogRegionId);
+      const diskPricing = await fetchRegionSystemDiskPricing(catalogRegionId);
+      return {
+        flavors: listStoredEcsFlavors(catalogRegionId),
+        diskPricing,
+        lastCompletedAt: getEcsCatalogLastCompletedAt(),
+        syncing: isEcsCatalogSyncRunning(),
+      };
+    } catch {
       return null;
     }
+  }
 
-    const data = await response.json();
-    // ECS returns data at top level (flavors array), others have catalog property
-    if (serviceCode === "ECS") {
-      return data; // Return full response for ECS (has flavors at top level)
-    }
-    return data.catalog;
+  const fetchFn = getCatalogFetchFn(serviceCode);
+  if (!fetchFn) return null;
+
+  const catalogRegionId = getCatalogRegionId(regionKey);
+  if (!catalogRegionId) return null;
+
+  try {
+    return await fetchFn(catalogRegionId);
   } catch {
     return null;
   }
@@ -82,38 +78,33 @@ export async function GET(request: Request) {
     );
   }
 
-  const baseUrl =
-    process.env.NEXT_PUBLIC_BASE_URL ?? `${new URL(request.url).origin}`;
-
-  // Fetch all catalogs for all selected regions in parallel
-  const catalogPromises: Array<{
+  const tasks: Array<{
     service: (typeof serviceCatalog)[0];
     region: HuaweiRegionKey;
-    promise: Promise<unknown>;
+    task: () => Promise<unknown>;
   }> = [];
 
   for (const service of serviceCatalog) {
     for (const region of selectedRegions) {
-      catalogPromises.push({
+      const serviceCode = service.code;
+      const regionKey = region;
+      tasks.push({
         service,
         region,
-        promise: fetchServiceCatalog(service.code, region, baseUrl),
+        task: () => fetchServiceCatalogDirect(serviceCode, regionKey),
       });
     }
   }
 
-  const results = await Promise.allSettled(
-    catalogPromises.map((cp) => cp.promise),
+  const results = await limitConcurrency(
+    tasks.map((t) => t.task),
+    8,
   );
 
-  // Organize results by service and region
-  const catalogsByService: Record<
-    string,
-    Record<string, unknown>
-  > = {};
+  const catalogsByService: Record<string, Record<string, unknown>> = {};
 
-  for (let i = 0; i < catalogPromises.length; i++) {
-    const { service, region } = catalogPromises[i];
+  for (let i = 0; i < tasks.length; i++) {
+    const { service, region } = tasks[i];
     const result = results[i];
     if (result.status === "fulfilled" && result.value) {
       if (!catalogsByService[service.code]) {
@@ -126,7 +117,7 @@ export async function GET(request: Request) {
   return Response.json({
     regions: selectedRegions,
     catalogs: catalogsByService,
-    flexusLPlans: flexusLPlans, // Add Flexus L plans
+    flexusLPlans,
     generatedAt: new Date().toISOString(),
   });
 }

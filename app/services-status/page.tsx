@@ -1,6 +1,6 @@
 "use client";
 
-import { Check, X } from "lucide-react";
+import { Check, Gift, X } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -150,6 +150,20 @@ const IMPLEMENTED_SERVICES = new Set([
   "DDS",
   "WAF",
   "CFW",
+  "GaussDB",
+  "DRS",
+  "MRS",
+]);
+
+const FREE_ALWAYS_SERVICES = new Set([
+  "AS",
+  "VPC",
+  "DNS",
+  "IAM",
+  "CES",
+  "CTS",
+  "SWR",
+  "SMS",
 ]);
 
 export default function ServicesStatusPage() {
@@ -158,6 +172,7 @@ export default function ServicesStatusPage() {
   const stats = {
     total: HUAWEI_CLOUD_SERVICES.length,
     implemented: IMPLEMENTED_SERVICES.size,
+    freeAlways: FREE_ALWAYS_SERVICES.size,
     notImplemented: HUAWEI_CLOUD_SERVICES.filter((s) => !IMPLEMENTED_SERVICES.has(s.code)).length,
   };
 
@@ -171,7 +186,7 @@ export default function ServicesStatusPage() {
           </p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
           <Card>
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-medium text-muted-foreground">Total Services</CardTitle>
@@ -186,6 +201,14 @@ export default function ServicesStatusPage() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold text-green-600 dark:text-green-400">{stats.implemented}</div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium text-emerald-600 dark:text-emerald-400">Always Free</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">{stats.freeAlways}</div>
             </CardContent>
           </Card>
           <Card>
@@ -219,18 +242,25 @@ export default function ServicesStatusPage() {
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
                       {services.map((service) => {
                         const isImplemented = IMPLEMENTED_SERVICES.has(service.code);
+                        const isFreeAlways = FREE_ALWAYS_SERVICES.has(service.code);
 
                         return (
                           <div
                             key={service.code}
                             className={`flex items-center gap-2 p-2 rounded-md ${
                               isImplemented
-                                ? "bg-green-50 dark:bg-green-950"
+                                ? isFreeAlways
+                                  ? "bg-emerald-50 dark:bg-emerald-950"
+                                  : "bg-green-50 dark:bg-green-950"
                                 : "bg-red-50 dark:bg-red-950"
                             }`}
                           >
                             {isImplemented ? (
-                              <Check className="h-4 w-4 text-green-600 dark:text-green-400 flex-shrink-0" />
+                              isFreeAlways ? (
+                                <Gift className="h-4 w-4 text-emerald-600 dark:text-emerald-400 flex-shrink-0" />
+                              ) : (
+                                <Check className="h-4 w-4 text-green-600 dark:text-green-400 flex-shrink-0" />
+                              )
                             ) : (
                               <X className="h-4 w-4 text-red-600 dark:text-red-400 flex-shrink-0" />
                             )}
@@ -238,11 +268,15 @@ export default function ServicesStatusPage() {
                               <div className={`text-sm ${isImplemented ? "font-medium" : ""} truncate`}>{service.name}</div>
                               <div className="text-xs text-muted-foreground">{service.code}</div>
                             </div>
-                            {isImplemented && (
+                            {isFreeAlways ? (
+                              <Badge variant="outline" className="text-xs flex-shrink-0 border-emerald-300 text-emerald-700 dark:border-emerald-700 dark:text-emerald-300">
+                                Free
+                              </Badge>
+                            ) : isImplemented ? (
                               <Badge variant="outline" className="text-xs flex-shrink-0">
                                 Done
                               </Badge>
-                            )}
+                            ) : null}
                           </div>
                         );
                       })}

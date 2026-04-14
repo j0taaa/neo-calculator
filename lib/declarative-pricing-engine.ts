@@ -573,33 +573,64 @@ function rejectByDerivedConditions(fields: Record<string, unknown>, conditions: 
   }));
 }
 
+const productInfoCache = new Map<string, { expiresAt: number; data: unknown }>();
+const productInfoPendingRequests = new Map<string, Promise<unknown>>();
+const PRODUCT_INFO_CACHE_TTL_MS = 5 * 60 * 1000;
+
+function buildProductInfoCacheKey(source: ProductInfoSourceDefinition, regionId: string) {
+  return `${source.urlPath}|${source.tag ?? "general.online.portal"}|${regionId}|${source.tab}|${source.sign ?? "common"}`;
+}
+
 async function fetchProductInfoBody(source: ProductInfoSourceDefinition, regionId: string) {
-  const url = new URL(PRODUCT_INFO_URL);
-  url.searchParams.set("urlPath", source.urlPath);
-  url.searchParams.set("tag", source.tag ?? "general.online.portal");
-  url.searchParams.set("region", regionId);
-  url.searchParams.set("tab", source.tab);
-  url.searchParams.set("sign", source.sign ?? "common");
+  const cacheKey = buildProductInfoCacheKey(source, regionId);
 
-  const response = await sendHttpRequest({
-    method: "GET",
-    url: url.toString(),
-    headers: DEFAULT_HEADERS,
-    timeoutMs: source.timeoutMs ?? 30_000,
-  });
-
-  if (!response.ok) {
-    throw new Error(`${source.displayName} product info request failed: ${response.status} ${response.statusText}`);
-  }
-  if (!response.bodyText.trim()) {
-    throw new Error(`${source.displayName} product info response was empty`);
+  const cached = productInfoCache.get(cacheKey);
+  if (cached && cached.expiresAt > Date.now()) {
+    return cached.data;
   }
 
-  try {
-    return JSON.parse(response.bodyText);
-  } catch {
-    throw new Error(`${source.displayName} product info response was not valid JSON (${response.contentType || "unknown content-type"})`);
+  const pending = productInfoPendingRequests.get(cacheKey);
+  if (pending) {
+    return pending;
   }
+
+  const requestPromise = (async () => {
+    const url = new URL(PRODUCT_INFO_URL);
+    url.searchParams.set("urlPath", source.urlPath);
+    url.searchParams.set("tag", source.tag ?? "general.online.portal");
+    url.searchParams.set("region", regionId);
+    url.searchParams.set("tab", source.tab);
+    url.searchParams.set("sign", source.sign ?? "common");
+
+    const response = await sendHttpRequest({
+      method: "GET",
+      url: url.toString(),
+      headers: DEFAULT_HEADERS,
+      timeoutMs: source.timeoutMs ?? 30_000,
+    });
+
+    if (!response.ok) {
+      throw new Error(`${source.displayName} product info request failed: ${response.status} ${response.statusText}`);
+    }
+    if (!response.bodyText.trim()) {
+      throw new Error(`${source.displayName} product info response was empty`);
+    }
+
+    let data: unknown;
+    try {
+      data = JSON.parse(response.bodyText);
+    } catch {
+      throw new Error(`${source.displayName} product info response was not valid JSON (${response.contentType || "unknown content-type"})`);
+    }
+
+    productInfoCache.set(cacheKey, { expiresAt: Date.now() + PRODUCT_INFO_CACHE_TTL_MS, data });
+    return data;
+  })();
+
+  productInfoPendingRequests.set(cacheKey, requestPromise);
+  requestPromise.finally(() => productInfoPendingRequests.delete(cacheKey));
+
+  return requestPromise;
 }
 
 function parseSectionedRateSetCatalog(definition: Extract<DeclarativePricingDefinition["parser"], { kind: "sectioned-rate-set" }>, body: unknown, regionId: string) {

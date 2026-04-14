@@ -2,7 +2,8 @@ import { useCallback, useEffect, useMemo, useState, type ComponentProps } from "
 
 import { ConfigurableServicePanel } from "@/components/calculators/configurable-service-panel";
 import { buildConfiguredFields } from "@/lib/configurable-service-fields";
-import { getDeclarativeRuntimeDefinitionByCode, getTypedDeclarativeRuntimeDefinitionByCode } from "@/lib/declarative-service-runtime-registry";
+import type { DeclarativeRuntimeDefinition } from "@/lib/declarative-service-runtime-types";
+import { getTypedDeclarativeRuntimeDefinitionByCode } from "@/lib/declarative-service-runtime-registry";
 import { evaluateDeclarativeDerivedValues, evaluateDeclarativeValue, evaluateDefinitionExpression } from "@/lib/declarative-runtime-evaluator";
 import { declarativeRuntimeHelpers } from "@/lib/declarative-runtime-helpers";
 import type { DeclarativeCatalogSource, DeclarativeEstimateRecord } from "@/lib/declarative-service-runtime-types";
@@ -321,7 +322,7 @@ export function useConfigurableServiceRuntime({
   const [pricingLoadingByService, setPricingLoadingByService] = useState<Partial<Record<string, boolean>>>({});
   const [pricingErrorByService, setPricingErrorByService] = useState<Partial<Record<string, string>>>({});
 
-  const runtimeDefinition = getDeclarativeRuntimeDefinitionByCode(selectedServiceCode);
+  const runtimeDefinition: DeclarativeRuntimeDefinition | null = null as DeclarativeRuntimeDefinition | null;
   const typedRuntimeDefinition = getTypedDeclarativeRuntimeDefinitionByCode(selectedServiceCode);
   const isConfigurableService = selectedServiceDefinition?.implementation === "configurable" || selectedServiceDefinition?.implementation === "config-pilot";
 

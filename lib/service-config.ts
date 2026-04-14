@@ -34,6 +34,7 @@ import { pricingDefinition as cdmPricingDefinitionDocument, serviceDefinition as
 import { pricingDefinition as ddsPricingDefinitionDocument, serviceDefinition as ddsServiceDefinitionDocument } from "@/config/services/dds/bundle";
 import { pricingDefinition as wafPricingDefinitionDocument, serviceDefinition as wafServiceDefinitionDocument } from "@/config/services/waf/bundle";
 import { pricingDefinition as cfwPricingDefinitionDocument, serviceDefinition as cfwServiceDefinitionDocument } from "@/config/services/cfw/bundle";
+import { pricingDefinition as dmsPricingDefinitionDocument, serviceDefinition as dmsServiceDefinitionDocument } from "@/config/services/dms/bundle";
 import { pricingDefinition as vpnPricingDefinitionDocument, serviceDefinition as vpnServiceDefinitionDocument } from "@/config/services/vpn/bundle";
 import { pricingDefinition as workspacePricingDefinitionDocument, serviceDefinition as workspaceServiceDefinitionDocument } from "@/config/services/workspace/bundle";
 import {
@@ -248,8 +249,9 @@ function parseServiceRegistryDocument(value: unknown): ServiceRegistryDocument {
 
   const supportedCalculatorServiceCodes = parseStringArray(value.supportedCalculatorServiceCodes, "supportedCalculatorServiceCodes");
   const supportedBatchAddServiceCodes = parseStringArray(value.supportedBatchAddServiceCodes, "supportedBatchAddServiceCodes");
+  const freeAlwaysServiceCodes = parseStringArray(value.freeAlwaysServiceCodes, "freeAlwaysServiceCodes");
 
-  for (const serviceCode of [...supportedCalculatorServiceCodes, ...supportedBatchAddServiceCodes]) {
+  for (const serviceCode of [...supportedCalculatorServiceCodes, ...supportedBatchAddServiceCodes, ...freeAlwaysServiceCodes]) {
     invariant(seenCodes.has(serviceCode), `${serviceCode} is referenced as supported but missing from services`);
   }
 
@@ -279,6 +281,7 @@ function parseServiceRegistryDocument(value: unknown): ServiceRegistryDocument {
     services,
     supportedCalculatorServiceCodes,
     supportedBatchAddServiceCodes,
+    freeAlwaysServiceCodes,
     definitions,
   };
 }
@@ -595,6 +598,10 @@ const definitionDocuments = {
     service: parseServiceDefinition(cfwServiceDefinitionDocument),
     pricing: parsePricingDefinition(cfwPricingDefinitionDocument),
   },
+  dms: {
+    service: parseServiceDefinition(dmsServiceDefinitionDocument),
+    pricing: parsePricingDefinition(dmsPricingDefinitionDocument),
+  },
 } as const;
 
 const configurableServiceBundles = new Map<string, ConfigurableServiceBundle>();
@@ -616,6 +623,7 @@ for (const metadata of serviceRegistry.definitions) {
 
 export const serviceCatalog = serviceRegistry.services;
 export const supportedCalculatorServiceCodes = [...serviceRegistry.supportedCalculatorServiceCodes];
+export const freeAlwaysServiceCodes = [...serviceRegistry.freeAlwaysServiceCodes];
 export const configurableServiceCodes = [...configurableServiceBundles.keys()];
 export const supportedBatchAddServiceCodes = Array.from(new Set([
   ...serviceRegistry.supportedBatchAddServiceCodes,

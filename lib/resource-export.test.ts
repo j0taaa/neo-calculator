@@ -1,7 +1,7 @@
 import { expect, test } from "bun:test";
 import ExcelJS from "exceljs";
 
-import { buildProjectWorkbookBuffer } from "@/lib/resource-export";
+import { buildProjectWorkbookBuffer } from "@/lib/resource-export-excel";
 
 test("buildProjectWorkbookBuffer keeps summary rows aligned when earlier carts are empty", async () => {
   const buffer = await buildProjectWorkbookBuffer({

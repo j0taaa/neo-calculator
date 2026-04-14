@@ -1,40 +1,55 @@
+import { serviceCatalog } from "@/lib/service-config";
+
+export const revalidate = 3600;
 export const runtime = "nodejs";
 
-const services = [
-  { code: "apig", name: "API Gateway", category: "Networking" },
-  { code: "cce", name: "Cloud Container Engine", category: "Compute" },
-  { code: "ccm", name: "Cloud Camera", category: "Video" },
-  { code: "cbr", name: "Cloud Backup and Recovery", category: "Storage" },
-  { code: "cbh", name: "Cloud Bastion Host", category: "Security" },
-  { code: "dcs", name: "Distributed Cache Service", category: "Database" },
-  { code: "dc", name: "Direct Connect", category: "Networking" },
-  { code: "eip", name: "Elastic IP", category: "Networking" },
-  { code: "elb", name: "Elastic Load Balance", category: "Networking" },
-  { code: "er", name: "Cloud Connect", category: "Networking" },
-  { code: "evs", name: "Elastic Volume Service", category: "Storage" },
-  { code: "flexus-rds", name: "Flexus RDS", category: "Database" },
-  { code: "functiongraph", name: "FunctionGraph", category: "Compute" },
-  { code: "ga", name: "Global Accelerator", category: "Networking" },
-  { code: "lts", name: "Log Tank Service", category: "Management" },
-  { code: "modelarts", name: "ModelArts", category: "AI" },
-  { code: "nat", name: "NAT Gateway", category: "Networking" },
-  { code: "obs", name: "Object Storage Service", category: "Storage" },
-  { code: "rds", name: "Relational Database Service", category: "Database" },
-  { code: "sfs", name: "Scalable File Service", category: "Storage" },
-  { code: "sfsturbo", name: "SFS Turbo", category: "Storage" },
-  { code: "vpcep", name: "VPC Endpoint", category: "Networking" },
-  { code: "vpn", name: "Virtual Private Network", category: "Networking" },
-  { code: "workspace", name: "Workspace", category: "Desktop" },
-];
+const categoryMap: Record<string, string> = {
+  apig: "Networking",
+  cce: "Compute",
+  ccm: "Video",
+  cbr: "Storage",
+  cbh: "Security",
+  dcs: "Database",
+  dc: "Networking",
+  dms: "Middleware",
+  eip: "Networking",
+  elb: "Networking",
+  er: "Networking",
+  evs: "Storage",
+  "flexus-rds": "Database",
+  functiongraph: "Compute",
+  ga: "Networking",
+  lts: "Management",
+  modelarts: "AI",
+  nat: "Networking",
+  obs: "Storage",
+  rds: "Database",
+  sfs: "Storage",
+  sfsturbo: "Storage",
+  vpcep: "Networking",
+  vpn: "Networking",
+  workspace: "Desktop",
+  ges: "Database",
+  cse: "Middleware",
+  dis: "Analytics",
+  hss: "Security",
+  dew: "Security",
+  smn: "Application",
+  dws: "Database",
+  dli: "Analytics",
+  cdm: "Migration",
+  dds: "Database",
+  waf: "Security",
+  cfw: "Security",
+};
 
 export async function GET() {
-  return Response.json({
-    services: services.map((s) => ({
-      code: s.code,
-      name: s.name,
-      category: s.category,
-      pricingUrl: `/api/v1/public/catalog/${s.code}/pricing`,
-    })),
-    total: services.length,
-  });
+  const services = serviceCatalog.map((s) => ({
+    code: s.code,
+    name: s.name,
+    category: categoryMap[s.code] ?? "Other",
+    pricingUrl: `/api/v1/public/catalog/${s.code}/pricing`,
+  }));
+
+  return Response.json({ services, total: services.length });
 }

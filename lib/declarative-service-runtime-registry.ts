@@ -15,6 +15,7 @@ import { configurableServiceBundle as erBundle } from "@/config/services/er/bund
 import { configurableServiceBundle as flexusRdsBundle } from "@/config/services/flexus-rds/bundle";
 import { configurableServiceBundle as functionGraphBundle } from "@/config/services/functiongraph/bundle";
 import { configurableServiceBundle as gaBundle } from "@/config/services/ga/bundle";
+import { configurableServiceBundle as gaussDbBundle } from "@/config/services/gaussdb/bundle";
 import { configurableServiceBundle as gesBundle } from "@/config/services/ges/bundle";
 import { configurableServiceBundle as ltsBundle } from "@/config/services/lts/bundle";
 import { configurableServiceBundle as modelArtsBundle } from "@/config/services/modelarts/bundle";
@@ -35,7 +36,8 @@ import { configurableServiceBundle as cdmBundle } from "@/config/services/cdm/bu
 import { configurableServiceBundle as ddsBundle } from "@/config/services/dds/bundle";
 import { configurableServiceBundle as wafBundle } from "@/config/services/waf/bundle";
 import { configurableServiceBundle as cfwBundle } from "@/config/services/cfw/bundle";
-import type { DeclarativeRuntimeDefinition } from "@/lib/declarative-service-runtime-types";
+import { configurableServiceBundle as drsBundle } from "@/config/services/drs/bundle";
+import { configurableServiceBundle as mrsBundle } from "@/config/services/mrs/bundle";
 import type { TypedDeclarativeRuntimeDefinition } from "@/lib/typed-declarative-runtime-types";
 
 const typedRuntimeDefinitions = {
@@ -53,6 +55,7 @@ const typedRuntimeDefinitions = {
   Workspace: workspaceBundle.runtime,
   FunctionGraph: functionGraphBundle.runtime,
   GA: gaBundle.runtime,
+  GaussDB: gaussDbBundle.runtime,
   GES: gesBundle.runtime,
   CSE: cseBundle.runtime,
   DC: dcBundle.runtime,
@@ -76,16 +79,10 @@ const typedRuntimeDefinitions = {
   DDS: ddsBundle.runtime,
   WAF: wafBundle.runtime,
   CFW: cfwBundle.runtime,
+  DRS: drsBundle.runtime,
+  MRS: mrsBundle.runtime,
 } as const;
 
 export function getTypedDeclarativeRuntimeDefinitionByCode(serviceCode: string): TypedDeclarativeRuntimeDefinition | null {
   return (typedRuntimeDefinitions[serviceCode as keyof typeof typedRuntimeDefinitions] ?? null) as TypedDeclarativeRuntimeDefinition | null;
-}
-
-export function getDeclarativeRuntimeDefinitionByCode(serviceCode?: string): DeclarativeRuntimeDefinition | null {
-  if (serviceCode) {
-    return null;
-  }
-
-  return null;
 }

@@ -2,6 +2,7 @@ import { ensureRegionCatalogAvailable, getEcsCatalogLastCompletedAt, isEcsCatalo
 import { fetchRegionSystemDiskPricing } from "@/lib/evs-disk-pricing";
 import { getCatalogRegionId, huaweiRegions, type HuaweiRegionKey } from "@/lib/huawei-regions";
 
+export const revalidate = 300;
 export const runtime = "nodejs";
 
 export async function GET(request: Request) {

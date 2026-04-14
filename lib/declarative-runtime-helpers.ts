@@ -16,6 +16,7 @@ import { estimateFlexusRdsConfiguration, flexusRdsDefaults, flexusRdsPricingRefe
 import { directConnectDefaults, directConnectPricingReference, estimateDirectConnectConfiguration, listDirectConnectDurationMonths, listDirectConnectPortSpeeds } from "@/lib/direct-connect-catalog";
 import { erDefaults, erPricingReference, estimateErConfiguration } from "@/lib/er-catalog";
 import { estimateGaConfiguration, gaDefaults, gaPricingReference, getGaDestinationEndpointForRegion, listGaAccessPoints } from "@/lib/ga-catalog";
+import { estimateGaussDbConfiguration, gaussDbDefaults, gaussDbPricingReference, listGaussDbEditions, listGaussDbSpecifications } from "@/lib/gaussdb-catalog";
 import { estimateLtsConfiguration, ltsDefaults, ltsPricingReference } from "@/lib/lts-catalog";
 import { estimateRdsConfiguration, isRdsEngine, isRdsInstanceClass, isRdsInstanceType, isRdsStorageType, isRdsVersion, listRdsEngines, listRdsInstanceClasses, listRdsInstanceTypes, listRdsSizes, listRdsStorageTypes, listRdsVersions, rdsDefaults, rdsPricingReference } from "@/lib/rds-catalog";
 import { estimateVpcepConfiguration, listVpcepServiceCategories, vpcepDefaults, vpcepPricingReference } from "@/lib/vpcep-catalog";
@@ -31,6 +32,9 @@ import { estimateCdmConfiguration, cdmDefaults, cdmPricingReference, listCdmInst
 import { estimateDdsConfiguration, ddsDefaults, ddsPricingReference, listDdsDbTypes, listDdsSpecifications } from "@/lib/dds-catalog";
 import { estimateWafConfiguration, wafDefaults, wafPricingReference, listWafEditions } from "@/lib/waf-catalog";
 import { estimateCfwConfiguration, cfwDefaults, cfwPricingReference, listCfwEditions } from "@/lib/cfw-catalog";
+import { estimateDmsConfiguration, dmsDefaults, dmsPricingReference, listDmsFlavors, listDmsBandwidths, listDmsStorageTypes } from "@/lib/dms-catalog";
+import { estimateDrsConfiguration, drsDefaults, drsPricingReference, listDrsTaskTypes, listDrsDirections } from "@/lib/drs-catalog";
+import { estimateMrsConfiguration, mrsDefaults, mrsPricingReference, listMrsClusterTypes, listMrsNodeTypes } from "@/lib/mrs-catalog";
 import { estimateCseConfiguration, cseDefaults, csePricingReference, listCseSpecifications } from "@/lib/cse-catalog";
 import { disDefaults, disPricingReference, estimateDisConfiguration, listDisTypes } from "@/lib/dis-catalog";
 import { buildEvsProductMutationBodies, buildEvsSplitNotice, evsDiskSizeBounds, formatObsRequestInputValue, getGpSsd2IopsBounds, getGpSsd2RequestedIops, getGpSsd2RequestedThroughput, getGpSsd2ThroughputBounds, getObsRequestUnits, normalizeGpSsd2Iops, normalizeGpSsd2Throughput, obsStorageSizeBounds, parsePositiveNumber, splitEvsDiskSizes, systemDiskOptions } from "@/lib/configurable-runtime-utils";
@@ -211,6 +215,10 @@ export const declarativeRuntimeHelpers = {
   estimateDdsConfiguration,
   estimateWafConfiguration,
   estimateCfwConfiguration,
+  estimateDmsConfiguration,
+  estimateDrsConfiguration,
+  estimateMrsConfiguration,
+  estimateGaussDbConfiguration,
   convertSfsStorageToGb,
   inferSfsStorageUnitFromGb,
   inferSfsStorageAmountFromGb,
@@ -288,6 +296,15 @@ export const declarativeRuntimeHelpers = {
   listDdsSpecifications,
   listWafEditions,
   listCfwEditions,
+  listDmsFlavors,
+  listDmsBandwidths,
+  listDmsStorageTypes,
+  listDrsTaskTypes,
+  listDrsDirections,
+  listMrsClusterTypes,
+  listMrsNodeTypes,
+  listGaussDbEditions,
+  listGaussDbSpecifications,
   getBatchDescription,
   getBatchDiskSize,
   getBatchDiskType,
@@ -337,6 +354,7 @@ export const declarativeRuntimeHelpers = {
   directConnectDefaults,
   erDefaults,
   gaDefaults,
+  gaussDbDefaults,
   flexusRdsDefaults,
   ltsDefaults,
   rdsDefaults,
@@ -355,6 +373,9 @@ export const declarativeRuntimeHelpers = {
   ddsDefaults,
   wafDefaults,
   cfwDefaults,
+  dmsDefaults,
+  drsDefaults,
+  mrsDefaults,
   apigPricingReference,
   eipPricingReference,
   elbPricingReference,
@@ -371,6 +392,7 @@ export const declarativeRuntimeHelpers = {
   directConnectPricingReference,
   erPricingReference,
   gaPricingReference,
+  gaussDbPricingReference,
   flexusRdsPricingReference,
   ltsPricingReference,
   rdsPricingReference,
@@ -389,6 +411,9 @@ export const declarativeRuntimeHelpers = {
   ddsPricingReference,
   wafPricingReference,
   cfwPricingReference,
+  dmsPricingReference,
+  drsPricingReference,
+  mrsPricingReference,
   huaweiRegions,
   isRecord,
   asArray,

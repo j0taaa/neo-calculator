@@ -8,6 +8,7 @@ import { ActionMenu, ActionModal, type ActionMenuItem } from "@/components/home-
 import { ProjectAddCartModalContent } from "@/components/project-add-cart-modal-content";
 import { ServiceBatchAddPanel } from "@/components/calculators/service-batch-add-panel";
 import { UnsupportedServicePanel } from "@/components/calculators/unsupported-service-panel";
+import { FreeServicePanel } from "@/components/calculators/free-service-panel";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -15,7 +16,6 @@ import { Input } from "@/components/ui/input";
 import { OptionGrid } from "@/components/ui/option-grid";
 
 import {
-  findServiceCatalogEntry,
   getConfigurableServiceBundleByCode,
   serviceCatalog,
   supportedBatchAddServiceCodes,
@@ -48,229 +48,38 @@ import {
   type AppList,
   type AppProduct,
   type AppProject,
-  type BillingOption as PageBillingOption,
   type HuaweiCartSummary,
   type ProductMutationBody,
 } from "@/lib/calculator-page-helpers";
 import { getProductConfigSummary } from "@/lib/product-config-summary";
-import { parseDashboardUrlState, type ActiveModalKind, type DashboardUrlState } from "@/lib/dashboard-url-state";
+import { parseDashboardUrlState, type DashboardUrlState } from "@/lib/dashboard-url-state";
 import { useCalculatorController } from "@/lib/use-calculator-controller";
+import {
+  appendProductToProjects,
+  chooseOpenCalculatorSelectItem,
+  getCalculatorActionButton,
+  getCalculatorFocusTarget,
+  getProductOrderTimestamp,
+  getServiceMeta,
+  getShortcutDigit,
+  getVisibleOpenCalculatorSelectItems,
+  isBillingOption,
+  isCalculatorSelectTrigger,
+  isEditableTarget,
+  isVisibleCalculatorElement,
+  removeProductFromProjects,
+  toClipboardProductMutationBody,
+  BILLING_OPTIONS,
+  type ActiveModal,
+  type BillingOption,
+  type CartSortOption,
+  type ResourceExportModalState,
+} from "@/lib/page-utils";
 
 const services = serviceCatalog;
 const options = {
-  billing: ["Pay-per-use", "RI", "Yearly/Monthly", "One-time"],
+  billing: BILLING_OPTIONS,
 } as const;
-
-type BillingOption = PageBillingOption;
-
-type ActiveModal =
-  | { kind: ActiveModalKind; projectId: string }
-  | { kind: ActiveModalKind; listId: string }
-  | null;
-
-type CartSortOption = "default" | "title-asc" | "title-desc" | "price-desc" | "price-asc";
-
-type ResourceExportModalState = {
-  title: string;
-  description: string;
-  json: string;
-  filename: string;
-} | null;
-
-function getServiceMeta(serviceCode: string, serviceName: string) {
-  return findServiceCatalogEntry(serviceCode, serviceName);
-}
-
-function isBillingOption(value: unknown): value is BillingOption {
-  return value === "Pay-per-use" || value === "RI" || value === "Yearly/Monthly" || value === "One-time";
-}
-
-function isEditableTarget(target: EventTarget | null): boolean {
-  return (
-    target instanceof HTMLElement
-    && (target.isContentEditable
-      || target instanceof HTMLInputElement
-      || target instanceof HTMLTextAreaElement
-      || target instanceof HTMLSelectElement)
-  );
-}
-
-function isVisibleCalculatorElement(element: HTMLElement) {
-  const style = window.getComputedStyle(element);
-  return style.display !== "none" && style.visibility !== "hidden" && element.getClientRects().length > 0;
-}
-
-function getCalculatorFocusTarget(group: HTMLElement) {
-  const preferredSelectors = [
-    "[data-calculator-focus-target]:not([disabled])",
-    "input:not([type='hidden']):not([disabled])",
-    "textarea:not([disabled])",
-    "button[aria-pressed='true']:not([disabled])",
-    "button[role='combobox']:not([disabled])",
-    "button[data-state='checked']:not([disabled])",
-    "button:not([disabled])",
-    "[tabindex]:not([tabindex='-1'])",
-  ];
-
-  for (const selector of preferredSelectors) {
-    const match = group.querySelector(selector);
-    if (match instanceof HTMLElement && isVisibleCalculatorElement(match)) {
-      return match;
-    }
-  }
-
-  return null;
-}
-
-function isCalculatorSelectTrigger(element: HTMLElement) {
-  return element.getAttribute("role") === "combobox" || element.getAttribute("data-slot") === "select-trigger";
-}
-
-function getShortcutDigit(event: Pick<KeyboardEvent, "key" | "code">) {
-  const keyDigit = Number(event.key);
-  if (Number.isInteger(keyDigit) && keyDigit >= 0 && keyDigit <= 9) {
-    return keyDigit;
-  }
-
-  const codeMatch = /^Digit([0-9])$/.exec(event.code);
-  if (codeMatch) {
-    return Number(codeMatch[1]);
-  }
-
-  const numpadMatch = /^Numpad([0-9])$/.exec(event.code);
-  if (numpadMatch) {
-    return Number(numpadMatch[1]);
-  }
-
-  return null;
-}
-
-function getVisibleOpenCalculatorSelectItems() {
-  return Array.from(document.querySelectorAll<HTMLElement>("[data-slot='select-content'] [data-slot='select-item']"))
-    .filter((item) => isVisibleCalculatorElement(item) && !item.hasAttribute("data-disabled"));
-}
-
-function chooseOpenCalculatorSelectItem(index: number) {
-  const visibleItems = getVisibleOpenCalculatorSelectItems().slice(0, 10);
-  const targetItem = visibleItems[index];
-  if (!targetItem) {
-    return false;
-  }
-
-  const rect = targetItem.getBoundingClientRect();
-  const clientX = rect.left + rect.width / 2;
-  const clientY = rect.top + rect.height / 2;
-  const target = document.elementFromPoint(clientX, clientY);
-  if (!(target instanceof HTMLElement)) {
-    return false;
-  }
-
-  target.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true, button: 0, clientX, clientY, pointerId: 1, pointerType: "mouse" }));
-  target.dispatchEvent(new MouseEvent("mousedown", { bubbles: true, button: 0, clientX, clientY }));
-  target.dispatchEvent(new PointerEvent("pointerup", { bubbles: true, button: 0, clientX, clientY, pointerId: 1, pointerType: "mouse" }));
-  target.dispatchEvent(new MouseEvent("mouseup", { bubbles: true, button: 0, clientX, clientY }));
-  target.click();
-  return true;
-}
-
-function getCalculatorActionButton() {
-  const button = document.querySelector<HTMLElement>("[data-calculator-add-button]");
-  if (!button || !isVisibleCalculatorElement(button)) {
-    return null;
-  }
-
-  if (button instanceof HTMLButtonElement && button.disabled) {
-    return null;
-  }
-
-  if (button.getAttribute("aria-disabled") === "true") {
-    return null;
-  }
-
-  return button;
-}
-
-function appendProductToProjects(
-  current: AppProject[],
-  payload: AppProduct & { listId: string; projectId: string },
-) {
-  return current.map((project) =>
-    project.id === payload.projectId
-      ? {
-          ...project,
-          updatedAt: payload.updatedAt,
-          lists: project.lists.map((list) =>
-            list.id === payload.listId
-              ? {
-                  ...list,
-                  updatedAt: payload.updatedAt,
-                  productCount: list.productCount + 1,
-                  products: [...list.products, payload],
-                }
-              : list,
-          ),
-        }
-      : project,
-  );
-}
-
-function removeProductFromProjects(
-  current: AppProject[],
-  payload: { id: string; listId: string; projectId: string; updatedAt: string },
-) {
-  return current.map((project) =>
-    project.id === payload.projectId
-      ? {
-          ...project,
-          updatedAt: payload.updatedAt,
-          lists: project.lists.map((list) =>
-            list.id === payload.listId
-              ? {
-                  ...list,
-                  updatedAt: payload.updatedAt,
-                  productCount: Math.max(0, list.productCount - 1),
-                  products: list.products.filter((item) => item.id !== payload.id),
-                }
-              : list,
-          ),
-        }
-      : project,
-  );
-}
-
-function getProductOrderTimestamp(product: AppProduct, fallbackIndex: number) {
-  const rawTimestamp = product.createdAt ?? product.updatedAt;
-  const parsedTimestamp = rawTimestamp ? Date.parse(rawTimestamp) : Number.NaN;
-  return Number.isFinite(parsedTimestamp) ? parsedTimestamp : fallbackIndex;
-}
-
-function toClipboardProductMutationBody(value: unknown): ProductMutationBody | null {
-  if (typeof value !== "object" || value === null) {
-    return null;
-  }
-
-  const record = value as Record<string, unknown>;
-  const serviceCode = typeof record.serviceCode === "string" ? record.serviceCode.trim() : "";
-  const serviceName = typeof record.serviceName === "string" ? record.serviceName.trim() : "";
-  const productType = typeof record.productType === "string" ? record.productType.trim() : "";
-  const title = typeof record.title === "string" ? record.title.trim() : "";
-  const quantityValue = typeof record.quantity === "number" ? record.quantity : Number(record.quantity);
-  const quantity = Number.isFinite(quantityValue) ? Math.max(1, Math.floor(quantityValue)) : 1;
-
-  if (!serviceCode || !serviceName || !productType || !title) {
-    return null;
-  }
-
-  return {
-    serviceCode,
-    serviceName,
-    productType,
-    title,
-    quantity,
-    config: record.config ?? {},
-    pricing: record.pricing ?? null,
-  };
-}
 
 export default function Home() {
   const { session, isPending: isSessionPending } = useSessionContext();
@@ -380,25 +189,31 @@ export default function Home() {
         )
         .slice(0, 8)
     : [];
-  const selectedServiceMeta = services.find((service) => service.name === selectedService) ?? services[0];
+  const selectedServiceMeta = useMemo(() => services.find((service) => service.name === selectedService) ?? services[0], [selectedService]);
   const selectedServiceCode = selectedServiceMeta.code;
   const selectedServiceBundle = getConfigurableServiceBundleByCode(selectedServiceCode);
   const selectedServiceDefinition = selectedServiceBundle?.service ?? null;
   const selectedServiceDefinitionStatus = selectedServiceBundle?.metadata.status ?? null;
   const hasSuggestions = isSearchOpen && suggestions.length > 0;
   const activeDescendant = hasSuggestions ? `${listboxId}-${activeSuggestionIndex}` : undefined;
-  const totalProjectLists = projects.reduce((sum, project) => sum + project.lists.length, 0);
-  const totalProjectProducts = projects.reduce(
-    (sum, project) => sum + project.lists.reduce((listSum, list) => listSum + list.productCount, 0),
-    0,
+  const totalProjectLists = useMemo(() => projects.reduce((sum, project) => sum + project.lists.length, 0), [projects]);
+  const totalProjectProducts = useMemo(
+    () => projects.reduce((sum, project) => sum + project.lists.reduce((listSum, list) => listSum + list.productCount, 0), 0),
+    [projects],
   );
   const projectsById = useMemo(() => new Map(projects.map((project) => [project.id, project] as const)), [projects]);
   const listsById = useMemo(
     () => new Map(projects.flatMap((project) => project.lists.map((list) => [list.id, { list, project }] as const))),
     [projects],
   );
-  const selectedProject = projects.find((project) => project.lists.some((list) => list.id === selectedListId)) ?? null;
-  const selectedList = selectedProject?.lists.find((list) => list.id === selectedListId) ?? null;
+  const selectedProject = useMemo(
+    () => projects.find((project) => project.lists.some((list) => list.id === selectedListId)) ?? null,
+    [projects, selectedListId],
+  );
+  const selectedList = useMemo(
+    () => selectedProject?.lists.find((list) => list.id === selectedListId) ?? null,
+    [selectedProject, selectedListId],
+  );
   const selectedCartProducts = useMemo(() => selectedList?.products ?? [], [selectedList?.products]);
   const normalizedCartSearchQuery = cartSearchQuery.trim().toLowerCase();
   const cartServiceFilterOptions = useMemo(() => {
@@ -534,6 +349,7 @@ export default function Home() {
   });
   const {
     isSelectedServiceImplemented,
+    isSelectedServiceFree,
     isSelectedServiceBatchAddImplemented,
     showBillingHeader,
     calculatorBillingOptions,
@@ -693,23 +509,23 @@ export default function Home() {
 
       try {
         const response = await fetch("/api/projects", { cache: "no-store" });
+        const payload = (await response.json().catch(() => null)) as AppProject[] | { error?: string } | null;
         if (!response.ok) {
-          const payload = (await response.json().catch(() => null)) as { error?: string } | null;
           throw new Error(getResponseError(payload, "Failed to load projects"));
         }
 
-        const payload = (await response.json()) as AppProject[];
-        setProjects(payload);
+        const projectData = payload as AppProject[];
+        setProjects(projectData);
         setSelectedListId((current) => {
-          if (current && payload.some((project) => project.lists.some((list) => list.id === current))) {
+          if (current && projectData.some((project) => project.lists.some((list) => list.id === current))) {
             return current;
           }
 
-          return getFirstListId(payload);
+          return getFirstListId(projectData);
         });
         setExpandedProjects((current) => {
           const nextState: Record<string, boolean> = {};
-          payload.forEach((project, index) => {
+          projectData.forEach((project, index) => {
             nextState[project.id] = current[project.id] ?? index === 0;
           });
           return nextState;
@@ -2989,10 +2805,11 @@ export default function Home() {
               <Separator />
 
               <TabsContent value="calculator">
-                {isSelectedServiceImplemented ? (
+                {isSelectedServiceFree ? (
+                  <FreeServicePanel serviceName={selectedService} serviceCode={selectedServiceMeta.code} />
+                ) : isSelectedServiceImplemented ? (
                   <>
                     <div className="fixed right-4 bottom-4 left-4 z-40 grid gap-3 overflow-hidden rounded-2xl border border-zinc-200 bg-white/95 px-4 py-3 shadow-[0_24px_70px_-32px_rgba(15,23,42,0.45)] backdrop-blur xl:left-1/2 xl:w-[min(740px,780px)] xl:-translate-x-1/2 xl:grid-cols-[minmax(0,1fr)_auto] xl:items-center">
-                      <div className="pointer-events-none absolute top-0 left-0 h-full w-1 bg-gradient-to-b from-zinc-900 via-zinc-700 to-zinc-900" />
                       <div className="min-w-0">
                         <p className="text-[2.125rem] leading-none font-semibold tracking-tight text-zinc-950">{selectedEstimateParts.amount}</p>
                         <p className="mt-0.5 leading-tight text-sm text-zinc-500">

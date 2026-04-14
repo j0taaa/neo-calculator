@@ -44,6 +44,7 @@ export type ServiceRegistryDocument = {
   services: ServiceCatalogEntry[];
   supportedCalculatorServiceCodes: string[];
   supportedBatchAddServiceCodes: string[];
+  freeAlwaysServiceCodes: string[];
   definitions: ServiceDefinitionRegistryEntry[];
 };
 

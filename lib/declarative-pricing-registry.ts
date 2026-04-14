@@ -8,6 +8,7 @@ import { configurableServiceBundle as eipBundle } from "@/config/services/eip/bu
 import { configurableServiceBundle as erBundle } from "@/config/services/er/bundle";
 import { configurableServiceBundle as flexusRdsBundle } from "@/config/services/flexus-rds/bundle";
 import { configurableServiceBundle as gaBundle } from "@/config/services/ga/bundle";
+import { configurableServiceBundle as gaussDbBundle } from "@/config/services/gaussdb/bundle";
 import { configurableServiceBundle as gesBundle } from "@/config/services/ges/bundle";
 import { configurableServiceBundle as cseBundle } from "@/config/services/cse/bundle";
 import { configurableServiceBundle as ltsBundle } from "@/config/services/lts/bundle";
@@ -26,6 +27,9 @@ import { configurableServiceBundle as cdmBundle } from "@/config/services/cdm/bu
 import { configurableServiceBundle as ddsBundle } from "@/config/services/dds/bundle";
 import { configurableServiceBundle as wafBundle } from "@/config/services/waf/bundle";
 import { configurableServiceBundle as cfwBundle } from "@/config/services/cfw/bundle";
+import { configurableServiceBundle as dmsBundle } from "@/config/services/dms/bundle";
+import { configurableServiceBundle as drsBundle } from "@/config/services/drs/bundle";
+import { configurableServiceBundle as mrsBundle } from "@/config/services/mrs/bundle";
 import type { DisPricingCatalog } from "@/lib/dis-catalog";
 import type { ApigPricingCatalog } from "@/lib/apig-catalog";
 import type { CbhPricingCatalog } from "@/lib/cbh-catalog";
@@ -37,6 +41,7 @@ import type { EipPricingCatalog } from "@/lib/eip-catalog";
 import type { ErPricingCatalog } from "@/lib/er-catalog";
 import type { FlexusRdsPricingCatalog } from "@/lib/flexus-rds-catalog";
 import type { GaPricingCatalog } from "@/lib/ga-catalog";
+import type { GaussDbPricingCatalog } from "@/lib/gaussdb-catalog";
 import type { GesPricingCatalog } from "@/lib/ges-catalog";
 import type { CsePricingCatalog } from "@/lib/cse-catalog";
 import type { LtsPricingCatalog } from "@/lib/lts-catalog";
@@ -54,6 +59,9 @@ import type { CdmPricingCatalog } from "@/lib/cdm-catalog";
 import type { DdsPricingCatalog } from "@/lib/dds-catalog";
 import type { WafPricingCatalog } from "@/lib/waf-catalog";
 import type { CfwPricingCatalog } from "@/lib/cfw-catalog";
+import type { DmsPricingCatalog } from "@/lib/dms-catalog";
+import type { DrsPricingCatalog } from "@/lib/drs-catalog";
+import type { MrsPricingCatalog } from "@/lib/mrs-catalog";
 import type { DeclarativePricingDefinition } from "@/lib/declarative-pricing-engine";
 
 export const declarativePricingDefinitions: Record<string, DeclarativePricingDefinition> = {
@@ -65,6 +73,7 @@ export const declarativePricingDefinitions: Record<string, DeclarativePricingDef
   EIP: eipBundle.catalogDefinition,
   ER: erBundle.catalogDefinition,
   GA: gaBundle.catalogDefinition,
+  GaussDB: gaussDbBundle.catalogDefinition as unknown as DeclarativePricingDefinition,
   GES: gesBundle.catalogDefinition as unknown as DeclarativePricingDefinition,
   CSE: cseBundle.catalogDefinition as unknown as DeclarativePricingDefinition,
   DCS: dcsBundle.catalogDefinition,
@@ -85,9 +94,12 @@ export const declarativePricingDefinitions: Record<string, DeclarativePricingDef
   DDS: ddsBundle.catalogDefinition as unknown as DeclarativePricingDefinition,
   WAF: wafBundle.catalogDefinition as unknown as DeclarativePricingDefinition,
   CFW: cfwBundle.catalogDefinition as unknown as DeclarativePricingDefinition,
+  DMS: dmsBundle.catalogDefinition as unknown as DeclarativePricingDefinition,
+  DRS: drsBundle.catalogDefinition as unknown as DeclarativePricingDefinition,
+  MRS: mrsBundle.catalogDefinition as unknown as DeclarativePricingDefinition,
 };
 
-export function getDeclarativePricingDefinition(serviceCode: "APIG" | "CCM" | "CBH" | "CBR" | "NAT" | "EIP" | "ER" | "GA" | "GES" | "CSE" | "DCS" | "DC" | "DIS" | "HSS" | "DEW" | "SMN" | "DWS" | "DLI" | "LTS" | "SFS" | "SFS Turbo" | "VPCEP" | "RDS" | "Flexus RDS" | "CDM" | "DDS" | "WAF" | "CFW") {
+export function getDeclarativePricingDefinition(serviceCode: "APIG" | "CCM" | "CBH" | "CBR" | "NAT" | "EIP" | "ER" | "GA" | "GaussDB" | "GES" | "CSE" | "DCS" | "DC" | "DIS" | "HSS" | "DEW" | "SMN" | "DWS" | "DLI" | "LTS" | "SFS" | "SFS Turbo" | "VPCEP" | "RDS" | "Flexus RDS" | "CDM" | "DDS" | "WAF" | "CFW" | "DMS" | "DRS" | "MRS") {
   return declarativePricingDefinitions[serviceCode];
 }
 
@@ -101,6 +113,7 @@ export type DeclarativePricingCatalogMap = {
   EIP: EipPricingCatalog;
   ER: ErPricingCatalog;
   GA: GaPricingCatalog;
+  GaussDB: GaussDbPricingCatalog;
   GES: GesPricingCatalog;
   CSE: CsePricingCatalog;
   DCS: DcsPricingCatalog;
@@ -121,4 +134,7 @@ export type DeclarativePricingCatalogMap = {
   DDS: DdsPricingCatalog;
   WAF: WafPricingCatalog;
   CFW: CfwPricingCatalog;
+  DMS: DmsPricingCatalog;
+  DRS: DrsPricingCatalog;
+  MRS: MrsPricingCatalog;
 };

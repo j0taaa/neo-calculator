@@ -470,14 +470,6 @@ async function fetchOnDemandFlavorPrice(regionId: string, flavorCode: string): P
   return typeof amount === "number" && Number.isFinite(amount) ? amount : null;
 }
 
-function describeError(error: unknown): string {
-  if (error instanceof Error && error.message.trim()) {
-    return error.message;
-  }
-
-  return "Unknown error";
-}
-
 function getMeta(key: string): string | null {
   const row = db.query<{ value: string }, [string]>("SELECT value FROM ecs_catalog_meta WHERE key = ?").get(key);
   return row?.value ?? null;
@@ -625,6 +617,8 @@ async function syncSingleRegion(
 
   let backfillAttempts = 0;
   let backfillFailures = 0;
+  const backfillTasks: Array<{ code: string; regionId: string }> = [];
+
   for (const flavor of flavors) {
     const code = typeof flavor.resourceSpecCode === "string" ? flavor.resourceSpecCode.trim() : "";
     if (!code || getFlavorPriceForMode(flavor, "ONDEMAND") !== null) {
@@ -636,17 +630,19 @@ async function syncSingleRegion(
     }
 
     backfillAttempts += 1;
+    backfillTasks.push({ code, regionId });
+  }
 
-    try {
+  const backfillResults = await Promise.allSettled(
+    backfillTasks.map(async ({ code, regionId }) => {
       const amount = await fetchOnDemandFlavorPrice(regionId, code);
       if (amount !== null) {
         upsertOnDemandPrice(regionId, code, amount, new Date().toISOString());
       }
-    } catch (error) {
-      backfillFailures += 1;
-      console.warn(`Skipping ECS on-demand price backfill for ${regionId}/${code}: ${describeError(error)}`);
-    }
-  }
+    }),
+  );
+
+  backfillFailures = backfillResults.filter((r) => r.status === "rejected").length;
 
   if (backfillFailures > 0) {
     console.warn(

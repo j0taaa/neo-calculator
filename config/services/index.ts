@@ -41,7 +41,19 @@ export const serviceRegistryDocument = {
     "CDM",
     "DDS",
     "WAF",
-    "CFW"
+    "CFW",
+    "DMS",
+    "GaussDB",
+    "DRS",
+    "MRS",
+    "AS",
+    "VPC",
+    "DNS",
+    "IAM",
+    "CES",
+    "CTS",
+    "SWR",
+    "SMS"
   ],
   "supportedBatchAddServiceCodes": [
     "ECS",
@@ -50,6 +62,16 @@ export const serviceRegistryDocument = {
     "OBS",
     "CCE",
     "CCI"
+  ],
+  "freeAlwaysServiceCodes": [
+    "AS",
+    "VPC",
+    "DNS",
+    "IAM",
+    "CES",
+    "CTS",
+    "SWR",
+    "SMS"
   ],
   "definitions": [
     {
@@ -309,6 +331,34 @@ export const serviceRegistryDocument = {
       "definitionId": "cfw",
       "serviceDefinitionPath": "./cfw/bundle.ts",
       "pricingDefinitionPath": "./cfw/bundle.ts",
+      "status": "active"
+    },
+    {
+      "serviceCode": "DMS",
+      "definitionId": "dms",
+      "serviceDefinitionPath": "./dms/bundle.ts",
+      "pricingDefinitionPath": "./dms/bundle.ts",
+      "status": "active"
+    },
+    {
+      "serviceCode": "GaussDB",
+      "definitionId": "gaussdb",
+      "serviceDefinitionPath": "./gaussdb/bundle.ts",
+      "pricingDefinitionPath": "./gaussdb/bundle.ts",
+      "status": "active"
+    },
+    {
+      "serviceCode": "DRS",
+      "definitionId": "drs",
+      "serviceDefinitionPath": "./drs/bundle.ts",
+      "pricingDefinitionPath": "./drs/bundle.ts",
+      "status": "active"
+    },
+    {
+      "serviceCode": "MRS",
+      "definitionId": "mrs",
+      "serviceDefinitionPath": "./mrs/bundle.ts",
+      "pricingDefinitionPath": "./mrs/bundle.ts",
       "status": "active"
     }
   ],
@@ -774,7 +824,7 @@ export const serviceRegistryDocument = {
       "icon": "https://res-static.hc-cdn.cn/cloudbu-site/public/product-banner-icon/DeveloperServices/DevSecurity.png"
     },
     {
-      "name": "Distributed Message Service",
+      "name": "DMS Kafka",
       "code": "DMS",
       "icon": "https://res-static.hc-cdn.cn/cloudbu-site/public/product-banner-icon/Middleware/DMS.png"
     },

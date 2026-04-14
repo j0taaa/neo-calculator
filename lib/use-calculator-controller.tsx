@@ -24,6 +24,7 @@ import { findFlexusLPlan, flexusLPlans, flexusLPricingReference } from "@/lib/fl
 import { huaweiRegions, type HuaweiRegionKey } from "@/lib/huawei-regions";
 import {
   getConfigurableServiceBundleByCode,
+  freeAlwaysServiceCodes,
   supportedBatchAddServiceCodes,
   supportedCalculatorServiceCodes,
   type ServiceDefinition,
@@ -164,6 +165,7 @@ export type CalculatorControllerInput = {
 
 export type CalculatorControllerResult = {
   isSelectedServiceImplemented: boolean;
+  isSelectedServiceFree: boolean;
   isSelectedServiceBatchAddImplemented: boolean;
   showBillingHeader: boolean;
   calculatorBillingOptions: BillingOption[];
@@ -239,6 +241,7 @@ export function useCalculatorController({
   const selectedServiceBundle = getConfigurableServiceBundleByCode(selectedServiceCode);
   const selectedServiceDefinition: ServiceDefinition | null = selectedServiceBundle?.service ?? null;
   const isSelectedServiceImplemented = supportedCalculatorServiceCodes.includes(selectedServiceCode);
+  const isSelectedServiceFree = freeAlwaysServiceCodes.includes(selectedServiceCode);
   const isSelectedServiceBatchAddImplemented = supportedBatchAddServiceCodes.includes(selectedServiceCode);
 
   const [instanceCount, setInstanceCount] = useState("1");
@@ -649,8 +652,8 @@ export function useCalculatorController({
     selectionNotes: calculatorSelectionNotes,
   };
 
-  const flavorSortOptions = Object.entries(flavorSortLabels).map(([value, label]) => ({ value, label }));
-  const calculatorRegionOptions = Object.entries(huaweiRegions).map(([value, labels]) => ({ value, label: labels.full }));
+  const flavorSortOptions = useMemo(() => Object.entries(flavorSortLabels).map(([value, label]) => ({ value, label })), []);
+  const calculatorRegionOptions = useMemo(() => Object.entries(huaweiRegions).map(([value, labels]) => ({ value, label: labels.full })), []);
 
   const ecsPanelProps = {
     minVcpuValue,
@@ -697,17 +700,19 @@ export function useCalculatorController({
     diskConfigProps: calculatorDiskConfigProps,
   };
 
+  const flexusLPlansMemoized = useMemo(() => flexusLPlans.map((plan) => ({
+    id: plan.id,
+    title: plan.title,
+    vcpu: plan.vcpu,
+    ramGiB: plan.ramGiB,
+    systemDiskGiB: plan.systemDiskGiB,
+    peakBandwidthMbit: plan.peakBandwidthMbit,
+    dataPackageTiB: plan.dataPackageTiB,
+    monthlyPrice: formatFlavorAmount("USD", plan.monthlyPriceUsd, "/mo"),
+  })), []);
+
   const flexusLPanelProps = {
-    plans: flexusLPlans.map((plan) => ({
-      id: plan.id,
-      title: plan.title,
-      vcpu: plan.vcpu,
-      ramGiB: plan.ramGiB,
-      systemDiskGiB: plan.systemDiskGiB,
-      peakBandwidthMbit: plan.peakBandwidthMbit,
-      dataPackageTiB: plan.dataPackageTiB,
-      monthlyPrice: formatFlavorAmount("USD", plan.monthlyPriceUsd, "/mo"),
-    })),
+    plans: flexusLPlansMemoized,
     selectedPlanId: selectedFlexusLPlan?.id ?? "",
     onSelectPlan: (planId: string) => {
       const plan = findFlexusLPlan(planId);
@@ -1023,6 +1028,7 @@ export function useCalculatorController({
     gpSsd2ThroughputValue,
     instanceCountValue,
     isGpSsd2Selected,
+    isSelectedServiceFree,
     isSelectedServiceImplemented,
     mutateListProduct,
     ramValue,
@@ -1227,6 +1233,7 @@ export function useCalculatorController({
 
   return {
     isSelectedServiceImplemented,
+    isSelectedServiceFree,
     isSelectedServiceBatchAddImplemented,
     showBillingHeader: configurableRuntime.isConfigurableService ? configurableRuntime.usesSharedBillingHeader : true,
     calculatorBillingOptions,

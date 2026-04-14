@@ -12,7 +12,8 @@ RUN bun install --frozen-lockfile
 ENV NODE_ENV=production
 ENV PORT=3000
 ENV CATALOG_DB_PATH=/app/data/catalog.db
-ENV BETTER_AUTH_SECRET="production-secret-change-me-in-real-deployment-1234567890"
+ARG BETTER_AUTH_SECRET
+ENV BETTER_AUTH_SECRET=${BETTER_AUTH_SECRET}
 
 COPY . .
 RUN bunx --bun next build

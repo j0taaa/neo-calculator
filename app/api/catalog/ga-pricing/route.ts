@@ -1,6 +1,7 @@
 import { huaweiRegions, type HuaweiRegionKey } from "@/lib/huawei-regions";
 import { fetchGaPricingCatalog } from "@/lib/ga-pricing";
 
+export const revalidate = 300;
 export const runtime = "nodejs";
 
 const GLOBAL_ACCELERATOR_REGION = "global-cbc-1";
