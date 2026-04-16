@@ -26,6 +26,12 @@ function resolveRegionId(region: string): string {
   return entry?.catalogRegionId ?? region;
 }
 
+function flavorListSummary(flavors: Array<{ resourceSpecCode: string }>): string {
+  if (flavors.length === 0) return "none loaded";
+  const codes = flavors.slice(0, 5).map((f) => f.resourceSpecCode);
+  return codes.join(", ") + (flavors.length > 5 ? `, +${flavors.length - 5} more` : "");
+}
+
 function buildDefaultValues(definition: { fields: Array<{ id: string }>; defaults: Record<string, unknown> }) {
   const values: Record<string, string> = {};
   for (const field of definition.fields) {
@@ -88,6 +94,27 @@ function configToValues(config: ConfigRecord, defaults: Record<string, string>):
   return values;
 }
 
+const DEFAULT_TIMEOUT_MS = 15_000;
+const MAX_RETRIES = 2;
+const RETRY_DELAY_MS = 1_000;
+
+async function fetchWithRetry<T>(fn: () => Promise<T>, serviceName: string, attempt = 0): Promise<T> {
+  try {
+    return await fn();
+  } catch (err) {
+    const isTimeout = err instanceof Error && err.message.toLowerCase().includes("timeout");
+    const shouldRetry = attempt < MAX_RETRIES && isTimeout;
+
+    if (shouldRetry) {
+      await new Promise((resolve) => setTimeout(resolve, RETRY_DELAY_MS * (attempt + 1)));
+      return fetchWithRetry(fn, serviceName, attempt + 1);
+    }
+
+    const msg = err instanceof Error ? err.message : "Unknown error";
+    throw new Error(`${serviceName}: ${msg}${attempt > 0 ? ` (after ${attempt + 1} attempts)` : ""}`);
+  }
+}
+
 async function computeConfigurablePricing(serviceCode: string, config: ConfigRecord): Promise<ServerPricingResult> {
   const bundle = getConfigurableServiceBundleByCode(serviceCode);
   const definition = getConfigurableServiceDefinitionByCode(serviceCode);
@@ -118,7 +145,7 @@ async function computeConfigurablePricing(serviceCode: string, config: ConfigRec
 
   let catalog: unknown;
   try {
-    catalog = await fetchFn(catalogRegionId);
+    catalog = await fetchWithRetry(() => fetchFn(catalogRegionId), definition.serviceName);
   } catch (err) {
     const msg = err instanceof Error ? err.message : "Failed to fetch catalog";
     return { pricing: {}, title: "", productType: serviceCode.toLowerCase(), config, error: msg };
@@ -195,17 +222,22 @@ async function computeEcsPricing(config: ConfigRecord): Promise<ServerPricingRes
     return { pricing: {}, title: "", productType: "ecs", config, error: "Missing required field: config.flavor" };
   }
 
-  await ensureRegionCatalogAvailable(catalogRegionId);
+  try {
+    await fetchWithRetry(() => ensureRegionCatalogAvailable(catalogRegionId), "ECS catalog");
+  } catch (err) {
+    return { pricing: {}, title: "", productType: "ecs", config, error: `Failed to load ECS catalog for ${region}: ${err instanceof Error ? err.message : "Unknown error"}` };
+  }
+
   const flavors = listStoredEcsFlavors(catalogRegionId);
   const matchedFlavor = flavors.find((f) => f.resourceSpecCode === flavor);
 
   if (!matchedFlavor) {
-    return { pricing: {}, title: "", productType: "ecs", config, error: `Flavor '${flavor}' not found in region ${region}. The ECS catalog may still be syncing.` };
+    return { pricing: {}, title: "", productType: "ecs", config, error: `Flavor '${flavor}' not found in region ${region}. Available flavors: ${flavorListSummary(flavors)}. The catalog may still be syncing.` };
   }
 
   let diskPricing = null;
   try {
-    diskPricing = await fetchRegionSystemDiskPricing(catalogRegionId);
+    diskPricing = await fetchWithRetry(() => fetchRegionSystemDiskPricing(catalogRegionId), "EVS disk pricing");
   } catch {
     // disk pricing unavailable - proceed without it
   }
