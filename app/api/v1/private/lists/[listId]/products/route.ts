@@ -2,6 +2,7 @@ import { getApiKeyUser, jsonError, readJsonBody } from "@/lib/api-route";
 import { db } from "@/lib/db";
 import { getListAccessForUser } from "@/lib/resource-access";
 import { insertListProducts, mapStoredProductRow, touchProject, type StoredProductRow } from "@/lib/resource-persistence";
+import { computeServerPricing } from "@/lib/server-pricing";
 
 export const runtime = "nodejs";
 
@@ -11,7 +12,7 @@ type CreateListProductBody = {
   productType?: string;
   title?: string;
   quantity?: number;
-  config?: unknown;
+  config?: Record<string, unknown>;
   pricing?: unknown;
 };
 
@@ -62,11 +63,10 @@ export async function POST(
   const serviceCode = body?.serviceCode?.trim();
   const serviceName = body?.serviceName?.trim();
   const productType = body?.productType?.trim();
-  const title = body?.title?.trim();
   const quantity = Math.max(1, Math.floor(body?.quantity ?? 1));
 
-  if (!serviceCode || !serviceName || !productType || !title) {
-    return jsonError("serviceCode, serviceName, productType, and title are required");
+  if (!serviceCode || !serviceName) {
+    return jsonError("serviceCode and serviceName are required");
   }
 
   const list = getListAccessForUser(apiKeyUser.userId, listId);
@@ -75,19 +75,42 @@ export async function POST(
     return jsonError("List not found", 404);
   }
   if (!list.canEditProducts) {
-    return jsonError("You do not have permission to edit this cart", 403);
+    return jsonError("You do not have permission to edit this list", 403);
   }
 
+  const config: Record<string, unknown> = body?.config ?? {};
+  const pricingResult = await computeServerPricing(serviceCode, config);
+
+  if (pricingResult.error) {
+    return jsonError(pricingResult.error, 422);
+  }
+
+  const resolvedTitle = body?.title?.trim() || pricingResult.title || serviceName;
+  const resolvedProductType = productType || pricingResult.productType || serviceCode.toLowerCase();
+  const resolvedConfig = pricingResult.config;
+  const resolvedPricing = pricingResult.pricing;
+
   const now = new Date().toISOString();
-  let createdProduct = {
+  let createdProduct: {
+    id: string;
+    serviceCode: string;
+    serviceName: string;
+    productType: string;
+    title: string;
+    quantity: number;
+    config: Record<string, unknown>;
+    pricing: Record<string, unknown>;
+    createdAt: string;
+    updatedAt: string;
+  } = {
     id: crypto.randomUUID(),
     serviceCode,
     serviceName,
-    productType,
-    title,
+    productType: resolvedProductType,
+    title: resolvedTitle,
     quantity,
-    config: body?.config ?? {},
-    pricing: body?.pricing ?? null,
+    config: resolvedConfig,
+    pricing: resolvedPricing,
     createdAt: now,
     updatedAt: now,
   };
@@ -98,8 +121,8 @@ export async function POST(
       projectId: list.projectId,
       userId: apiKeyUser.userId,
       now,
-      products: [{ serviceCode, serviceName, productType, title, quantity, config: body?.config, pricing: body?.pricing }],
-    });
+      products: [{ serviceCode, serviceName, productType: resolvedProductType, title: resolvedTitle, quantity, config: resolvedConfig, pricing: resolvedPricing }],
+    }) as [typeof createdProduct];
 
     db.query("UPDATE project_list SET updated_at = ? WHERE id = ?").run(now, listId);
     touchProject(list.projectId, now);
@@ -112,8 +135,8 @@ export async function POST(
       projectId: list.projectId,
       serviceCode,
       serviceName,
-      productType,
-      title,
+      productType: createdProduct.productType,
+      title: createdProduct.title,
       quantity: createdProduct.quantity,
       config: createdProduct.config,
       pricing: createdProduct.pricing,

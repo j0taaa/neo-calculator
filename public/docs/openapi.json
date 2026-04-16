@@ -163,6 +163,82 @@
         }
       }
     },
+    "/public/services/{serviceCode}/schema": {
+      "get": {
+        "tags": ["Public"],
+        "summary": "Get the JSON Schema for a service product body",
+        "description": "Returns a JSON Schema (draft 2020-12) describing the request body format for adding a product to a list. Use this to know which fields are required and what values are accepted for a specific service. Supports all configurable services plus ECS and Flexus L.",
+        "operationId": "getServiceSchema",
+        "parameters": [
+          {
+            "name": "serviceCode",
+            "in": "path",
+            "required": true,
+            "description": "The service code (case-insensitive, e.g. 'dcs', 'ECS', 'Flexus L')",
+            "schema": {
+              "type": "string",
+              "example": "dcs"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response with JSON Schema and example",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "serviceCode": { "type": "string", "example": "DCS" },
+                    "serviceName": { "type": "string", "example": "Distributed Cache Service (for Redis)" },
+                    "productType": { "type": "string", "example": "dcs" },
+                    "billingOptions": {
+                      "type": "array",
+                      "items": { "type": "string" },
+                      "example": ["Pay-per-use"]
+                    },
+                    "schema": {
+                      "type": "object",
+                      "description": "JSON Schema (draft 2020-12) for the product request body"
+                    },
+                    "configDefaults": {
+                      "type": "object",
+                      "description": "Default config values for all fields"
+                    },
+                    "example": {
+                      "type": "object",
+                      "description": "A ready-to-use example request body for POST /private/lists/{listId}/products"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Unknown service code or service has no schema",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    { "$ref": "#/components/schemas/Error" },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "error": { "type": "string" },
+                        "availableServices": {
+                          "type": "array",
+                          "items": { "type": "string" }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/private/projects": {
       "get": {
         "tags": ["Private"],
@@ -704,7 +780,7 @@
       "post": {
         "tags": ["Private"],
         "summary": "Add a product to a list",
-        "description": "Adds a new product to the specified list.",
+        "description": "Adds a new product to the specified list. The server automatically calculates pricing based on the serviceCode and config provided. Use the /public/services/{serviceCode}/schema endpoint to discover valid config fields for each service.",
         "operationId": "addProduct",
         "security": [{ "ApiKeyAuth": [] }],
         "parameters": [
@@ -721,15 +797,14 @@
             "application/json": {
               "schema": {
                 "type": "object",
-                "required": ["serviceCode", "serviceName", "productType", "title"],
+                "required": ["serviceCode", "serviceName"],
                 "properties": {
-                  "serviceCode": { "type": "string", "example": "vpn" },
-                  "serviceName": { "type": "string", "example": "VPN" },
-                  "productType": { "type": "string", "example": "vpn" },
-                  "title": { "type": "string", "example": "VPN Gateway" },
+                  "serviceCode": { "type": "string", "description": "Service code (e.g. 'DCS', 'VPN', 'ECS', 'Flexus L')", "example": "VPN" },
+                  "serviceName": { "type": "string", "description": "Human-readable service name", "example": "Virtual Private Network" },
+                  "productType": { "type": "string", "description": "Optional. Auto-resolved from serviceCode if omitted." },
+                  "title": { "type": "string", "description": "Optional. Auto-generated from config if omitted." },
                   "quantity": { "type": "integer", "default": 1, "minimum": 1 },
-                  "config": { "type": "object", "description": "Service-specific configuration" },
-                  "pricing": { "type": "object", "nullable": true, "description": "Pricing information" }
+                  "config": { "type": "object", "description": "Service-specific configuration. Pricing is calculated server-side from these values." }
                 }
               }
             }
@@ -737,7 +812,7 @@
         },
         "responses": {
           "201": {
-            "description": "Product added successfully",
+            "description": "Product added successfully with server-calculated pricing",
             "content": {
               "application/json": {
                 "schema": { "$ref": "#/components/schemas/Product" }
@@ -770,6 +845,178 @@
           },
           "404": {
             "description": "List not found",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" }
+              }
+            }
+          },
+          "422": {
+            "description": "Could not compute pricing for the given configuration",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/private/lists/{listId}/products/{productId}": {
+      "patch": {
+        "tags": ["Private"],
+        "summary": "Update a product in a list",
+        "description": "Updates an existing product in the specified list. Pricing is automatically recalculated server-side from the config.",
+        "operationId": "updateProduct",
+        "security": [{ "ApiKeyAuth": [] }],
+        "parameters": [
+          {
+            "name": "listId",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "format": "uuid" }
+          },
+          {
+            "name": "productId",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "format": "uuid" }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["serviceCode", "serviceName"],
+                "properties": {
+                  "serviceCode": { "type": "string", "example": "vpn" },
+                  "serviceName": { "type": "string", "example": "VPN" },
+                  "productType": { "type": "string", "example": "vpn" },
+                  "title": { "type": "string", "example": "VPN Gateway" },
+                  "quantity": { "type": "integer", "default": 1, "minimum": 1 },
+                  "config": { "type": "object", "description": "Service-specific configuration" },
+                  "pricing": { "type": "object", "nullable": true, "description": "Pricing information" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Product updated successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": { "type": "string", "format": "uuid" },
+                    "listId": { "type": "string", "format": "uuid" },
+                    "projectId": { "type": "string", "format": "uuid" },
+                    "serviceCode": { "type": "string" },
+                    "serviceName": { "type": "string" },
+                    "productType": { "type": "string" },
+                    "title": { "type": "string" },
+                    "quantity": { "type": "integer" },
+                    "config": { "type": "object" },
+                    "pricing": { "type": "object", "nullable": true },
+                    "updatedAt": { "type": "string", "format": "date-time" }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request body",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" }
+              }
+            }
+          },
+          "401": {
+            "description": "Invalid or missing API key",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" }
+              }
+            }
+          },
+          "403": {
+            "description": "Not authorized to edit this list",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" }
+              }
+            }
+          },
+          "404": {
+            "description": "List or product not found",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": ["Private"],
+        "summary": "Delete a product from a list",
+        "description": "Deletes a product from the specified list.",
+        "operationId": "deleteProduct",
+        "security": [{ "ApiKeyAuth": [] }],
+        "parameters": [
+          {
+            "name": "listId",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "format": "uuid" }
+          },
+          {
+            "name": "productId",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "format": "uuid" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Product deleted successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": { "type": "string", "format": "uuid" },
+                    "listId": { "type": "string", "format": "uuid" },
+                    "projectId": { "type": "string", "format": "uuid" },
+                    "deleted": { "type": "boolean" },
+                    "updatedAt": { "type": "string", "format": "date-time" }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Invalid or missing API key",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" }
+              }
+            }
+          },
+          "403": {
+            "description": "Not authorized to edit this list",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" }
+              }
+            }
+          },
+          "404": {
+            "description": "List or product not found",
             "content": {
               "application/json": {
                 "schema": { "$ref": "#/components/schemas/Error" }

@@ -35,6 +35,9 @@ import { pricingDefinition as ddsPricingDefinitionDocument, serviceDefinition as
 import { pricingDefinition as wafPricingDefinitionDocument, serviceDefinition as wafServiceDefinitionDocument } from "@/config/services/waf/bundle";
 import { pricingDefinition as cfwPricingDefinitionDocument, serviceDefinition as cfwServiceDefinitionDocument } from "@/config/services/cfw/bundle";
 import { pricingDefinition as dmsPricingDefinitionDocument, serviceDefinition as dmsServiceDefinitionDocument } from "@/config/services/dms/bundle";
+import { pricingDefinition as drsPricingDefinitionDocument, serviceDefinition as drsServiceDefinitionDocument } from "@/config/services/drs/bundle";
+import { pricingDefinition as gaussDbPricingDefinitionDocument, serviceDefinition as gaussDbServiceDefinitionDocument } from "@/config/services/gaussdb/bundle";
+import { pricingDefinition as mrsPricingDefinitionDocument, serviceDefinition as mrsServiceDefinitionDocument } from "@/config/services/mrs/bundle";
 import { pricingDefinition as vpnPricingDefinitionDocument, serviceDefinition as vpnServiceDefinitionDocument } from "@/config/services/vpn/bundle";
 import { pricingDefinition as workspacePricingDefinitionDocument, serviceDefinition as workspaceServiceDefinitionDocument } from "@/config/services/workspace/bundle";
 import {
@@ -601,6 +604,18 @@ const definitionDocuments = {
   dms: {
     service: parseServiceDefinition(dmsServiceDefinitionDocument),
     pricing: parsePricingDefinition(dmsPricingDefinitionDocument),
+  },
+  gaussdb: {
+    service: parseServiceDefinition(gaussDbServiceDefinitionDocument),
+    pricing: parsePricingDefinition(gaussDbPricingDefinitionDocument),
+  },
+  drs: {
+    service: parseServiceDefinition(drsServiceDefinitionDocument),
+    pricing: parsePricingDefinition(drsPricingDefinitionDocument),
+  },
+  mrs: {
+    service: parseServiceDefinition(mrsServiceDefinitionDocument),
+    pricing: parsePricingDefinition(mrsPricingDefinitionDocument),
   },
 } as const;
 
