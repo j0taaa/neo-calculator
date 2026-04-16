@@ -10,7 +10,7 @@ import { fetchRegionSystemDiskPricing } from "@/lib/evs-disk-pricing";
 import { flexusLPricingReference, findFlexusLPlan } from "@/lib/flexus-l-catalog";
 import { ecsDiskSizeBounds } from "@/lib/configurable-runtime-utils";
 import type { DeclarativeEstimateRecord } from "@/lib/declarative-service-runtime-types";
-import { fetchInquiryPricing, isInquiryPricingEnabled } from "@/lib/inquiry-pricing";
+import { fetchInquiryPricing, isInquiryPricingEnabled, type InquiryPricingResult } from "@/lib/inquiry-pricing";
 
 type ConfigRecord = Record<string, unknown>;
 
@@ -99,6 +99,8 @@ const EVS_PRODUCT_IDS: Record<string, Record<string, string>> = {
   "sa-brazil-1": { SSD: "00301-135024-0--0", "High I/O": "00301-135025-0--0", "SAS": "00301-135026-0--0" },
   "ap-southeast-1": { SSD: "00301-133631-0--0", "High I/O": "00301-133632-0--0", "SAS": "00301-133633-0--0" },
   "ap-southeast-2": { SSD: "00301-133631-0--0", "High I/O": "00301-133632-0--0", "SAS": "00301-133633-0--0" },
+  "la-south-1": { SSD: "00301-133631-0--0", "High I/O": "00301-133632-0--0", "SAS": "00301-133633-0--0" },
+  "af-south-1": { SSD: "00301-133631-0--0", "High I/O": "00301-133632-0--0", "SAS": "00301-133633-0--0" },
 };
 
 function getEvsProductId(diskType: string, regionId: string): string | null {
@@ -107,6 +109,80 @@ function getEvsProductId(diskType: string, regionId: string): string | null {
   const typeMap: Record<string, string> = { SSD: "SSD", "High I/O": "High I/O", SAS: "SAS" };
   const normalizedType = typeMap[diskType] ?? diskType;
   return regionIds[normalizedType] ?? null;
+}
+
+function findProductIdInCatalog(catalog: unknown, specCode?: string): string | null {
+  if (!catalog || typeof catalog !== "object") return null;
+
+  const cat = catalog as Record<string, unknown>;
+
+  if (cat.instanceTiers && Array.isArray(cat.instanceTiers)) {
+    for (const tier of cat.instanceTiers as Array<Record<string, unknown>>) {
+      if (specCode && tier.resourceSpecCode !== specCode) continue;
+      const productIds = tier.productIds as Record<string, string> | undefined;
+      if (productIds?.ONDEMAND) return productIds.ONDEMAND;
+      if (productIds?.MONTHLY) return productIds.MONTHLY;
+      if (productIds?.productId) return tier.productId as string;
+    }
+  }
+
+  if (cat.tiers && Array.isArray(cat.tiers)) {
+    for (const tier of cat.tiers as Array<Record<string, unknown>>) {
+      if (specCode && tier.resourceSpecCode !== specCode) continue;
+      const productIds = tier.productIds as Record<string, string> | undefined;
+      if (productIds?.ONDEMAND) return productIds.ONDEMAND;
+      if (productIds?.productId) return tier.productId as string;
+    }
+  }
+
+  if (cat.gateways && Array.isArray(cat.gateways)) {
+    for (const tier of cat.gateways as Array<Record<string, unknown>>) {
+      if (specCode && tier.resourceSpecCode !== specCode) continue;
+      const productIds = tier.productIds as Record<string, string> | undefined;
+      if (productIds?.ONDEMAND) return productIds.ONDEMAND;
+      if (tier.productId) return tier.productId as string;
+    }
+  }
+
+  for (const [key, value] of Object.entries(cat)) {
+    if (Array.isArray(value)) {
+      for (const item of value as Array<Record<string, unknown>>) {
+        if (specCode && item.resourceSpecCode !== specCode) continue;
+        const productIds = item.productIds as Record<string, string> | undefined;
+        if (productIds?.ONDEMAND) return productIds.ONDEMAND;
+        if (productIds?.productId) return item.productId as string;
+        if (item.productId) return item.productId as string;
+      }
+    }
+  }
+
+  if (cat.productIds && typeof cat.productIds === "object") {
+    const pids = cat.productIds as Record<string, string>;
+    if (pids.ONDEMAND) return pids.ONDEMAND;
+    if (pids.MONTHLY) return pids.MONTHLY;
+  }
+
+  return null;
+}
+
+async function tryInquiryPricing(serviceCode: string, catalog: unknown, regionId: string, usageHours: number, specCode?: string, resourceSize?: number): Promise<InquiryPricingResult | null> {
+  if (!isInquiryPricingEnabled()) return null;
+
+  const productId = findProductIdInCatalog(catalog, specCode);
+  if (!productId) return null;
+
+  try {
+    return await fetchWithRetry(() => fetchInquiryPricing({
+      serviceCode,
+      regionId,
+      productId,
+      usageValue: usageHours,
+      resourceSpecCode: specCode,
+      resourceSize,
+    }), `${serviceCode} inquiry`);
+  } catch {
+    return null;
+  }
 }
 
 const DEFAULT_TIMEOUT_MS = 15_000;
@@ -208,7 +284,23 @@ async function computeConfigurablePricing(serviceCode: string, config: ConfigRec
     estimateScope,
   );
 
-  if (!estimate) {
+  let inquiryResult: InquiryPricingResult | null = null;
+  let catalogEstimate = estimate;
+
+  if (!estimate && isInquiryPricingEnabled()) {
+    const specCode = (config.resourceSpecCode as string) ?? (config.specification as string) ?? (config.flavor as string);
+    inquiryResult = await tryInquiryPricing(serviceCode, catalog, catalogRegionId, usageHours, specCode);
+    if (inquiryResult) {
+      catalogEstimate = {
+        currency: inquiryResult.currency,
+        amount: inquiryResult.amount,
+        suffix: `/${usageHours}h`,
+        monthlyAverageAmount: inquiryResult.amount / (usageHours / (24 * 30)),
+      };
+    }
+  }
+
+  if (!catalogEstimate) {
     return { pricing: {}, title: "", productType: serviceCode.toLowerCase(), config, error: `Could not compute estimate for ${serviceCode}. Check config values.` };
   }
 
@@ -218,8 +310,8 @@ async function computeConfigurablePricing(serviceCode: string, config: ConfigRec
   );
 
   const pricingResult: Record<string, unknown> = {
-    total: formatFlavorAmount(estimate.currency, estimate.amount, estimate.suffix),
-    monthlyAverage: formatFlavorAmount(estimate.currency, estimate.monthlyAverageAmount ?? 0, "/mo"),
+    total: formatFlavorAmount(catalogEstimate.currency, catalogEstimate.amount, catalogEstimate.suffix),
+    monthlyAverage: formatFlavorAmount(catalogEstimate.currency, catalogEstimate.monthlyAverageAmount ?? 0, "/mo"),
   };
 
   if (requestBodies?.pricing && typeof requestBodies.pricing === "object") {
