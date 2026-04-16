@@ -15,12 +15,12 @@ export function isInquiryPricingEnabled(): boolean {
   return process.env.NEO_USE_INQUIRY_API === "1" || process.env.NEO_USE_INQUIRY_API?.toLowerCase() === "true";
 }
 
-const SERVICE_TYPE_MAP: Record<string, { cloudServiceType: string; resourceType: string; defaultSpec?: string; measureId?: number }> = {
+const SERVICE_TYPE_MAP: Record<string, { cloudServiceType: string; resourceType: string; defaultSpec?: string; measureId?: number; usageFactor?: string }> = {
   ECS: { cloudServiceType: "hws.service.type.ec2", resourceType: "hws.resource.type.vm", defaultSpec: "vm" },
   EVS: { cloudServiceType: "hws.service.type.ebs", resourceType: "hws.resource.type.volume", defaultSpec: "SSD" },
   DCS: { cloudServiceType: "hws.service.type.dcs", resourceType: "hws.resource.type.dcs.instance" },
   EIP: { cloudServiceType: "hws.service.type.vpc", resourceType: "hws.resource.type.bandwidth", defaultSpec: "bandwidth", measureId: 15 },
-  VPN: { cloudServiceType: "hws.service.type.vpn", resourceType: "hws.resource.type.vpn.ipsecvpn", defaultSpec: "V300" },
+  VPN: { cloudServiceType: "hws.service.type.vpn", resourceType: "hws.resource.type.vpn.ipsecvpn", defaultSpec: "V300", measureId: 14, usageFactor: "duration" },
   ELB: { cloudServiceType: "hws.service.type.elb", resourceType: "hws.resource.type.loadbalancer" },
   NAT: { cloudServiceType: "hws.service.type.vpc", resourceType: "hws.resource.type.natgateway", defaultSpec: "Small" },
   OBS: { cloudServiceType: "hws.service.type.obs", resourceType: "hws.resource.type.object" },
@@ -109,7 +109,7 @@ export async function fetchInquiryPricing(input: InquiryPricingInput): Promise<I
     productNum: input.productNum ?? 1,
     resourceSize: input.resourceSize ?? 1,
     resouceSizeMeasureId: serviceInfo.measureId ?? 17,
-    usageFactor: "Duration",
+    usageFactor: serviceInfo.usageFactor ?? "Duration",
     usageMeasureId: 4,
     usageValue: input.usageValue,
   };
