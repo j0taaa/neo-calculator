@@ -10,6 +10,7 @@ import { fetchRegionSystemDiskPricing } from "@/lib/evs-disk-pricing";
 import { flexusLPricingReference, findFlexusLPlan } from "@/lib/flexus-l-catalog";
 import { ecsDiskSizeBounds } from "@/lib/configurable-runtime-utils";
 import type { DeclarativeEstimateRecord } from "@/lib/declarative-service-runtime-types";
+import { fetchInquiryPricing, isInquiryPricingEnabled } from "@/lib/inquiry-pricing";
 
 type ConfigRecord = Record<string, unknown>;
 
@@ -92,6 +93,20 @@ function configToValues(config: ConfigRecord, defaults: Record<string, string>):
     }
   }
   return values;
+}
+
+const EVS_PRODUCT_IDS: Record<string, Record<string, string>> = {
+  "sa-brazil-1": { SSD: "00301-135024-0--0", "High I/O": "00301-135025-0--0", "SAS": "00301-135026-0--0" },
+  "ap-southeast-1": { SSD: "00301-133631-0--0", "High I/O": "00301-133632-0--0", "SAS": "00301-133633-0--0" },
+  "ap-southeast-2": { SSD: "00301-133631-0--0", "High I/O": "00301-133632-0--0", "SAS": "00301-133633-0--0" },
+};
+
+function getEvsProductId(diskType: string, regionId: string): string | null {
+  const regionIds = EVS_PRODUCT_IDS[regionId];
+  if (!regionIds) return null;
+  const typeMap: Record<string, string> = { SSD: "SSD", "High I/O": "High I/O", SAS: "SAS" };
+  const normalizedType = typeMap[diskType] ?? diskType;
+  return regionIds[normalizedType] ?? null;
 }
 
 const DEFAULT_TIMEOUT_MS = 15_000;
@@ -253,10 +268,33 @@ async function computeEcsPricing(config: ConfigRecord): Promise<ServerPricingRes
   }
 
   let diskPricing = null;
-  try {
-    diskPricing = await fetchWithRetry(() => fetchRegionSystemDiskPricing(catalogRegionId), "EVS disk pricing");
-  } catch {
-    // disk pricing unavailable - proceed without it
+  let inquiryDiskPricing = null;
+  const useInquiryApi = isInquiryPricingEnabled();
+
+  if (useInquiryApi && diskSizeGiB > 0) {
+    try {
+      const diskProductId = getEvsProductId(diskType, catalogRegionId);
+      if (diskProductId) {
+        inquiryDiskPricing = await fetchWithRetry(() => fetchInquiryPricing({
+          serviceCode: "EVS",
+          regionId: catalogRegionId,
+          productId: diskProductId,
+          resourceSize: diskSizeGiB,
+          usageValue: usageHours,
+          resourceSpecCode: diskType === "SSD" ? "SSD" : "SAS",
+        }), "EVS inquiry");
+      }
+    } catch {
+      // fallback to catalog pricing
+    }
+  }
+
+  if (!inquiryDiskPricing) {
+    try {
+      diskPricing = await fetchWithRetry(() => fetchRegionSystemDiskPricing(catalogRegionId), "EVS disk pricing");
+    } catch {
+      // disk pricing unavailable - proceed without it
+    }
   }
 
   const diskPrice = getDiskPriceForBillingOption(diskPricing, diskType as "High I/O", diskSizeGiB, billingMode, usageHours);
@@ -284,11 +322,24 @@ async function computeEcsPricing(config: ConfigRecord): Promise<ServerPricingRes
 
   const suffix = billingMode === "Pay-per-use" ? `/${usageHours}h` : "/mo";
 
+  let diskAmount = 0;
+  let diskFormatted: string | null = null;
+  if (inquiryDiskPricing) {
+    diskAmount = inquiryDiskPricing.amount;
+    diskFormatted = formatFlavorAmount(inquiryDiskPricing.currency, diskAmount, suffix);
+  } else if (diskPrice) {
+    diskAmount = diskPrice.amount * quantity;
+    diskFormatted = formatFlavorAmount(diskPrice.currency, diskAmount, diskPrice.suffix);
+  }
+
+  const totalWithInquiry = inquiryDiskPricing ? flavorCard.priceValue * quantity + diskAmount : null;
+
   return {
     pricing: {
-      total: formatFlavorAmount("USD", totalAmount, suffix),
+      total: formatFlavorAmount("USD", totalWithInquiry ?? totalAmount, suffix),
       flavor: formatFlavorAmount("USD", flavorAmount, suffix),
-      disk: diskPrice ? formatFlavorAmount(diskPrice.currency, diskPrice.amount * quantity, diskPrice.suffix) : null,
+      disk: diskFormatted,
+      pricingSource: inquiryDiskPricing ? "inquiry" : "catalog",
     },
     title: `Elastic Cloud Server ${flavor}`,
     productType: "ecs",
