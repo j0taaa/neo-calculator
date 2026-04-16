@@ -73,7 +73,7 @@ function buildScope(input: {
     instanceCountValue: input.instanceCountValue,
     item: null,
     product: null,
-    catalogView: input.derived ?? null,
+    catalogView: null,
     derived: input.derived ?? null,
     estimate: input.estimate ?? null,
     requestBodiesCount: undefined,
@@ -102,15 +102,16 @@ async function fetchWithRetry<T>(fn: () => Promise<T>, serviceName: string, atte
   try {
     return await fn();
   } catch (err) {
-    const isTimeout = err instanceof Error && err.message.toLowerCase().includes("timeout");
-    const shouldRetry = attempt < MAX_RETRIES && isTimeout;
+    const msg = err instanceof Error ? err.message : String(err);
+    const lower = msg.toLowerCase();
+    const isRetryable = lower.includes("timeout") || lower.includes("timed out") || lower.includes("econnreset") || lower.includes("econnrefused") || (lower.includes("503") && attempt < 1);
+    const shouldRetry = attempt < MAX_RETRIES && isRetryable;
 
     if (shouldRetry) {
       await new Promise((resolve) => setTimeout(resolve, RETRY_DELAY_MS * (attempt + 1)));
       return fetchWithRetry(fn, serviceName, attempt + 1);
     }
 
-    const msg = err instanceof Error ? err.message : "Unknown error";
     throw new Error(`${serviceName}: ${msg}${attempt > 0 ? ` (after ${attempt + 1} attempts)` : ""}`);
   }
 }
@@ -169,11 +170,27 @@ async function computeConfigurablePricing(serviceCode: string, config: ConfigRec
     instanceCountValue: quantity,
   });
 
-  const derived = evaluateDeclarativeDerivedValues(typedRuntime.derived, baseScope);
+  let catalogView: Record<string, unknown> | null = null;
+  let derived: Record<string, unknown> | null = null;
+  if (typedRuntime.derived) {
+    derived = evaluateDeclarativeDerivedValues(typedRuntime.derived, baseScope);
+    (baseScope as Record<string, unknown>).derived = derived;
+    (baseScope as Record<string, unknown>).catalogView = derived;
+    catalogView = derived;
+  } else if (typedRuntime.catalogView) {
+    catalogView = evaluateDeclarativeValue<Record<string, unknown> | null>(
+      typedRuntime.catalogView,
+      baseScope,
+    );
+    derived = catalogView;
+    (baseScope as Record<string, unknown>).catalogView = catalogView;
+    (baseScope as Record<string, unknown>).derived = catalogView;
+  }
 
+  const estimateScope = { ...baseScope, derived, catalogView };
   const estimate = evaluateDeclarativeValue<DeclarativeEstimateRecord | null>(
     typedRuntime.estimate,
-    { ...baseScope, derived },
+    estimateScope,
   );
 
   if (!estimate) {
@@ -182,7 +199,7 @@ async function computeConfigurablePricing(serviceCode: string, config: ConfigRec
 
   const requestBodies = evaluateDeclarativeValue<ProductMutationBody | null>(
     typedRuntime.buildRequestBodies,
-    { ...baseScope, derived, estimate },
+    { ...estimateScope, estimate },
   );
 
   const pricingResult: Record<string, unknown> = {

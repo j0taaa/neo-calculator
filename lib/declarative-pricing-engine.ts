@@ -576,6 +576,8 @@ function rejectByDerivedConditions(fields: Record<string, unknown>, conditions: 
 const productInfoCache = new Map<string, { expiresAt: number; data: unknown }>();
 const productInfoPendingRequests = new Map<string, Promise<unknown>>();
 const PRODUCT_INFO_CACHE_TTL_MS = 5 * 60 * 1000;
+const PRODUCT_INFO_MAX_RETRIES = 2;
+const PRODUCT_INFO_RETRY_DELAY_MS = 1_000;
 
 function buildProductInfoCacheKey(source: ProductInfoSourceDefinition, regionId: string) {
   return `${source.urlPath}|${source.tag ?? "general.online.portal"}|${regionId}|${source.tab}|${source.sign ?? "common"}`;
@@ -595,6 +597,7 @@ async function fetchProductInfoBody(source: ProductInfoSourceDefinition, regionI
   }
 
   const requestPromise = (async () => {
+    const timeoutMs = source.timeoutMs ?? 60_000;
     const url = new URL(PRODUCT_INFO_URL);
     url.searchParams.set("urlPath", source.urlPath);
     url.searchParams.set("tag", source.tag ?? "general.online.portal");
@@ -602,29 +605,43 @@ async function fetchProductInfoBody(source: ProductInfoSourceDefinition, regionI
     url.searchParams.set("tab", source.tab);
     url.searchParams.set("sign", source.sign ?? "common");
 
-    const response = await sendHttpRequest({
-      method: "GET",
-      url: url.toString(),
-      headers: DEFAULT_HEADERS,
-      timeoutMs: source.timeoutMs ?? 30_000,
-    });
+    let lastError: Error | null = null;
+    for (let attempt = 0; attempt <= PRODUCT_INFO_MAX_RETRIES; attempt++) {
+      try {
+        const response = await sendHttpRequest({
+          method: "GET",
+          url: url.toString(),
+          headers: DEFAULT_HEADERS,
+          timeoutMs,
+        });
 
-    if (!response.ok) {
-      throw new Error(`${source.displayName} product info request failed: ${response.status} ${response.statusText}`);
-    }
-    if (!response.bodyText.trim()) {
-      throw new Error(`${source.displayName} product info response was empty`);
-    }
+        if (!response.ok) {
+          throw new Error(`${source.displayName} product info request failed: ${response.status} ${response.statusText}`);
+        }
+        if (!response.bodyText.trim()) {
+          throw new Error(`${source.displayName} product info response was empty`);
+        }
 
-    let data: unknown;
-    try {
-      data = JSON.parse(response.bodyText);
-    } catch {
-      throw new Error(`${source.displayName} product info response was not valid JSON (${response.contentType || "unknown content-type"})`);
-    }
+        let data: unknown;
+        try {
+          data = JSON.parse(response.bodyText);
+        } catch {
+          throw new Error(`${source.displayName} product info response was not valid JSON (${response.contentType || "unknown content-type"})`);
+        }
 
-    productInfoCache.set(cacheKey, { expiresAt: Date.now() + PRODUCT_INFO_CACHE_TTL_MS, data });
-    return data;
+        productInfoCache.set(cacheKey, { expiresAt: Date.now() + PRODUCT_INFO_CACHE_TTL_MS, data });
+        return data;
+      } catch (err) {
+        lastError = err instanceof Error ? err : new Error(String(err));
+        const isRetryable = lastError.message.toLowerCase().includes("timeout") || lastError.message.toLowerCase().includes("timed out");
+        if (isRetryable && attempt < PRODUCT_INFO_MAX_RETRIES) {
+          await new Promise((resolve) => setTimeout(resolve, PRODUCT_INFO_RETRY_DELAY_MS * (attempt + 1)));
+          continue;
+        }
+        throw lastError;
+      }
+    }
+    throw lastError ?? new Error(`${source.displayName}: unknown error after retries`);
   })();
 
   productInfoPendingRequests.set(cacheKey, requestPromise);

@@ -185,7 +185,7 @@ export function findDcsInstanceTier(
     && tier.instanceType === options.instanceType
     && tier.architecture === options.architecture
     && tier.specification === options.specification
-    && (options.instanceType === "Single-node" ? tier.replicas == null : tier.replicas === options.replicas)
+    && (options.instanceType === "Single-node" ? true : tier.replicas === options.replicas)
   ) ?? null;
 }
 
