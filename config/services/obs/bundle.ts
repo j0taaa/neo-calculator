@@ -17,7 +17,7 @@ export const serviceDefinition = {
     "productType": "Object storage",
     "storageClass": "Standard",
     "redundancy": "Single-AZ storage",
-    "storageAmount": 100,
+    "storageAmount": 1,
     "storageUnit": "GB",
     "durationMonths": 1,
     "outboundTrafficAmount": 0,

@@ -15,12 +15,12 @@ export const serviceDefinition = {
   ],
   "defaults": {
     "architecture": "x86 desktop",
-    "specification": "Ultimate",
+    "specification": "Basic",
     "cpu": "2 vCPUs",
     "memory": "4 GB",
     "cpuUsageHours": 744,
     "diskType": "High I/O",
-    "diskSizeGb": 80,
+    "diskSizeGb": 40,
     "diskUsageHours": 744,
     "quantity": 1
   },

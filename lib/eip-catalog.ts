@@ -74,10 +74,10 @@ export const eipTrafficUnitOptions = ["GB", "TB"] as const satisfies readonly Ei
 export const eipDefaults = {
   type: "Dedicated EIP" as EipType,
   chargeMode: "By bandwidth" as EipChargeMode,
-  bandwidthMbit: 10,
+  bandwidthMbit: 1,
   durationMonths: 1,
   sharedBandwidthQuantity: 1,
-  trafficGb: 100,
+  trafficGb: 0,
   trafficUnit: "GB" as EipTrafficUnit,
 } as const;
 

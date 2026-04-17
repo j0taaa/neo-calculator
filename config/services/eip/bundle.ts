@@ -13,10 +13,10 @@ export const configurableServiceBundle = {
     defaults: {
       type: "Dedicated EIP",
       chargeMode: "By bandwidth",
-      bandwidthMbit: 10,
+      bandwidthMbit: 1,
       enhanced95DurationMonths: 1,
       sharedBandwidthQuantity: 1,
-      trafficAmount: 100,
+      trafficAmount: 0,
       trafficUnit: "GB",
     },
     fields: [

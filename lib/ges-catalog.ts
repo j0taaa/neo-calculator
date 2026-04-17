@@ -38,7 +38,7 @@ export interface GesEstimate {
 }
 
 export const gesDefaults = {
-  graphSize: "million edges",
+  graphSize: "10 thousand edges",
   quantity: 1,
   usageHours: 744,
 } as const;

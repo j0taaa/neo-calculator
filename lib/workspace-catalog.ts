@@ -59,12 +59,12 @@ export interface WorkspaceEstimate {
 
 export const workspaceDefaults = {
   architecture: "x86 desktop" as const,
-  specification: "Ultimate" as const,
+  specification: "Basic" as const,
   cpu: "2 vCPUs" as WorkspaceCpuOption,
   memory: "4 GB" as WorkspaceMemoryOption,
   cpuUsageHours: 744,
   diskType: "High I/O" as WorkspaceDiskType,
-  diskSizeGb: 80,
+  diskSizeGb: 40,
   diskUsageHours: 744,
   quantity: 1,
 } as const;

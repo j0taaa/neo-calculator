@@ -27,7 +27,7 @@ export interface CceEstimate {
 const DEFAULT_CURRENCY = "USD";
 const DEFAULT_REGION = "ap-southeast-1";
 const DEFAULT_SCALE: CceClusterScale = "50 nodes";
-const DEFAULT_MASTER_NODES: CceMasterNodes = "3 Masters";
+const DEFAULT_MASTER_NODES: CceMasterNodes = "Single";
 
 const clusterScaleCodeMap = {
   dataInfo_50_: "50 nodes",

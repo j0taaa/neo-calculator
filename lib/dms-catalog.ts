@@ -62,7 +62,7 @@ export const dmsDefaults = {
   brokers: 3,
   bandwidth: "100MB/s",
   storageType: "Ultra-high I/O",
-  storageGb: 100,
+  storageGb: 10,
   quantity: 1,
   usageHours: 744,
 } as const;

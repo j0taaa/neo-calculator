@@ -87,12 +87,12 @@ export const vpnDurationMonthOptions = [1, 2, 3, 4, 5, 6, 7, 8, 9, 12, 24, 36] a
 export const vpnDefaults = {
   edition: "Classic" as VpnEdition,
   mode: "Site-to-Cloud" as VpnMode,
-  networkType: "Public network" as VpnNetworkType,
+  networkType: "Private network" as VpnNetworkType,
   accessViaNonFixedIp: "Off" as VpnAccessViaNonFixedIp,
-  connectionGroups: 10,
+  connectionGroups: 1,
   useSharedBandwidth: false,
-  eipBandwidthMbit1: 10,
-  eipBandwidthMbit2: 10,
+  eipBandwidthMbit1: 1,
+  eipBandwidthMbit2: 1,
   durationMonths: 1,
 } as const;
 

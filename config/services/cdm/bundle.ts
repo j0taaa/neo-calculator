@@ -11,7 +11,7 @@ export const configurableServiceBundle = {
     implementation: "configurable",
     billingOptions: ["Pay-per-use"],
     defaults: {
-      instanceType: "cdm.large",
+      instanceType: "cdm.small",
       quantity: 1,
       usageHours: 744,
     },

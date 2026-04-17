@@ -17,11 +17,11 @@ export const serviceDefinition = {
   "defaults": {
     "edition": "Classic",
     "mode": "Site-to-Cloud",
-    "networkType": "Public network",
+    "networkType": "Private network",
     "specification": "Basic",
     "useSharedBandwidth": "No",
-    "eipBandwidthMbit1": 10,
-    "eipBandwidthMbit2": 10,
+    "eipBandwidthMbit1": 1,
+    "eipBandwidthMbit2": 1,
     "durationMonths": 1
   },
   "fields": [

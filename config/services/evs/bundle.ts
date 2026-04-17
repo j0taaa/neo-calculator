@@ -17,7 +17,7 @@ export const serviceDefinition = {
   "defaults": {
     "billingMode": "Pay-per-use",
     "diskType": "General Purpose SSD",
-    "diskSizeGiB": 40,
+    "diskSizeGiB": 10,
     "usageHours": 744,
     "durationMonths": 1,
     "iops": 3000,

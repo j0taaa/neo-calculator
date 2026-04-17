@@ -10,7 +10,7 @@ export const configurableServiceBundle = {
     implementation: "configurable",
     billingOptions: ["Pay-per-use", "Yearly/Monthly"],
     defaults: {
-      graphSize: "million edges",
+      graphSize: "10 thousand edges",
       quantity: 1,
       usageHours: 744,
     },

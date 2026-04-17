@@ -40,7 +40,7 @@ export interface CdmEstimate {
 }
 
 export const cdmDefaults = {
-  instanceType: "cdm.large",
+  instanceType: "cdm.small",
   quantity: 1,
   usageHours: 744,
 } as const;

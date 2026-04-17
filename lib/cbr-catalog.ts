@@ -43,7 +43,7 @@ export interface CbrEstimate {
 
 export const cbrDefaults = {
   vaultType: "Server",
-  vaultCapacityGb: 100,
+  vaultCapacityGb: 10,
   durationMonths: 1,
   usageHours: 744,
   quantity: 1,

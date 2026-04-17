@@ -18,7 +18,7 @@ export const configurableServiceBundle = {
       replicas: 2,
       specification: "4 GB",
       quantity: 1,
-      elasticBandwidth: "Buy now",
+      elasticBandwidth: "Buy later",
       bandwidthMbit: 1,
       usageHours: 744,
     },

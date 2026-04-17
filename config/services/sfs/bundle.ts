@@ -13,7 +13,7 @@ export const serviceDefinition = {
   defaults: {
     fileSystemType: "General",
     type: "Capacity-Oriented",
-    storageSpaceAmount: 100,
+    storageSpaceAmount: 1,
     storageSpaceUnit: "GB",
     durationMonths: 1,
     quantity: 1,

@@ -16,7 +16,7 @@ export const serviceDefinition = {
   ],
   "defaults": {
     "clusterScale": "50 nodes",
-    "masterNodes": "3 Masters"
+    "masterNodes": "Single"
   },
   "fields": [
     {

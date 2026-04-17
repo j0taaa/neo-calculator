@@ -68,7 +68,7 @@ export interface RdsEstimate {
 export const rdsDefaults = {
   engine: "MySQL" as RdsEngine,
   version: "8.0" as RdsVersion,
-  instanceType: "Primary/Standby" as RdsInstanceType,
+  instanceType: "Single" as RdsInstanceType,
   subAz: "General AZ",
   instanceClass: "General-purpose" as RdsInstanceClass,
   size: "2 vCPUs, 4 GB",

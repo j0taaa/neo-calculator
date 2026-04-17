@@ -62,7 +62,7 @@ export const dcsDefaults = {
   replicas: 2,
   specification: "4 GB",
   quantity: 1,
-  elasticBandwidth: "Buy now" as DcsBandwidthMode,
+  elasticBandwidth: "Buy later" as DcsBandwidthMode,
   bandwidthMbit: 1,
   usageHours: 744,
 } as const;

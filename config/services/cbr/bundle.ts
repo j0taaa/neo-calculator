@@ -12,7 +12,7 @@ export const serviceDefinition = {
   billingOptions: ["Yearly/Monthly", "Pay-per-use"],
   defaults: {
     vaultType: "Server",
-    vaultCapacityGb: 100,
+    vaultCapacityGb: 10,
     durationMonths: 1,
     quantity: 1,
   },

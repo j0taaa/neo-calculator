@@ -53,11 +53,11 @@ export interface CcmEstimate {
 
 export const ccmDefaults = {
   type: "SSL Certificates",
-  certificateType: "OV" as CcmCertificateType,
+  certificateType: "DV(Basic)" as CcmCertificateType,
   certificateAuthority: "DigiCert" as CcmCertificateAuthority,
   domainType: "Single domain" as CcmDomainType,
   validityPeriodYears: 1,
-  domainQuantity: 2,
+  domainQuantity: 1,
   quantity: 1,
 } as const;
 

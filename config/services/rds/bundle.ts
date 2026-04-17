@@ -13,7 +13,7 @@ export const serviceDefinition = {
   defaults: {
     engine: "MySQL",
     version: "8.0",
-    instanceType: "Primary/Standby",
+    instanceType: "Single",
     subAz: "General AZ",
     instanceClass: "General-purpose",
     size: "2 vCPUs, 4 GB",

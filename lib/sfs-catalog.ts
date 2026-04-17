@@ -60,9 +60,9 @@ export interface SfsEstimate {
 export const sfsDefaults = {
   fileSystemType: "General" as SfsFileSystemType,
   type: "Capacity-Oriented" as SfsType,
-  storageSpaceAmount: 100,
+  storageSpaceAmount: 1,
   storageSpaceUnit: "GB" as SfsStorageUnit,
-  storageSpaceGb: 100,
+  storageSpaceGb: 1,
   durationMonths: 1,
   usageHours: 744,
   quantity: 1,
