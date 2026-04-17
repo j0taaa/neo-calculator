@@ -11,7 +11,7 @@ export const configurableServiceBundle = {
     billingOptions: ["Pay-per-use", "Yearly/Monthly"],
     defaults: {
       dbEdition: "Basic Edition",
-      specification: "4 vCPUs, 16 GB",
+      specification: "2 vCPUs, 4 GB",
       quantity: 1,
       usageHours: 744,
       billingMode: "Pay-per-use",

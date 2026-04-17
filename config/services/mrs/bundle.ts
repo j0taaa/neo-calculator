@@ -12,7 +12,7 @@ export const configurableServiceBundle = {
     defaults: {
       clusterType: "Analysis",
       nodeType: "Master",
-      quantity: 2,
+      quantity: 1,
       usageHours: 744,
     },
     fields: [

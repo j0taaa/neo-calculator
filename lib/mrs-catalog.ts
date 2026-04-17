@@ -44,7 +44,7 @@ export interface MrsEstimate {
 export const mrsDefaults = {
   clusterType: "Analysis",
   nodeType: "Master",
-  quantity: 2,
+  quantity: 1,
   usageHours: 744,
 } as const;
 

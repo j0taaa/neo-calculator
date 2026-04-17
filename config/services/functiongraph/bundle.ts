@@ -11,7 +11,7 @@ export const configurableServiceBundle = {
     implementation: "configurable",
     billingOptions: ["Pay-per-use"],
     defaults: {
-      averageRequestsAmount: 233,
+      averageRequestsAmount: 0,
       averageRequestsUnit: "month",
       executionDurationMs: 100,
       memoryAmount: 128,
