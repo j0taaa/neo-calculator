@@ -12,7 +12,7 @@ export const configurableServiceBundle = {
     billingOptions: ["Pay-per-use", "Yearly/Monthly"],
     defaults: {
       type: "Dedicated EIP",
-      chargeMode: "By bandwidth",
+      chargeMode: "By traffic",
       bandwidthMbit: 1,
       enhanced95DurationMonths: 1,
       sharedBandwidthQuantity: 1,
