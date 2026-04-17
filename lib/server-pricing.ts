@@ -376,7 +376,7 @@ async function computeEcsPricing(config: ConfigRecord): Promise<ServerPricingRes
     return { pricing: {}, title: "", productType: "ecs", config, error: `Flavor '${flavor}' not found in region ${region}. Available flavors: ${flavorListSummary(flavors)}. The catalog may still be syncing.` };
   }
 
-  const diskPricing = null;
+  let diskPricing = null;
   let inquiryDiskPricing = null;
 
   const diskProductId = getEvsProductId(diskType, catalogRegionId);
@@ -395,6 +395,7 @@ async function computeEcsPricing(config: ConfigRecord): Promise<ServerPricingRes
       : Promise.resolve(null),
   ]);
 
+  diskPricing = catalogDiskResult;
   inquiryDiskPricing = inquiryDiskResult;
 
   const diskPrice = getDiskPriceForBillingOption(diskPricing, diskType as "High I/O", diskSizeGiB, billingMode, usageHours);
@@ -432,8 +433,10 @@ async function computeEcsPricing(config: ConfigRecord): Promise<ServerPricingRes
     diskFormatted = formatFlavorAmount(diskPrice.currency, diskAmount, diskPrice.suffix);
   }
 
-  const catalogTotal = totalAmount + (diskPrice ? diskPrice.amount * quantity : 0);
-  const inquiryTotal = inquiryDiskPricing ? flavorCard.priceValue * quantity + diskAmount : null;
+  const catalogTotal = flavorCard.priceValue * quantity;
+  const inquiryTotal = inquiryDiskPricing
+    ? (flavorAmount + inquiryDiskPricing.amount)
+    : null;
 
   let priceWarning: string | undefined;
   if (inquiryTotal && Math.abs(catalogTotal - inquiryTotal) > 0.0001) {
