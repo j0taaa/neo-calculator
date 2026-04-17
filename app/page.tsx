@@ -43,6 +43,7 @@ import {
   getFirstListId,
   getProjectCloneDefaultName,
   getResponseError,
+  isRecord,
   parseJsonFile,
   splitProductPriceSummary,
   type AppList,
@@ -3158,6 +3159,7 @@ export default function Home() {
                   {filteredCartProducts.map((product) => {
                     const serviceMeta = getServiceMeta(product.serviceCode, product.serviceName);
                     const priceSummary = splitProductPriceSummary(product);
+                    const priceWarning = isRecord(product.pricing) && typeof product.pricing.priceWarning === "string" ? product.pricing.priceWarning : null;
                     const isEditingProduct = editingProductId === product.id;
                     const isSelectedProduct = selectedCartItemIds.includes(product.id);
 
@@ -3210,6 +3212,7 @@ export default function Home() {
                           <div className="text-left sm:text-right">
                             <p className="text-lg font-semibold text-zinc-950">{priceSummary.amount}</p>
                             <p className="text-sm text-zinc-500">{priceSummary.timeframe ?? "Saved item"}</p>
+                            {priceWarning ? <p className="mt-1 text-xs text-amber-600">{priceWarning}</p> : null}
                             <div className="mt-3 flex items-center gap-2 sm:justify-end">
                               {isEditingProduct ? (
                                 <>

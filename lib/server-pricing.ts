@@ -10,7 +10,7 @@ import { fetchRegionSystemDiskPricing } from "@/lib/evs-disk-pricing";
 import { flexusLPricingReference, findFlexusLPlan } from "@/lib/flexus-l-catalog";
 import { ecsDiskSizeBounds } from "@/lib/configurable-runtime-utils";
 import type { DeclarativeEstimateRecord } from "@/lib/declarative-service-runtime-types";
-import { fetchInquiryPricing, isInquiryPricingEnabled, type InquiryPricingResult } from "@/lib/inquiry-pricing";
+import { fetchInquiryPricing, type InquiryPricingResult } from "@/lib/inquiry-pricing";
 
 type ConfigRecord = Record<string, unknown>;
 
@@ -166,8 +166,6 @@ function findProductIdInCatalog(catalog: unknown, specCode?: string): string | n
 }
 
 async function tryInquiryPricing(serviceCode: string, catalog: unknown, regionId: string, usageHours: number, specCode?: string, resourceSize?: number): Promise<InquiryPricingResult | null> {
-  if (!isInquiryPricingEnabled()) return null;
-
   const productId = findProductIdInCatalog(catalog, specCode);
   if (!productId) return null;
 
@@ -284,23 +282,38 @@ async function computeConfigurablePricing(serviceCode: string, config: ConfigRec
     estimateScope,
   );
 
-  let inquiryResult: InquiryPricingResult | null = null;
-  let catalogEstimate = estimate;
+  const specCode = (config.resourceSpecCode as string) ?? (config.specification as string) ?? (config.flavor as string);
+  
+  const [, inquiryResult] = await Promise.all([
+    Promise.resolve(estimate),
+    tryInquiryPricing(serviceCode, catalog, catalogRegionId, usageHours, specCode),
+  ]);
 
-  if (!estimate && isInquiryPricingEnabled()) {
-    const specCode = (config.resourceSpecCode as string) ?? (config.specification as string) ?? (config.flavor as string);
-    inquiryResult = await tryInquiryPricing(serviceCode, catalog, catalogRegionId, usageHours, specCode);
-    if (inquiryResult) {
-      catalogEstimate = {
-        currency: inquiryResult.currency,
-        amount: inquiryResult.amount,
-        suffix: `/${usageHours}h`,
-        monthlyAverageAmount: inquiryResult.amount / (usageHours / (24 * 30)),
-      };
+  let primaryEstimate = estimate;
+  let priceWarning: string | undefined;
+
+  if (inquiryResult && estimate) {
+    const catalogAmount = estimate.amount;
+    const inquiryAmount = inquiryResult.amount;
+    if (Math.abs(catalogAmount - inquiryAmount) > 0.0001) {
+      priceWarning = `Catalog price ($${catalogAmount.toFixed(5)}) differs from inquiry API ($${inquiryAmount.toFixed(5)})`;
     }
+    primaryEstimate = {
+      currency: inquiryResult.currency,
+      amount: inquiryResult.amount,
+      suffix: `/${usageHours}h`,
+      monthlyAverageAmount: inquiryResult.amount / (usageHours / (24 * 30)),
+    };
+  } else if (inquiryResult && !estimate) {
+    primaryEstimate = {
+      currency: inquiryResult.currency,
+      amount: inquiryResult.amount,
+      suffix: `/${usageHours}h`,
+      monthlyAverageAmount: inquiryResult.amount / (usageHours / (24 * 30)),
+    };
   }
 
-  if (!catalogEstimate) {
+  if (!primaryEstimate) {
     return { pricing: {}, title: "", productType: serviceCode.toLowerCase(), config, error: `Could not compute estimate for ${serviceCode}. Check config values.` };
   }
 
@@ -310,12 +323,16 @@ async function computeConfigurablePricing(serviceCode: string, config: ConfigRec
   );
 
   const pricingResult: Record<string, unknown> = {
-    total: formatFlavorAmount(catalogEstimate.currency, catalogEstimate.amount, catalogEstimate.suffix),
-    monthlyAverage: formatFlavorAmount(catalogEstimate.currency, catalogEstimate.monthlyAverageAmount ?? 0, "/mo"),
+    total: formatFlavorAmount(primaryEstimate.currency, primaryEstimate.amount, primaryEstimate.suffix),
+    monthlyAverage: formatFlavorAmount(primaryEstimate.currency, primaryEstimate.monthlyAverageAmount ?? 0, "/mo"),
   };
 
   if (requestBodies?.pricing && typeof requestBodies.pricing === "object") {
     Object.assign(pricingResult, requestBodies.pricing);
+  }
+
+  if (priceWarning) {
+    pricingResult.priceWarning = priceWarning;
   }
 
   const resolvedConfig = (requestBodies?.config as ConfigRecord) ?? config;
@@ -359,35 +376,26 @@ async function computeEcsPricing(config: ConfigRecord): Promise<ServerPricingRes
     return { pricing: {}, title: "", productType: "ecs", config, error: `Flavor '${flavor}' not found in region ${region}. Available flavors: ${flavorListSummary(flavors)}. The catalog may still be syncing.` };
   }
 
-  let diskPricing = null;
+  const diskPricing = null;
   let inquiryDiskPricing = null;
-  const useInquiryApi = isInquiryPricingEnabled();
 
-  if (useInquiryApi && diskSizeGiB > 0) {
-    try {
-      const diskProductId = getEvsProductId(diskType, catalogRegionId);
-      if (diskProductId) {
-        inquiryDiskPricing = await fetchWithRetry(() => fetchInquiryPricing({
+  const diskProductId = getEvsProductId(diskType, catalogRegionId);
+  
+  const [catalogDiskResult, inquiryDiskResult] = await Promise.all([
+    fetchWithRetry(() => fetchRegionSystemDiskPricing(catalogRegionId), "EVS disk pricing").catch(() => null),
+    diskSizeGiB > 0 && diskProductId 
+      ? fetchWithRetry(() => fetchInquiryPricing({
           serviceCode: "EVS",
           regionId: catalogRegionId,
           productId: diskProductId,
           resourceSize: diskSizeGiB,
           usageValue: usageHours,
           resourceSpecCode: diskType === "SSD" ? "SSD" : "SAS",
-        }), "EVS inquiry");
-      }
-    } catch {
-      // fallback to catalog pricing
-    }
-  }
+        }), "EVS inquiry").catch(() => null)
+      : Promise.resolve(null),
+  ]);
 
-  if (!inquiryDiskPricing) {
-    try {
-      diskPricing = await fetchWithRetry(() => fetchRegionSystemDiskPricing(catalogRegionId), "EVS disk pricing");
-    } catch {
-      // disk pricing unavailable - proceed without it
-    }
-  }
+  inquiryDiskPricing = inquiryDiskResult;
 
   const diskPrice = getDiskPriceForBillingOption(diskPricing, diskType as "High I/O", diskSizeGiB, billingMode, usageHours);
   const flavorCard = toFlavorCard(matchedFlavor, billingMode, usageHours, diskPrice);
@@ -424,14 +432,21 @@ async function computeEcsPricing(config: ConfigRecord): Promise<ServerPricingRes
     diskFormatted = formatFlavorAmount(diskPrice.currency, diskAmount, diskPrice.suffix);
   }
 
-  const totalWithInquiry = inquiryDiskPricing ? flavorCard.priceValue * quantity + diskAmount : null;
+  const catalogTotal = totalAmount + (diskPrice ? diskPrice.amount * quantity : 0);
+  const inquiryTotal = inquiryDiskPricing ? flavorCard.priceValue * quantity + diskAmount : null;
+
+  let priceWarning: string | undefined;
+  if (inquiryTotal && Math.abs(catalogTotal - inquiryTotal) > 0.0001) {
+    priceWarning = `Catalog price ($${catalogTotal.toFixed(5)}) differs from inquiry API ($${inquiryTotal.toFixed(5)})`;
+  }
 
   return {
     pricing: {
-      total: formatFlavorAmount("USD", totalWithInquiry ?? totalAmount, suffix),
+      total: formatFlavorAmount("USD", inquiryTotal ?? catalogTotal, suffix),
       flavor: formatFlavorAmount("USD", flavorAmount, suffix),
       disk: diskFormatted,
       pricingSource: inquiryDiskPricing ? "inquiry" : "catalog",
+      ...(priceWarning ? { priceWarning } : {}),
     },
     title: `Elastic Cloud Server ${flavor}`,
     productType: "ecs",
