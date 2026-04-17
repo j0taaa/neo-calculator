@@ -18,6 +18,7 @@ export const configurableServiceBundle = {
       sharedBandwidthQuantity: 1,
       trafficAmount: 0,
       trafficUnit: "GB",
+      billingMode: "Pay-per-use",
     },
     fields: [
       {

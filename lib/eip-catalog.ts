@@ -79,6 +79,7 @@ export const eipDefaults = {
   sharedBandwidthQuantity: 1,
   trafficGb: 0,
   trafficUnit: "GB" as EipTrafficUnit,
+  billingMode: "Pay-per-use" as const,
 } as const;
 
 export const eipPricingReference = {
@@ -217,6 +218,28 @@ export function selectEipTrafficPackageCombination(
   };
 }
 
+function calculateTieredTrafficCost(trafficGb: number, tiers: EipTrafficTier[]): number {
+  if (trafficGb <= 0 || !tiers || tiers.length === 0) return 0;
+  
+  let totalCost = 0;
+  let remainingGb = trafficGb;
+  
+  for (const tier of tiers) {
+    if (remainingGb <= 0) break;
+    
+    const tierStart = tier.startGb;
+    const tierEnd = tier.upToGb ?? Infinity;
+    const tierSize = tierEnd - tierStart;
+    const amountPerGb = tier.amountPerGb;
+    
+    const usedInTier = Math.min(remainingGb, tierSize);
+    totalCost += usedInTier * amountPerGb;
+    remainingGb -= usedInTier;
+  }
+  
+  return roundEipAmount(totalCost);
+}
+
 function estimateEnhanced95Cost(monthlyRatePerMbit: number, bandwidthMbit: number, durationMonths: number) {
   const normalizedBandwidth = Math.max(eipSharedEnhanced95MinimumMbit, bandwidthMbit);
   return roundEipAmount(normalizedBandwidth * monthlyRatePerMbit * Math.max(1, durationMonths));
@@ -265,12 +288,17 @@ export function estimateEipConfiguration(catalog: EipPricingCatalog, input: EipE
         suffix = "/mo";
       }
     } else {
+      const trafficGb = convertEipTrafficToGb(Math.max(0, input.trafficAmount), input.trafficUnit);
       const rate = catalog.dedicated.trafficRatePerGb;
-      if (rate == null) {
+      if (rate != null) {
+        trafficCost = rate * trafficGb;
+        notes.push("Dedicated pay-per-use traffic uses Huawei's live flat per-GB outbound traffic rate for the selected region.");
+      } else if (catalog.dedicated.trafficRateTiers && catalog.dedicated.trafficRateTiers.length > 0) {
+        trafficCost = calculateTieredTrafficCost(trafficGb, catalog.dedicated.trafficRateTiers);
+        notes.push("Dedicated pay-per-use traffic uses Huawei's tiered outbound traffic rates for the selected region.");
+      } else {
         return null;
       }
-      trafficCost = rate * convertEipTrafficToGb(Math.max(0, input.trafficAmount), input.trafficUnit);
-      notes.push("Dedicated pay-per-use traffic uses Huawei's live flat per-GB outbound traffic rate for the selected region.");
     }
   } else {
     if (input.billingMode !== "Pay-per-use") {
