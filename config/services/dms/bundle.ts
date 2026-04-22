@@ -21,12 +21,12 @@ export const configurableServiceBundle = {
     },
     fields: [
       { id: "flavor", type: "select", label: "Flavor", required: true, optionsSource: "catalog.flavors" },
-      { id: "brokers", type: "number", label: "Brokers", required: true, min: 1, step: 1 },
+      { id: "brokers", type: "number", label: "Brokers", required: true, min: 1, minSource: "catalog.constraints.brokers.min", step: 1 },
       { id: "bandwidth", type: "select", label: "Bandwidth", required: true, optionsSource: "catalog.bandwidths" },
       { id: "storageType", type: "select", label: "Storage Type", required: true, optionsSource: "catalog.storageTypes" },
-      { id: "storageGb", type: "number", label: "Storage Space per Broker", required: true, unit: "GB", min: 1, step: 10 },
-      { id: "quantity", type: "number", label: "Quantity", required: true, min: 1, step: 1 },
-      { id: "usageHours", type: "number", label: "Required Duration", required: true, unit: "hours", min: 1, max: 87600, step: 24 },
+      { id: "storageGb", type: "number", label: "Storage Space per Broker", required: true, unit: "GB", min: 1, minSource: "catalog.constraints.storageGb.min", step: 10 },
+      { id: "quantity", type: "number", label: "Quantity", required: true, min: 1, minSource: "catalog.constraints.quantity.min", step: 1 },
+      { id: "usageHours", type: "number", label: "Required Duration", required: true, unit: "hours", min: 1, max: 87600, minSource: "catalog.constraints.usageHours.min", maxSource: "catalog.constraints.usageHours.max", step: 24 },
     ],
     summary: {
       selectionTemplate: "{flavor} | {brokers} brokers | {bandwidth} | {storageType} {storageGb} GB",
@@ -86,6 +86,14 @@ export const configurableServiceBundle = {
     parser: {
       kind: "grouped-sections",
       currency: "USD",
+      catalogStatic: {
+        constraints: {
+          brokers: { min: 1 },
+          storageGb: { min: 1 },
+          quantity: { min: 1 },
+          usageHours: { min: 1, max: 87600 },
+        },
+      },
       sections: [
         {
           targetPath: "flavors",

@@ -16,8 +16,8 @@ export const configurableServiceBundle = {
     },
     fields: [
       { id: "graphSize", type: "select", label: "Billing Item", required: true, optionsSource: "catalog.graphSizes" },
-      { id: "quantity", type: "number", label: "Quantity", required: true, min: 1, step: 1 },
-      { id: "usageHours", type: "number", label: "Required Duration", required: true, unit: "hours", min: 1, max: 87600, step: 24, visibleWhen: { field: "showUsageHours", equals: true } },
+      { id: "quantity", type: "number", label: "Quantity", required: true, min: 1, minSource: "catalog.constraints.quantity.min", step: 1 },
+      { id: "usageHours", type: "number", label: "Required Duration", required: true, unit: "hours", min: 1, max: 87600, minSource: "catalog.constraints.usageHours.min", maxSource: "catalog.constraints.usageHours.max", step: 24, visibleWhen: { field: "showUsageHours", equals: true } },
     ],
     summary: {
       selectionTemplate: "{graphSize} | {quantity} PCS",
@@ -58,6 +58,13 @@ export const configurableServiceBundle = {
       currency: "USD",
       rootPath: "product",
       collectionKey: "tiers",
+      catalogStatic: {
+        constraints: {
+          graphSize: { min: 1 },
+          quantity: { min: 1 },
+          usageHours: { min: 1, max: 87600 },
+        },
+      },
       recordFilters: [
         { kind: "text-includes", paths: ["resourceSpecCode", "productSpecSysDesc"], value: "graph" },
         { kind: "field-not-equals", path: "billingEvent", value: "event.type.ges.duration" },

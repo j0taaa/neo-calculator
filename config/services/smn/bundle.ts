@@ -16,7 +16,7 @@ export const configurableServiceBundle = {
     },
     fields: [
       { id: "protocolType", type: "select", label: "Protocol Type", required: true, optionsSource: "catalog.smnProtocolTypes" },
-      { id: "quantity", type: "number", label: "Quantity", required: true, min: 1, step: 1 },
+      { id: "quantity", type: "number", label: "Quantity", required: true, min: 1, minSource: "catalog.constraints.quantity.min", step: 1 },
       { id: "usageHours", type: "number", label: "Required Duration", required: true, unit: "hours", min: 1, max: 87600, step: 24 },
     ],
     summary: {
@@ -58,6 +58,11 @@ export const configurableServiceBundle = {
       currency: "USD",
       rootPath: "product",
       collectionKey: "tiers",
+      catalogStatic: {
+        constraints: {
+          quantity: { min: 1 },
+        },
+      },
       recordFilters: [
         { kind: "text-includes", paths: ["resourceSpecCode"], value: "smn" },
       ],

@@ -42,7 +42,8 @@ export const configurableServiceBundle = {
         required: true,
         unit: "Mbit/s",
         inputMode: "decimal",
-        minSource: "catalog.bandwidth.min",
+        min: 5,
+        minSource: "catalog.constraints.bandwidthMbit.min",
         visibleWhen: {
           field: "showBandwidth",
           equals: true,
@@ -55,6 +56,7 @@ export const configurableServiceBundle = {
         required: true,
         unit: "months",
         min: 1,
+        minSource: "catalog.constraints.enhanced95DurationMonths.min",
         step: 1,
         visibleWhenAll: [
           { field: "type", equals: "Shared EIP" },
@@ -80,6 +82,7 @@ export const configurableServiceBundle = {
         required: true,
         inputMode: "decimal",
         min: 0,
+        minSource: "catalog.constraints.trafficAmount.min",
         visibleWhenAll: [
           { field: "type", equals: "Dedicated EIP" },
           { field: "chargeMode", equals: "By traffic" },
@@ -155,6 +158,13 @@ export const configurableServiceBundle = {
     parser: {
       kind: "selected-records",
       currency: "USD",
+      catalogStatic: {
+        constraints: {
+          bandwidthMbit: { min: 1 },
+          trafficAmount: { min: 0 },
+          quantity: { min: 1 },
+        },
+      },
       collections: [
         { id: "eipItems", path: "product.vpc_ip" },
         { id: "bandwidthItems", path: "product.vpc_bandwidth" },

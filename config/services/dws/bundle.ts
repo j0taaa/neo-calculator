@@ -18,8 +18,8 @@ export const configurableServiceBundle = {
     fields: [
       { id: "specification", type: "select", label: "Specification", required: true, optionsSource: "catalog.dwsSpecifications" },
       { id: "storageType", type: "select", label: "Storage Type", required: true, options: ["Ultra-high I/O", "High I/O", "Common I/O"] },
-      { id: "quantity", type: "number", label: "Quantity", required: true, min: 1, step: 1 },
-      { id: "usageHours", type: "number", label: "Required Duration", required: true, unit: "hours", min: 1, max: 87600, step: 24, visibleWhen: { field: "showUsageHours", equals: true } },
+      { id: "quantity", type: "number", label: "Quantity", required: true, min: 1, minSource: "catalog.constraints.quantity.min", step: 1 },
+      { id: "usageHours", type: "number", label: "Required Duration", required: true, unit: "hours", min: 1, max: 87600, minSource: "catalog.constraints.usageHours.min", maxSource: "catalog.constraints.usageHours.max", step: 24, visibleWhen: { field: "showUsageHours", equals: true } },
     ],
     summary: {
       selectionTemplate: "{specification} | {storageType} | {quantity} PCS",
@@ -60,6 +60,12 @@ export const configurableServiceBundle = {
       currency: "USD",
       rootPath: "product",
       collectionKey: "tiers",
+      catalogStatic: {
+        constraints: {
+          quantity: { min: 1 },
+          usageHours: { min: 1, max: 87600 },
+        },
+      },
       recordFilters: [
         { kind: "text-includes", paths: ["resourceSpecCode"], value: "dws" },
         { kind: "text-excludes", paths: ["resourceSpecCode"], value: "volume" },

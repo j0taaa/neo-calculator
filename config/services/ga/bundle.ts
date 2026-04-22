@@ -18,9 +18,9 @@ export const serviceDefinition = {
   },
   fields: [
     { id: "accessPoint", type: "select", label: "Access Point", required: true, optionsSource: "catalog.accessPointOptions" },
-    { id: "trafficGb", type: "number", label: "Traffic", required: true, unit: "GB", min: 0, step: 1, inputMode: "decimal" },
-    { id: "usageHours", type: "number", label: "Required Duration", required: true, unit: "hour", min: 1, max: 87600, step: 1 },
-    { id: "quantity", type: "number", label: "Quantity", required: true, min: 1, step: 1 },
+    { id: "trafficGb", type: "number", label: "Traffic", required: true, unit: "GB", min: 0, minSource: "catalog.constraints.trafficGb.min", step: 1, inputMode: "decimal" },
+    { id: "usageHours", type: "number", label: "Required Duration", required: true, unit: "hour", min: 1, max: 87600, minSource: "catalog.constraints.usageHours.min", maxSource: "catalog.constraints.usageHours.max", step: 1 },
+    { id: "quantity", type: "number", label: "Quantity", required: true, min: 1, minSource: "catalog.constraints.quantity.min", step: 1 },
   ],
   summary: {
     selectionTemplate: "{accessPoint} | {trafficGb} GB | {usageHours}h | {quantity}",
@@ -83,6 +83,13 @@ export const configurableServiceBundle = {
     parser: {
       kind: "grouped-sections",
       currency: "USD",
+      catalogStatic: {
+        constraints: {
+          trafficGb: { min: 0 },
+          quantity: { min: 1 },
+          usageHours: { min: 1, max: 87600 },
+        },
+      },
       sections: [
         {
           targetPath: "acceleratorTiers",

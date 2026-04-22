@@ -18,9 +18,9 @@ export const serviceDefinition = {
   },
   fields: [
     { id: "vaultType", type: "select", label: "Vault Type", required: true, optionsSource: "catalog.vaultTypeOptions" },
-    { id: "vaultCapacityGb", type: "number", label: "Vault Capacity", required: true, unit: "GB", min: 1, step: 1 },
+    { id: "vaultCapacityGb", type: "number", label: "Vault Capacity", required: true, unit: "GB", min: 1, minSource: "catalog.constraints.vaultCapacityGb.min", step: 1 },
     { id: "durationMonths", type: "select", label: "Required Duration", required: true, optionsSource: "catalog.durationMonthOptions", visibleWhen: { field: "billingMode", equals: "Yearly/Monthly" } },
-    { id: "quantity", type: "number", label: "Quantity", required: true, min: 1, step: 1 },
+    { id: "quantity", type: "number", label: "Quantity", required: true, min: 1, minSource: "catalog.constraints.quantity.min", step: 1 },
   ],
   summary: {
     selectionTemplate: "{vaultType} | {vaultCapacityGb} GB | {quantity}",
@@ -69,6 +69,13 @@ export const configurableServiceBundle = {
     parser: {
       kind: "grouped-sections",
       currency: "USD",
+      catalogStatic: {
+        constraints: {
+          vaultCapacityGb: { min: 1 },
+          quantity: { min: 1 },
+          durationMonths: { min: 1 },
+        },
+      },
       sections: [
         {
           targetPath: "vaultTiers",

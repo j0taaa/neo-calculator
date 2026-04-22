@@ -28,9 +28,9 @@ export const serviceDefinition = {
     { id: "instanceClass", type: "select", label: "DB Instance Class", required: true, options: ["Lightweight"] },
     { id: "size", type: "select", label: "Instance size", required: true, optionsSource: "catalog.sizeOptions" },
     { id: "storageType", type: "select", label: "Storage", required: true, options: ["Cloud SSD"] },
-    { id: "storageSizeGb", type: "number", label: "Storage size", required: true, unit: "GB", min: 40, max: 65536, step: 10 },
+    { id: "storageSizeGb", type: "number", label: "Storage size", required: true, unit: "GB", min: 40, max: 65536, minSource: "catalog.constraints.storageSizeGb.min", maxSource: "catalog.constraints.storageSizeGb.max", step: 10 },
     { id: "durationMonths", type: "select", label: "Required Duration", required: true, options: [1, 2, 3, 4, 5, 6, 7, 8, 9, 12] },
-    { id: "quantity", type: "number", label: "Quantity", required: true, min: 1, step: 1 },
+    { id: "quantity", type: "number", label: "Quantity", required: true, min: 1, minSource: "catalog.constraints.quantity.min", step: 1 },
   ],
   summary: {
     selectionTemplate: "{engine} | {version} | {instanceType} | Lightweight | {size} | Cloud SSD",
@@ -92,6 +92,12 @@ export const configurableServiceBundle = {
     parser: {
       kind: "grouped-sections",
       currency: "USD",
+      catalogStatic: {
+        constraints: {
+          storageSizeGb: { min: 40, max: 65536 },
+          quantity: { min: 1 },
+        },
+      },
       sections: [
         {
           targetPath: "computeTiers",

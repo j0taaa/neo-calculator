@@ -18,7 +18,7 @@ export const serviceDefinition = {
   fields: [
     { id: "portSpeed", type: "select", label: "Port Speed", required: true, optionsSource: "catalog.portSpeeds" },
     { id: "durationMonths", type: "select", label: "Required Duration", required: true, optionsSource: "catalog.durationMonths" },
-    { id: "quantity", type: "number", label: "Quantity", required: true, min: 1, step: 1 },
+    { id: "quantity", type: "number", label: "Quantity", required: true, min: 1, minSource: "catalog.constraints.quantity.min", step: 1 },
   ],
   summary: {
     selectionTemplate: "{portSpeed} | {durationMonths} months | {quantity}",
@@ -66,6 +66,12 @@ export const configurableServiceBundle = {
     parser: {
       kind: "grouped-sections",
       currency: "USD",
+      catalogStatic: {
+        constraints: {
+          quantity: { min: 1 },
+          durationMonths: { min: 1 },
+        },
+      },
       sections: [
         {
           targetPath: "portTiers",

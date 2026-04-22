@@ -32,9 +32,9 @@ export const serviceDefinition = {
     { id: "instanceClass", type: "select", label: "DB Instance Class", required: true, optionsSource: "catalog.instanceClassOptions" },
     { id: "size", type: "select", label: "Instance size", required: true, optionsSource: "catalog.sizeOptions" },
     { id: "storageType", type: "select", label: "Storage", required: true, optionsSource: "catalog.storageTypeOptions" },
-    { id: "storageSizeGb", type: "number", label: "Storage size", required: true, unit: "GB", min: 40, max: 65536, step: 10 },
-    { id: "iops", type: "number", label: "IOPS", required: true, min: 3000, step: 100, visibleWhen: { field: "storageType", equals: "Flexible SSD" } },
-    { id: "throughputMibps", type: "number", label: "Throughput", required: true, unit: "MiB/s", min: 1, step: 1, visibleWhen: { field: "storageType", equals: "Flexible SSD" } },
+    { id: "storageSizeGb", type: "number", label: "Storage size", required: true, unit: "GB", min: 40, max: 65536, minSource: "catalog.constraints.storageSizeGb.min", maxSource: "catalog.constraints.storageSizeGb.max", step: 10 },
+    { id: "iops", type: "number", label: "IOPS", required: true, min: 3000, max: 100000, minSource: "catalog.constraints.iops.min", maxSource: "catalog.constraints.iops.max", step: 100, visibleWhen: { field: "storageType", equals: "Flexible SSD" } },
+    { id: "throughputMibps", type: "number", label: "Throughput", required: true, unit: "MiB/s", min: 1, max: 100000, minSource: "catalog.constraints.throughputMibps.min", maxSource: "catalog.constraints.throughputMibps.max", step: 1, visibleWhen: { field: "storageType", equals: "Flexible SSD" } },
     { id: "usageHours", type: "number", label: "Required Duration", required: true, unit: "hours", min: 1, max: 87600, step: 24 },
     { id: "quantity", type: "number", label: "Quantity", required: true, min: 1, step: 1 },
   ],
@@ -98,6 +98,17 @@ export const configurableServiceBundle = {
     parser: {
       kind: "grouped-sections",
       currency: "USD",
+      catalogStatic: {
+        constraints: {
+          storageSizeGb: { min: 40, max: 65536 },
+          // iops max depends on disk size; 100000 is the absolute ceiling for GPSSD2
+          iops: { min: 3000, max: 100000 },
+          // throughput max depends on IOPS; 100000 MiB/s is the absolute ceiling for GPSSD2
+          throughputMibps: { min: 1, max: 100000 },
+          usageHours: { min: 1, max: 87600 },
+          quantity: { min: 1 },
+        },
+      },
       sections: [
         {
           targetPath: "computeTiers",

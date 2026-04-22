@@ -19,8 +19,8 @@ export const configurableServiceBundle = {
     fields: [
       { id: "dbType", type: "select", label: "DB Instance Type", required: true, optionsSource: "catalog.dbTypes" },
       { id: "specification", type: "select", label: "Specification", required: true, optionsSource: "catalog.specifications" },
-      { id: "quantity", type: "number", label: "Quantity", required: true, min: 1, step: 1 },
-      { id: "usageHours", type: "number", label: "Required Duration", required: true, unit: "hours", min: 1, max: 87600, step: 24, visibleWhen: { field: "showUsageHours", equals: true } },
+      { id: "quantity", type: "number", label: "Quantity", required: true, min: 1, minSource: "catalog.constraints.quantity.min", step: 1 },
+      { id: "usageHours", type: "number", label: "Required Duration", required: true, unit: "hours", min: 1, max: 87600, minSource: "catalog.constraints.usageHours.min", maxSource: "catalog.constraints.usageHours.max", step: 24, visibleWhen: { field: "showUsageHours", equals: true } },
     ],
     summary: {
       selectionTemplate: "{dbType} | {specification} | {quantity} PCS",
@@ -62,6 +62,12 @@ export const configurableServiceBundle = {
       currency: "USD",
       rootPath: "product",
       collectionKey: "tiers",
+      catalogStatic: {
+        constraints: {
+          quantity: { min: 1 },
+          usageHours: { min: 1, max: 87600 },
+        },
+      },
       recordFilters: [
         { kind: "field-equals", path: "resourceType", value: "hws.resource.type.dds.vm" },
       ],

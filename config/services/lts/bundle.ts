@@ -21,14 +21,14 @@ export const serviceDefinition = {
     quantity: 1,
   },
   fields: [
-    { id: "rawLogSizeGb", type: "number", label: "Raw Log Size", required: true, unit: "GB/day", min: 0, step: 1, inputMode: "decimal" },
+    { id: "rawLogSizeGb", type: "number", label: "Raw Log Size", required: true, unit: "GB/day", min: 0, minSource: "catalog.constraints.rawLogSizeGb.min", step: 1, inputMode: "decimal" },
     { id: "intelligentColdStorage", type: "checkbox", label: "Intelligent Cold Storage" },
-    { id: "logStorageDurationDays", type: "number", label: "Log Storage Duration", required: true, unit: "day", min: 1, step: 1 },
-    { id: "indexFieldRatio", type: "number", label: "Index Field Ratio", required: true, unit: "%", min: 0, max: 100, step: 1, inputMode: "decimal" },
+    { id: "logStorageDurationDays", type: "number", label: "Log Storage Duration", required: true, unit: "day", min: 1, minSource: "catalog.constraints.logStorageDurationDays.min", step: 1 },
+    { id: "indexFieldRatio", type: "number", label: "Index Field Ratio", required: true, unit: "%", min: 0, max: 100, minSource: "catalog.constraints.indexFieldRatio.min", maxSource: "catalog.constraints.indexFieldRatio.max", step: 1, inputMode: "decimal" },
     { id: "dailyBasicTransferVolumeGb", type: "number", label: "Daily Basic Transfer Volume", required: true, unit: "GB/day", min: 0, step: 1, inputMode: "decimal" },
     { id: "dailyAdvancedTransferVolumeGb", type: "number", label: "Daily Advanced Transfer Volume", required: true, unit: "GB/day", min: 0, step: 1, inputMode: "decimal" },
-    { id: "usageHours", type: "number", label: "Required Duration", required: true, unit: "hour", min: 1, max: 87600, step: 1 },
-    { id: "quantity", type: "number", label: "Quantity", required: true, min: 1, step: 1 },
+    { id: "usageHours", type: "number", label: "Required Duration", required: true, unit: "hour", min: 1, max: 87600, minSource: "catalog.constraints.usageHours.min", maxSource: "catalog.constraints.usageHours.max", step: 1 },
+    { id: "quantity", type: "number", label: "Quantity", required: true, min: 1, minSource: "catalog.constraints.quantity.min", step: 1 },
   ],
   summary: {
     selectionTemplate: "{rawLogSizeGb} GB/day | {logStorageDurationDays} days | {indexFieldRatio}% | {usageHours}h | {quantity}",
@@ -110,6 +110,15 @@ export const configurableServiceBundle = {
     parser: {
       kind: "grouped-sections",
       currency: "USD",
+      catalogStatic: {
+        constraints: {
+          rawLogSizeGb: { min: 0 },
+          logStorageDurationDays: { min: 1 },
+          indexFieldRatio: { min: 0, max: 100 },
+          quantity: { min: 1 },
+          usageHours: { min: 1, max: 87600 },
+        },
+      },
       sections: [
         {
           targetPath: "storageTiers",

@@ -21,10 +21,10 @@ export const serviceDefinition = {
   fields: [
     { id: "fileSystemType", type: "select", label: "File System Type", required: true, options: ["General"] },
     { id: "type", type: "select", label: "Type", required: true, optionsSource: "catalog.typeOptions" },
-    { id: "storageSpaceAmount", type: "number", label: "Storage Space", required: true, min: 1, step: 1 },
+    { id: "storageSpaceAmount", type: "number", label: "Storage Space", required: true, min: 1, minSource: "catalog.constraints.storageSpaceAmount.min", step: 1 },
     { id: "storageSpaceUnit", type: "select", label: "Storage Unit", required: true, options: ["GB", "TB"] },
     { id: "durationMonths", type: "select", label: "Required Duration", required: true, optionsSource: "catalog.durationMonthOptions", visibleWhen: { field: "billingMode", equals: "Yearly/Monthly" } },
-    { id: "quantity", type: "number", label: "Quantity", required: true, min: 1, step: 1 },
+    { id: "quantity", type: "number", label: "Quantity", required: true, min: 1, minSource: "catalog.constraints.quantity.min", step: 1 },
   ],
   summary: {
     selectionTemplate: "{fileSystemType} | {type} | {storageSpaceAmount} {storageSpaceUnit} | {quantity}",
@@ -77,6 +77,13 @@ export const configurableServiceBundle = {
     parser: {
       kind: "grouped-sections",
       currency: "USD",
+      catalogStatic: {
+        constraints: {
+          storageSpaceAmount: { min: 1 },
+          quantity: { min: 1 },
+          durationMonths: { min: 1 },
+        },
+      },
       sections: [
         {
           targetPath: "packageTiers",

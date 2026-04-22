@@ -20,9 +20,9 @@ export const serviceDefinition = {
   fields: [
     { id: "edition", type: "select", label: "Edition", required: true, optionsSource: "catalog.editionOptions" },
     { id: "publicOutboundAccess", type: "checkbox", label: "Public Outbound Access" },
-    { id: "bandwidthMbit", type: "number", label: "Bandwidth", required: true, unit: "Mbit/s", min: 1, step: 1, visibleWhen: { field: "publicOutboundAccess", equals: true } },
-    { id: "usageHours", type: "number", label: "Required Duration", required: true, unit: "hour", min: 1, max: 87600, step: 1 },
-    { id: "quantity", type: "number", label: "Quantity", required: true, min: 1, step: 1 },
+    { id: "bandwidthMbit", type: "number", label: "Bandwidth", required: true, unit: "Mbit/s", min: 1, minSource: "catalog.constraints.bandwidthMbit.min", step: 1, visibleWhen: { field: "publicOutboundAccess", equals: true } },
+    { id: "usageHours", type: "number", label: "Required Duration", required: true, unit: "hour", min: 1, max: 87600, minSource: "catalog.constraints.usageHours.min", maxSource: "catalog.constraints.usageHours.max", step: 1 },
+    { id: "quantity", type: "number", label: "Quantity", required: true, min: 1, minSource: "catalog.constraints.quantity.min", step: 1 },
   ],
   summary: {
     selectionTemplate: "{edition} | {publicOutboundAccess} | {bandwidthMbit} Mbit/s | {usageHours}h | {quantity}",
@@ -85,6 +85,13 @@ export const configurableServiceBundle = {
     parser: {
       kind: "grouped-sections",
       currency: "USD",
+      catalogStatic: {
+        constraints: {
+          bandwidthMbit: { min: 1 },
+          quantity: { min: 1 },
+          usageHours: { min: 1, max: 87600 },
+        },
+      },
       sections: [
         {
           targetPath: "editionTiers",

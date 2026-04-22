@@ -24,7 +24,7 @@ export const serviceDefinition = {
     { id: "type", type: "select", label: "Type", required: true, optionsSource: "catalog.typeOptions" },
     { id: "capacityTb", type: "select", label: "Capacity (TB)", required: true, optionsSource: "catalog.capacityOptions" },
     { id: "durationMonths", type: "select", label: "Required Duration", required: true, optionsSource: "catalog.durationMonthOptions", visibleWhen: { field: "billingMode", equals: "Yearly/Monthly" } },
-    { id: "quantity", type: "number", label: "Quantity", required: true, min: 1, step: 1 },
+    { id: "quantity", type: "number", label: "Quantity", required: true, min: 1, minSource: "catalog.constraints.quantity.min", step: 1 },
   ],
   summary: {
     selectionTemplate: "{fileSystemType} | {generation} | {type} | {capacityTb} TB | {quantity}",
@@ -73,6 +73,12 @@ export const configurableServiceBundle = {
     parser: {
       kind: "grouped-sections",
       currency: "USD",
+      catalogStatic: {
+        constraints: {
+          quantity: { min: 1 },
+          durationMonths: { min: 1 },
+        },
+      },
       sections: [
         {
           targetPath: "tiers",

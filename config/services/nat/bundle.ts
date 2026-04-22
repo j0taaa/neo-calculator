@@ -70,6 +70,11 @@ export const configurableServiceBundle = {
       kind: "sectioned-rate-set",
       currency: "USD",
       collectionKey: "tiers",
+      catalogStatic: {
+        constraints: {
+          usageHours: { min: 1, max: 87600 },
+        },
+      },
       sections: [
         {
           path: "product.natgateway_natgateway",

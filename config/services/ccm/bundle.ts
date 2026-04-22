@@ -24,9 +24,9 @@ export const serviceDefinition = {
     { id: "certificateType", type: "select", label: "Certificate Type", required: true, optionsSource: "catalog.certificateTypeOptions" },
     { id: "certificateAuthority", type: "select", label: "Certificate Authority", required: true, optionsSource: "catalog.certificateAuthorityOptions" },
     { id: "domainType", type: "select", label: "Domain Type", required: true, optionsSource: "catalog.domainTypeOptions" },
-    { id: "validityPeriodYears", type: "select", label: "Validity Period", required: true, optionsSource: "catalog.validityPeriodOptions" },
-    { id: "domainQuantity", type: "number", label: "Domain Quantity", required: true, min: 2, step: 1, visibleWhen: { field: "domainType", equals: "Multiple domains" } },
-    { id: "quantity", type: "number", label: "Quantity", required: true, min: 1, step: 1 },
+    { id: "validityPeriodYears", type: "select", label: "Validity Period", required: true, optionsSource: "catalog.validityPeriodOptions", minSource: "catalog.constraints.validityPeriodYears.min" },
+    { id: "domainQuantity", type: "number", label: "Domain Quantity", required: true, min: 2, minSource: "catalog.constraints.domainQuantity.min", step: 1, visibleWhen: { field: "domainType", equals: "Multiple domains" } },
+    { id: "quantity", type: "number", label: "Quantity", required: true, min: 1, minSource: "catalog.constraints.quantity.min", step: 1 },
   ],
   summary: {
     selectionTemplate: "{certificateType} | {certificateAuthority} | {domainType} | {validityPeriodYears} years | {quantity}",
@@ -74,6 +74,13 @@ export const configurableServiceBundle = {
     parser: {
       kind: "grouped-sections",
       currency: "USD",
+      catalogStatic: {
+        constraints: {
+          domainQuantity: { min: 2 },
+          quantity: { min: 1 },
+          validityPeriodYears: { min: 1 },
+        },
+      },
       sections: [
         {
           targetPath: "baseTiers",

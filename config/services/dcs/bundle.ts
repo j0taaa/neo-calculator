@@ -29,10 +29,10 @@ export const configurableServiceBundle = {
       { id: "architecture", type: "select", label: "CPU / Memory", required: true, optionsSource: "catalog.architectures" },
       { id: "replicas", type: "select", label: "Replicas", required: true, optionsSource: "catalog.replicas", visibleWhen: { field: "showReplicas", equals: true } },
       { id: "specification", type: "select", label: "Specification", required: true, optionsSource: "catalog.specifications" },
-      { id: "quantity", type: "number", label: "Quantity", required: true, min: 1, step: 1 },
+      { id: "quantity", type: "number", label: "Quantity", required: true, min: 1, minSource: "catalog.constraints.quantity.min", step: 1 },
       { id: "elasticBandwidth", type: "select", label: "Elastic Bandwidth", required: true, options: ["Buy now", "Buy later"] },
-      { id: "bandwidthMbit", type: "number", label: "Bandwidth", required: true, unit: "Mbit/s", min: 1, step: 1, visibleWhen: { field: "elasticBandwidth", equals: "Buy now" } },
-      { id: "usageHours", type: "number", label: "Required Duration", required: true, unit: "hours", min: 1, max: 87600, step: 24 },
+      { id: "bandwidthMbit", type: "number", label: "Bandwidth", required: true, unit: "Mbit/s", min: 1, minSource: "catalog.constraints.bandwidthMbit.min", step: 1, visibleWhen: { field: "elasticBandwidth", equals: "Buy now" } },
+      { id: "usageHours", type: "number", label: "Required Duration", required: true, unit: "hours", min: 1, max: 87600, minSource: "catalog.constraints.usageHours.min", maxSource: "catalog.constraints.usageHours.max", step: 24 },
     ],
     summary: {
       selectionTemplate: "{edition} | {version} | {instanceType} | {architecture} | {specification}",
@@ -88,6 +88,11 @@ export const configurableServiceBundle = {
       collectionKey: "instanceTiers",
       catalogStatic: {
         edition: "Basic",
+        constraints: {
+          bandwidthMbit: { min: 1 },
+          quantity: { min: 1 },
+          usageHours: { min: 1, max: 87600 },
+        },
       },
       recordFilters: [
         { kind: "text-includes", paths: ["resourceSpecCode", "productSpecSysDesc", "productId"], value: "redis" },

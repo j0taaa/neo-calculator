@@ -17,7 +17,7 @@ export const configurableServiceBundle = {
     fields: [
       { id: "billingItem", type: "select", label: "Billing Item", required: true, optionsSource: "catalog.dliBillingItems" },
       { id: "specification", type: "select", label: "Package / Specification", required: true, optionsSource: "catalog.dliSpecifications" },
-      { id: "quantity", type: "number", label: "Quantity", required: true, min: 1, step: 1 },
+      { id: "quantity", type: "number", label: "Quantity", required: true, min: 1, minSource: "catalog.constraints.quantity.min", step: 1 },
     ],
     summary: {
       selectionTemplate: "{billingItem} | {specification} | {quantity} PCS",
@@ -58,6 +58,11 @@ export const configurableServiceBundle = {
       currency: "USD",
       rootPath: "product",
       collectionKey: "tiers",
+      catalogStatic: {
+        constraints: {
+          quantity: { min: 1 },
+        },
+      },
       recordFilters: [
         { kind: "text-includes", paths: ["resourceSpecCode", "productSpecSysDesc"], value: "dli" },
       ],

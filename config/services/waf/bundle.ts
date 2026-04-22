@@ -16,7 +16,7 @@ export const configurableServiceBundle = {
     },
     fields: [
       { id: "edition", type: "select", label: "Edition", required: true, optionsSource: "catalog.editions" },
-      { id: "quantity", type: "number", label: "Quantity", required: true, min: 1, step: 1 },
+      { id: "quantity", type: "number", label: "Quantity", required: true, min: 1, minSource: "catalog.constraints.quantity.min", step: 1 },
     ],
     summary: {
       selectionTemplate: "{edition} | {quantity} PCS",
@@ -57,6 +57,12 @@ export const configurableServiceBundle = {
       currency: "USD",
       rootPath: "product",
       collectionKey: "tiers",
+      catalogStatic: {
+        constraints: {
+          quantity: { min: 1 },
+          usageHours: { min: 1, max: 87600 },
+        },
+      },
       recordFilters: [
         { kind: "field-equals", path: "resourceType", value: "hws.resource.type.waf" },
       ],
