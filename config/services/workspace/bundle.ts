@@ -20,7 +20,7 @@ export const serviceDefinition = {
     "memory": "4 GB",
     "cpuUsageHours": 744,
     "diskType": "High I/O",
-    "diskSizeGb": 40,
+    "diskSizeGb": 80,
     "diskUsageHours": 744,
     "quantity": 1
   },

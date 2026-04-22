@@ -64,7 +64,7 @@ export const workspaceDefaults = {
   memory: "4 GB" as WorkspaceMemoryOption,
   cpuUsageHours: 744,
   diskType: "High I/O" as WorkspaceDiskType,
-  diskSizeGb: 40,
+  diskSizeGb: 80,
   diskUsageHours: 744,
   quantity: 1,
 } as const;
