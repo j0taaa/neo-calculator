@@ -16,7 +16,7 @@ export const configurableServiceBundle = {
       bandwidthMbit: 1,
       enhanced95DurationMonths: 1,
       sharedBandwidthQuantity: 1,
-      trafficAmount: 0,
+      trafficAmount: 1,
       trafficUnit: "GB",
       billingMode: "Pay-per-use",
     },
