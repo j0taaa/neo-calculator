@@ -7,6 +7,21 @@ export const runtime = "nodejs";
 type SortField = "price" | "cpu" | "ram" | "name";
 type SortOrder = "asc" | "desc";
 
+function resolveSortField(value: string | null): SortField {
+  switch (value) {
+    case "price":
+    case "hourlyPrice":
+    case "monthlyPrice":
+      return "price";
+    case "cpu":
+    case "ram":
+    case "name":
+      return value;
+    default:
+      return "price";
+  }
+}
+
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const requestedRegion = searchParams.get("region") as HuaweiRegionKey | null;
@@ -27,7 +42,8 @@ export async function GET(request: Request) {
   const billingMode = (searchParams.get("billingMode") || undefined) as keyof StoredEcsFlavor["prices"] | undefined;
   const limit = Math.min(Math.max(Number(searchParams.get("limit")) || 50, 1), 500);
   const includeFlexusL = searchParams.get("includeFlexusL") === "1" || searchParams.get("includeFlexusL") === "true";
-  const sortField: SortField = (searchParams.get("sort") as SortField) || "price";
+  const rawSort = searchParams.get("sort");
+  const sortField = resolveSortField(rawSort);
   const sortOrder: SortOrder = (searchParams.get("order") as SortOrder) || "asc";
 
   await ensureRegionCatalogAvailable(catalogRegionId);
@@ -47,14 +63,19 @@ export async function GET(request: Request) {
   }
   if (billingMode) flavors = flavors.filter((f) => f.prices[billingMode] != null);
 
-  const sortPriceMode = billingMode ?? "ONDEMAND";
+  const sortPriceMode = rawSort === "monthlyPrice"
+    ? "MONTHLY"
+    : billingMode ?? "ONDEMAND";
 
   flavors.sort((a, b) => {
     const mul = sortOrder === "asc" ? 1 : -1;
     switch (sortField) {
       case "price": {
-        const pa = a.prices[sortPriceMode] ?? Number.POSITIVE_INFINITY;
-        const pb = b.prices[sortPriceMode] ?? Number.POSITIVE_INFINITY;
+        const pa = a.prices[sortPriceMode];
+        const pb = b.prices[sortPriceMode];
+        if (pa == null && pb == null) return 0;
+        if (pa == null) return 1;
+        if (pb == null) return -1;
         return mul * (pa - pb);
       }
       case "cpu":
