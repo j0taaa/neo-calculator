@@ -1,15 +1,6 @@
 import { findBestFlexusLPlan, findFlexusLPlan, flexusLPlans, flexusLPricingReference } from "@/lib/flexus-l-catalog";
-import {
-  formatFlavorAmount,
-  getDiskPriceForBillingOption,
-  toFlavorCard,
-  toFlexusLFlavorCard,
-  type BillingOption,
-  type CatalogFlavor,
-  type DiskPricing,
-  type FlavorCard,
-  type ProductMutationBody,
-} from "@/lib/calculator-page-helpers";
+import type { BillingOption, CatalogFlavor, DiskPricing, FlavorCard, ProductMutationBody } from "@/lib/calculator-types";
+import { formatFlavorAmount, getDiskPriceForBillingOption, toFlavorCard, toFlexusLFlavorCard } from "@/lib/calculator-page-helpers";
 import { type HuaweiRegionKey, huaweiRegions } from "@/lib/huawei-regions";
 import {
   ecsDiskSizeBounds,

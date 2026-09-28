@@ -3,7 +3,7 @@ import { evaluateDeclarativeDerivedValues, evaluateDeclarativeValue } from "@/li
 import type { DeclarativeEstimateRecord } from "@/lib/declarative-service-runtime-types";
 import type { TypedDeclarativeRuntimeDefinition, TypedDeclarativeValue } from "@/lib/typed-declarative-runtime-types";
 import type { ServiceDefinition, BillingOption } from "@/lib/service-config-types";
-import type { AppProduct } from "@/lib/calculator-page-helpers";
+import type { AppProduct } from "@/lib/calculator-types";
 import { huaweiRegions } from "@/lib/huawei-regions";
 
 export function stringifyConfigValue(value: unknown) {

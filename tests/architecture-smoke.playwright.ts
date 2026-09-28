@@ -2,6 +2,7 @@ import { expect, test, type Page } from "@playwright/test";
 import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { getServiceBundle } from "../config/services/bundles";
+import { serviceCatalog } from "../lib/service-config";
 import expected from "./fixtures/runtime/expected.json";
 
 const services = ["DCS", "NAT", "EVS", "DMS", "ELB", "VPN", "RDS", "EIP"];
@@ -18,11 +19,26 @@ async function useCatalogFixtures(page: Page) {
   }
 }
 
+async function createTestCart(page: Page, baseURL: string | undefined) {
+  expect(["127.0.0.1", "localhost"]).toContain(new URL(baseURL!).hostname);
+  const signup = await page.request.post("/api/auth/sign-up/email", {
+    data: { name: "Architecture Test", email: `architecture-${crypto.randomUUID()}@example.test`, password: "Architecture-test-password-2026" },
+  });
+  expect(signup.ok()).toBe(true);
+  const projectResponse = await page.request.post("/api/projects", { data: { name: "Architecture regression" } });
+  expect(projectResponse.status()).toBe(201);
+  const project = await projectResponse.json();
+  const listResponse = await page.request.post(`/api/projects/${project.id}/lists`, { data: { name: "Regression cart" } });
+  expect(listResponse.status()).toBe(201);
+  const list = await listResponse.json();
+  return { project, list };
+}
+
 async function selectService(page: Page, code: string) {
   await page.getByRole("button", { name: "Open service search" }).click();
   const search = page.getByPlaceholder("Search service name");
   await search.fill(code);
-  await page.getByRole("option").filter({ hasText: getServiceBundle(code)!.service.serviceName }).first().click();
+  await page.getByRole("option").filter({ hasText: serviceCatalog.find((service) => service.code === code)!.name }).first().click();
 }
 
 for (const code of services) {
@@ -63,19 +79,11 @@ test("catalog routes preserve public URLs and response keys", async ({ request }
 });
 
 test("saved estimates can be edited, batch-added, cloned, shared, exported and imported", async ({ page, baseURL }) => {
+  test.setTimeout(180_000);
   // This scenario writes temporary accounts and must target an isolated local database.
   expect(["127.0.0.1", "localhost"]).toContain(new URL(baseURL!).hostname);
   await useCatalogFixtures(page);
-  const signup = await page.request.post("/api/auth/sign-up/email", {
-    data: { name: "Architecture Test", email: `architecture-${crypto.randomUUID()}@example.test`, password: "Architecture-test-password-2026" },
-  });
-  expect(signup.ok()).toBe(true);
-  const projectResponse = await page.request.post("/api/projects", { data: { name: "Architecture regression" } });
-  expect(projectResponse.status()).toBe(201);
-  const project = await projectResponse.json();
-  const listResponse = await page.request.post(`/api/projects/${project.id}/lists`, { data: { name: "Regression cart" } });
-  expect(listResponse.status()).toBe(201);
-  const list = await listResponse.json();
+  const { project, list } = await createTestCart(page, baseURL);
   await page.goto(`/?project=${project.id}&list=${list.id}`);
   await selectService(page, "EVS");
   const add = page.getByRole("button", { name: "Add to List", exact: true });
@@ -145,3 +153,49 @@ test("saved estimates can be edited, batch-added, cloned, shared, exported and i
   await page.getByRole("button", { name: "Download JSON", exact: true }).click();
   expect((await download).suggestedFilename()).toMatch(/\.json$/);
 });
+
+for (const code of ["ECS", "Flexus L"]) {
+  test(`${code} retains pricing through save, edit and batch add`, async ({ page, baseURL }) => {
+    await useCatalogFixtures(page);
+    if (code === "ECS") {
+      const diskPricing = JSON.parse(await readFile(resolve("tests/fixtures/runtime/evs.json"), "utf8"));
+      await page.route("**/api/catalog/ecs-flavors?*", (route) => route.fulfill({ json: {
+        flavors: [{
+          resourceSpecCode: "c7.large.4", family: "c7", architecture: "x86", series: "c", description: "Regression flavor",
+          cpu: 2, ramGiB: 8, prices: { ONDEMAND: 0.1, MONTHLY: 50, RI: 400 }, currency: "USD", updatedAt: "2026-01-01",
+        }], diskPricing,
+      } }));
+    }
+    const { project, list } = await createTestCart(page, baseURL);
+    await page.goto(`/?project=${project.id}&list=${list.id}`);
+    await selectService(page, code);
+    if (code === "ECS") {
+      await page.getByRole("button", { name: "Pay-per-use", exact: true }).click();
+      await expect(page.getByRole("button", { name: /c7.large.4/ }).first()).toBeVisible();
+    } else {
+      await page.getByRole("button", { name: /2 vCPUs \| 2 GiB/ }).click();
+    }
+    const savedResponse = page.waitForResponse((response) => response.url().endsWith(`/api/lists/${list.id}/products`) && response.request().method() === "POST");
+    await page.getByRole("button", { name: "Add to List", exact: true }).click();
+    const response = await savedResponse;
+    expect(response.status()).toBe(201);
+    const original = await response.json();
+    expect(original.pricing.total).toBe(code === "ECS" ? "USD 77.73/744h" : "USD 9.00/mo");
+    await page.getByRole("button", { name: `Edit ${original.title}`, exact: true }).click();
+    const editedResponse = page.waitForResponse((response) => response.url().endsWith(`/products/${original.id}`) && response.request().method() === "PATCH");
+    await page.getByRole("button", { name: "Save Changes", exact: true }).first().click();
+    const edited = await (await editedResponse).json();
+    expect(edited.config).toEqual(original.config);
+    expect(edited.pricing).toEqual(original.pricing);
+    await page.getByRole("tab", { name: "Batch add", exact: true }).click();
+    await page.locator("textarea").fill(JSON.stringify([code === "ECS"
+      ? { vcpu: 2, ram: 8, quantity: 2 }
+      : { vcpu: 2, ram: 2, quantity: 2 }]));
+    await page.getByRole("button", { name: "Add Batch", exact: true }).click();
+    await expect.poll(async () => (await (await page.request.get(`/api/lists/${list.id}/products`)).json()).length).toBe(2);
+    const products = await (await page.request.get(`/api/lists/${list.id}/products`)).json();
+    const batchProduct = products.find((item: { id: string }) => item.id !== original.id);
+    expect(batchProduct.quantity).toBe(2);
+    expect(batchProduct.pricing.total).toBe(code === "ECS" ? "USD 155.47/744h" : "USD 18.00/mo");
+  });
+}

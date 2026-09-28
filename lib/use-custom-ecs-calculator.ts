@@ -1,15 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { findFlexusLPlan, flexusLPlans } from "@/lib/flexus-l-catalog";
-import {
-  getDiskPriceForBillingOption,
-  getFlavorPriceForBillingOption,
-  toFlavorCard,
-  toFlexusLFlavorCard,
-  type BillingOption,
-  type CatalogFlavor,
-  type DiskPricing,
-} from "@/lib/calculator-page-helpers";
+import type { BillingOption, CatalogFlavor, DiskPricing } from "@/lib/calculator-types";
+import { getDiskPriceForBillingOption, getFlavorPriceForBillingOption, toFlavorCard, toFlexusLFlavorCard } from "@/lib/calculator-page-helpers";
 import { type HuaweiRegionKey } from "@/lib/huawei-regions";
 import { ecsDiskSizeBounds, type SystemDiskOption } from "@/lib/configurable-runtime-utils";
 

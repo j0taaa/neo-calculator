@@ -1,3 +1,4 @@
+import type { AppProduct, ProductMutationBody } from "@/lib/calculator-types";
 import { db } from "@/lib/db";
 
 export type StoredProductRow = {
@@ -16,29 +17,8 @@ export type StoredProductRow = {
   updated_at: string;
 };
 
-export type PersistedProductInput = {
-  id?: string;
-  serviceCode: string;
-  serviceName: string;
-  productType: string;
-  title: string;
-  quantity: number;
-  config: unknown;
-  pricing: unknown;
-};
-
-export type PersistedProductPayload = {
-  id: string;
-  serviceCode: string;
-  serviceName: string;
-  productType: string;
-  title: string;
-  quantity: number;
-  config: unknown;
-  pricing: unknown;
-  createdAt: string;
-  updatedAt: string;
-};
+export type PersistedProductInput = ProductMutationBody & { id?: string };
+export type PersistedProductPayload = AppProduct & { createdAt: string };
 
 type CreateProjectInput = {
   id?: string;

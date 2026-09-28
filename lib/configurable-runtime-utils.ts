@@ -13,7 +13,8 @@ import {
   type ObsRestorationType,
   type ObsStorageClass,
 } from "@/lib/obs-catalog";
-import { formatFlavorAmount, getDiskPriceForBillingOption, type BillingOption, type DiskPricing, type ProductMutationBody } from "@/lib/calculator-page-helpers";
+import type { BillingOption, DiskPricing, ProductMutationBody } from "@/lib/calculator-types";
+import { formatFlavorAmount, getDiskPriceForBillingOption } from "@/lib/calculator-page-helpers";
 import { type HuaweiRegionKey } from "@/lib/huawei-regions";
 
 export const evsSingleDiskMaxGiB = 32_768;

@@ -1,12 +1,14 @@
 import { useCallback, useEffect, useMemo, useState, type ComponentProps } from "react";
 
+import type { CalculatorProductSource } from "@/lib/calculator-cart";
 import { ConfigurableServicePanel } from "@/components/calculators/configurable-service-panel";
 import { buildConfiguredFields } from "@/lib/configurable-service-fields";
 import { getTypedDeclarativeRuntimeDefinitionByCode } from "@/lib/declarative-service-runtime-registry";
 import { buildDefaultValues, buildRuntimeScope, evaluateCatalogView, evaluateRuntimeValue, stringifyConfigValue } from "@/lib/service-runtime";
 import { declarativeRuntimeHelpers } from "@/lib/declarative-runtime-helpers";
 import type { DeclarativeCatalogSource, DeclarativeEstimateRecord } from "@/lib/declarative-service-runtime-types";
-import { formatFlavorAmount, type AppProduct, type BillingOption, type ProductMutationBody } from "@/lib/calculator-page-helpers";
+import type { AppProduct, BillingOption, ProductMutationBody } from "@/lib/calculator-types";
+import { formatFlavorAmount } from "@/lib/calculator-page-helpers";
 import { huaweiRegions, type HuaweiRegionKey } from "@/lib/huawei-regions";
 import {
   getConfigurableServiceDefinitionByCode,
@@ -46,7 +48,7 @@ export type DeclarativeBatchPanelContent = {
   validation: string;
 };
 
-type UseConfigurableServiceRuntimeResult = {
+type UseConfigurableServiceRuntimeResult = CalculatorProductSource & {
   isConfigurableService: boolean;
   usesSharedBillingHeader: boolean;
   activeBillingOptions: BillingOption[] | null;
@@ -56,11 +58,6 @@ type UseConfigurableServiceRuntimeResult = {
   showGlobalQuantityControl: boolean;
   showSharedUsageHours: boolean;
   addToListError: string | null;
-  buildRequestBodies: () => ProductMutationBody | ProductMutationBody[] | null;
-  buildBatchRequestBodies: (item: unknown) => ProductMutationBody[] | null;
-  getAddSuccessMessage: (input: { requestBodiesCount: number }) => string | null;
-  getUpdateSuccessMessage: (input: { requestBodiesCount: number; extraRequestBodiesCount: number }) => string | null;
-  getBatchSuccessMessage: (input: { createdCount: number; expandedCount: number }) => string | null;
   applyDefaultsForServiceCode: (serviceCode: string) => void;
   hydrateProduct: (product: AppProduct) => EditHydrationResult;
   batchPanel: DeclarativeBatchPanelContent | null;
