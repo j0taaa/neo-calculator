@@ -115,7 +115,7 @@ type RecursiveGroupedParserDefinition = {
   fields: SectionFieldDefinition[];
   postRejectWhenAll?: DerivedFieldCondition[][];
   dedupeBy: string[];
-  minByPath: string;
+  minByPath?: string;
   sort: Array<{ path: string; direction: "asc" | "desc"; order?: Array<string | number> }>;
   auxiliaryOutputs?: SelectedOutputDefinition[];
 };
@@ -739,8 +739,8 @@ function parseRecursiveGroupedCatalog(definition: Extract<DeclarativePricingDefi
 
     const key = definition.dedupeBy.map((field) => String(readPath(fields, field) ?? "")).join("|");
     const existing = itemsByKey.get(key);
-    const currentValue = readPath(fields, definition.minByPath);
-    const existingValue = existing ? readPath(existing, definition.minByPath) : undefined;
+    const currentValue = definition.minByPath ? readPath(fields, definition.minByPath) : undefined;
+    const existingValue = existing && definition.minByPath ? readPath(existing, definition.minByPath) : undefined;
     if (!existing || (typeof currentValue === "number" && typeof existingValue === "number" && currentValue < existingValue)) {
       itemsByKey.set(key, fields);
     }

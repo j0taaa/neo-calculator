@@ -1,3 +1,4 @@
+import type { ConfigurableServiceBundleDefinition } from "@/lib/configurable-service-bundle-types";
 import { and, call, coalesce, eq, ifElse, max, ref, template } from "@/lib/typed-declarative-runtime-ops";
 
 export const configurableServiceBundle = {
@@ -84,7 +85,7 @@ export const configurableServiceBundle = {
             ],
           },
         },
-        { key: "vCpus", required: true, extractor: { kind: "cpu-count", paths: ["cpu", "vcpu", "vcpus", "productSpecSysDesc", "resourceSpecCode"] } },
+        { key: "vCpus", required: true, extractor: { kind: "number-from-pattern", paths: ["cpu", "vcpu", "vcpus", "productSpecSysDesc"], pattern: "(?:^|[^0-9])([0-9]+)(?:\\s*vCPUs?\\b|$)", flags: "i" } },
         { key: "memoryGb", required: true, extractor: { kind: "memory-gib", paths: ["mem", "memory", "productSpecSysDesc", "resourceSpecCode"] } },
         { key: "specification", required: true, extractor: { kind: "path-or-template", path: "specification", template: "{vCpus} vCPUs, {memoryGb} GB" } },
         { key: "resourceSpecCode", extractor: { kind: "path-or-template", path: "resourceSpecCode", template: "gaussdb-{dbEdition}-{vCpus}-{memoryGb}" } },
@@ -256,7 +257,7 @@ export const configurableServiceBundle = {
       },
     ),
   },
-};
+} as const satisfies ConfigurableServiceBundleDefinition;
 
 export const serviceDefinition = configurableServiceBundle.service;
 export const pricingDefinition = configurableServiceBundle.pricing;

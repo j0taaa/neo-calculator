@@ -1,35 +1,4 @@
-import { configurableServiceBundle as apigBundle } from "@/config/services/apig/bundle";
-import { configurableServiceBundle as ccmBundle } from "@/config/services/ccm/bundle";
-import { configurableServiceBundle as cbhBundle } from "@/config/services/cbh/bundle";
-import { configurableServiceBundle as cbrBundle } from "@/config/services/cbr/bundle";
-import { configurableServiceBundle as dcsBundle } from "@/config/services/dcs/bundle";
-import { configurableServiceBundle as dcBundle } from "@/config/services/dc/bundle";
-import { configurableServiceBundle as eipBundle } from "@/config/services/eip/bundle";
-import { configurableServiceBundle as erBundle } from "@/config/services/er/bundle";
-import { configurableServiceBundle as flexusRdsBundle } from "@/config/services/flexus-rds/bundle";
-import { configurableServiceBundle as gaBundle } from "@/config/services/ga/bundle";
-import { configurableServiceBundle as gaussDbBundle } from "@/config/services/gaussdb/bundle";
-import { configurableServiceBundle as gesBundle } from "@/config/services/ges/bundle";
-import { configurableServiceBundle as cseBundle } from "@/config/services/cse/bundle";
-import { configurableServiceBundle as ltsBundle } from "@/config/services/lts/bundle";
-import { configurableServiceBundle as natBundle } from "@/config/services/nat/bundle";
-import { configurableServiceBundle as rdsBundle } from "@/config/services/rds/bundle";
-import { configurableServiceBundle as sfsBundle } from "@/config/services/sfs/bundle";
-import { configurableServiceBundle as sfsTurboBundle } from "@/config/services/sfsturbo/bundle";
-import { configurableServiceBundle as disBundle } from "@/config/services/dis/bundle";
-import { configurableServiceBundle as vpcepBundle } from "@/config/services/vpcep/bundle";
-import { configurableServiceBundle as hssBundle } from "@/config/services/hss/bundle";
-import { configurableServiceBundle as dewBundle } from "@/config/services/dew/bundle";
-import { configurableServiceBundle as smnBundle } from "@/config/services/smn/bundle";
-import { configurableServiceBundle as dwsBundle } from "@/config/services/dws/bundle";
-import { configurableServiceBundle as dliBundle } from "@/config/services/dli/bundle";
-import { configurableServiceBundle as cdmBundle } from "@/config/services/cdm/bundle";
-import { configurableServiceBundle as ddsBundle } from "@/config/services/dds/bundle";
-import { configurableServiceBundle as wafBundle } from "@/config/services/waf/bundle";
-import { configurableServiceBundle as cfwBundle } from "@/config/services/cfw/bundle";
-import { configurableServiceBundle as dmsBundle } from "@/config/services/dms/bundle";
-import { configurableServiceBundle as drsBundle } from "@/config/services/drs/bundle";
-import { configurableServiceBundle as mrsBundle } from "@/config/services/mrs/bundle";
+import { serviceBundles } from "@/config/services/bundles";
 import type { DisPricingCatalog } from "@/lib/dis-catalog";
 import type { ApigPricingCatalog } from "@/lib/apig-catalog";
 import type { CbhPricingCatalog } from "@/lib/cbh-catalog";
@@ -64,46 +33,17 @@ import type { DrsPricingCatalog } from "@/lib/drs-catalog";
 import type { MrsPricingCatalog } from "@/lib/mrs-catalog";
 import type { DeclarativePricingDefinition } from "@/lib/declarative-pricing-engine";
 
-export const declarativePricingDefinitions: Record<string, DeclarativePricingDefinition> = {
-  APIG: apigBundle.catalogDefinition,
-  CCM: ccmBundle.catalogDefinition,
-  CBH: cbhBundle.catalogDefinition,
-  CBR: cbrBundle.catalogDefinition,
-  NAT: natBundle.catalogDefinition,
-  EIP: eipBundle.catalogDefinition,
-  ER: erBundle.catalogDefinition,
-  GA: gaBundle.catalogDefinition,
-  GaussDB: gaussDbBundle.catalogDefinition as unknown as DeclarativePricingDefinition,
-  GES: gesBundle.catalogDefinition as unknown as DeclarativePricingDefinition,
-  CSE: cseBundle.catalogDefinition as unknown as DeclarativePricingDefinition,
-  DCS: dcsBundle.catalogDefinition,
-  DC: dcBundle.catalogDefinition,
-  DIS: disBundle.catalogDefinition as unknown as DeclarativePricingDefinition,
-  HSS: hssBundle.catalogDefinition as unknown as DeclarativePricingDefinition,
-  DEW: dewBundle.catalogDefinition as unknown as DeclarativePricingDefinition,
-  SMN: smnBundle.catalogDefinition as unknown as DeclarativePricingDefinition,
-  DWS: dwsBundle.catalogDefinition as unknown as DeclarativePricingDefinition,
-  DLI: dliBundle.catalogDefinition as unknown as DeclarativePricingDefinition,
-  LTS: ltsBundle.catalogDefinition,
-  SFS: sfsBundle.catalogDefinition,
-  "SFS Turbo": sfsTurboBundle.catalogDefinition,
-  VPCEP: vpcepBundle.catalogDefinition,
-  RDS: rdsBundle.catalogDefinition,
-  "Flexus RDS": flexusRdsBundle.catalogDefinition,
-  CDM: cdmBundle.catalogDefinition as unknown as DeclarativePricingDefinition,
-  DDS: ddsBundle.catalogDefinition as unknown as DeclarativePricingDefinition,
-  WAF: wafBundle.catalogDefinition as unknown as DeclarativePricingDefinition,
-  CFW: cfwBundle.catalogDefinition as unknown as DeclarativePricingDefinition,
-  DMS: dmsBundle.catalogDefinition as unknown as DeclarativePricingDefinition,
-  DRS: drsBundle.catalogDefinition as unknown as DeclarativePricingDefinition,
-  MRS: mrsBundle.catalogDefinition as unknown as DeclarativePricingDefinition,
-};
+export const declarativePricingDefinitions: Record<string, DeclarativePricingDefinition> = Object.fromEntries(
+  serviceBundles.flatMap((bundle) => bundle.catalogDefinition ? [[bundle.service.serviceCode, bundle.catalogDefinition]] : []),
+);
 
-export function getDeclarativePricingDefinition(serviceCode: "APIG" | "CCM" | "CBH" | "CBR" | "NAT" | "EIP" | "ER" | "GA" | "GaussDB" | "GES" | "CSE" | "DCS" | "DC" | "DIS" | "HSS" | "DEW" | "SMN" | "DWS" | "DLI" | "LTS" | "SFS" | "SFS Turbo" | "VPCEP" | "RDS" | "Flexus RDS" | "CDM" | "DDS" | "WAF" | "CFW" | "DMS" | "DRS" | "MRS") {
-  return declarativePricingDefinitions[serviceCode];
+export function getDeclarativePricingDefinition(serviceCode: keyof DeclarativePricingCatalogMap) {
+  const definition = declarativePricingDefinitions[serviceCode];
+  if (!definition) throw new Error(`No declarative catalog definition for ${serviceCode}`);
+  return definition;
 }
 
-export type DeclarativePricingServiceCode = keyof typeof declarativePricingDefinitions;
+export type DeclarativePricingServiceCode = keyof DeclarativePricingCatalogMap;
 export type DeclarativePricingCatalogMap = {
   APIG: ApigPricingCatalog;
   CCM: CcmPricingCatalog;

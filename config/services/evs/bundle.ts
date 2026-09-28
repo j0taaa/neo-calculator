@@ -224,7 +224,7 @@ const legacyRuntimeDefinition = {
     quantityLabel: "Volume",
     showGlobalQuantityControl: true,
     usesSharedBillingHeader: false,
-    catalog: { route: "evs-pricing", loadingMessage: "Loading EVS pricing..." },
+    catalog: { route: "evs-pricing", catalogPath: "diskPricing", loadingMessage: "Loading EVS pricing..." },
     showSharedUsageHoursExpression: "false",
     catalogViewExpression: `(() => {
       const diskType = helpers.systemDiskOptions.includes(values.diskType) ? values.diskType : 'General Purpose SSD';

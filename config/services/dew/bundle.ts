@@ -1,3 +1,4 @@
+import type { ConfigurableServiceBundleDefinition } from "@/lib/configurable-service-bundle-types";
 import { and, call, coalesce, eq, ifElse, max, ref, template } from "@/lib/typed-declarative-runtime-ops";
 
 export const configurableServiceBundle = {
@@ -75,9 +76,9 @@ export const configurableServiceBundle = {
           { keywords: ["api", "secret"], value: "API Requests" },
           { keywords: ["hsm", "utimaco", "overseas"], value: "HSM" },
         ] } },
-        { key: "resourceSpecCode", extractor: { kind: "path-or-template", path: "resourceSpecCode" } },
+        { key: "resourceSpecCode", extractor: { kind: "path", path: "resourceSpecCode" } },
         { key: "prices", extractor: { kind: "rate-set", modes: ["ONDEMAND"] } },
-        { key: "productIds.ONDEMAND", extractor: { kind: "plan-product-id", billingMode: "ONDEMAND", usageFactor: "duration" } },
+        { key: "productIds.ONDEMAND", extractor: { kind: "plan-product-id", billingMode: "ONDEMAND" } },
       ],
       dedupeBy: ["label"],
       sort: [
@@ -204,7 +205,7 @@ export const configurableServiceBundle = {
       },
     ),
   },
-};
+} as const satisfies ConfigurableServiceBundleDefinition;
 
 export const serviceDefinition = configurableServiceBundle.service;
 export const pricingDefinition = configurableServiceBundle.pricing;
