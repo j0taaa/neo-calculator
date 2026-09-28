@@ -199,3 +199,77 @@ for (const code of ["ECS", "Flexus L"]) {
     expect(batchProduct.pricing.total).toBe(code === "ECS" ? "USD 155.47/744h" : "USD 18.00/mo");
   });
 }
+
+test("service shortcuts and dependent ECS disk controls survive the module split", async ({ page }) => {
+  const errors: string[] = [];
+  page.on("pageerror", (error) => errors.push(error.message));
+  await useCatalogFixtures(page);
+  const diskPricing = JSON.parse(await readFile(resolve("tests/fixtures/runtime/evs.json"), "utf8"));
+  await page.route("**/api/catalog/ecs-flavors?*", (route) => route.fulfill({ json: {
+    flavors: [{ resourceSpecCode: "c7.large.4", family: "c7", architecture: "x86", series: "c", description: "Test",
+      cpu: 2, ramGiB: 8, prices: { ONDEMAND: 0.1, MONTHLY: 50 }, currency: "USD", updatedAt: "2026-01-01" }], diskPricing,
+  } }));
+  await page.goto("/?service=ECS&region=cn-hong-kong&billing=Pay-per-use&hours=730");
+  await expect(page.getByRole("button", { name: /c7.large.4/ }).first()).toBeVisible();
+  await expect(page.getByRole("tabpanel", { name: "Price Calculator" })).toContainText("730h");
+  await page.keyboard.press("Control+k");
+  const search = page.getByPlaceholder("Search service name");
+  await expect(search).toBeFocused();
+  await search.fill("NAT");
+  await search.press("ArrowDown");
+  await search.press("Enter");
+  await expect(search).toBeHidden();
+  await expect(page.getByRole("tabpanel", { name: "Price Calculator" })).toContainText("Gateway");
+  await selectService(page, "ECS");
+  await page.getByRole("combobox").filter({ hasText: "High I/O" }).click();
+  await page.getByRole("option", { name: "General Purpose SSD V2", exact: true }).click();
+  const iops = page.locator("[data-calculator-focus-group]").filter({ has: page.getByText("IOPS", { exact: true }) }).locator("input");
+  await expect(iops).toHaveValue("3000");
+  await iops.fill("999999");
+  await iops.blur();
+  await expect(iops).toHaveValue("20000");
+  await page.keyboard.press("Alt+3");
+  await expect(page.getByRole("button", { name: "Pay-per-use", exact: true })).toBeFocused();
+  expect(errors).toEqual([]);
+});
+
+test("saved-item deep links, cart filtering, clipboard and project actions retain state", async ({ page, context, baseURL }) => {
+  await useCatalogFixtures(page);
+  const { project, list } = await createTestCart(page, baseURL);
+  const productBody = { serviceCode: "EVS", serviceName: "Elastic Volume Service", productType: "evs", title: "Disk Alpha", quantity: 1,
+    config: { region: "la-sao-paulo1", billingMode: "Pay-per-use", usageHours: 744, diskType: "High I/O", diskSizeGiB: 80, durationMonths: 1 }, pricing: { total: "USD 6.67/744h" } };
+  const first = await (await page.request.post(`/api/lists/${list.id}/products`, { data: productBody })).json();
+  await page.request.post(`/api/lists/${list.id}/products`, { data: { ...productBody, title: "Disk Beta" } });
+  await page.request.post(`/api/projects/${project.id}/lists`, { data: { name: "Another cart" } });
+  await page.goto(`/?service=EVS&project=${project.id}&list=${list.id}&editProduct=${first.id}&editList=${list.id}`);
+  await expect(page.getByRole("button", { name: "Save Changes", exact: true }).first()).toBeVisible();
+  await expect(page.getByText("Architecture regression / Regression cart", { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "Cancel", exact: true }).first().click();
+  const filter = page.getByRole("textbox", { name: "Search cart items" });
+  await filter.fill("Alpha");
+  await expect(page.getByRole("button", { name: "Edit Disk Beta", exact: true })).toBeHidden();
+  await filter.blur();
+  await page.keyboard.press("Control+a");
+  await expect(page.getByText("1 item selected", { exact: true })).toBeVisible();
+  await context.grantPermissions(["clipboard-read", "clipboard-write"]);
+  await page.keyboard.press("Control+c");
+  const clipboard = await page.evaluate(() => navigator.clipboard.readText());
+  expect(JSON.parse(clipboard).map((item: { title: string }) => item.title)).toEqual(["Disk Alpha"]);
+  await page.keyboard.press("Escape");
+  await expect(page.getByText("1 item selected", { exact: true })).toBeHidden();
+  await filter.fill("");
+  await filter.blur();
+  await page.evaluate((text) => {
+    const data = new DataTransfer();
+    data.setData("text", text);
+    window.dispatchEvent(new ClipboardEvent("paste", { clipboardData: data, bubbles: true, cancelable: true }));
+  }, clipboard);
+  await expect.poll(async () => (await (await page.request.get(`/api/lists/${list.id}/products`)).json()).length).toBe(3);
+  await page.getByRole("button", { name: "Open actions for Architecture regression", exact: true }).click();
+  await page.getByRole("menuitem", { name: "Rename Project", exact: true }).click();
+  await page.locator('input[value="Architecture regression"]').fill("Renamed project");
+  await page.getByRole("button", { name: "Save project name", exact: true }).click();
+  await expect(page.getByText("Renamed project / Regression cart", { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "Delete Disk Beta", exact: true }).click();
+  await expect.poll(async () => (await (await page.request.get(`/api/lists/${list.id}/products`)).json()).length).toBe(2);
+});
