@@ -1,3 +1,5 @@
+> This is the earlier QuickJS audit. The preview now runs a browser-backed adapter for complex forms; see [the current implementation and validation](huawei-native-calculator.md). The captured results below are preserved as historical evidence.
+
 # Complex-service and regional sync audit
 
 Captured 2026-09-29 (Asia/Shanghai). This audit tests the new automatic adapter, not the existing handwritten ECS/ELB/DCS calculators.

@@ -1,3 +1,5 @@
+> Complex-service update: the isolated preview now uses Huawei’s own renderer through a browser adapter. See [the native adapter design and limits](huawei-native-calculator.md). The QuickJS limitations described below remain applicable to that older path.
+
 # Huawei synchronization: implementation and operations
 
 Implemented 2026-09-29. The [original design](huawei-calculator-sync-plan.md) is a roadmap; this document describes the running implementation and its limits.

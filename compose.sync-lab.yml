@@ -10,6 +10,8 @@ services:
       BETTER_AUTH_SECRET: ${SYNC_LAB_AUTH_SECRET}
       BETTER_AUTH_URL: https://calculator-lab.hwctools.site
       HWC_SOCKS5_PROXY: socks5h://host.docker.internal:40001
+      HUAWEI_NATIVE_URL: http://native-calculator:3001
+      HUAWEI_NATIVE_TOKEN: ${SYNC_LAB_NATIVE_TOKEN:?Set a separate native adapter token}
       HUAWEI_SYNC_LAB_DIR: /app/audit
       HUAWEI_SYNC_DB: /app/audit/sync.sqlite
       CATALOG_DB_PATH: /app/data/catalog.db
@@ -30,9 +32,39 @@ services:
     restart: unless-stopped
     networks:
       - web
+      - native
+  native-calculator:
+    build:
+      context: .
+      dockerfile: Dockerfile.native
+    environment:
+      HWC_SOCKS5_PROXY: socks5h://host.docker.internal:40001
+      HUAWEI_NATIVE_TOKEN: ${SYNC_LAB_NATIVE_TOKEN:?Set a separate native adapter token}
+    volumes:
+      - native_data:/app/data
+    extra_hosts:
+      - host.docker.internal:host-gateway
+    init: true
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    healthcheck:
+      test: ["CMD", "bun", "-e", "fetch('http://127.0.0.1:3001/health', {headers:{authorization:'Bearer '+process.env.HUAWEI_NATIVE_TOKEN}}).then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    shm_size: 512mb
+    mem_limit: 3g
+    pids_limit: 512
+    restart: unless-stopped
+    networks:
+      - native
 volumes:
+  native_data:
   sync_lab_data:
 networks:
+  native:
   web:
     external: true
     name: home_web
