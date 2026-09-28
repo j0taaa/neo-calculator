@@ -429,6 +429,20 @@ function isConfigurableService(serviceCode: string): boolean {
 }
 
 export async function computeServerPricing(serviceCode: string, config: ConfigRecord): Promise<ServerPricingResult> {
+  if (serviceCode.startsWith("HWC:")) {
+    try {
+      const { currentRelease, parseFormInput, syncedQuote } = await import("@/lib/huawei-sync/service");
+      const saved = config.huaweiSync as { input?: unknown } | undefined;
+      const input = parseFormInput(saved?.input);
+      input.region = resolveRegionId(String(config.region ?? input.region));
+      if (config.billingMode && config.billingMode !== "Pay-per-use") throw new Error("This synchronized scope supports pay-per-use billing");
+      const service = serviceCode.slice(4);
+      const result = await syncedQuote(service, input, currentRelease(service, input.region).id, true);
+      return { pricing: result.product.pricing, title: result.product.title, productType: result.product.productType, config: result.product.config };
+    } catch (error) {
+      return { pricing: {}, title: "", productType: "huawei-synchronized", config, error: error instanceof Error ? error.message : "Synchronized pricing unavailable" };
+    }
+  }
   if (serviceCode === "ECS") {
     return computeEcsPricing(config);
   }
