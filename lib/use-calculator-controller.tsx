@@ -1,14 +1,18 @@
 import { useCallback, useEffect, useMemo, useState, type ComponentProps, type Dispatch, type SetStateAction } from "react";
 
+import type { CalculatorPanelRouter } from "@/components/calculators/calculator-panel-router";
 import { ServiceBatchAddPanel } from "@/components/calculators/service-batch-add-panel";
 import {
-  formatFlavorAmount,
-  splitPriceDisplay,
-  type AppProduct,
-  type AppProject,
-  type BillingOption,
-  type ProductMutationBody,
-} from "@/lib/calculator-page-helpers";
+  saveCalculatorProducts,
+  addCalculatorBatch,
+  applyProductMutation,
+  type CalculatorProductSource,
+  type MutateListProduct,
+  type SavedCartProduct,
+  type ProductMutationMethod,
+} from "@/lib/calculator-cart";
+import type { AppProduct, AppProject, BillingOption } from "@/lib/calculator-types";
+import { formatFlavorAmount, splitPriceDisplay } from "@/lib/calculator-page-helpers";
 import {
   buildCalculatorEstimate,
   buildCalculatorSelectionNotes,
@@ -45,14 +49,6 @@ import {
   type SystemDiskOption,
 } from "@/lib/configurable-runtime-utils";
 
-const priceListEntries = [
-  { service: "Elastic Cloud Server", sku: "c7.large.2", billing: "Pay-per-use", unit: "per hour", price: "USD 0.122" },
-  { service: "Elastic Cloud Server", sku: "c7.xlarge.4", billing: "Yearly/Monthly", unit: "per month", price: "USD 89.11" },
-  { service: "Elastic Cloud Server", sku: "c7.2xlarge.8", billing: "RI", unit: "per month", price: "USD 154.63" },
-  { service: "Flexus X Instance", sku: "fx1.medium", billing: "Pay-per-use", unit: "per hour", price: "USD 0.094" },
-  { service: "Flexus X Instance", sku: "fx1.large", billing: "Yearly/Monthly", unit: "per month", price: "USD 64.20" },
-] as const;
-
 const flavorSortLabels = {
   "price-asc": "Price: Lowest first",
   "price-desc": "Price: Highest first",
@@ -79,60 +75,6 @@ function getCustomBillingOptions(serviceCode: string): BillingOption[] {
   return ["Pay-per-use", "RI", "Yearly/Monthly"];
 }
 
-function toRequestBodiesArray(requestBodies: ProductMutationBody | ProductMutationBody[] | null): ProductMutationBody[] | null {
-  if (!requestBodies) {
-    return null;
-  }
-  return Array.isArray(requestBodies) ? requestBodies : [requestBodies];
-}
-
-function updateProjectProduct(
-  current: AppProject[],
-  payload: AppProduct & { listId: string; projectId: string },
-) {
-  return current.map((project) =>
-    project.id === payload.projectId
-      ? {
-          ...project,
-          updatedAt: payload.updatedAt,
-          lists: project.lists.map((list) =>
-            list.id === payload.listId
-              ? {
-                  ...list,
-                  updatedAt: payload.updatedAt,
-                  products: list.products.map((item) => (item.id === payload.id ? { ...item, ...payload } : item)),
-                }
-              : list,
-          ),
-        }
-      : project,
-  );
-}
-
-function appendProductToProjects(
-  current: AppProject[],
-  payload: AppProduct & { listId: string; projectId: string },
-) {
-  return current.map((project) =>
-    project.id === payload.projectId
-      ? {
-          ...project,
-          updatedAt: payload.updatedAt,
-          lists: project.lists.map((list) =>
-            list.id === payload.listId
-              ? {
-                  ...list,
-                  updatedAt: payload.updatedAt,
-                  productCount: list.productCount + 1,
-                  products: [payload, ...list.products],
-                }
-              : list,
-          ),
-        }
-      : project,
-  );
-}
-
 export type CalculatorControllerInput = {
   selectedService: string;
   selectedServiceMeta: ServiceCatalogEntry;
@@ -155,12 +97,7 @@ export type CalculatorControllerInput = {
   setProjects: Dispatch<SetStateAction<AppProject[]>>;
   setSelectedService: (value: string) => void;
   setQuery: (value: string) => void;
-  mutateListProduct: (
-    requestUrl: string,
-    requestMethod: "POST" | "PATCH",
-    requestBody: ProductMutationBody,
-    fallbackError: string,
-  ) => Promise<AppProduct & { listId: string; projectId: string }>;
+  mutateListProduct: MutateListProduct;
 };
 
 export type CalculatorControllerResult = {
@@ -184,12 +121,7 @@ export type CalculatorControllerResult = {
   setBatchInput: Dispatch<SetStateAction<string>>;
   batchAddPending: boolean;
   batchAddMessage: string;
-  calculatorPanelProps: {
-    activeServiceCode: string;
-    configurablePanel: unknown;
-    ecsPanel: unknown;
-    flexusLPanel: unknown;
-  };
+  calculatorPanelProps: ComponentProps<typeof CalculatorPanelRouter>;
   batchPanelProps: ComponentProps<typeof ServiceBatchAddPanel> | null;
   handleAddToList: () => Promise<void>;
   handleBatchAdd: () => Promise<void>;
@@ -337,10 +269,6 @@ export function useCalculatorController({
     setCustomSelection,
   } = customEcsRuntime;
 
-  const selectedPrices = useMemo(
-    () => (isCustomService ? priceListEntries.filter((entry) => entry.service === selectedService) : []),
-    [isCustomService, selectedService],
-  );
   const customCalculatorEstimate = useMemo(
     () => (
       isCustomService
@@ -348,23 +276,14 @@ export function useCalculatorController({
             {
               serviceCode: selectedServiceCode,
               instanceCountValue,
-              selectedPrices,
               selectedFlavorCard,
               selectedFlexusLPlan,
-              selectedDiskPrice,
-              selectedObsPricing: null,
-              selectedEipPricing: null,
-              selectedElbPricing: null,
-              selectedNatPricing: null,
-              selectedVpnPricing: null,
-              selectedModelArtsPricing: null,
-              selectedCcePricing: null,
             },
             formatFlavorAmount,
           )
         : { selectedEstimate: "USD 0.00", quantityLabel: "Instance", showGlobalQuantityControl: true }
     ),
-    [instanceCountValue, isCustomService, selectedDiskPrice, selectedFlavorCard, selectedFlexusLPlan, selectedPrices, selectedServiceCode],
+    [instanceCountValue, isCustomService, selectedFlavorCard, selectedFlexusLPlan, selectedServiceCode],
   );
 
   const selectedEstimate = isCustomService ? customCalculatorEstimate.selectedEstimate : configurableRuntime.selectedEstimate;
@@ -462,7 +381,6 @@ export function useCalculatorController({
         ? buildCalculatorSelectionSummary(
             {
               serviceCode: selectedServiceCode,
-              billingMode,
               selectedFlavor,
               selectedFlavorCard,
               selectedFlexusLPlan,
@@ -475,67 +393,6 @@ export function useCalculatorController({
               gpSsd2IopsValue,
               gpSsd2ThroughputValue,
               selectedDiskPrice,
-              selectedObsPricing: null,
-              obsProductType: "",
-              obsStorageClass: "",
-              obsRedundancy: "",
-              obsRestorationType: null,
-              obsStorageSizeValue: 0,
-              obsStorageUnit: "GB",
-              obsReadTrafficValue: 0,
-              obsReadTrafficUnit: "GB",
-              obsDurationMonthsValue: 1,
-              selectedEipPricing: null,
-              eipType: "",
-              eipChargeMode: "",
-              showEipBandwidth: false,
-              eipBandwidthMbitValue: 0,
-              showEipEnhanced95DurationMonths: false,
-              eipEnhanced95DurationMonthsValue: 1,
-              showEipSharedBandwidthQuantity: false,
-              eipSharedBandwidthQuantityValue: 1,
-              showEipTraffic: false,
-              eipTrafficAmountValue: 0,
-              eipTrafficUnit: "GB",
-              selectedElbPricing: null,
-              elbType: "",
-              elbSpecificationType: "",
-              elbFixedAvailabilityAzCount: 1,
-              elbFixedSelectedTypes: [],
-              normalizedElbFixedTypeSpecs: {},
-              elbSubAz: "",
-              elbNetworkType: "",
-              showElbSharedChargeMode: false,
-              elbSharedChargeMode: "",
-              showElbSharedBandwidth: false,
-              elbSharedBandwidthMbitValue: 0,
-              showElbSharedTraffic: false,
-              elbSharedTrafficAmountValue: 0,
-              elbSharedTrafficUnit: "GB",
-              selectedNatPricing: null,
-              natType: "",
-              natSize: "",
-              selectedVpnPricing: null,
-              vpnEdition: "",
-              vpnMode: "",
-              vpnNetworkType: "",
-              vpnSelectedSpecification: "",
-              showVpnPublicBandwidth: false,
-              vpnUseSharedBandwidth: false,
-              vpnEipBandwidthMbit1: "0",
-              vpnEipBandwidthMbit2: "0",
-              vpnDurationMonths: "1",
-              selectedModelArtsPricing: null,
-              modelArtsResourceType: "",
-              modelArtsSpecification: "",
-              modelArtsStorageQuotaValue: 0,
-              modelArtsQuantityValue: 1,
-              usageHoursValue,
-              modelArtsDurationMonthsValue: 1,
-              selectedCcePricing: null,
-              cceClusterScale: "",
-              cceMasterNodes: "",
-              evsDurationMonthsValue: 1,
             },
             formatFlavorAmount,
           )
@@ -543,7 +400,6 @@ export function useCalculatorController({
     ),
     [
       activeDiskSizeBounds.min,
-      billingMode,
       gpSsd2IopsValue,
       gpSsd2ThroughputValue,
       isCustomService,
@@ -556,7 +412,6 @@ export function useCalculatorController({
       selectedServiceCode,
       systemDiskSize,
       systemDiskType,
-      usageHoursValue,
       vcpuValue,
     ],
   );
@@ -569,27 +424,12 @@ export function useCalculatorController({
               serviceCode: selectedServiceCode,
               selectedFlavorCard,
               selectedDiskPrice,
-              selectedObsPricing: null,
-              obsRestorationType: null,
-              selectedEipPricing: null,
-              selectedElbPricing: null,
-              elbType: "",
-              elbSpecificationType: "",
-              elbFixedSelectedTypes: [],
-              normalizedElbFixedTypeSpecs: {},
-              elbFixedAvailabilityAzCount: 1,
-              selectedNatPricing: null,
-              selectedVpnPricing: null,
-              selectedModelArtsPricing: null,
-              selectedCcePricing: null,
-              isGpSsd2Selected,
-              evsSplitNotice: null,
             },
             formatFlavorAmount,
           )
         : []
     ),
-    [isCustomService, isGpSsd2Selected, selectedDiskPrice, selectedFlavorCard, selectedServiceCode],
+    [isCustomService, selectedDiskPrice, selectedFlavorCard, selectedServiceCode],
   );
 
   const calculatorSelectionSummary = isCustomService
@@ -807,17 +647,6 @@ export function useCalculatorController({
     });
 
     if (customHydrated.handled) {
-      setSelectedService(product.serviceName);
-      setQuery(product.serviceName);
-      if (customHydrated.nextRegion) {
-        setRegionValue(customHydrated.nextRegion);
-      }
-      if (customHydrated.nextBillingMode) {
-        setBillingMode(customHydrated.nextBillingMode);
-      }
-      if (customHydrated.nextUsageHours) {
-        setUsageHours(customHydrated.nextUsageHours);
-      }
       if (
         customHydrated.nextSelectedFlavor !== undefined
         && customHydrated.nextVcpuValue !== undefined
@@ -848,18 +677,9 @@ export function useCalculatorController({
       if (customHydrated.nextSystemDiskSize !== undefined) {
         setSystemDiskSize(customHydrated.nextSystemDiskSize);
       }
-      if (customHydrated.nextInstanceCount) {
-        setInstanceCount(customHydrated.nextInstanceCount);
-      }
-      setEditingProductId(product.id);
-      setSelectedListId(sourceListId);
-      setEditingProductListId(sourceListId);
-      setActiveTab("calculator");
-      setAddToListMessage("Editing item. Save changes when ready.");
-      return;
     }
 
-    const hydrated = configurableRuntime.hydrateProduct(product);
+    const hydrated = customHydrated.handled ? customHydrated : configurableRuntime.hydrateProduct(product);
     if (!hydrated.handled) {
       setAddToListMessage(hydrated.error ?? "This product cannot be edited from the calculator.");
       return;
@@ -914,7 +734,52 @@ export function useCalculatorController({
     ? (selectedFlexusLPlan ? null : "Select a Flexus L plan first.")
     : `${selectedService} is not implemented in the calculator yet.`;
 
-  const handleAddToList = useCallback(async () => {
+  const productSource: CalculatorProductSource = configurableRuntime.isConfigurableService
+    ? configurableRuntime
+    : {
+        buildRequestBodies: () => buildCustomProductRequestBody({
+          selectedServiceCode,
+          selectedServiceMetaCode: selectedServiceCode,
+          selectedService,
+          selectedEstimate,
+          quantity: instanceCountValue,
+          regionValue,
+          billingMode,
+          usageHoursValue,
+          selectedFlavor,
+          selectedFlavorCard,
+          selectedFlexusLPlan,
+          vcpuValue,
+          ramValue,
+          systemDiskType,
+          systemDiskSizeValue,
+          isGpSsd2Selected,
+          gpSsd2IopsValue,
+          gpSsd2ThroughputValue,
+          selectedDiskPrice,
+        }),
+        buildBatchRequestBodies: (item) => buildCustomBatchRequestBodies({
+          selectedServiceCode,
+          selectedServiceMetaCode: selectedServiceCode,
+          selectedService,
+          regionValue,
+          billingMode,
+          usageHoursValue,
+          catalogFlavors,
+          diskPricing,
+          canShowFlexusLInEcs,
+          showFlexusLInEcs,
+          item,
+        }),
+      };
+  const cartWriter = {
+    mutate: mutateListProduct,
+    onSaved: (product: SavedCartProduct, method: ProductMutationMethod) => {
+      setProjects((current) => applyProductMutation(current, product, method));
+    },
+  };
+
+  const handleAddToList = async () => {
     if (!session) {
       setAddToListMessage("Sign in to save carts and projects.");
       return;
@@ -936,80 +801,12 @@ export function useCalculatorController({
     setAddToListMessage("");
 
     try {
-      const requestBodies = configurableRuntime.isConfigurableService
-        ? toRequestBodiesArray(configurableRuntime.buildRequestBodies())
-        : toRequestBodiesArray(buildCustomProductRequestBody({
-            selectedServiceCode,
-            selectedServiceMetaCode: selectedServiceCode,
-            selectedService,
-            selectedEstimate,
-            quantity: instanceCountValue,
-            regionValue,
-            billingMode,
-            usageHoursValue,
-            selectedFlavor,
-            selectedFlavorCard,
-            selectedFlexusLPlan,
-            vcpuValue,
-            ramValue,
-            systemDiskType,
-            systemDiskSizeValue,
-            isGpSsd2Selected,
-            gpSsd2IopsValue,
-            gpSsd2ThroughputValue,
-            selectedDiskPrice,
-          }));
-
-      if (!requestBodies || requestBodies.length === 0) {
-        throw new Error("Unable to build the selected product configuration.");
-      }
-
-      if (editingProductId && editingProductListId) {
-        const [firstBody, ...extraBodies] = requestBodies;
-        const updatedPayload = await mutateListProduct(
-          `/api/lists/${editingProductListId}/products/${editingProductId}`,
-          "PATCH",
-          firstBody,
-          "Unable to update product",
-        );
-
-        setProjects((current) => updateProjectProduct(current, updatedPayload));
-
-        for (const extraBody of extraBodies) {
-          const createdPayload = await mutateListProduct(
-            `/api/lists/${selectedListId}/products`,
-            "POST",
-            extraBody,
-            "Unable to create one of the split products",
-          );
-          setProjects((current) => appendProductToProjects(current, createdPayload));
-        }
-
-        setAddToListMessage(
-          configurableRuntime.isConfigurableService
-            ? (configurableRuntime.getUpdateSuccessMessage({
-                requestBodiesCount: requestBodies.length,
-                extraRequestBodiesCount: extraBodies.length,
-              }) ?? "Product updated.")
-            : "Product updated.",
-        );
-      } else {
-        for (const requestBody of requestBodies) {
-          const createdPayload = await mutateListProduct(
-            `/api/lists/${selectedListId}/products`,
-            "POST",
-            requestBody,
-            "Unable to add product to list",
-          );
-          setProjects((current) => appendProductToProjects(current, createdPayload));
-        }
-
-        setAddToListMessage(
-          configurableRuntime.isConfigurableService
-            ? (configurableRuntime.getAddSuccessMessage({ requestBodiesCount: requestBodies.length }) ?? "Product added to list.")
-            : "Product added to list.",
-        );
-      }
+      setAddToListMessage(await saveCalculatorProducts(productSource, {
+        listId: selectedListId,
+        editing: editingProductId && editingProductListId
+          ? { productId: editingProductId, listId: editingProductListId }
+          : undefined,
+      }, cartWriter));
 
       setEditingProductId(null);
       setEditingProductListId(null);
@@ -1018,40 +815,9 @@ export function useCalculatorController({
     } finally {
       setAddToListPending(false);
     }
-  }, [
-    addToListError,
-    billingMode,
-    configurableRuntime,
-    editingProductId,
-    editingProductListId,
-    gpSsd2IopsValue,
-    gpSsd2ThroughputValue,
-    instanceCountValue,
-    isGpSsd2Selected,
-    isSelectedServiceFree,
-    isSelectedServiceImplemented,
-    mutateListProduct,
-    ramValue,
-    regionValue,
-    selectedDiskPrice,
-    selectedEstimate,
-    selectedFlavor,
-    selectedFlavorCard,
-    selectedFlexusLPlan,
-    selectedListId,
-    selectedService,
-    selectedServiceCode,
-    session,
-    setEditingProductId,
-    setEditingProductListId,
-    setProjects,
-    systemDiskSizeValue,
-    systemDiskType,
-    usageHoursValue,
-    vcpuValue,
-  ]);
+  };
 
-  const handleBatchAdd = useCallback(async () => {
+  const handleBatchAdd = async () => {
     if (!session) {
       setBatchAddMessage("Sign in to save carts and projects.");
       return;
@@ -1068,103 +834,16 @@ export function useCalculatorController({
       setBatchAddMessage("ECS flavors are not loaded yet.");
       return;
     }
-    let parsedInput: unknown;
-    try {
-      parsedInput = JSON.parse(batchInput);
-    } catch {
-      setBatchAddMessage("Batch input must be valid JSON.");
-      return;
-    }
-
-    if (!Array.isArray(parsedInput) || parsedInput.length === 0) {
-      setBatchAddMessage("Batch input must be a non-empty JSON array.");
-      return;
-    }
-
     setBatchAddPending(true);
     setBatchAddMessage("");
-    let createdCount = 0;
-    let expandedCount = 0;
-
     try {
-      for (let index = 0; index < parsedInput.length; index += 1) {
-        const item = parsedInput[index];
-        const requestBodies = isEcsCalculator || isFlexusLCalculator
-          ? toRequestBodiesArray(buildCustomBatchRequestBodies({
-              selectedServiceCode,
-              selectedServiceMetaCode: selectedServiceCode,
-              selectedService,
-              regionValue,
-              billingMode,
-              usageHoursValue,
-              catalogFlavors,
-              diskPricing,
-              canShowFlexusLInEcs,
-              showFlexusLInEcs,
-              item,
-            }))
-          : toRequestBodiesArray(configurableRuntime.buildBatchRequestBodies(item));
-
-        if (!requestBodies || requestBodies.length === 0) {
-          throw new Error(`Item ${index + 1} could not be converted into products.`);
-        }
-
-        expandedCount += Math.max(0, requestBodies.length - 1);
-
-        for (const [chunkIndex, requestBody] of requestBodies.entries()) {
-          const payload = await mutateListProduct(
-            `/api/lists/${selectedListId}/products`,
-            "POST",
-            requestBody,
-            `Unable to add item ${index + 1}${requestBodies.length > 1 ? ` chunk ${chunkIndex + 1}` : ""} to the list`,
-          );
-          setProjects((current) => appendProductToProjects(current, payload));
-          createdCount += 1;
-        }
-      }
-
-      setBatchAddMessage(
-        configurableRuntime.isConfigurableService
-          ? (
-              configurableRuntime.getBatchSuccessMessage({
-                createdCount,
-                expandedCount,
-              })
-              ?? (createdCount === 1 ? "Added 1 product to the list." : `Added ${createdCount} products to the list.`)
-            )
-          : (createdCount === 1 ? "Added 1 product to the list." : `Added ${createdCount} products to the list.`),
-      );
+      setBatchAddMessage(await addCalculatorBatch(productSource, selectedListId, batchInput, cartWriter));
     } catch (error) {
-      setBatchAddMessage(
-        createdCount > 0
-          ? `${error instanceof Error ? error.message : "Batch add failed."} ${createdCount} item${createdCount === 1 ? "" : "s"} were added before the error.`
-          : error instanceof Error
-            ? error.message
-            : "Batch add failed.",
-      );
+      setBatchAddMessage(error instanceof Error ? error.message : "Batch add failed.");
     } finally {
       setBatchAddPending(false);
     }
-  }, [
-    batchInput,
-    billingMode,
-    canShowFlexusLInEcs,
-    catalogFlavors,
-    configurableRuntime,
-    diskPricing,
-    isEcsCalculator,
-    isFlexusLCalculator,
-    isSelectedServiceBatchAddImplemented,
-    mutateListProduct,
-    regionValue,
-    selectedListId,
-    selectedService,
-    selectedServiceCode,
-    session,
-    setProjects,
-    showFlexusLInEcs,
-    usageHoursValue,
-  ]);
+  };
 
   const applyServiceUrlState = useCallback((state: DashboardUrlState) => {
     if (state.flavorQuery !== undefined) {
@@ -1253,10 +932,10 @@ export function useCalculatorController({
     batchAddPending,
     batchAddMessage,
     calculatorPanelProps: {
-      activeServiceCode: selectedServiceCode,
-      configurablePanel: configurableRuntime.panelProps,
-      ecsPanel: ecsPanelProps,
-      flexusLPanel: flexusLPanelProps,
+      panel: isEcsCalculator ? { kind: "ecs", props: ecsPanelProps }
+        : isFlexusLCalculator ? { kind: "flexus-l", props: flexusLPanelProps }
+        : configurableRuntime.panelProps ? { kind: "configurable", props: configurableRuntime.panelProps }
+        : null,
     },
     batchPanelProps: batchPanelProps
       ? {

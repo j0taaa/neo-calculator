@@ -1,3 +1,4 @@
+import type { ProductMutationBody } from "@/lib/calculator-types";
 import { getSessionFromHeaders, jsonError, readJsonBody } from "@/lib/api-route";
 import { db } from "@/lib/db";
 import { getListAccessForUser } from "@/lib/resource-access";
@@ -5,15 +6,7 @@ import { touchProject } from "@/lib/resource-persistence";
 
 export const runtime = "nodejs";
 
-type UpdateListProductBody = {
-  serviceCode?: string;
-  serviceName?: string;
-  productType?: string;
-  title?: string;
-  quantity?: number;
-  config?: unknown;
-  pricing?: unknown;
-};
+type UpdateListProductBody = Partial<ProductMutationBody>;
 
 export async function PATCH(
   request: Request,

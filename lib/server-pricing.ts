@@ -3,7 +3,8 @@ import { getTypedDeclarativeRuntimeDefinitionByCode } from "@/lib/declarative-se
 import { getCatalogFetchFn } from "@/lib/catalog-fetch-registry";
 import { getConfigurableServiceBundleByCode, getConfigurableServiceDefinitionByCode, serviceCatalog } from "@/lib/service-config";
 import { huaweiRegions, type HuaweiRegionKey } from "@/lib/huawei-regions";
-import { formatFlavorAmount, getDiskPriceForBillingOption, toFlavorCard, type BillingOption, type ProductMutationBody } from "@/lib/calculator-page-helpers";
+import type { BillingOption, ProductMutationBody } from "@/lib/calculator-types";
+import { formatFlavorAmount, getDiskPriceForBillingOption, toFlavorCard } from "@/lib/calculator-page-helpers";
 import { listStoredEcsFlavors, ensureRegionCatalogAvailable } from "@/lib/ecs-flavor-catalog";
 import { fetchRegionSystemDiskPricing } from "@/lib/evs-disk-pricing";
 import { flexusLPricingReference, findFlexusLPlan } from "@/lib/flexus-l-catalog";

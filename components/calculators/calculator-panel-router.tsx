@@ -6,25 +6,19 @@ import { ConfigurableServicePanel } from "@/components/calculators/configurable-
 import { EcsCalculatorPanel } from "@/components/calculators/ecs-calculator-panel";
 import { FlexusLCalculatorPanel } from "@/components/calculators/flexus-l-calculator-panel";
 
-type CalculatorPanelRouterProps = {
-  activeServiceCode: string;
-  configurablePanel: ComponentProps<typeof ConfigurableServicePanel> | null;
-  ecsPanel: ComponentProps<typeof EcsCalculatorPanel>;
-  flexusLPanel: ComponentProps<typeof FlexusLCalculatorPanel>;
-};
+export type CalculatorPanel =
+  | { kind: "ecs"; props: ComponentProps<typeof EcsCalculatorPanel> }
+  | { kind: "flexus-l"; props: ComponentProps<typeof FlexusLCalculatorPanel> }
+  | { kind: "configurable"; props: ComponentProps<typeof ConfigurableServicePanel> };
 
-export function CalculatorPanelRouter({
-  activeServiceCode,
-  configurablePanel,
-  ecsPanel,
-  flexusLPanel,
-}: CalculatorPanelRouterProps) {
-  switch (activeServiceCode) {
-    case "ECS":
-      return <EcsCalculatorPanel {...ecsPanel} />;
-    case "Flexus L":
-      return <FlexusLCalculatorPanel {...flexusLPanel} />;
-    default:
-      return configurablePanel ? <ConfigurableServicePanel {...configurablePanel} /> : null;
+export function CalculatorPanelRouter({ panel }: { panel: CalculatorPanel | null }) {
+  if (!panel) return null;
+  switch (panel.kind) {
+    case "ecs":
+      return <EcsCalculatorPanel {...panel.props} />;
+    case "flexus-l":
+      return <FlexusLCalculatorPanel {...panel.props} />;
+    case "configurable":
+      return <ConfigurableServicePanel {...panel.props} />;
   }
 }

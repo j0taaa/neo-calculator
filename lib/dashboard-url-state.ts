@@ -1,5 +1,5 @@
 import type { HuaweiRegionKey } from "@/lib/huawei-regions";
-import type { BillingOption } from "@/lib/calculator-page-helpers";
+import type { BillingOption } from "@/lib/calculator-types";
 
 export type ActiveModalKind =
   | "project-add-cart"

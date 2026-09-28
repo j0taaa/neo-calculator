@@ -1,3 +1,4 @@
+import type { ProductMutationBody } from "@/lib/calculator-types";
 import { getSessionFromHeaders, jsonError, readJsonBody } from "@/lib/api-route";
 import { db } from "@/lib/db";
 import { getListAccessForUser } from "@/lib/resource-access";
@@ -5,15 +6,7 @@ import { insertListProducts, mapStoredProductRow, touchProject, type StoredProdu
 
 export const runtime = "nodejs";
 
-type CreateListProductBody = {
-  serviceCode?: string;
-  serviceName?: string;
-  productType?: string;
-  title?: string;
-  quantity?: number;
-  config?: unknown;
-  pricing?: unknown;
-};
+type CreateListProductBody = Partial<ProductMutationBody>;
 
 export async function GET(
   request: Request,
