@@ -185,6 +185,8 @@ export function TopNavbar() {
   const showSearch = isDashboard || isProjects;
   const showDashboardExtras = isDashboard && config.showHuaweiCarts !== false;
 
+  if (pathname === "/sync-lab") return null;
+
   return (
     <header className="sticky top-0 z-50 border-b border-zinc-200 bg-white/90 backdrop-blur">
       <div className="mx-auto grid max-w-[1600px] grid-cols-1 items-center gap-3 px-4 py-3 lg:grid-cols-[auto_minmax(0,1fr)_auto] lg:gap-4 lg:px-6">

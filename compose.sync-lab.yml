@@ -1,0 +1,38 @@
+services:
+  sync-lab:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        BETTER_AUTH_SECRET: ${SYNC_LAB_AUTH_SECRET:?Set a separate preview secret}
+    image: neo-calculator-sync-lab:latest
+    environment:
+      BETTER_AUTH_SECRET: ${SYNC_LAB_AUTH_SECRET}
+      BETTER_AUTH_URL: https://calculator-lab.hwctools.site
+      HWC_SOCKS5_PROXY: socks5h://host.docker.internal:40001
+      HUAWEI_SYNC_LAB_DIR: /app/audit
+      HUAWEI_SYNC_DB: /app/audit/sync.sqlite
+      CATALOG_DB_PATH: /app/data/catalog.db
+    volumes:
+      - ${SYNC_LAB_DATA_DIR:?Set the captured audit directory}:/app/audit
+      - sync_lab_data:/app/data
+    extra_hosts:
+      - host.docker.internal:host-gateway
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=home_web
+      - traefik.http.routers.calculator-lab.rule=Host(`calculator-lab.hwctools.site`)
+      - traefik.http.routers.calculator-lab.entrypoints=websecure
+      - traefik.http.routers.calculator-lab.tls.certresolver=le
+      - traefik.http.routers.calculator-lab.middlewares=calculator-lab-noindex
+      - traefik.http.middlewares.calculator-lab-noindex.headers.customresponseheaders.X-Robots-Tag=noindex, nofollow
+      - traefik.http.services.calculator-lab.loadbalancer.server.port=3000
+    restart: unless-stopped
+    networks:
+      - web
+volumes:
+  sync_lab_data:
+networks:
+  web:
+    external: true
+    name: home_web

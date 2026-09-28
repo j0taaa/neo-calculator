@@ -30,6 +30,7 @@ test("NAT uses upstream choices, dependent selections and duration measurement u
 test("reachable state enumeration covers all NAT combinations and enforces its budget", async () => {
   expect(await enumerateScenarios(source, products, "ap-southeast-1")).toHaveLength(8);
   await expect(enumerateScenarios(source, products, "ap-southeast-1", 2)).rejects.toThrow("Coverage budget exceeded");
+  await expect(enumerateScenarios(source, products, "ap-southeast-1", 128, 0)).rejects.toThrow("Coverage time budget exceeded");
 });
 
 test("invalid usage, missing catalogs and unsupported controls cannot silently yield verified quotes", async () => {
