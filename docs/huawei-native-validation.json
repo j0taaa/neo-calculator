@@ -1,0 +1,510 @@
+{
+  "checkedAt": "2026-09-28T18:54:32.233Z",
+  "result": "passed",
+  "comparisons": 81,
+  "elapsedSeconds": 337.5,
+  "evidenceSha256": "91f215d1eb93a176add56d6ab0c291c8f66fc4a6f22a043ab224292aa09747ac",
+  "method": "Independent official-renderer executions, exact semantic inquiries, total and component amounts; numeric input coverage. Pay-per-use only.",
+  "scopes": [
+    {
+      "service": "ecs",
+      "region": "ap-southeast-1",
+      "source": {
+        "page": "6b3f650c493aa7b0acee484168bd559d5ea827f0c5f69770cfb4d2e313fcf810",
+        "config": "6ffc3213332236defd956da8c3bb25ac247712b98bdef09090f226a02cf49663",
+        "products": "a69c5d1a58404dbc26f21df0720b45b46d0622a4adece94414e6c262f3ef3717",
+        "framework": "bd9a0b42e80a5779409416a32232b7af4c7e09342dc49100b81d2c8a9e5d71ff",
+        "menu": "805df8e610c0a5c9a4137a389322c8351702f63e6fe0c15a5dec93d7d7888601",
+        "fetchedAt": "2026-09-28T18:49:04.978Z"
+      },
+      "cases": [
+        {
+          "name": "default",
+          "amountUSD": 0.14968
+        },
+        {
+          "name": "image-os",
+          "amountUSD": 0.14968
+        },
+        {
+          "name": "disk-type",
+          "amountUSD": 0.15456
+        },
+        {
+          "name": "kunpeng",
+          "amountUSD": 0.12176
+        },
+        {
+          "name": "data-disk",
+          "amountUSD": 0.13896
+        },
+        {
+          "name": "disk-size",
+          "amountUSD": 0.15616
+        },
+        {
+          "name": "quantity-two",
+          "amountUSD": 0.31232
+        },
+        {
+          "name": "no-eip",
+          "amountUSD": 0.21232
+        },
+        {
+          "name": "remove-disk",
+          "amountUSD": 0.14352
+        },
+        {
+          "name": "duration-two",
+          "amountUSD": 0.28704
+        }
+      ]
+    },
+    {
+      "service": "ecs",
+      "region": "sa-brazil-1",
+      "source": {
+        "page": "6b3f650c493aa7b0acee484168bd559d5ea827f0c5f69770cfb4d2e313fcf810",
+        "config": "6ffc3213332236defd956da8c3bb25ac247712b98bdef09090f226a02cf49663",
+        "products": "f68ebf350ff3f46af25f52fb1d10a71e3cc99d00db509b9acf9d758042c07759",
+        "framework": "bd9a0b42e80a5779409416a32232b7af4c7e09342dc49100b81d2c8a9e5d71ff",
+        "menu": "805df8e610c0a5c9a4137a389322c8351702f63e6fe0c15a5dec93d7d7888601",
+        "fetchedAt": "2026-09-28T18:49:42.544Z"
+      },
+      "cases": [
+        {
+          "name": "default",
+          "amountUSD": 0.23888
+        },
+        {
+          "name": "image-os",
+          "amountUSD": 0.23888
+        },
+        {
+          "name": "disk-type",
+          "amountUSD": 0.2454
+        },
+        {
+          "name": "kunpeng",
+          "amountUSD": 0.2289
+        },
+        {
+          "name": "data-disk",
+          "amountUSD": 0.2536
+        },
+        {
+          "name": "disk-size",
+          "amountUSD": 0.2783
+        },
+        {
+          "name": "quantity-two",
+          "amountUSD": 0.5566
+        },
+        {
+          "name": "no-eip",
+          "amountUSD": 0.2756
+        },
+        {
+          "name": "remove-disk",
+          "amountUSD": 0.1768
+        },
+        {
+          "name": "duration-two",
+          "amountUSD": 0.3536
+        }
+      ]
+    },
+    {
+      "service": "ecs",
+      "region": "ap-southeast-3",
+      "source": {
+        "page": "6b3f650c493aa7b0acee484168bd559d5ea827f0c5f69770cfb4d2e313fcf810",
+        "config": "6ffc3213332236defd956da8c3bb25ac247712b98bdef09090f226a02cf49663",
+        "products": "399e310ef36a6928639a166edae97e92bf162f4aee2be32c89aa92c8e3aa9f98",
+        "framework": "bd9a0b42e80a5779409416a32232b7af4c7e09342dc49100b81d2c8a9e5d71ff",
+        "menu": "805df8e610c0a5c9a4137a389322c8351702f63e6fe0c15a5dec93d7d7888601",
+        "fetchedAt": "2026-09-28T18:50:20.617Z"
+      },
+      "cases": [
+        {
+          "name": "default",
+          "amountUSD": 0.19608
+        },
+        {
+          "name": "image-os",
+          "amountUSD": 0.19608
+        },
+        {
+          "name": "disk-type",
+          "amountUSD": 0.201
+        },
+        {
+          "name": "kunpeng",
+          "amountUSD": 0.1862
+        },
+        {
+          "name": "data-disk",
+          "amountUSD": 0.2019
+        },
+        {
+          "name": "disk-size",
+          "amountUSD": 0.2176
+        },
+        {
+          "name": "quantity-two",
+          "amountUSD": 0.4352
+        },
+        {
+          "name": "no-eip",
+          "amountUSD": 0.1952
+        },
+        {
+          "name": "remove-disk",
+          "amountUSD": 0.1324
+        },
+        {
+          "name": "duration-two",
+          "amountUSD": 0.2648
+        }
+      ]
+    },
+    {
+      "service": "elb",
+      "region": "ap-southeast-1",
+      "source": {
+        "page": "6b3f650c493aa7b0acee484168bd559d5ea827f0c5f69770cfb4d2e313fcf810",
+        "config": "e60e69b064d30766f6a3f0eeee992b45f2c653719bd94f9d488deb21ee33837b",
+        "products": "13f12001ef66f03aba5a0e255901a8292b1a80c3bedb5f12244bd8e303faf172",
+        "framework": "bd9a0b42e80a5779409416a32232b7af4c7e09342dc49100b81d2c8a9e5d71ff",
+        "menu": "805df8e610c0a5c9a4137a389322c8351702f63e6fe0c15a5dec93d7d7888601",
+        "fetchedAt": "2026-09-28T18:50:59.753Z"
+      },
+      "cases": [
+        {
+          "name": "default",
+          "amountUSD": 0.03333
+        },
+        {
+          "name": "tcp-lcu",
+          "amountUSD": 0.13329
+        },
+        {
+          "name": "tcp-bytes",
+          "amountUSD": 0.858
+        },
+        {
+          "name": "tcp-unit",
+          "amountUSD": 0.13329
+        },
+        {
+          "name": "http-enabled",
+          "amountUSD": 0.14162
+        },
+        {
+          "name": "fixed",
+          "amountUSD": 0.0695
+        },
+        {
+          "name": "shared",
+          "amountUSD": 0.053
+        },
+        {
+          "name": "duration-two",
+          "amountUSD": 0.106
+        }
+      ]
+    },
+    {
+      "service": "elb",
+      "region": "sa-brazil-1",
+      "source": {
+        "page": "6b3f650c493aa7b0acee484168bd559d5ea827f0c5f69770cfb4d2e313fcf810",
+        "config": "e60e69b064d30766f6a3f0eeee992b45f2c653719bd94f9d488deb21ee33837b",
+        "products": "165498040a353ad9ce4a9f73f6b6b895c5df6e10cd4cf842216fdf10b504837d",
+        "framework": "bd9a0b42e80a5779409416a32232b7af4c7e09342dc49100b81d2c8a9e5d71ff",
+        "menu": "805df8e610c0a5c9a4137a389322c8351702f63e6fe0c15a5dec93d7d7888601",
+        "fetchedAt": "2026-09-28T18:51:31.536Z"
+      },
+      "cases": [
+        {
+          "name": "default",
+          "amountUSD": 0.03333
+        },
+        {
+          "name": "tcp-lcu",
+          "amountUSD": 0.13329
+        },
+        {
+          "name": "tcp-bytes",
+          "amountUSD": 0.858
+        },
+        {
+          "name": "tcp-unit",
+          "amountUSD": 0.13329
+        },
+        {
+          "name": "http-enabled",
+          "amountUSD": 0.14162
+        },
+        {
+          "name": "fixed",
+          "amountUSD": 0.0695
+        },
+        {
+          "name": "shared",
+          "amountUSD": 0.053
+        },
+        {
+          "name": "duration-two",
+          "amountUSD": 0.106
+        }
+      ]
+    },
+    {
+      "service": "elb",
+      "region": "ap-southeast-3",
+      "source": {
+        "page": "6b3f650c493aa7b0acee484168bd559d5ea827f0c5f69770cfb4d2e313fcf810",
+        "config": "e60e69b064d30766f6a3f0eeee992b45f2c653719bd94f9d488deb21ee33837b",
+        "products": "c7d4446d71f4bcde5d3f8dbb1ef7d8b1916d42fef8bc62d970343eeffa496fd6",
+        "framework": "bd9a0b42e80a5779409416a32232b7af4c7e09342dc49100b81d2c8a9e5d71ff",
+        "menu": "805df8e610c0a5c9a4137a389322c8351702f63e6fe0c15a5dec93d7d7888601",
+        "fetchedAt": "2026-09-28T18:52:02.756Z"
+      },
+      "cases": [
+        {
+          "name": "default",
+          "amountUSD": 0.03333
+        },
+        {
+          "name": "tcp-lcu",
+          "amountUSD": 0.13329
+        },
+        {
+          "name": "tcp-bytes",
+          "amountUSD": 0.858
+        },
+        {
+          "name": "tcp-unit",
+          "amountUSD": 0.13329
+        },
+        {
+          "name": "http-enabled",
+          "amountUSD": 0.14162
+        },
+        {
+          "name": "fixed",
+          "amountUSD": 0.0695
+        },
+        {
+          "name": "shared",
+          "amountUSD": 0.053
+        },
+        {
+          "name": "duration-two",
+          "amountUSD": 0.106
+        }
+      ]
+    },
+    {
+      "service": "redis",
+      "region": "ap-southeast-1",
+      "source": {
+        "page": "6b3f650c493aa7b0acee484168bd559d5ea827f0c5f69770cfb4d2e313fcf810",
+        "config": "977df3441cbe8f3c87931bd2d63cf1800cdfc2d4d21d560c74fd32506ed6e62c",
+        "products": "68cc3e4c87d8c8411916d4412d030edada3369ffc23988555a78d97696d64c3f",
+        "framework": "bd9a0b42e80a5779409416a32232b7af4c7e09342dc49100b81d2c8a9e5d71ff",
+        "menu": "805df8e610c0a5c9a4137a389322c8351702f63e6fe0c15a5dec93d7d7888601",
+        "fetchedAt": "2026-09-28T18:52:35.867Z"
+      },
+      "cases": [
+        {
+          "name": "default",
+          "amountUSD": 0.00233
+        },
+        {
+          "name": "version",
+          "amountUSD": 0.00233
+        },
+        {
+          "name": "master-standby",
+          "amountUSD": 0.00433
+        },
+        {
+          "name": "quantity-three",
+          "amountUSD": 0.01233
+        },
+        {
+          "name": "duration-two",
+          "amountUSD": 0.02466
+        }
+      ]
+    },
+    {
+      "service": "redis",
+      "region": "sa-brazil-1",
+      "source": {
+        "page": "6b3f650c493aa7b0acee484168bd559d5ea827f0c5f69770cfb4d2e313fcf810",
+        "config": "977df3441cbe8f3c87931bd2d63cf1800cdfc2d4d21d560c74fd32506ed6e62c",
+        "products": "fd9da4768e7c8881710ed509fd0e335e750b07712dd48846cda24d55104d2c96",
+        "framework": "bd9a0b42e80a5779409416a32232b7af4c7e09342dc49100b81d2c8a9e5d71ff",
+        "menu": "805df8e610c0a5c9a4137a389322c8351702f63e6fe0c15a5dec93d7d7888601",
+        "fetchedAt": "2026-09-28T18:52:57.770Z"
+      },
+      "cases": [
+        {
+          "name": "default",
+          "amountUSD": 0.00233
+        },
+        {
+          "name": "version",
+          "amountUSD": 0.00233
+        },
+        {
+          "name": "master-standby",
+          "amountUSD": 0.00633
+        },
+        {
+          "name": "quantity-three",
+          "amountUSD": 0.01833
+        },
+        {
+          "name": "duration-two",
+          "amountUSD": 0.03666
+        }
+      ]
+    },
+    {
+      "service": "redis",
+      "region": "ap-southeast-3",
+      "source": {
+        "page": "6b3f650c493aa7b0acee484168bd559d5ea827f0c5f69770cfb4d2e313fcf810",
+        "config": "977df3441cbe8f3c87931bd2d63cf1800cdfc2d4d21d560c74fd32506ed6e62c",
+        "products": "092a9c146b510fb2b20cdf9dc7560d1a1eea1709e902ce3e244f4e7b8531faa7",
+        "framework": "bd9a0b42e80a5779409416a32232b7af4c7e09342dc49100b81d2c8a9e5d71ff",
+        "menu": "805df8e610c0a5c9a4137a389322c8351702f63e6fe0c15a5dec93d7d7888601",
+        "fetchedAt": "2026-09-28T18:53:19.344Z"
+      },
+      "cases": [
+        {
+          "name": "default",
+          "amountUSD": 0.00233
+        },
+        {
+          "name": "version",
+          "amountUSD": 0.00233
+        },
+        {
+          "name": "master-standby",
+          "amountUSD": 0.00633
+        },
+        {
+          "name": "quantity-three",
+          "amountUSD": 0.01833
+        },
+        {
+          "name": "duration-two",
+          "amountUSD": 0.03666
+        }
+      ]
+    },
+    {
+      "service": "nat",
+      "region": "ap-southeast-1",
+      "source": {
+        "page": "6b3f650c493aa7b0acee484168bd559d5ea827f0c5f69770cfb4d2e313fcf810",
+        "config": "cdeeb27fa03ba83eeeb94e051c0de135dadd898a53de2a32b39127d561d624ef",
+        "products": "9e367e2987fcf31fed62b4838f1ca8b86bff32d56fd80cc7a88724e2575fe0b1",
+        "framework": "bd9a0b42e80a5779409416a32232b7af4c7e09342dc49100b81d2c8a9e5d71ff",
+        "menu": "805df8e610c0a5c9a4137a389322c8351702f63e6fe0c15a5dec93d7d7888601",
+        "fetchedAt": "2026-09-28T18:53:39.644Z"
+      },
+      "cases": [
+        {
+          "name": "default",
+          "amountUSD": 2.438
+        },
+        {
+          "name": "private",
+          "amountUSD": 0.102
+        },
+        {
+          "name": "large",
+          "amountUSD": 0.375
+        },
+        {
+          "name": "duration-two",
+          "amountUSD": 0.75
+        }
+      ]
+    },
+    {
+      "service": "nat",
+      "region": "sa-brazil-1",
+      "source": {
+        "page": "6b3f650c493aa7b0acee484168bd559d5ea827f0c5f69770cfb4d2e313fcf810",
+        "config": "cdeeb27fa03ba83eeeb94e051c0de135dadd898a53de2a32b39127d561d624ef",
+        "products": "4df1047c778f16fb44120d6bf4c77ccf24a59605a02c53c0f8ba3ab33f78c4b8",
+        "framework": "bd9a0b42e80a5779409416a32232b7af4c7e09342dc49100b81d2c8a9e5d71ff",
+        "menu": "805df8e610c0a5c9a4137a389322c8351702f63e6fe0c15a5dec93d7d7888601",
+        "fetchedAt": "2026-09-28T18:53:58.225Z"
+      },
+      "cases": [
+        {
+          "name": "default",
+          "amountUSD": 2.438
+        },
+        {
+          "name": "private",
+          "amountUSD": 0.102
+        },
+        {
+          "name": "large",
+          "amountUSD": 0.375
+        },
+        {
+          "name": "duration-two",
+          "amountUSD": 0.75
+        }
+      ]
+    },
+    {
+      "service": "nat",
+      "region": "ap-southeast-3",
+      "source": {
+        "page": "6b3f650c493aa7b0acee484168bd559d5ea827f0c5f69770cfb4d2e313fcf810",
+        "config": "cdeeb27fa03ba83eeeb94e051c0de135dadd898a53de2a32b39127d561d624ef",
+        "products": "b7875745ea1c27fdc46ac9666bb9bd505f8078af14016d9fd6116f4a0a44960d",
+        "framework": "bd9a0b42e80a5779409416a32232b7af4c7e09342dc49100b81d2c8a9e5d71ff",
+        "menu": "805df8e610c0a5c9a4137a389322c8351702f63e6fe0c15a5dec93d7d7888601",
+        "fetchedAt": "2026-09-28T18:54:15.631Z"
+      },
+      "cases": [
+        {
+          "name": "default",
+          "amountUSD": 2.438
+        },
+        {
+          "name": "private",
+          "amountUSD": 0.102
+        },
+        {
+          "name": "large",
+          "amountUSD": 0.375
+        },
+        {
+          "name": "duration-two",
+          "amountUSD": 0.75
+        }
+      ]
+    }
+  ],
+  "otherChecks": {
+    "unitTests": 282,
+    "browserFixtureTests": 3,
+    "deployedPreviewTests": 4,
+    "typescript": "passed",
+    "dockerBuilds": "passed",
+    "lint": "0 errors, 4 pre-existing warnings"
+  }
+}

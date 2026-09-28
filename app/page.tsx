@@ -3247,7 +3247,11 @@ export default function Home() {
                                   size="icon"
                                   onClick={(event) => {
                                     event.stopPropagation();
-                                    handleEditProduct(product);
+                                    if (product.serviceCode.startsWith("HWC:")) {
+                                      window.location.assign(`/synchronized?service=${encodeURIComponent(product.serviceCode.slice(4))}&edit=${encodeURIComponent(product.id)}`);
+                                    } else {
+                                      handleEditProduct(product);
+                                    }
                                   }}
                                   disabled={deletingProductId === product.id}
                                   aria-label={`Edit ${product.title}`}

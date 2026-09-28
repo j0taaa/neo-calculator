@@ -95,3 +95,9 @@ This suite creates temporary accounts and carts, verifies saving/editing and bat
 pricing, exercises both clone endpoints and API-key pricing, and checks sharing
 and export/import. Its calculator fixtures avoid dependence on changing prices;
 the catalog route and API-key scenarios still require Huawei network access.
+
+## Automatic Huawei synchronization
+
+The `/synchronized` page loads verified service definitions dynamically from Huawei snapshots. A separate worker discovers services, evaluates upstream rules in isolated QuickJS, checks them against the official calculator in Chromium, and publishes compatible scopes automatically. Final quotes come from Huawei and are rechecked on save.
+
+Start with `bun run sync:calculator:once` and a configured Huawei transport. The worker and app must share `HUAWEI_SYNC_DB`. Current publication covers supported pay-per-use forms; unsupported forms stay quarantined, and existing calculators remain available. See the [implementation and operations guide](docs/huawei-sync-implementation.md) for the plan, commands, verification gates, tested coverage, and limitations.
