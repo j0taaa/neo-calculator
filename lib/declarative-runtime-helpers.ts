@@ -1,46 +1,280 @@
 import { apigDefaults, apigPricingReference, estimateApigConfiguration, listApigEditions } from "@/lib/apig-catalog";
-import { cbhDefaults, cbhPricingReference, estimateCbhConfiguration, listCbhDurationMonths, listCbhEditions, listCbhInstanceTypes } from "@/lib/cbh-catalog";
-import { cbrDefaults, cbrPricingReference, estimateCbrConfiguration, listCbrDurationMonths, listCbrVaultTypes } from "@/lib/cbr-catalog";
-import { ccmDefaults, ccmPricingReference, estimateCcmConfiguration, listCcmAuthorities, listCcmCertificateTypes, listCcmDomainTypes, listCcmValidityPeriods } from "@/lib/ccm-catalog";
-import { buildObsHuaweiPayload, convertObsCapacityToGb, convertObsRequestInputToCount, estimateObsConfiguration, getObsRedundancyOptions, getObsStorageClassOptions, listObsProductTypes, listObsRedundancies, listObsRestorationTypes, listObsStorageClasses, normalizeObsPositiveNumber, obsPricingReference, shouldShowObsPullTraffic, type ObsCapacityUnit, type ObsEstimateInput, type ObsPricingCatalog, type ObsProductType, type ObsRedundancy, type ObsRestorationType, type ObsStorageClass } from "@/lib/obs-catalog";
-import { eipDefaults, eipSharedBandwidthMinimumMbit, eipSharedEnhanced95MinimumMbit, estimateEipConfiguration, eipPricingReference } from "@/lib/eip-catalog";
-import { elbDefaults, elbDedicatedProtocolOptions, elbFixedSpecOptions, estimateElbConfiguration, elbPricingReference, getElbBillingOptions, shouldShowElbSharedBandwidth, shouldShowElbSharedChargeMode, shouldShowElbSharedTraffic } from "@/lib/elb-catalog";
-import { cceDefaults, ccePricingReference, estimateCceConfiguration, getFallbackCcePricingCatalog, listCceClusterScales, listCceMasterNodes } from "@/lib/cce-catalog";
-import { dcsDefaults, dcsPricingReference, estimateDcsConfiguration, listDcsArchitectures, listDcsInstanceTypes, listDcsReplicas, listDcsSpecifications, listDcsVersions } from "@/lib/dcs-catalog";
-import { estimateNatConfiguration, getFallbackNatPricingCatalog, listNatGatewaySizes, listNatGatewayTypes, natDefaults, natPricingReference } from "@/lib/nat-catalog";
-import { estimateModelArtsConfiguration, listModelArtsResourceTypes, listModelArtsSpecifications, modelArtsDefaults, modelArtsPricingReference } from "@/lib/modelarts-catalog";
-import { estimateVpnConfiguration, getFallbackVpnPricingCatalog, getVpnBillingOptions, listVpnModes, listVpnSpecifications, shouldShowVpnPublicBandwidth, vpnDefaults, vpnPricingReference } from "@/lib/vpn-catalog";
-import { estimateWorkspaceConfiguration, listWorkspaceCpuOptions, listWorkspaceDiskTypes, listWorkspaceMemoryOptions, workspaceDefaults, workspacePricingReference } from "@/lib/workspace-catalog";
-import { estimateFunctionGraphConfiguration, functionGraphDefaults, functionGraphPricingReference, getFallbackFunctionGraphPricingCatalog } from "@/lib/functiongraph-catalog";
-import { estimateFlexusRdsConfiguration, flexusRdsDefaults, flexusRdsPricingReference, listFlexusRdsEngines, listFlexusRdsInstanceTypes, listFlexusRdsSizes, listFlexusRdsVersions } from "@/lib/flexus-rds-catalog";
-import { directConnectDefaults, directConnectPricingReference, estimateDirectConnectConfiguration, listDirectConnectDurationMonths, listDirectConnectPortSpeeds } from "@/lib/direct-connect-catalog";
+import {
+  cbhDefaults,
+  cbhPricingReference,
+  estimateCbhConfiguration,
+  listCbhDurationMonths,
+  listCbhEditions,
+  listCbhInstanceTypes,
+} from "@/lib/cbh-catalog";
+import {
+  cbrDefaults,
+  cbrPricingReference,
+  estimateCbrConfiguration,
+  listCbrDurationMonths,
+  listCbrVaultTypes,
+} from "@/lib/cbr-catalog";
+import {
+  ccmDefaults,
+  ccmPricingReference,
+  estimateCcmConfiguration,
+  listCcmAuthorities,
+  listCcmCertificateTypes,
+  listCcmDomainTypes,
+  listCcmValidityPeriods,
+} from "@/lib/ccm-catalog";
+import {
+  buildObsHuaweiPayload,
+  convertObsCapacityToGb,
+  convertObsRequestInputToCount,
+  estimateObsConfiguration,
+  getObsRedundancyOptions,
+  getObsStorageClassOptions,
+  listObsProductTypes,
+  listObsRedundancies,
+  listObsRestorationTypes,
+  listObsStorageClasses,
+  normalizeObsPositiveNumber,
+  obsPricingReference,
+  shouldShowObsPullTraffic,
+  type ObsCapacityUnit,
+  type ObsEstimateInput,
+  type ObsPricingCatalog,
+  type ObsProductType,
+  type ObsRedundancy,
+  type ObsRestorationType,
+  type ObsStorageClass,
+} from "@/lib/obs-catalog";
+import {
+  eipDefaults,
+  eipSharedBandwidthMinimumMbit,
+  eipSharedEnhanced95MinimumMbit,
+  estimateEipConfiguration,
+  eipPricingReference,
+} from "@/lib/eip-catalog";
+import {
+  elbDefaults,
+  elbDedicatedProtocolOptions,
+  elbFixedSpecOptions,
+  estimateElbConfiguration,
+  elbPricingReference,
+  getElbBillingOptions,
+  shouldShowElbSharedBandwidth,
+  shouldShowElbSharedChargeMode,
+  shouldShowElbSharedTraffic,
+} from "@/lib/elb-catalog";
+import {
+  cceDefaults,
+  ccePricingReference,
+  estimateCceConfiguration,
+  getFallbackCcePricingCatalog,
+  listCceClusterScales,
+  listCceMasterNodes,
+} from "@/lib/cce-catalog";
+import {
+  dcsDefaults,
+  dcsPricingReference,
+  estimateDcsConfiguration,
+  listDcsArchitectures,
+  listDcsInstanceTypes,
+  listDcsReplicas,
+  listDcsSpecifications,
+  listDcsVersions,
+} from "@/lib/dcs-catalog";
+import {
+  estimateNatConfiguration,
+  getFallbackNatPricingCatalog,
+  listNatGatewaySizes,
+  listNatGatewayTypes,
+  natDefaults,
+  natPricingReference,
+} from "@/lib/nat-catalog";
+import {
+  estimateModelArtsConfiguration,
+  listModelArtsResourceTypes,
+  listModelArtsSpecifications,
+  modelArtsDefaults,
+  modelArtsPricingReference,
+} from "@/lib/modelarts-catalog";
+import {
+  estimateVpnConfiguration,
+  getFallbackVpnPricingCatalog,
+  getVpnBillingOptions,
+  listVpnModes,
+  listVpnSpecifications,
+  shouldShowVpnPublicBandwidth,
+  vpnDefaults,
+  vpnPricingReference,
+} from "@/lib/vpn-catalog";
+import {
+  estimateWorkspaceConfiguration,
+  listWorkspaceCpuOptions,
+  listWorkspaceDiskTypes,
+  listWorkspaceMemoryOptions,
+  workspaceDefaults,
+  workspacePricingReference,
+} from "@/lib/workspace-catalog";
+import {
+  estimateFunctionGraphConfiguration,
+  functionGraphDefaults,
+  functionGraphPricingReference,
+  getFallbackFunctionGraphPricingCatalog,
+} from "@/lib/functiongraph-catalog";
+import {
+  estimateFlexusRdsConfiguration,
+  flexusRdsDefaults,
+  flexusRdsPricingReference,
+  listFlexusRdsEngines,
+  listFlexusRdsInstanceTypes,
+  listFlexusRdsSizes,
+  listFlexusRdsVersions,
+} from "@/lib/flexus-rds-catalog";
+import {
+  directConnectDefaults,
+  directConnectPricingReference,
+  estimateDirectConnectConfiguration,
+  listDirectConnectDurationMonths,
+  listDirectConnectPortSpeeds,
+} from "@/lib/direct-connect-catalog";
 import { erDefaults, erPricingReference, estimateErConfiguration } from "@/lib/er-catalog";
-import { estimateGaConfiguration, gaDefaults, gaPricingReference, getGaDestinationEndpointForRegion, listGaAccessPoints } from "@/lib/ga-catalog";
-import { estimateGaussDbConfiguration, gaussDbDefaults, gaussDbPricingReference, listGaussDbEditions, listGaussDbSpecifications } from "@/lib/gaussdb-catalog";
+import {
+  estimateGaConfiguration,
+  gaDefaults,
+  gaPricingReference,
+  getGaDestinationEndpointForRegion,
+  listGaAccessPoints,
+} from "@/lib/ga-catalog";
+import {
+  estimateGaussDbConfiguration,
+  gaussDbDefaults,
+  gaussDbPricingReference,
+  listGaussDbEditions,
+  listGaussDbSpecifications,
+} from "@/lib/gaussdb-catalog";
 import { estimateLtsConfiguration, ltsDefaults, ltsPricingReference } from "@/lib/lts-catalog";
-import { estimateRdsConfiguration, isRdsEngine, isRdsInstanceClass, isRdsInstanceType, isRdsStorageType, isRdsVersion, listRdsEngines, listRdsInstanceClasses, listRdsInstanceTypes, listRdsSizes, listRdsStorageTypes, listRdsVersions, rdsDefaults, rdsPricingReference } from "@/lib/rds-catalog";
-import { estimateVpcepConfiguration, listVpcepServiceCategories, vpcepDefaults, vpcepPricingReference } from "@/lib/vpcep-catalog";
-import { convertSfsStorageToGb, estimateSfsConfiguration, getSfsStorageUnitOptions, hasSfsPackagePricing, inferSfsStorageAmountFromGb, inferSfsStorageUnitFromGb, listSfsDurationMonths, listSfsFileSystemTypes, listSfsStorageSpaceOptions, listSfsTypes, sfsDefaults, sfsPricingReference } from "@/lib/sfs-catalog";
-import { estimateSfsTurboConfiguration, listSfsTurboBillingOptions, listSfsTurboCapacityOptions, listSfsTurboDurationMonths, listSfsTurboGenerations, listSfsTurboTypes, sfsTurboDefaults, sfsTurboPricingReference } from "@/lib/sfs-turbo-catalog";
+import {
+  estimateRdsConfiguration,
+  isRdsEngine,
+  isRdsInstanceClass,
+  isRdsInstanceType,
+  isRdsStorageType,
+  isRdsVersion,
+  listRdsEngines,
+  listRdsInstanceClasses,
+  listRdsInstanceTypes,
+  listRdsSizes,
+  listRdsStorageTypes,
+  listRdsVersions,
+  rdsDefaults,
+  rdsPricingReference,
+} from "@/lib/rds-catalog";
+import {
+  estimateVpcepConfiguration,
+  listVpcepServiceCategories,
+  vpcepDefaults,
+  vpcepPricingReference,
+} from "@/lib/vpcep-catalog";
+import {
+  convertSfsStorageToGb,
+  estimateSfsConfiguration,
+  getSfsStorageUnitOptions,
+  hasSfsPackagePricing,
+  inferSfsStorageAmountFromGb,
+  inferSfsStorageUnitFromGb,
+  listSfsDurationMonths,
+  listSfsFileSystemTypes,
+  listSfsStorageSpaceOptions,
+  listSfsTypes,
+  sfsDefaults,
+  sfsPricingReference,
+} from "@/lib/sfs-catalog";
+import {
+  estimateSfsTurboConfiguration,
+  listSfsTurboBillingOptions,
+  listSfsTurboCapacityOptions,
+  listSfsTurboDurationMonths,
+  listSfsTurboGenerations,
+  listSfsTurboTypes,
+  sfsTurboDefaults,
+  sfsTurboPricingReference,
+} from "@/lib/sfs-turbo-catalog";
 import { estimateGesConfiguration, gesDefaults, gesPricingReference, listGesGraphSizes } from "@/lib/ges-catalog";
 import { estimateHssConfiguration, hssDefaults, hssPricingReference, listHssEditions } from "@/lib/hss-catalog";
 import { estimateDewConfiguration, dewDefaults, dewPricingReference, listDewKeyTypes } from "@/lib/dew-catalog";
 import { estimateSmnConfiguration, smnDefaults, smnPricingReference, listSmnProtocolTypes } from "@/lib/smn-catalog";
 import { estimateDwsConfiguration, dwsDefaults, dwsPricingReference, listDwsSpecifications } from "@/lib/dws-catalog";
-import { estimateDliConfiguration, dliDefaults, dliPricingReference, listDliBillingItems, listDliSpecifications } from "@/lib/dli-catalog";
+import {
+  estimateDliConfiguration,
+  dliDefaults,
+  dliPricingReference,
+  listDliBillingItems,
+  listDliSpecifications,
+} from "@/lib/dli-catalog";
 import { estimateCdmConfiguration, cdmDefaults, cdmPricingReference, listCdmInstanceTypes } from "@/lib/cdm-catalog";
-import { estimateDdsConfiguration, ddsDefaults, ddsPricingReference, listDdsDbTypes, listDdsSpecifications } from "@/lib/dds-catalog";
+import {
+  estimateDdsConfiguration,
+  ddsDefaults,
+  ddsPricingReference,
+  listDdsDbTypes,
+  listDdsSpecifications,
+} from "@/lib/dds-catalog";
 import { estimateWafConfiguration, wafDefaults, wafPricingReference, listWafEditions } from "@/lib/waf-catalog";
 import { estimateCfwConfiguration, cfwDefaults, cfwPricingReference, listCfwEditions } from "@/lib/cfw-catalog";
-import { estimateDmsConfiguration, dmsDefaults, dmsPricingReference, listDmsFlavors, listDmsBandwidths, listDmsStorageTypes } from "@/lib/dms-catalog";
-import { estimateDrsConfiguration, drsDefaults, drsPricingReference, listDrsTaskTypes, listDrsDirections } from "@/lib/drs-catalog";
-import { estimateMrsConfiguration, mrsDefaults, mrsPricingReference, listMrsClusterTypes, listMrsNodeTypes } from "@/lib/mrs-catalog";
+import {
+  estimateDmsConfiguration,
+  dmsDefaults,
+  dmsPricingReference,
+  listDmsFlavors,
+  listDmsBandwidths,
+  listDmsStorageTypes,
+} from "@/lib/dms-catalog";
+import {
+  estimateDrsConfiguration,
+  drsDefaults,
+  drsPricingReference,
+  listDrsTaskTypes,
+  listDrsDirections,
+} from "@/lib/drs-catalog";
+import {
+  estimateMrsConfiguration,
+  mrsDefaults,
+  mrsPricingReference,
+  listMrsClusterTypes,
+  listMrsNodeTypes,
+} from "@/lib/mrs-catalog";
 import { estimateCseConfiguration, cseDefaults, csePricingReference, listCseSpecifications } from "@/lib/cse-catalog";
 import { disDefaults, disPricingReference, estimateDisConfiguration, listDisTypes } from "@/lib/dis-catalog";
-import { buildEvsProductMutationBodies, buildEvsSplitNotice, evsDiskSizeBounds, formatObsRequestInputValue, getGpSsd2IopsBounds, getGpSsd2RequestedIops, getGpSsd2RequestedThroughput, getGpSsd2ThroughputBounds, getObsRequestUnits, normalizeGpSsd2Iops, normalizeGpSsd2Throughput, obsStorageSizeBounds, parsePositiveNumber, splitEvsDiskSizes, systemDiskOptions } from "@/lib/configurable-runtime-utils";
-import { getBatchDescription, getBatchDiskSize, getBatchDiskType, getBatchObsAmount, getBatchObsProductType, getBatchObsRedundancy, getBatchObsStorageClass, getBatchObsStorageSize, getBatchObsUnit, getNestedRecord, parseBatchQuantity } from "@/lib/batch-input-utils";
+import {
+  buildEvsProductMutationBodies,
+  buildEvsSplitNotice,
+  evsDiskSizeBounds,
+  formatObsRequestInputValue,
+  getGpSsd2IopsBounds,
+  getGpSsd2RequestedIops,
+  getGpSsd2RequestedThroughput,
+  getGpSsd2ThroughputBounds,
+  getObsRequestUnits,
+  normalizeGpSsd2Iops,
+  normalizeGpSsd2Throughput,
+  obsStorageSizeBounds,
+  parsePositiveNumber,
+  splitEvsDiskSizes,
+  systemDiskOptions,
+} from "@/lib/configurable-runtime-utils";
+import {
+  getBatchDescription,
+  getBatchDiskSize,
+  getBatchDiskType,
+  getBatchObsAmount,
+  getBatchObsProductType,
+  getBatchObsRedundancy,
+  getBatchObsStorageClass,
+  getBatchObsStorageSize,
+  getBatchObsUnit,
+  getNestedRecord,
+  parseBatchQuantity,
+} from "@/lib/batch-input-utils";
 import { formatFlavorAmount, getDiskPriceForBillingOption, isRecord } from "@/lib/calculator-page-helpers";
-import { evaluateDefinitionExpression } from "@/lib/declarative-runtime-evaluator";
 import { huaweiRegions } from "@/lib/huawei-regions";
 
 function asArray<T>(value: T[] | readonly T[] | null | undefined) {
@@ -51,7 +285,11 @@ function optionList(values: readonly (string | number)[] | null | undefined) {
   return asArray(values).map((value) => ({ value: String(value), label: String(value) }));
 }
 
-function resolveOption<T extends string | number>(value: unknown, options: readonly T[] | null | undefined, fallback: T) {
+function resolveOption<T extends string | number>(
+  value: unknown,
+  options: readonly T[] | null | undefined,
+  fallback: T,
+) {
   const normalizedOptions = asArray(options);
   const resolved = normalizedOptions.find((entry) => entry === value);
   if (resolved != null) {
@@ -62,7 +300,9 @@ function resolveOption<T extends string | number>(value: unknown, options: reado
 
 function resolveNumberOption(value: unknown, options: readonly number[] | null | undefined, fallback: number) {
   const parsed = typeof value === "number" ? value : Number(value);
-  const normalizedOptions = asArray(options).filter((entry): entry is number => typeof entry === "number" && Number.isFinite(entry));
+  const normalizedOptions = asArray(options).filter(
+    (entry): entry is number => typeof entry === "number" && Number.isFinite(entry),
+  );
   if (Number.isFinite(parsed) && normalizedOptions.includes(parsed)) {
     return parsed;
   }
@@ -94,14 +334,22 @@ function firstDefined<T>(...values: Array<T | null | undefined>) {
   return null;
 }
 
-function byLabelAmount(currency: string, suffix: string, breakdown: Array<{ label: string; amount: number }> | null | undefined) {
+function byLabelAmount(
+  currency: string,
+  suffix: string,
+  breakdown: Array<{ label: string; amount: number }> | null | undefined,
+) {
   return asArray(breakdown).map((entry) => ({
     label: entry.label,
     value: formatFlavorAmount(currency, entry.amount, suffix),
   }));
 }
 
-function formatBreakdownNotes(currency: string, suffix: string, breakdown: Array<{ label: string; amount: number }> | null | undefined) {
+function formatBreakdownNotes(
+  currency: string,
+  suffix: string,
+  breakdown: Array<{ label: string; amount: number }> | null | undefined,
+) {
   return byLabelAmount(currency, suffix, breakdown).map((entry) => `${entry.label}: ${entry.value}`);
 }
 
@@ -132,7 +380,10 @@ function integerString(value: unknown, fallback: unknown, minimum = 1, maximum?:
 }
 
 function multiplyNumbers(...values: Array<number | null | undefined>) {
-  return values.reduce<number>((product, value) => product * (typeof value === "number" && Number.isFinite(value) ? value : 1), 1);
+  return values.reduce<number>(
+    (product, value) => product * (typeof value === "number" && Number.isFinite(value) ? value : 1),
+    1,
+  );
 }
 
 function getCatalogRegionId(regionValue: keyof typeof huaweiRegions | string) {
@@ -141,13 +392,6 @@ function getCatalogRegionId(regionValue: keyof typeof huaweiRegions | string) {
   }
 
   return regionValue;
-}
-
-function runLegacyDefinitionExpression(expression: string | null | undefined, scope: Record<string, unknown>) {
-  return evaluateDefinitionExpression(expression, {
-    helpers: declarativeRuntimeHelpers,
-    ...scope,
-  });
 }
 
 export const declarativeRuntimeHelpers = {
@@ -330,7 +574,6 @@ export const declarativeRuntimeHelpers = {
   multiplyNumbers,
   getCatalogRegionId,
   getGaDestinationEndpointForRegion,
-  runLegacyDefinitionExpression,
   byLabelAmount,
   formatBreakdownNotes,
   obsPricingReference,
@@ -425,4 +668,12 @@ export const declarativeRuntimeHelpers = {
 };
 
 export type DeclarativeRuntimeHelpers = typeof declarativeRuntimeHelpers;
-export type { ObsCapacityUnit, ObsEstimateInput, ObsPricingCatalog, ObsProductType, ObsRedundancy, ObsRestorationType, ObsStorageClass };
+export type {
+  ObsCapacityUnit,
+  ObsEstimateInput,
+  ObsPricingCatalog,
+  ObsProductType,
+  ObsRedundancy,
+  ObsRestorationType,
+  ObsStorageClass,
+};

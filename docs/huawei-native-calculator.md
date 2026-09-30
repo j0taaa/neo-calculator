@@ -30,7 +30,7 @@ The UI clears the previous quote as soon as a selection or numeric draft changes
 The live audit drives a separate official page with explicit Playwright clicks/fills, independently of the adapter's interaction driver. It compares semantic full inquiries, total amounts, every component amount and visible numeric input coverage. Both executions receive the same source snapshots to avoid mixing updates during a comparison. This is an independent execution comparison, not proof of every possible input combination.
 
 ```sh
-HWC_SOCKS5_PROXY=socks5h://127.0.0.1:40001 bun scripts/audit-native-calculator.ts
+HWC_SOCKS5_PROXY=socks5h://172.17.0.1:40001 bun scripts/audit-native-calculator.ts
 bun run test
 bunx playwright test --config tests/native-dom.config.ts
 bunx playwright test --config tests/sync-lab.config.ts
@@ -44,7 +44,7 @@ The integration audit covers ECS, ELB, DCS and NAT in Hong Kong, São Paulo and 
 
 Browser fixture tests cover inline controls, disabled choices, repeated disk actions, globals omitted from service metadata, new widgets and unmapped inputs. Public preview tests cover the actual Neo UI, immediate price invalidation, invalid numeric drafts, mobile layout, directory discovery and API contract rejection. Existing unit suites continue to cover partial/duplicate/invalid quote responses and the earlier synchronization pipeline.
 
-The preview currently exposes **pay-per-use** only. It depends on Huawei availability and Chromium, with a higher per-session resource cost than QuickJS. It is not a replacement for the existing saved-cart flow, a guarantee of every flavor/region/billing-mode combination, or a claim that the older interpreter now supports ECS/ELB. Unsupported upstream changes stop quotes and require adapter support.
+The preview currently exposes **pay-per-use** only. It depends on Huawei availability and Chromium, with a higher per-session resource cost than QuickJS. It is integrated into the main saved-cart flow through the Huawei live tab. It is not a guarantee of every flavor/region/billing-mode combination, or a claim that the older interpreter now supports ECS/ELB. Unsupported upstream changes stop quotes and require adapter support.
 
 ## Deployment
 
@@ -55,3 +55,16 @@ docker compose --env-file /home/neo-calculator-lab.env -p neo-sync-lab -f compos
 ```
 
 The sidecar listens only on the private Compose network. Traefik provides HTTPS and `noindex` for the app. To roll back, redeploy the previous app image and disable the native sidecar; production calculator data is separate.
+
+
+## Main application deployment and saved configurations
+
+The main application uses its own native sidecar, token and data volume. Set a random 32+ character `HUAWEI_NATIVE_TOKEN` in `/home/neo-calculator-native.env` (mode 0600). `compose.native.yml` documents the production overlay; the VPS parent Compose also references its sidecar service so normal app restarts preserve connectivity. No sidecar port is published.
+
+Native selections persist initial controls, an ordered action history and expected final controls. Reopening replays them against current collected sources, checking control identities and selected labels throughout. Saving refreshes the exact session revision on the server; stale revisions, incomplete quotes, changed defaults and unavailable choices reject the operation. The server strips session IDs before persistence. Sessions remain anonymous and contain no account/cart database access.
+
+The main workspace preserves the legacy runtime for other billing modes and saved products. New services are discoverable in the Huawei live service selector without adding local definitions. Unknown Huawei widgets continue to fail closed.
+
+The integration rerun recorded **81 independent comparisons** across ECS, ELB, DCS and NAT in Hong Kong, São Paulo and Singapore; see `huawei-native-integration-validation.json`. São Paulo's ECS default aC8 currently renders empty disabled image selectors in Huawei. Neo blocks pricing for that incomplete form. The São Paulo ECS audit explicitly selects C7n and then exercises images, disks, Kunpeng, quantities and duration; the default aC8 state is not counted as a supported quote.
+
+The integrated application also passes 335 unit tests and 16 isolated main-workspace scenarios, including native selection replay and authenticated/private API repricing. Invalid saved edit links display a recoverable configuration error. These checks complement the native DOM and preview suites; they do not establish exhaustive coverage of every service/region combination.

@@ -1,3 +1,4 @@
+import { isNativeProduct, verifyNativeProduct } from "@/lib/huawei-sync/native-product";
 import type { ProductMutationBody } from "@/lib/calculator-types";
 import { getSessionFromHeaders, jsonError, readJsonBody } from "@/lib/api-route";
 import { db } from "@/lib/db";
@@ -8,10 +9,7 @@ export const runtime = "nodejs";
 
 type UpdateListProductBody = Partial<ProductMutationBody>;
 
-export async function PATCH(
-  request: Request,
-  context: { params: Promise<{ listId: string; productId: string }> },
-) {
+export async function PATCH(request: Request, context: { params: Promise<{ listId: string; productId: string }> }) {
   const session = await getSessionFromHeaders(request.headers);
 
   if (!session) {
@@ -19,14 +17,14 @@ export async function PATCH(
   }
 
   const { listId, productId } = await context.params;
-  const body = await readJsonBody<UpdateListProductBody>(request);
+  let body = await readJsonBody<UpdateListProductBody>(request);
   const listAccess = getListAccessForUser(session.user.id, listId);
 
   const serviceCode = body?.serviceCode?.trim();
   const serviceName = body?.serviceName?.trim();
-  const productType = body?.productType?.trim();
+  let productType = body?.productType?.trim();
   const title = body?.title?.trim();
-  const quantity = Math.max(1, Math.floor(body?.quantity ?? 1));
+  let quantity = Math.max(1, Math.floor(body?.quantity ?? 1));
 
   if (!serviceCode || !serviceName || !productType || !title) {
     return jsonError("serviceCode, serviceName, productType, and title are required");
@@ -52,6 +50,16 @@ export async function PATCH(
     return jsonError("Product not found", 404);
   }
 
+  if (isNativeProduct({ serviceCode, productType })) {
+    try {
+      body = await verifyNativeProduct(body as ProductMutationBody);
+      quantity = body.quantity!;
+      productType = body.productType!;
+    } catch (error) {
+      return jsonError(error instanceof Error ? error.message : "Huawei verification failed", 422);
+    }
+  }
+
   const now = new Date().toISOString();
   const configJson = JSON.stringify(body?.config ?? {});
   const pricingJson = body?.pricing === undefined ? null : JSON.stringify(body.pricing);
@@ -71,18 +79,7 @@ export async function PATCH(
           updated_at = ?
         WHERE id = ? AND list_id = ?
       `,
-    ).run(
-      serviceCode,
-      serviceName,
-      productType,
-      title,
-      quantity,
-      configJson,
-      pricingJson,
-      now,
-      productId,
-      listId,
-    );
+    ).run(serviceCode, serviceName, productType, title, quantity, configJson, pricingJson, now, productId, listId);
 
     db.query("UPDATE project_list SET updated_at = ? WHERE id = ?").run(now, listId);
     touchProject(product.project_id, now);
@@ -94,19 +91,16 @@ export async function PATCH(
     projectId: product.project_id,
     serviceCode,
     serviceName,
-      productType,
-      title,
-      quantity,
-      config: body?.config ?? {},
-      pricing: body?.pricing ?? null,
-      updatedAt: now,
-    });
+    productType,
+    title,
+    quantity,
+    config: body?.config ?? {},
+    pricing: body?.pricing ?? null,
+    updatedAt: now,
+  });
 }
 
-export async function DELETE(
-  request: Request,
-  context: { params: Promise<{ listId: string; productId: string }> },
-) {
+export async function DELETE(request: Request, context: { params: Promise<{ listId: string; productId: string }> }) {
   const session = await getSessionFromHeaders(request.headers);
 
   if (!session) {

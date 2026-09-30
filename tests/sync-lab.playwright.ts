@@ -10,7 +10,8 @@ test("discovers the Huawei service and region directory", async ({ request }) =>
   const directory = await response.json();
   expect(directory.services.length).toBeGreaterThan(90);
   expect(directory.regions.length).toBeGreaterThan(20);
-  for (const id of ["ecs", "elb", "redis", "nat"]) expect(directory.services.some((s: { id: string }) => s.id === id)).toBe(true);
+  for (const id of ["ecs", "elb", "redis", "nat"])
+    expect(directory.services.some((s: { id: string }) => s.id === id)).toBe(true);
   expect(directory.regions.some((r: { id: string }) => r.id === "sa-brazil-1")).toBe(true);
 });
 
@@ -46,7 +47,7 @@ test("ECS renders dependencies, adds and removes disks, and never displays a sta
 
 test("ELB derives LCU charges and handles HTTP, fixed and shared variants", async ({ page }) => {
   await page.goto("/sync-lab");
-  await page.getByLabel("Test service").selectOption("elb");
+  await page.getByLabel("Huawei service").selectOption("elb");
   await page.getByRole("button", { name: "Open calculator", exact: true }).click();
   await expect(page.getByTestId("lab-price")).toBeVisible({ timeout: 100000 });
   const initial = await page.getByTestId("lab-price").innerText();
@@ -66,31 +67,90 @@ test("ELB derives LCU charges and handles HTTP, fixed and shared variants", asyn
   await page.goto("/sync-lab/audit");
 });
 
-test("session API rejects stale updates, client-forged fields, invalid scopes and expired sessions", async ({ request }) => {
-  expect((await request.post("/api/sync-lab/live", { data: { action: "open", service: "invented", region: "ap-southeast-1" } })).status()).toBe(422);
-  const response = await request.post("/api/sync-lab/live", { data: { action: "open", service: "nat", region: "sa-brazil-1" }, timeout: 110000 });
+test("session API rejects stale updates, client-forged fields, invalid scopes and expired sessions", async ({
+  request,
+}) => {
+  expect(
+    (
+      await request.post("/api/sync-lab/live", {
+        data: { action: "open", service: "invented", region: "ap-southeast-1" },
+      })
+    ).status(),
+  ).toBe(422);
+  const response = await request.post("/api/sync-lab/live", {
+    data: { action: "open", service: "nat", region: "sa-brazil-1" },
+    timeout: 110000,
+  });
   expect(response.ok()).toBe(true);
   let state: NativeState = await response.json();
   try {
-    expect(state.diagnostics).toEqual([]); expect(state.quote).not.toBeNull();
-    for (const patch of [{ revision: 9999, field: "global_ONDEMANDTIME:0", value: 2 }, { revision: state.revision, field: "body", value: true }, { revision: state.revision, field: "global_ONDEMANDTIME:0", value: -1 }]) {
-      const result = await request.post("/api/sync-lab/live", { data: { action: "change", session: state.session, ...patch } });
+    expect(state.diagnostics).toEqual([]);
+    expect(state.quote).not.toBeNull();
+    for (const patch of [
+      { revision: 9999, field: "global_ONDEMANDTIME:0", value: 2 },
+      { revision: state.revision, field: "body", value: true },
+      { revision: state.revision, field: "global_ONDEMANDTIME:0", value: -1 },
+    ]) {
+      const result = await request.post("/api/sync-lab/live", {
+        data: { action: "change", session: state.session, ...patch },
+      });
       expect(result.ok()).toBe(false);
     }
     for (const label of ["Private network", "Large"]) {
-      const field = state.fields.find(f => f.options?.some(o => o.label === label))!;
-      const result = await request.post("/api/sync-lab/live", { data: { action: "change", session: state.session, revision: state.revision, field: field.id, value: field.options!.find(o => o.label === label)!.value } });
-      expect(result.ok()).toBe(true); state = await result.json();
+      const field = state.fields.find((f) => f.options?.some((o) => o.label === label))!;
+      const result = await request.post("/api/sync-lab/live", {
+        data: {
+          action: "change",
+          session: state.session,
+          revision: state.revision,
+          field: field.id,
+          value: field.options!.find((o) => o.label === label)!.value,
+        },
+      });
+      expect(result.ok()).toBe(true);
+      state = await result.json();
       expect(state.quote).not.toBeNull();
     }
-    const changed = await request.post("/api/sync-lab/live", { data: { action: "change", session: state.session, revision: state.revision, field: "global_ONDEMANDTIME:0", value: 2 } });
-    expect(changed.ok()).toBe(true); state = await changed.json();
-    expect(state.quote).not.toBeNull(); expect(state.inquiry?.regionId).toBe("sa-brazil-1");
-    const competing = await Promise.all([3, 4].map(value => request.post("/api/sync-lab/live", { data: { action: "change", session: state.session, revision: state.revision, field: "global_ONDEMANDTIME:0", value } })));
-    expect(competing.map(result => result.status()).sort()).toEqual([200, 409]);
-    state = await competing.find(result => result.ok())!.json();
+    const changed = await request.post("/api/sync-lab/live", {
+      data: {
+        action: "change",
+        session: state.session,
+        revision: state.revision,
+        field: "global_ONDEMANDTIME:0",
+        value: 2,
+      },
+    });
+    expect(changed.ok()).toBe(true);
+    state = await changed.json();
     expect(state.quote).not.toBeNull();
-  } finally { await close(request, state.session); }
-  const expired = await request.post("/api/sync-lab/live", { data: { action: "change", session: state.session, revision: state.revision, field: "global_ONDEMANDTIME:0", value: 3 } });
+    expect(state.inquiry?.regionId).toBe("sa-brazil-1");
+    const competing = await Promise.all(
+      [3, 4].map((value) =>
+        request.post("/api/sync-lab/live", {
+          data: {
+            action: "change",
+            session: state.session,
+            revision: state.revision,
+            field: "global_ONDEMANDTIME:0",
+            value,
+          },
+        }),
+      ),
+    );
+    expect(competing.map((result) => result.status()).sort()).toEqual([200, 409]);
+    state = await competing.find((result) => result.ok())!.json();
+    expect(state.quote).not.toBeNull();
+  } finally {
+    await close(request, state.session);
+  }
+  const expired = await request.post("/api/sync-lab/live", {
+    data: {
+      action: "change",
+      session: state.session,
+      revision: state.revision,
+      field: "global_ONDEMANDTIME:0",
+      value: 3,
+    },
+  });
   expect(expired.status()).toBe(410);
 });

@@ -19,6 +19,21 @@ export function getProductConfigSummary(product: AppProduct): string {
     return product.serviceName;
   }
 
+  if (product.productType === "huawei-native") {
+    const selection = product.config.selection;
+    if (isRecord(selection) && Array.isArray(selection.fields)) {
+      return [
+        product.config.region,
+        ...selection.fields
+          .filter(isRecord)
+          .filter((field) => field.type !== "action")
+          .map((field) => `${field.label}: ${field.optionLabel ?? field.value}`),
+      ]
+        .filter(Boolean)
+        .join(" · ");
+    }
+  }
+
   if (product.productType === "ecs") {
     const systemDisk = isRecord(product.config.systemDisk) ? product.config.systemDisk : null;
     const diskIops = systemDisk && typeof systemDisk.iops === "number" ? systemDisk.iops : null;
@@ -43,29 +58,35 @@ export function getProductConfigSummary(product: AppProduct): string {
   }
 
   if (product.productType === "evs") {
-    const diskType = typeof product.config.diskType === "string"
-      ? product.config.diskType
-      : isRecord(product.config.systemDisk) && typeof product.config.systemDisk.type === "string"
-        ? product.config.systemDisk.type
-        : null;
-    const diskSizeGiB = typeof product.config.diskSizeGiB === "number"
-      ? product.config.diskSizeGiB
-      : isRecord(product.config.systemDisk) && typeof product.config.systemDisk.sizeGiB === "number"
-        ? product.config.systemDisk.sizeGiB
-        : null;
-    const diskIops = typeof product.config.iops === "number"
-      ? product.config.iops
-      : isRecord(product.config.systemDisk) && typeof product.config.systemDisk.iops === "number"
-        ? product.config.systemDisk.iops
-        : null;
-    const diskThroughput = typeof product.config.throughput === "number"
-      ? product.config.throughput
-      : isRecord(product.config.systemDisk) && typeof product.config.systemDisk.throughput === "number"
-        ? product.config.systemDisk.throughput
-        : null;
+    const diskType =
+      typeof product.config.diskType === "string"
+        ? product.config.diskType
+        : isRecord(product.config.systemDisk) && typeof product.config.systemDisk.type === "string"
+          ? product.config.systemDisk.type
+          : null;
+    const diskSizeGiB =
+      typeof product.config.diskSizeGiB === "number"
+        ? product.config.diskSizeGiB
+        : isRecord(product.config.systemDisk) && typeof product.config.systemDisk.sizeGiB === "number"
+          ? product.config.systemDisk.sizeGiB
+          : null;
+    const diskIops =
+      typeof product.config.iops === "number"
+        ? product.config.iops
+        : isRecord(product.config.systemDisk) && typeof product.config.systemDisk.iops === "number"
+          ? product.config.systemDisk.iops
+          : null;
+    const diskThroughput =
+      typeof product.config.throughput === "number"
+        ? product.config.throughput
+        : isRecord(product.config.systemDisk) && typeof product.config.systemDisk.throughput === "number"
+          ? product.config.systemDisk.throughput
+          : null;
     const parts = [
       typeof product.config.region === "string" ? product.config.region : null,
-      diskType && diskSizeGiB ? `${diskType} ${diskSizeGiB} GiB` : diskType ?? (diskSizeGiB ? `${diskSizeGiB} GiB` : null),
+      diskType && diskSizeGiB
+        ? `${diskType} ${diskSizeGiB} GiB`
+        : (diskType ?? (diskSizeGiB ? `${diskSizeGiB} GiB` : null)),
       diskIops ? `${diskIops} IOPS` : null,
       diskThroughput ? `${diskThroughput} MB/s` : null,
       typeof product.config.billingMode === "string" ? product.config.billingMode : null,
@@ -95,24 +116,30 @@ export function getProductConfigSummary(product: AppProduct): string {
   }
 
   if (product.productType === "obs") {
-    const storageAmount = typeof product.config.storageAmount === "number"
-      ? product.config.storageAmount
-      : typeof product.config.storageGiB === "number"
-        ? product.config.storageGiB
-        : null;
+    const storageAmount =
+      typeof product.config.storageAmount === "number"
+        ? product.config.storageAmount
+        : typeof product.config.storageGiB === "number"
+          ? product.config.storageGiB
+          : null;
     const storageUnit = typeof product.config.storageUnit === "string" ? product.config.storageUnit : null;
-    const outboundTrafficAmount = typeof product.config.outboundTrafficAmount === "number" ? product.config.outboundTrafficAmount : null;
-    const outboundTrafficUnit = typeof product.config.outboundTrafficUnit === "string" ? product.config.outboundTrafficUnit : null;
-    const pullTrafficAmount = typeof product.config.pullTrafficAmount === "number" ? product.config.pullTrafficAmount : null;
+    const outboundTrafficAmount =
+      typeof product.config.outboundTrafficAmount === "number" ? product.config.outboundTrafficAmount : null;
+    const outboundTrafficUnit =
+      typeof product.config.outboundTrafficUnit === "string" ? product.config.outboundTrafficUnit : null;
+    const pullTrafficAmount =
+      typeof product.config.pullTrafficAmount === "number" ? product.config.pullTrafficAmount : null;
     const pullTrafficUnit = typeof product.config.pullTrafficUnit === "string" ? product.config.pullTrafficUnit : null;
-    const showPullTraffic = typeof product.config.productType === "string"
-      ? product.config.productType === "Object storage"
-      : true;
-    const readTrafficAmount = typeof product.config.readTrafficAmount === "number" ? product.config.readTrafficAmount : null;
+    const showPullTraffic =
+      typeof product.config.productType === "string" ? product.config.productType === "Object storage" : true;
+    const readTrafficAmount =
+      typeof product.config.readTrafficAmount === "number" ? product.config.readTrafficAmount : null;
     const readTrafficUnit = typeof product.config.readTrafficUnit === "string" ? product.config.readTrafficUnit : null;
     const restorationType = typeof product.config.restorationType === "string" ? product.config.restorationType : null;
-    const replicationTrafficAmount = typeof product.config.replicationTrafficAmount === "number" ? product.config.replicationTrafficAmount : null;
-    const replicationTrafficUnit = typeof product.config.replicationTrafficUnit === "string" ? product.config.replicationTrafficUnit : null;
+    const replicationTrafficAmount =
+      typeof product.config.replicationTrafficAmount === "number" ? product.config.replicationTrafficAmount : null;
+    const replicationTrafficUnit =
+      typeof product.config.replicationTrafficUnit === "string" ? product.config.replicationTrafficUnit : null;
     const parts = [
       typeof product.config.region === "string" ? product.config.region : null,
       typeof product.config.productType === "string" ? product.config.productType : null,
@@ -120,14 +147,28 @@ export function getProductConfigSummary(product: AppProduct): string {
       typeof product.config.redundancy === "string" ? product.config.redundancy : null,
       storageAmount != null ? `${storageAmount} ${storageUnit ?? "GB"}` : null,
       typeof product.config.durationMonths === "number" ? `${product.config.durationMonths}mo` : null,
-      outboundTrafficAmount != null && outboundTrafficAmount > 0 ? `Outbound ${outboundTrafficAmount} ${outboundTrafficUnit ?? "GB"}` : null,
-      showPullTraffic && pullTrafficAmount != null && pullTrafficAmount > 0 ? `Pull ${pullTrafficAmount} ${pullTrafficUnit ?? "GB"}` : null,
+      outboundTrafficAmount != null && outboundTrafficAmount > 0
+        ? `Outbound ${outboundTrafficAmount} ${outboundTrafficUnit ?? "GB"}`
+        : null,
+      showPullTraffic && pullTrafficAmount != null && pullTrafficAmount > 0
+        ? `Pull ${pullTrafficAmount} ${pullTrafficUnit ?? "GB"}`
+        : null,
       restorationType ? restorationType : null,
-      readTrafficAmount != null && readTrafficAmount > 0 ? `Read ${readTrafficAmount} ${readTrafficUnit ?? "GB"}` : null,
-      replicationTrafficAmount != null && replicationTrafficAmount > 0 ? `CRR ${replicationTrafficAmount} ${replicationTrafficUnit ?? "GB"}` : null,
-      typeof product.config.readRequests === "number" ? formatObsRequestSummary(product.config.readRequests, "reads") : null,
-      typeof product.config.writeRequests === "number" ? formatObsRequestSummary(product.config.writeRequests, "writes") : null,
-      typeof product.config.deleteRequests === "number" ? formatObsRequestSummary(product.config.deleteRequests, "deletes") : null,
+      readTrafficAmount != null && readTrafficAmount > 0
+        ? `Read ${readTrafficAmount} ${readTrafficUnit ?? "GB"}`
+        : null,
+      replicationTrafficAmount != null && replicationTrafficAmount > 0
+        ? `CRR ${replicationTrafficAmount} ${replicationTrafficUnit ?? "GB"}`
+        : null,
+      typeof product.config.readRequests === "number"
+        ? formatObsRequestSummary(product.config.readRequests, "reads")
+        : null,
+      typeof product.config.writeRequests === "number"
+        ? formatObsRequestSummary(product.config.writeRequests, "writes")
+        : null,
+      typeof product.config.deleteRequests === "number"
+        ? formatObsRequestSummary(product.config.deleteRequests, "deletes")
+        : null,
       typeof product.config.lifecycleTransitionRequests === "number"
         ? formatObsRequestSummary(product.config.lifecycleTransitionRequests, "lifecycle transitions")
         : null,
@@ -190,9 +231,7 @@ export function getProductConfigSummary(product: AppProduct): string {
       typeof product.config.domainQuantity === "number" && product.config.domainType === "Multiple domains"
         ? `${product.config.domainQuantity} domains`
         : null,
-      typeof product.config.validityPeriodYears === "number"
-        ? `${product.config.validityPeriodYears}yr`
-        : null,
+      typeof product.config.validityPeriodYears === "number" ? `${product.config.validityPeriodYears}yr` : null,
       typeof product.config.billingMode === "string" ? product.config.billingMode : null,
     ].filter(Boolean);
 
@@ -234,7 +273,9 @@ export function getProductConfigSummary(product: AppProduct): string {
     const parts = [
       typeof product.config.region === "string" ? product.config.region : null,
       typeof product.config.rawLogSizeGb === "number" ? `${product.config.rawLogSizeGb} GB/day` : null,
-      typeof product.config.logStorageDurationDays === "number" ? `${product.config.logStorageDurationDays} days` : null,
+      typeof product.config.logStorageDurationDays === "number"
+        ? `${product.config.logStorageDurationDays} days`
+        : null,
       typeof product.config.indexFieldRatio === "number" ? `${product.config.indexFieldRatio}% index` : null,
       product.config.intelligentColdStorage === true ? "Cold storage" : "Standard storage only",
       typeof product.config.billingMode === "string" ? product.config.billingMode : null,
@@ -257,14 +298,20 @@ export function getProductConfigSummary(product: AppProduct): string {
       typeof product.config.specificationType === "string" && product.config.type === "Dedicated load balancer"
         ? product.config.specificationType
         : null,
-      typeof product.config.fixedAvailabilityAzCount === "number" && product.config.type === "Dedicated load balancer" && product.config.specificationType === "Fixed"
+      typeof product.config.fixedAvailabilityAzCount === "number" &&
+      product.config.type === "Dedicated load balancer" &&
+      product.config.specificationType === "Fixed"
         ? `${product.config.fixedAvailabilityAzCount} AZs`
         : null,
-      fixedSelectedTypes.length > 0 && product.config.type === "Dedicated load balancer" && product.config.specificationType === "Fixed"
+      fixedSelectedTypes.length > 0 &&
+      product.config.type === "Dedicated load balancer" &&
+      product.config.specificationType === "Fixed"
         ? fixedSelectedTypes.join(", ")
         : null,
-      selectedProtocols.length > 0 && product.config.type === "Dedicated load balancer"
-        && product.config.specificationType === "Elastic" ? selectedProtocols.join(", ")
+      selectedProtocols.length > 0 &&
+      product.config.type === "Dedicated load balancer" &&
+      product.config.specificationType === "Elastic"
+        ? selectedProtocols.join(", ")
         : null,
       typeof product.config.networkType === "string" ? product.config.networkType : null,
       typeof product.config.billingMode === "string" ? product.config.billingMode : null,
@@ -291,7 +338,9 @@ export function getProductConfigSummary(product: AppProduct): string {
       typeof product.config.durationMonths === "number" && product.config.chargeMode === "Enhanced 95"
         ? `${product.config.durationMonths}mo`
         : null,
-      typeof product.config.sharedBandwidthQuantity === "number" && product.config.type === "Shared EIP" && product.config.chargeMode === "By bandwidth"
+      typeof product.config.sharedBandwidthQuantity === "number" &&
+      product.config.type === "Shared EIP" &&
+      product.config.chargeMode === "By bandwidth"
         ? `${product.config.sharedBandwidthQuantity} shared bandwidth${product.config.sharedBandwidthQuantity === 1 ? "" : "s"}`
         : null,
       typeof product.config.trafficAmount === "number" && product.config.chargeMode === "By traffic"
@@ -301,8 +350,8 @@ export function getProductConfigSummary(product: AppProduct): string {
       typeof product.config.durationMonths === "number" && product.config.chargeMode === "Enhanced 95"
         ? null
         : typeof product.config.usageHours === "number" && product.config.billingMode === "Pay-per-use"
-        ? `${product.config.usageHours}h`
-        : null,
+          ? `${product.config.usageHours}h`
+          : null,
     ].filter(Boolean);
 
     return parts.join(" · ") || product.serviceName;
@@ -335,8 +384,8 @@ export function getProductConfigSummary(product: AppProduct): string {
       typeof product.config.billableDays === "number" && product.config.billingMode === "Pay-per-use"
         ? `${product.config.billableDays}d`
         : typeof product.config.usageHours === "number" && product.config.billingMode === "Pay-per-use"
-        ? `${product.config.usageHours}h`
-        : null,
+          ? `${product.config.usageHours}h`
+          : null,
     ].filter(Boolean);
 
     return parts.join(" · ") || product.serviceName;
@@ -349,14 +398,16 @@ export function getProductConfigSummary(product: AppProduct): string {
       typeof product.config.mode === "string" ? product.config.mode : null,
       typeof product.config.networkType === "string" ? product.config.networkType : null,
       typeof product.config.specification === "string" ? product.config.specification : null,
-      typeof product.config.accessViaNonFixedIp === "string" && product.config.mode === "Site-to-Cloud" && product.config.networkType === "Public network"
+      typeof product.config.accessViaNonFixedIp === "string" &&
+      product.config.mode === "Site-to-Cloud" &&
+      product.config.networkType === "Public network"
         ? `Non-fixed IP ${product.config.accessViaNonFixedIp}`
         : null,
-      typeof product.config.connectionGroups === "number"
-        ? `${product.config.connectionGroups} groups`
-        : null,
+      typeof product.config.connectionGroups === "number" ? `${product.config.connectionGroups} groups` : null,
       typeof product.config.useSharedBandwidth === "boolean" && product.config.networkType === "Public network"
-        ? product.config.useSharedBandwidth ? "Shared bandwidth" : "Dedicated bandwidth"
+        ? product.config.useSharedBandwidth
+          ? "Shared bandwidth"
+          : "Dedicated bandwidth"
         : null,
       typeof product.config.eipBandwidthMbit1 === "number" && product.config.networkType === "Public network"
         ? `EIP1 ${product.config.eipBandwidthMbit1} Mbit/s`
@@ -396,15 +447,18 @@ export function getProductConfigSummary(product: AppProduct): string {
       typeof product.config.serviceType === "string" ? product.config.serviceType : null,
       typeof product.config.resourceType === "string" ? product.config.resourceType : null,
       typeof product.config.specification === "string" ? product.config.specification : null,
-      typeof product.config.resourceType === "string" && product.config.resourceType === "EVS Storage"
-        && typeof product.config.storageQuotaGb === "number"
+      typeof product.config.resourceType === "string" &&
+      product.config.resourceType === "EVS Storage" &&
+      typeof product.config.storageQuotaGb === "number"
         ? `${product.config.storageQuotaGb} GB`
         : typeof product.config.quantity === "number"
-        ? `${product.config.quantity} instance${product.config.quantity === 1 ? "" : "s"}`
-        : null,
+          ? `${product.config.quantity} instance${product.config.quantity === 1 ? "" : "s"}`
+          : null,
       typeof product.config.billingMode === "string" ? product.config.billingMode : null,
       typeof product.config.durationMonths === "number" && product.config.billingMode === "Yearly/Monthly"
-        ? product.config.durationMonths === 12 ? "1yr" : `${product.config.durationMonths}mo`
+        ? product.config.durationMonths === 12
+          ? "1yr"
+          : `${product.config.durationMonths}mo`
         : null,
       typeof product.config.usageHours === "number" && product.config.billingMode === "Pay-per-use"
         ? `${product.config.usageHours}h`
@@ -445,8 +499,12 @@ export function getProductConfigSummary(product: AppProduct): string {
       typeof product.config.throughputMibps === "number" ? `${product.config.throughputMibps} MiB/s` : null,
       typeof product.config.billingMode === "string" ? product.config.billingMode : null,
       typeof product.config.durationMonths === "number"
-        ? product.config.durationMonths === 12 ? "1yr" : `${product.config.durationMonths}mo`
-        : typeof product.config.usageHours === "number" ? `${product.config.usageHours}h` : null,
+        ? product.config.durationMonths === 12
+          ? "1yr"
+          : `${product.config.durationMonths}mo`
+        : typeof product.config.usageHours === "number"
+          ? `${product.config.usageHours}h`
+          : null,
     ].filter(Boolean);
 
     return parts.join(" · ") || product.serviceName;
@@ -458,9 +516,17 @@ export function getProductConfigSummary(product: AppProduct): string {
       typeof product.config.portSpeed === "string" ? product.config.portSpeed : null,
       typeof product.config.billingMode === "string" ? product.config.billingMode : null,
       typeof product.config.durationMonths === "number"
-        ? product.config.durationMonths === 12 ? "1yr" : product.config.durationMonths === 24 ? "2yr" : product.config.durationMonths === 36 ? "3yr" : `${product.config.durationMonths}mo`
+        ? product.config.durationMonths === 12
+          ? "1yr"
+          : product.config.durationMonths === 24
+            ? "2yr"
+            : product.config.durationMonths === 36
+              ? "3yr"
+              : `${product.config.durationMonths}mo`
         : null,
-      typeof product.config.quantity === "number" ? `${product.config.quantity} port${product.config.quantity === 1 ? "" : "s"}` : null,
+      typeof product.config.quantity === "number"
+        ? `${product.config.quantity} port${product.config.quantity === 1 ? "" : "s"}`
+        : null,
     ].filter(Boolean);
 
     return parts.join(" · ") || product.serviceName;
@@ -473,9 +539,17 @@ export function getProductConfigSummary(product: AppProduct): string {
       typeof product.config.edition === "string" ? product.config.edition : null,
       typeof product.config.billingMode === "string" ? product.config.billingMode : null,
       typeof product.config.durationMonths === "number"
-        ? product.config.durationMonths === 12 ? "1yr" : product.config.durationMonths === 24 ? "2yr" : product.config.durationMonths === 36 ? "3yr" : `${product.config.durationMonths}mo`
+        ? product.config.durationMonths === 12
+          ? "1yr"
+          : product.config.durationMonths === 24
+            ? "2yr"
+            : product.config.durationMonths === 36
+              ? "3yr"
+              : `${product.config.durationMonths}mo`
         : null,
-      typeof product.config.quantity === "number" ? `${product.config.quantity} instance${product.config.quantity === 1 ? "" : "s"}` : null,
+      typeof product.config.quantity === "number"
+        ? `${product.config.quantity} instance${product.config.quantity === 1 ? "" : "s"}`
+        : null,
     ].filter(Boolean);
 
     return parts.join(" · ") || product.serviceName;
@@ -488,7 +562,9 @@ export function getProductConfigSummary(product: AppProduct): string {
       typeof product.config.trafficGb === "number" ? `${product.config.trafficGb} GB` : null,
       typeof product.config.billingMode === "string" ? product.config.billingMode : null,
       typeof product.config.usageHours === "number" ? `${product.config.usageHours}h` : null,
-      typeof product.config.quantity === "number" ? `${product.config.quantity} endpoint${product.config.quantity === 1 ? "" : "s"}` : null,
+      typeof product.config.quantity === "number"
+        ? `${product.config.quantity} endpoint${product.config.quantity === 1 ? "" : "s"}`
+        : null,
     ].filter(Boolean);
 
     return parts.join(" · ") || product.serviceName;
@@ -497,11 +573,15 @@ export function getProductConfigSummary(product: AppProduct): string {
   if (product.productType === "er") {
     const parts = [
       typeof product.config.region === "string" ? product.config.region : null,
-      typeof product.config.attachmentQuantity === "number" ? `${product.config.attachmentQuantity} attachment${product.config.attachmentQuantity === 1 ? "" : "s"}` : null,
+      typeof product.config.attachmentQuantity === "number"
+        ? `${product.config.attachmentQuantity} attachment${product.config.attachmentQuantity === 1 ? "" : "s"}`
+        : null,
       typeof product.config.trafficGb === "number" ? `${product.config.trafficGb} GB` : null,
       typeof product.config.billingMode === "string" ? product.config.billingMode : null,
       typeof product.config.usageHours === "number" ? `${product.config.usageHours}h` : null,
-      typeof product.config.quantity === "number" ? `${product.config.quantity} router${product.config.quantity === 1 ? "" : "s"}` : null,
+      typeof product.config.quantity === "number"
+        ? `${product.config.quantity} router${product.config.quantity === 1 ? "" : "s"}`
+        : null,
     ].filter(Boolean);
 
     return parts.join(" · ") || product.serviceName;
@@ -512,14 +592,20 @@ export function getProductConfigSummary(product: AppProduct): string {
       typeof product.config.region === "string" ? product.config.region : null,
       typeof product.config.edition === "string" ? product.config.edition : null,
       typeof product.config.publicOutboundAccess === "boolean"
-        ? product.config.publicOutboundAccess ? "Public outbound enabled" : "Public outbound disabled"
+        ? product.config.publicOutboundAccess
+          ? "Public outbound enabled"
+          : "Public outbound disabled"
         : null,
-      typeof product.config.publicOutboundAccess === "boolean" && product.config.publicOutboundAccess && typeof product.config.bandwidthMbit === "number"
+      typeof product.config.publicOutboundAccess === "boolean" &&
+      product.config.publicOutboundAccess &&
+      typeof product.config.bandwidthMbit === "number"
         ? `${product.config.bandwidthMbit} Mbit/s`
         : null,
       typeof product.config.billingMode === "string" ? product.config.billingMode : null,
       typeof product.config.usageHours === "number" ? `${product.config.usageHours}h` : null,
-      typeof product.config.quantity === "number" ? `${product.config.quantity} gateway${product.config.quantity === 1 ? "" : "s"}` : null,
+      typeof product.config.quantity === "number"
+        ? `${product.config.quantity} gateway${product.config.quantity === 1 ? "" : "s"}`
+        : null,
     ].filter(Boolean);
 
     return parts.join(" · ") || product.serviceName;

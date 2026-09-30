@@ -1,29 +1,3 @@
+export { GET, POST } from "@/app/api/calculator/native/route";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-const rates = new Map<string, { start: number; requests: number; opens: number }>();
-const headers = { "cache-control": "no-store", "x-robots-tag": "noindex, nofollow" };
-async function proxy(request: Request) {
-  const base = process.env.HUAWEI_NATIVE_URL, token = process.env.HUAWEI_NATIVE_TOKEN;
-  if (!process.env.HUAWEI_SYNC_LAB_DIR || !base || !token) return Response.json({ error: "Live preview is not enabled" }, { status: 404, headers });
-  try {
-    const ip = request.headers.get("x-forwarded-for")?.split(",")[0] ?? "local";
-    if (rates.size > 5000) rates.clear();
-    let rate = rates.get(ip);
-    if (!rate || Date.now() - rate.start > 60000) { rate = { start: Date.now(), requests: 0, opens: 0 }; rates.set(ip, rate); }
-    if (++rate.requests > 60) return Response.json({ error: "Too many requests; please wait a minute" }, { status: 429, headers });
-    let body: string | undefined;
-    if (request.method === "POST") {
-      const origin = request.headers.get("origin");
-      if (origin && origin !== new URL(request.url).origin && origin !== process.env.BETTER_AUTH_URL) return new Response(null, { status: 403 });
-      body = await request.text();
-      if (body.length > 16000) return new Response(null, { status: 413 });
-      const data = JSON.parse(body);
-      if (data.action === "open" && ++rate.opens > 8) return Response.json({ error: "Too many new sessions; please wait a minute" }, { status: 429, headers });
-    }
-    const response = await fetch(`${base}/${request.method === "GET" ? "directory" : "session"}`, { method: request.method,
-      headers: { authorization: `Bearer ${token}`, "content-type": "application/json" }, body, cache: "no-store", signal: AbortSignal.timeout(110000) });
-    return new Response(await response.text(), { status: response.status, headers: { ...headers, "content-type": "application/json" } });
-  } catch { return Response.json({ error: "The live calculator is temporarily unavailable. Try reopening it." }, { status: 502, headers }); }
-}
-export const GET = proxy;
-export const POST = proxy;

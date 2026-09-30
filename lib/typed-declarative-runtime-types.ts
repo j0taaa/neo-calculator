@@ -3,6 +3,7 @@ import type { DeclarativeCatalogSource } from "@/lib/declarative-service-runtime
 export type TypedDeclarativePrimitive = string | number | boolean | null;
 
 export type TypedDeclarativeValue =
+  | ((scope: Record<string, unknown>) => unknown)
   | TypedDeclarativePrimitive
   | TypedDeclarativeOperation
   | TypedDeclarativeValue[]

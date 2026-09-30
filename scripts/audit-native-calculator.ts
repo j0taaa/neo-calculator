@@ -93,7 +93,12 @@ try {
         state = await calculator.act({ session: state!.session, revision: state!.revision, field: id, value: next });
         await compare(name);
       }
-      await compare("default");
+      const generation = service === "ecs" ? process.env.NATIVE_AUDIT_ECS_GENERATION : undefined;
+      if (generation) {
+        const field = state.fields.find(field => field.options?.some(option => option.label === generation));
+        assert(field, `Missing requested ECS generation ${generation}`);
+        await change(`selected-generation-${generation}`, field.id, generation, () => radio(page, "calculator_ecs_radio", generation));
+      } else await compare("default");
       if (service === "ecs") {
         const choices = await page.locator('#calculator_ims_select_0 .tiny-select-dropdown__item').allTextContents();
         assert.deepEqual(state.fields.find(f => f.id === "calculator_ims_select:0")!.options!.map(o => o.label), choices.map(s => s.replace(/\s+/g, " ").trim()));

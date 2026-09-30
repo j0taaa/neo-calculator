@@ -63,7 +63,7 @@ export async function POST(
   const serviceCode = body?.serviceCode?.trim();
   const serviceName = body?.serviceName?.trim();
   const productType = body?.productType?.trim();
-  const quantity = Math.max(1, Math.floor(body?.quantity ?? 1));
+  let quantity = Math.max(1, Math.floor(body?.quantity ?? 1));
 
   if (!serviceCode || !serviceName) {
     return jsonError("serviceCode and serviceName are required");
@@ -86,7 +86,8 @@ export async function POST(
   }
 
   const resolvedTitle = body?.title?.trim() || pricingResult.title || serviceName;
-  const resolvedProductType = productType || pricingResult.productType || serviceCode.toLowerCase();
+  const resolvedProductType = serviceCode.startsWith("HUAWEI:") ? pricingResult.productType : productType || pricingResult.productType || serviceCode.toLowerCase();
+  quantity = pricingResult.quantity ?? quantity;
   const resolvedConfig = pricingResult.config;
   const resolvedPricing = pricingResult.pricing;
 
