@@ -1,4 +1,5 @@
 import type { Inquiry, Quote, SyncService } from "./types";
+import type { NativeBillingMode } from "./native-billing";
 
 export type NativeField = {
   id: string;
@@ -19,11 +20,13 @@ export type NativeState = NativeForm & {
   revision: number;
   service: string;
   region: string;
+  billingMode: NativeBillingMode;
   expiresAt: string;
   source: { page: string; config: string; products: string; framework: string; menu: string; fetchedAt: string };
   inquiry: Inquiry | null;
+  inquiries: Inquiry[];
   quote: Quote | null;
   priceError?: string;
 };
 export type NativeAction = { session: string; revision: number; field: string; value: string | number | boolean };
-export type NativeDirectory = { services: SyncService[]; regions: { id: string; name: string }[] };
+export type NativeDirectory = { services: SyncService[]; regions: { id: string; name: string }[]; billingModes: Record<string, Record<string, NativeBillingMode[]>> };

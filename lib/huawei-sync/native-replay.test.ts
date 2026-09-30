@@ -23,6 +23,7 @@ const selection: NativeSelection = {
 };
 class ReplayHarness extends NativeCalculator {
   closed = false;
+  openedMode: string | undefined;
   actions: NativeAction[] = [];
   constructor(
     readonly initialField = field,
@@ -30,7 +31,8 @@ class ReplayHarness extends NativeCalculator {
   ) {
     super({} as HuaweiCollector);
   }
-  override async open() {
+  override async open(_service?: string, _region?: string, billingMode?: import("./native-billing").NativeBillingMode) {
+    this.openedMode = billingMode;
     return {
       session: "new-session",
       revision: 0,
@@ -75,4 +77,16 @@ test("replay rejects changed defaults, changed control identity and changed resu
   ).rejects.toThrow();
   expect(calc.actions.length).toBe(0);
   expect(calc.closed).toBe(true);
+});
+
+
+test("replay opens the saved billing mode and maps legacy histories to pay-per-use", async () => {
+  for (const billingMode of ["PERIOD","ONETIME","RI"] as const) {
+    const calc = new ReplayHarness();
+    await calc.restore({...selection,version:2,billingMode});
+    expect(calc.openedMode).toBe(billingMode);
+  }
+  const calc = new ReplayHarness();
+  await calc.restore(selection);
+  expect(calc.openedMode).toBe("ONDEMAND");
 });

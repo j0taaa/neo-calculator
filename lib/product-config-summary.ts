@@ -24,6 +24,7 @@ export function getProductConfigSummary(product: AppProduct): string {
     if (isRecord(selection) && Array.isArray(selection.fields)) {
       return [
         product.config.region,
+        product.config.billingMode,
         ...selection.fields
           .filter(isRecord)
           .filter((field) => field.type !== "action")
