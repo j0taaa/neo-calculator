@@ -6,7 +6,7 @@ A better version of the Huawei Cloud pricing calculator. Uses the Huawei Cloud c
 
 - Real-time pricing from the Huawei Cloud calculator API
 - 40+ supported cloud services with declarative configuration
-- Pay-per-use and yearly/monthly billing modes
+- Huawei live: pay-per-use, yearly/monthly, reserved instances and one-time billing, with regional availability and current purchase/payment options
 - Save configurations into projects
 - Clone carts across regions and billing modes
 - Export projects as JSON or Excel

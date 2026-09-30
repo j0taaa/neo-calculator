@@ -15,10 +15,11 @@ export async function readNativeForm(page: Page): Promise<NativeForm> {
     document.querySelectorAll("[data-neo-option]").forEach(el => el.removeAttribute("data-neo-option"));
     const allowed = new Set(["CommonRadioGroup", "CommonSelect", "CommonStepper", "CommonRadioStepper", "CommonCheckboxGroup", "CommonAddible", "CommonSwitch", "CommonTip"]);
     const components = [...config.calc_view.components];
-    for (const id of ["global_ONDEMANDTIME", "global_QUANTITY"]) if (!components.some(c => c.id === id)) components.push({ id, type: "CommonStepper" });
+    const globals = ["global_ONDEMANDTIME", "global_QUANTITY", "global_PERIODTIME", "global_FEEINSTALLMODE"];
+    for (const id of globals) if (!components.some(c => c.id === id)) components.push({ id, type: "CommonStepper" });
     for (const component of components) {
-      if (component.id.startsWith("global_") && !["global_ONDEMANDTIME", "global_QUANTITY"].includes(component.id)) continue;
-      const root = document.getElementById(component.id);
+      if (component.id.startsWith("global_") && !globals.includes(component.id)) continue;
+      const root = document.getElementById(component.id) ?? document.querySelector<HTMLElement>(`[idheader="${component.id}"]`);
       if (!root || !visible(root)) continue;
       if (!allowed.has(component.type) && !component.id.startsWith("global_")) diagnostics.push(`Unsupported Huawei control: ${component.type}`);
       if (component.type === "CommonTip") { const text = clean(root.innerText); if (text) notes.push(text); }

@@ -5,7 +5,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import type { AppProduct, ProductMutationBody } from "@/lib/calculator-types";
-import { parseNativeSelection } from "@/lib/huawei-sync/native-selection";
+import { parseNativeSelection, selectionBillingMode } from "@/lib/huawei-sync/native-selection";
+import { nativeBillingModes, type NativeBillingMode } from "@/lib/huawei-sync/native-billing";
 import type { NativeDirectory, NativeField, NativeState } from "@/lib/huawei-sync/native-types";
 
 const selectClass = "mt-2 h-10 w-full rounded-md border border-zinc-200 bg-white px-3 text-sm";
@@ -101,6 +102,12 @@ export function NativeCalculatorPanel({
   const [directory, setDirectory] = useState<NativeDirectory | null>(null);
   const [service, setService] = useState("ecs"),
     [region, setRegion] = useState("ap-southeast-1");
+  const [billingMode, setBillingMode] = useState<NativeBillingMode>("ONDEMAND");
+  const modes = directory?.billingModes[service]?.[region] ?? [];
+  useEffect(() => {
+    const available = directory?.billingModes[service]?.[region] ?? [];
+    if (available.length && !available.includes(billingMode)) setBillingMode(available.includes("ONDEMAND") ? "ONDEMAND" : available[0]);
+  }, [directory, service, region, billingMode]);
   const [state, setState] = useState<NativeState | null>(null),
     [busy, setBusy] = useState(false),
     [error, setError] = useState("");
@@ -151,6 +158,7 @@ export function NativeCalculatorPanel({
     setBusy(true);
     setService(selection.service);
     setRegion(selection.region);
+    setBillingMode(selectionBillingMode(selection));
     api({ action: "restore", selection })
       .then((next: NativeState) => {
         if (cancelled) {
@@ -184,7 +192,7 @@ export function NativeCalculatorPanel({
         config: {
           runtime: "huawei-native",
           region: state.region,
-          billingMode: "Pay-per-use",
+          billingMode: nativeBillingModes[state.billingMode].label,
           selection: state.selection,
           session: state.session,
           revision: state.revision,
@@ -207,13 +215,13 @@ export function NativeCalculatorPanel({
     setState(null);
     setError("");
   }
-  async function open() {
+  async function open(mode = billingMode) {
     if (operation.current) return;
     operation.current = true;
     reset();
     setBusy(true);
     try {
-      const next: NativeState = await api({ action: "open", service, region });
+      const next: NativeState = await api({ action: "open", service, region, billingMode: mode });
       if (!mounted.current) {
         close(next.session);
         return;
@@ -269,7 +277,7 @@ export function NativeCalculatorPanel({
         <h1 className="mt-2 text-3xl font-semibold">Huawei live calculator</h1>
         <p className="mt-3 max-w-3xl text-sm text-zinc-600">
           Configure services using Huawei’s current options and regional rules. Prices come directly from Huawei after
-          each change. Pay-per-use billing. Use the Price Calculator tab for other billing modes and legacy estimates.
+          each change. Billing modes, purchase terms and payment options follow the selected service and region.
         </p>
       </div>
       <Card>
@@ -312,8 +320,20 @@ export function NativeCalculatorPanel({
               </select>
             </label>
           </fieldset>
+          <label className="block text-sm font-medium">
+            Billing mode
+            <select aria-label="Huawei billing mode" className={selectClass} value={billingMode} disabled={busy || !modes.length}
+              onChange={event => {
+                const mode = event.target.value as NativeBillingMode;
+                setBillingMode(mode);
+                if (state) void open(mode); else reset();
+              }}>
+              {modes.map(mode => <option key={mode} value={mode}>{nativeBillingModes[mode].label}</option>)}
+            </select>
+          </label>
+          {directory && !modes.length && <p role="status" className="text-sm text-zinc-600">Huawei has no calculator billing modes for this service in the selected region.</p>}
           <div className="flex flex-wrap items-center gap-4">
-            <Button disabled={busy || !directory} onClick={open}>
+            <Button disabled={busy || !directory || !modes.length} onClick={() => void open()}>
               {state ? "Reload current Huawei data" : "Open calculator"}
             </Button>
             <a
@@ -455,16 +475,23 @@ export function NativeCalculatorPanel({
                 <details className="text-sm">
                   <summary className="cursor-pointer">Price components</summary>
                   <ul className="mt-3 space-y-3">
-                    {state.inquiry?.productInfos.map((product) => (
+                    {state.quote.breakdown.map((product) => (
                       <li key={product.id}>
-                        <p className="break-all">{product.resourceSpecCode}</p>
+                        <p className="break-all">{product.label ?? product.id}</p>
                         <p className="text-zinc-500">
-                          USD {state.quote?.breakdown.find((item) => item.id === product.id)?.amount}
+                          USD {product.amount}
                         </p>
                       </li>
                     ))}
                   </ul>
                 </details>
+              )}
+              {state.quote?.payment && (
+                <div className="space-y-1 text-sm" data-testid="native-payment">
+                  <p>Upfront: USD {state.quote.payment.upfront.toLocaleString("en-US", {minimumFractionDigits:2,maximumFractionDigits:6})}</p>
+                  <p>Installment: USD {state.quote.payment.recurring.toLocaleString("en-US", {minimumFractionDigits:2,maximumFractionDigits:6})} / {state.quote.payment.period} × {state.quote.payment.installments}</p>
+                  {state.quote.payment.extras.map(extra => <p key={extra.mode}>{nativeBillingModes[extra.mode as NativeBillingMode]?.label ?? extra.mode} extras: USD {extra.recurring.toLocaleString("en-US", {minimumFractionDigits:2,maximumFractionDigits:6})} / {state.quote!.payment!.period} × {state.quote!.payment!.installments}</p>)}
+                </div>
               )}
               {onSave && (
                 <div className="space-y-2">

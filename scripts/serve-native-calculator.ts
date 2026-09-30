@@ -3,6 +3,7 @@ import { timingSafeEqual } from "node:crypto";
 import { NativeCalculator, NativeError } from "../lib/huawei-sync/native-session";
 import { HuaweiCollector } from "../lib/huawei-sync/collector";
 import { SyncStore } from "../lib/huawei-sync/store";
+import { isNativeBillingMode } from "../lib/huawei-sync/native-billing";
 
 const token = process.env.HUAWEI_NATIVE_TOKEN;
 if (!token || token.length < 32) throw new Error("Set a private HUAWEI_NATIVE_TOKEN (32+ characters)");
@@ -37,8 +38,8 @@ const server = createServer(async (request, response) => {
     }
     const body = JSON.parse(raw);
     let result;
-    if (body.action === "open" && typeof body.service === "string" && typeof body.region === "string")
-      result = await calculator.open(body.service, body.region);
+    if (body.action === "open" && typeof body.service === "string" && typeof body.region === "string" && (body.billingMode === undefined || isNativeBillingMode(body.billingMode)))
+      result = await calculator.open(body.service, body.region, body.billingMode);
     else if (
       body.action === "change" &&
       typeof body.session === "string" &&

@@ -27,6 +27,8 @@ const state: NativeState = {
   revision: 3,
   service: "ecs",
   region: selection.region,
+  billingMode: "ONDEMAND",
+  inquiries: [],
   expiresAt: "2099-01-01",
   fields,
   notes: [],
@@ -98,6 +100,7 @@ test("native saves reject changed sessions, missing quotes, diagnostics and mism
   for (const change of [
     { quote: null },
     { diagnostics: ["unknown widget"] },
+    { billingMode: "RI" as const },
     { selection: { ...selection, region: "different" } },
   ]) {
     const { request } = requester({ ...state, ...change });
@@ -117,4 +120,16 @@ test("native saves reject changed sessions, missing quotes, diagnostics and mism
 test("saved selection rejects unknown versions and oversized action histories", () => {
   expect(() => parseNativeSelection({ ...selection, version: 2 })).toThrow();
   expect(() => parseNativeSelection({ ...selection, steps: Array(201).fill({}) })).toThrow();
+});
+
+test("all billing modes are verified and persisted with their server-calculated payment details", async () => {
+  for (const [billingMode,label] of [["PERIOD","Yearly/Monthly"],["RI","RI"],["ONETIME","One-time"]] as const) {
+    const saved = {...selection,version:2 as const,billingMode};
+    const payment = {upfront:10,recurring:2,installments:12,period:"Month" as const,extras:[{mode:"ONDEMAND",recurring:3}]};
+    const current = {...state,selection:saved,billingMode,quote:{...state.quote!,amount:70,payment}};
+    const product = await verifyNativeProduct(body({selection:saved,billingMode:label,session:"server-session",revision:3}),requester(current).request);
+    expect(product.config).toMatchObject({billingMode:label,selection:saved});
+    expect(product.pricing).toMatchObject({amount:70,payment});
+    await expect(verifyNativeProduct(body({selection:saved,billingMode:"Pay-per-use"}),requester(current).request)).rejects.toThrow(/billing mode/);
+  }
 });

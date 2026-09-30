@@ -30,5 +30,7 @@ export type ServiceRelease = {
 export type Verification = { checkedAt: string; cases: number; source: "official-browser"; evidenceHash: string };
 export type Quote = {
   amount: number; currency: string; quotedAt: string; releaseId: string; requestHash: string;
-  source: "huawei-inquiry"; breakdown: { id: string; amount: number }[];
+  source: "huawei-inquiry" | "huawei-catalog"; breakdown: { id: string; amount: number; label?: string }[];
+  aggregation?: "huawei-renderer";
+  payment?: { upfront: number; recurring: number; installments: number; period: "Month" | "Year"; extras: { mode: string; recurring: number }[] };
 };

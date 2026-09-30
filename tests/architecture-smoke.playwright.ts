@@ -322,7 +322,7 @@ test("Huawei live saves verified prices into the main cart and reopens durable s
   expect(product.productType).toBe('huawei-native');
   expect(product.pricing.source).toBe('huawei-inquiry');
   expect(product.pricing.amount).toBe(Number(price.replace('USD','').replaceAll(',','').trim()));
-  expect(product.config.selection.version).toBe(1);
+  expect(product.config.selection.version).toBe(2);
   expect(product.config.selection.steps.length).toBeGreaterThan(0);
   expect(product.config.session).toBeUndefined();
   await page.reload(); // unmount releases the renderer; editing must start a new one
@@ -363,4 +363,79 @@ test("Huawei live saves verified prices into the main cart and reopens durable s
   expect(errors).toEqual([]);
   await page.unrouteAll({behavior:'wait'});
   await page.goto('/projects');
+});
+
+for (const [service,billingMode] of [["nat","PERIOD"],["ecs","RI"],["ccm","ONETIME"]] as const) {
+  test(`Huawei live ${billingMode} saves terms and payment options and edits them exactly`,async ({page,baseURL}) => {
+    test.skip(process.env.NEO_NATIVE_TESTS!=="1","Requires isolated native sidecar");
+    test.setTimeout(360000);
+    const errors:string[]=[];page.on("pageerror",e=>errors.push(e.message));
+    const {project,list}=await createTestCart(page,baseURL);
+    await page.goto(`/?project=${project.id}&list=${list.id}&tab=huawei-live`);
+    await page.getByLabel("Huawei service",{exact:true}).selectOption(service);
+    await page.getByLabel("Huawei billing mode",{exact:true}).selectOption(billingMode);
+    const opened=page.waitForResponse(r=>r.url().endsWith("/api/calculator/native") && r.request().postDataJSON()?.action==="open");
+    await page.getByRole("button",{name:"Open calculator",exact:true}).click();
+    expect((await opened).status()).toBe(200);
+    if (billingMode==="RI") {
+      await page.locator('select[data-field-id="calculator_ecs_radio:2"]').selectOption({label:"C7n"});
+      await expect(page.getByTestId("lab-price")).toBeVisible({timeout:110000});
+      await page.locator('select[data-field-id="calculator_ecs_RIRadio:1"]').selectOption({label:"3 Years"});
+      await expect(page.getByTestId("lab-price")).toBeVisible({timeout:110000});
+      await expect(page.getByTestId("native-payment")).toContainText("Upfront:");
+    } else {
+      await expect(page.getByTestId("lab-price")).toBeVisible({timeout:110000});
+      if (billingMode==="PERIOD") {
+        await page.locator('select[data-field-id="global_PERIODTIME:0"]').selectOption({label:"1 year"});
+        await expect(page.getByTestId("lab-price")).toBeVisible({timeout:110000});
+      }
+    }
+    const saved=page.waitForResponse(r=>r.url().endsWith(`/api/lists/${list.id}/products`) && r.request().method()==="POST");
+    await page.getByRole("button",{name:"Add to List",exact:true}).click();
+    const response=await saved;expect(response.status()).toBe(201);
+    const product=await response.json();
+    expect(product.config.selection.billingMode).toBe(billingMode);
+    expect(product.pricing.amount).toBeGreaterThan(0);
+    if (billingMode==="RI") expect(product.pricing.payment.installments).toBe(36);
+    await page.reload();
+    await page.getByRole("button",{name:`Edit ${product.title}`,exact:true}).click();
+    await expect(page.getByTestId("lab-price")).toBeVisible({timeout:110000});
+    await expect(page.getByLabel("Huawei billing mode",{exact:true})).toHaveValue(billingMode);
+    const edited=page.waitForResponse(r=>r.url().endsWith(`/products/${product.id}`) && r.request().method()==="PATCH");
+    await page.getByRole("tabpanel",{name:"Huawei live",exact:true}).getByRole("button",{name:"Save Changes",exact:true}).click();
+    const editResponse=await edited;expect(editResponse.status()).toBe(200);
+    const next=await editResponse.json();
+    expect(next.config.selection).toEqual(product.config.selection);
+    expect(next.pricing.amount).toBe(product.pricing.amount);
+    expect(next.pricing.payment).toEqual(product.pricing.payment);
+    expect(errors).toEqual([]);
+    await page.goto("/projects");
+  });
+}
+
+test("Huawei billing choices follow the service and region and switching an open mode reprices",async ({page})=>{
+  test.skip(process.env.NEO_NATIVE_TESTS!=="1","Requires isolated native sidecar");
+  test.setTimeout(180000);
+  await page.goto("/?tab=huawei-live");
+  const mode=page.getByLabel("Huawei billing mode",{exact:true});
+  await expect(mode.locator("option")).toHaveText(["Yearly/Monthly","Pay-per-use","RI"]);
+  await page.getByLabel("Huawei region",{exact:true}).selectOption("cn-north-4");
+  await expect(mode.locator("option")).toHaveText(["Yearly/Monthly","Pay-per-use"]);
+  await page.getByLabel("Huawei region",{exact:true}).selectOption("ap-southeast-1");
+  await page.getByLabel("Huawei service",{exact:true}).selectOption("nat");
+  await page.getByRole("button",{name:"Open calculator",exact:true}).click();
+  await expect(page.getByTestId("lab-price")).toBeVisible({timeout:110000});
+  const reopened=page.waitForResponse(r=>r.url().endsWith("/api/calculator/native") && r.request().postDataJSON()?.action==="open");
+  await mode.selectOption("PERIOD");
+  const response=await reopened;expect(response.status()).toBe(200);
+  const state=await response.json();
+  expect(state.billingMode).toBe("PERIOD");expect(state.inquiry.chargingMode).toBe(0);
+  await expect(page.locator('select[data-field-id="global_PERIODTIME:0"]')).toBeVisible();
+  await page.getByLabel("Huawei service",{exact:true}).selectOption("ccm");
+  await expect(mode.locator("option")).toHaveText(["One-time"]);
+  await expect(mode).toHaveValue("ONETIME");
+  await expect(page.getByTestId("lab-price")).toBeHidden();
+  const rejected=await page.request.post("/api/calculator/native",{data:{action:"open",service:"ccm",region:"ap-southeast-1",billingMode:"ONDEMAND"}});
+  expect(rejected.status()).toBe(422);
+  await page.goto("/projects");
 });

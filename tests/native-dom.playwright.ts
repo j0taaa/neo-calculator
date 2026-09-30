@@ -36,3 +36,16 @@ test("retains dropdown options after Huawei moves its menu into a body portal", 
   expect(after).toEqual(before);
   expect(await page.locator('[data-neo-option="calculator_select:0:1"]').textContent()).toBe("Large");
 });
+
+test("purchase terms and installment choices are exposed even when Huawei uses idheader wrappers", async ({page}) => {
+  await page.setContent(`<div idheader="global_PERIODTIME"><div class="base-radio-group"><li class="active"><button>1 month</button></li><li><button>1 year</button></li><li><button>3 years</button></li></div></div>
+    <div id="global_FEEINSTALLMODE"><div class="base-radio-group"><li class="active"><button>No Upfront</button></li><li><button>Partial Upfront</button></li><li><button>All Upfront</button></li></div></div>`);
+  await page.evaluate(() => Object.assign(window,{viewConfig:{calc_view:{components:[]}}}));
+  const form = await readNativeForm(page);
+  expect(form.diagnostics).toEqual([]);
+  expect(form.fields.map(f=>f.component)).toEqual(["global_PERIODTIME","global_FEEINSTALLMODE"]);
+  expect(form.fields[0].options?.map(o=>o.label)).toEqual(["1 month","1 year","3 years"]);
+  const {setNativeValue} = await import("../lib/huawei-sync/native-dom");
+  await setNativeValue(page,form.fields[0],"2");
+  await setNativeValue(page,form.fields[1],"1");
+});

@@ -57,11 +57,11 @@ export class HuaweiCollector {
     if (!match) throw new Error("Huawei calculator framework not found");
     return this.fetch(match[0], 6 * 60 * 60_000);
   }
-  async service(service: string, region: string) {
+  async service(service: string, region: string, freshProducts = false) {
     if (!/^[a-zA-Z0-9_-]{1,80}$/.test(service) || !/^[a-z0-9-]{1,80}$/.test(region)) throw new Error("Invalid source scope");
     const params = `urlPath=${service}&tag=general.online.portal&tab=calc&sign=common&language=en-us`;
     const config = await this.fetch(`${CALCULATOR_BASE}/config?${params}`, 6 * 60 * 60_000);
-    const products = await this.fetch(`${CALCULATOR_BASE}/productInfo?${params}&region=${region}`, 15 * 60_000, body => {
+    const products = await this.fetch(`${CALCULATOR_BASE}/productInfo?${params}&region=${region}`, freshProducts ? 0 : 15 * 60_000, body => {
       const parsed = JSON.parse(body);
       if (!parsed.product || parsed.region !== region || parsed.urlPath !== service) throw new Error("Huawei product response does not match requested scope");
     });
