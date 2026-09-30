@@ -528,5 +528,16 @@
     ],
     "region": "ap-southeast-1",
     "method": "Complete semantic inquiry, exact API total and every charged component; the renderer may additionally include zero-price catalog image components."
+  },
+  "deployment": {
+    "url": "https://calculator.hwctools.site/?tab=huawei-live",
+    "productionBrowserChecks": 13,
+    "nativeModeChecks": 4,
+    "legacyChecks": 9,
+    "httpStatus": 200,
+    "httpRedirect": 308,
+    "tlsVerified": true,
+    "sidecarHealthy": true,
+    "routing": "Explicit traefik.docker.network=home_web on the app"
   }
 }
