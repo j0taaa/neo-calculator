@@ -59,7 +59,7 @@ The sidecar listens only on the private Compose network. Traefik provides HTTPS 
 
 ## Main application deployment and saved configurations
 
-The main application uses its own native sidecar, token and data volume. Set a random 32+ character `HUAWEI_NATIVE_TOKEN` in `/home/neo-calculator-native.env` (mode 0600). `compose.native.yml` documents the production overlay; the VPS parent Compose also references its sidecar service so normal app restarts preserve connectivity. No sidecar port is published.
+The main application uses its own native sidecar, token and data volume. Set a random 32+ character `HUAWEI_NATIVE_TOKEN` in `/home/neo-calculator-native.env` (mode 0600). `compose.native.yml` documents the production overlay; the VPS parent Compose also references its sidecar service so normal app restarts preserve connectivity. No sidecar port is published. The app explicitly sets `traefik.docker.network=home_web`; otherwise Traefik can choose its private sidecar network after a recreate and lose public connectivity.
 
 Native selections persist initial controls, an ordered action history and expected final controls. Reopening replays them against current collected sources, checking control identities and selected labels throughout. Saving refreshes the exact session revision on the server; stale revisions, incomplete quotes, changed defaults and unavailable choices reject the operation. The server strips session IDs before persistence. Sessions remain anonymous and contain no account/cart database access.
 
