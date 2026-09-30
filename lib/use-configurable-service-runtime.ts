@@ -1,20 +1,26 @@
 import { useCallback, useEffect, useMemo, useState, type ComponentProps } from "react";
 
-import type { CalculatorProductSource } from "@/lib/calculator-cart";
 import { ConfigurableServicePanel } from "@/components/calculators/configurable-service-panel";
-import { buildConfiguredFields } from "@/lib/configurable-service-fields";
-import { getTypedDeclarativeRuntimeDefinitionByCode } from "@/lib/declarative-service-runtime-registry";
-import { buildDefaultValues, buildRuntimeScope, evaluateCatalogView, evaluateRuntimeValue, stringifyConfigValue } from "@/lib/service-runtime";
-import { declarativeRuntimeHelpers } from "@/lib/declarative-runtime-helpers";
-import type { DeclarativeCatalogSource, DeclarativeEstimateRecord } from "@/lib/declarative-service-runtime-types";
-import type { AppProduct, BillingOption, ProductMutationBody } from "@/lib/calculator-types";
+import type { CalculatorProductSource } from "@/lib/calculator-cart";
 import { formatFlavorAmount } from "@/lib/calculator-page-helpers";
+import type { AppProduct, BillingOption, ProductMutationBody } from "@/lib/calculator-types";
+import { buildConfiguredFields } from "@/lib/configurable-service-fields";
+import { declarativeRuntimeHelpers } from "@/lib/declarative-runtime-helpers";
+import { getTypedDeclarativeRuntimeDefinitionByCode } from "@/lib/declarative-service-runtime-registry";
+import type { DeclarativeCatalogSource } from "@/lib/declarative-service-runtime-types";
 import { huaweiRegions, type HuaweiRegionKey } from "@/lib/huawei-regions";
 import {
   getConfigurableServiceDefinitionByCode,
   type ServiceDefinition,
   type ServiceFieldRuntimeValues,
 } from "@/lib/service-config";
+import {
+  buildDefaultValues,
+  buildRuntimeScope,
+  evaluateRuntimeValue,
+  evaluateServiceConfiguration,
+  stringifyConfigValue,
+} from "@/lib/service-runtime";
 import type { TypedDeclarativeValue } from "@/lib/typed-declarative-runtime-types";
 
 type ConfigurablePanelProps = ComponentProps<typeof ConfigurableServicePanel>;
@@ -116,7 +122,9 @@ function parseBatchExampleValue(fieldType: ServiceDefinition["fields"][number]["
 }
 
 function toBillingMode(value: unknown, fallback: BillingOption): BillingOption {
-  return value === "RI" || value === "Yearly/Monthly" || value === "Pay-per-use" || value === "One-time" ? value : fallback;
+  return value === "RI" || value === "Yearly/Monthly" || value === "Pay-per-use" || value === "One-time"
+    ? value
+    : fallback;
 }
 
 function buildGenericBatchPlaceholder(definition: ServiceDefinition, values: Record<string, string>) {
@@ -124,18 +132,26 @@ function buildGenericBatchPlaceholder(definition: ServiceDefinition, values: Rec
     definition.fields.map((field) => {
       const activeValue = values[field.id];
       const defaultValue = definition.defaults[field.id];
-      return [field.id, parseBatchExampleValue(field.type, activeValue !== undefined && activeValue !== "" ? activeValue : defaultValue)];
+      return [
+        field.id,
+        parseBatchExampleValue(
+          field.type,
+          activeValue !== undefined && activeValue !== "" ? activeValue : defaultValue,
+        ),
+      ];
     }),
   );
 
   return JSON.stringify([example], null, 2);
 }
 
-function buildGenericBatchDefaults(definition: ServiceDefinition, values: Record<string, string>, billingMode: BillingOption, usageHours: string) {
-  const lines = [
-    "Unspecified keys use the current calculator values.",
-    `billingMode: ${billingMode}`,
-  ];
+function buildGenericBatchDefaults(
+  definition: ServiceDefinition,
+  values: Record<string, string>,
+  billingMode: BillingOption,
+  usageHours: string,
+) {
+  const lines = ["Unspecified keys use the current calculator values.", `billingMode: ${billingMode}`];
 
   if (usageHours.trim().length > 0) {
     lines.push(`usageHours: ${usageHours}`);
@@ -207,10 +223,17 @@ function normalizeHydrationResult(value: unknown): EditHydrationResult {
   return {
     handled: value.handled === true,
     error: typeof value.error === "string" ? value.error : undefined,
-    nextRegion: typeof value.nextRegion === "string" && value.nextRegion in huaweiRegions ? value.nextRegion as HuaweiRegionKey : undefined,
-    nextBillingMode: value.nextBillingMode === "Pay-per-use" || value.nextBillingMode === "Yearly/Monthly" || value.nextBillingMode === "RI" || value.nextBillingMode === "One-time"
-      ? value.nextBillingMode
-      : undefined,
+    nextRegion:
+      typeof value.nextRegion === "string" && value.nextRegion in huaweiRegions
+        ? (value.nextRegion as HuaweiRegionKey)
+        : undefined,
+    nextBillingMode:
+      value.nextBillingMode === "Pay-per-use" ||
+      value.nextBillingMode === "Yearly/Monthly" ||
+      value.nextBillingMode === "RI" ||
+      value.nextBillingMode === "One-time"
+        ? value.nextBillingMode
+        : undefined,
     nextUsageHours: typeof value.nextUsageHours === "string" ? value.nextUsageHours : undefined,
     nextInstanceCount: typeof value.nextInstanceCount === "string" ? value.nextInstanceCount : undefined,
   };
@@ -229,13 +252,15 @@ export function useConfigurableServiceRuntime({
   instanceCountValue,
 }: UseConfigurableServiceRuntimeInput): UseConfigurableServiceRuntimeResult {
   const [serviceValuesByCode, setServiceValuesByCode] = useState<Record<string, Record<string, string>>>({});
-  const [catalogDataByService, setCatalogDataByService] = useState<Partial<Record<string, unknown>>>({});
-  const [catalogRegionIdByService, setCatalogRegionIdByService] = useState<Partial<Record<string, string | null>>>({});
-  const [pricingLoadingByService, setPricingLoadingByService] = useState<Partial<Record<string, boolean>>>({});
-  const [pricingErrorByService, setPricingErrorByService] = useState<Partial<Record<string, string>>>({});
+  const [catalogs, setCatalogs] = useState<
+    Record<string, { data: unknown; regionId: string | null; loading: boolean; error: string }>
+  >({});
+  const catalogKey = `${selectedServiceCode}:${regionValue}`;
 
   const typedRuntimeDefinition = getTypedDeclarativeRuntimeDefinitionByCode(selectedServiceCode);
-  const isConfigurableService = selectedServiceDefinition?.implementation === "configurable" || selectedServiceDefinition?.implementation === "config-pilot";
+  const isConfigurableService =
+    selectedServiceDefinition?.implementation === "configurable" ||
+    selectedServiceDefinition?.implementation === "config-pilot";
 
   const replaceServiceValues = useCallback((serviceCode: string, values: Record<string, string>) => {
     setServiceValuesByCode((current) => ({ ...current, [serviceCode]: values }));
@@ -246,13 +271,15 @@ export function useConfigurableServiceRuntime({
       return;
     }
 
-    setServiceValuesByCode((current) => (
-      current[selectedServiceCode] ? current : { ...current, [selectedServiceCode]: buildDefaultValues(selectedServiceDefinition) }
-    ));
+    setServiceValuesByCode((current) =>
+      current[selectedServiceCode]
+        ? current
+        : { ...current, [selectedServiceCode]: buildDefaultValues(selectedServiceDefinition) },
+    );
   }, [selectedServiceCode, selectedServiceDefinition]);
 
   useEffect(() => {
-    const catalogSource = (typedRuntimeDefinition?.catalog) as DeclarativeCatalogSource | undefined;
+    const catalogSource = typedRuntimeDefinition?.catalog as DeclarativeCatalogSource | undefined;
 
     if (!isConfigurableService || !catalogSource) {
       return;
@@ -263,11 +290,16 @@ export function useConfigurableServiceRuntime({
     let cancelled = false;
 
     async function loadCatalog() {
-      setPricingLoadingByService((current) => ({ ...current, [selectedServiceCode]: true }));
-      setPricingErrorByService((current) => ({ ...current, [selectedServiceCode]: "" }));
+      setCatalogs((current) => ({
+        ...current,
+        [catalogKey]: { data: null, regionId: null, loading: true, error: "" },
+      }));
 
       try {
-        const response = await fetch(`/api/catalog/${activeCatalogSource.route}?region=${encodeURIComponent(regionValue)}`, { cache: "no-store" });
+        const response = await fetch(
+          `/api/catalog/${activeCatalogSource.route}?region=${encodeURIComponent(regionValue)}`,
+          { cache: "no-store" },
+        );
         const rawBody = await response.text();
         let payload: Record<string, unknown> = {};
         if (rawBody) {
@@ -275,7 +307,9 @@ export function useConfigurableServiceRuntime({
             payload = JSON.parse(rawBody) as Record<string, unknown>;
           } catch {
             const contentType = response.headers.get("content-type") ?? "unknown content-type";
-            throw new Error(`Failed to load ${selectedServiceCode} pricing: received non-JSON response (${contentType})`);
+            throw new Error(
+              `Failed to load ${selectedServiceCode} pricing: received non-JSON response (${contentType})`,
+            );
           }
         }
         const catalogPath = activeCatalogSource.catalogPath ?? "catalog";
@@ -293,23 +327,26 @@ export function useConfigurableServiceRuntime({
           return;
         }
 
-        setCatalogDataByService((current) => ({ ...current, [selectedServiceCode]: catalog }));
-        setCatalogRegionIdByService((current) => ({ ...current, [selectedServiceCode]: typeof catalogRegionId === "string" ? catalogRegionId : null }));
-      } catch (error) {
-        if (cancelled) {
-          return;
-        }
-
-        setCatalogDataByService((current) => ({ ...current, [selectedServiceCode]: null }));
-        setCatalogRegionIdByService((current) => ({ ...current, [selectedServiceCode]: null }));
-        setPricingErrorByService((current) => ({
+        setCatalogs((current) => ({
           ...current,
-          [selectedServiceCode]: error instanceof Error ? error.message : `Failed to load ${selectedServiceCode} pricing`,
+          [catalogKey]: {
+            data: catalog,
+            regionId: typeof catalogRegionId === "string" ? catalogRegionId : null,
+            loading: false,
+            error: "",
+          },
         }));
-      } finally {
-        if (!cancelled) {
-          setPricingLoadingByService((current) => ({ ...current, [selectedServiceCode]: false }));
-        }
+      } catch (error) {
+        if (!cancelled)
+          setCatalogs((current) => ({
+            ...current,
+            [catalogKey]: {
+              data: null,
+              regionId: null,
+              loading: false,
+              error: error instanceof Error ? error.message : "Unable to load catalog",
+            },
+          }));
       }
     }
 
@@ -317,60 +354,59 @@ export function useConfigurableServiceRuntime({
     return () => {
       cancelled = true;
     };
-  }, [isConfigurableService, regionValue, selectedServiceCode, typedRuntimeDefinition?.catalog]);
+  }, [catalogKey, isConfigurableService, regionValue, selectedServiceCode, typedRuntimeDefinition?.catalog]);
 
   const activeValues = useMemo(
-    () => selectedServiceDefinition ? (serviceValuesByCode[selectedServiceCode] ?? buildDefaultValues(selectedServiceDefinition)) : {},
+    () =>
+      selectedServiceDefinition
+        ? (serviceValuesByCode[selectedServiceCode] ?? buildDefaultValues(selectedServiceDefinition))
+        : {},
     [selectedServiceCode, selectedServiceDefinition, serviceValuesByCode],
   );
 
-  const pricingError = pricingErrorByService[selectedServiceCode] ?? "";
-  const catalog = catalogDataByService[selectedServiceCode] ?? null;
-  const catalogRegionId = catalogRegionIdByService[selectedServiceCode] ?? null;
+  const pricingError = catalogs[catalogKey]?.error ?? "";
+  const catalog = catalogs[catalogKey]?.data ?? null;
+  const catalogRegionId = catalogs[catalogKey]?.regionId ?? null;
 
-  const catalogView = useMemo(
-    () => {
-      if (!selectedServiceDefinition) {
-        return null;
-      }
-
-      const baseScope = buildRuntimeScope({
-        definition: selectedServiceDefinition,
-        selectedServiceCode,
-        selectedService,
-        values: activeValues,
-        catalog,
-        catalogRegionId,
-        pricingError,
-        regionValue,
-        billingMode,
-        usageHours,
-        usageHoursValue,
-        instanceCountValue,
-      });
-
-      return evaluateCatalogView(typedRuntimeDefinition, baseScope);
-    },
+  const scope = useMemo(
+    () =>
+      selectedServiceDefinition
+        ? evaluateServiceConfiguration(typedRuntimeDefinition, {
+            definition: selectedServiceDefinition,
+            selectedServiceCode,
+            selectedService,
+            values: activeValues,
+            catalog,
+            catalogRegionId,
+            pricingError,
+            regionValue,
+            billingMode,
+            usageHours,
+            usageHoursValue,
+            instanceCountValue,
+          })
+        : null,
     [
-      activeValues,
-      billingMode,
-      catalog,
-      catalogRegionId,
-      instanceCountValue,
-      pricingError,
-      regionValue,
-
-      selectedService,
-      selectedServiceCode,
       selectedServiceDefinition,
       typedRuntimeDefinition,
+      selectedServiceCode,
+      selectedService,
+      activeValues,
+      catalog,
+      catalogRegionId,
+      pricingError,
+      regionValue,
+      billingMode,
       usageHours,
       usageHoursValue,
+      instanceCountValue,
     ],
   );
+  const catalogView = scope?.catalogView ?? null;
+  const estimate = scope?.estimate ?? null;
 
   useEffect(() => {
-    if (!selectedServiceDefinition || (!typedRuntimeDefinition?.syncValues)) {
+    if (!selectedServiceDefinition || !typedRuntimeDefinition?.syncValues) {
       return;
     }
 
@@ -432,78 +468,17 @@ export function useConfigurableServiceRuntime({
     usageHoursValue,
   ]);
 
-  const estimate = useMemo(
-    () => {
-      if (!selectedServiceDefinition) {
-        return null;
-      }
-
-      return evaluateRuntimeValue<DeclarativeEstimateRecord>(
-        typedRuntimeDefinition?.estimate,
-        buildRuntimeScope({
-          definition: selectedServiceDefinition,
-          selectedServiceCode,
-          selectedService,
-          values: activeValues,
-          catalog,
-          catalogRegionId,
-          pricingError,
-          regionValue,
-          billingMode,
-          usageHours,
-          usageHoursValue,
-          instanceCountValue,
-          derived: catalogView,
-        }),
-      );
-    },
-    [
-      activeValues,
-      billingMode,
-      catalog,
-      catalogRegionId,
-      catalogView,
-      instanceCountValue,
-      pricingError,
-      regionValue,
-
-      selectedService,
-      selectedServiceCode,
-      selectedServiceDefinition,
-      typedRuntimeDefinition,
-      usageHours,
-      usageHoursValue,
-    ],
-  );
-
-  const scope = useMemo(() => selectedServiceDefinition ? buildRuntimeScope({
-    definition: selectedServiceDefinition,
-    selectedServiceCode,
-    selectedService,
-    values: activeValues,
-    catalog,
-    catalogRegionId,
-    pricingError,
-    regionValue,
-    billingMode,
-    usageHours,
-    usageHoursValue,
-    instanceCountValue,
-    derived: catalogView,
-    estimate,
-  }) : null, [selectedServiceDefinition, selectedServiceCode, selectedService, activeValues, catalog,
-    catalogRegionId, pricingError, regionValue, billingMode, usageHours, usageHoursValue,
-    instanceCountValue, catalogView, estimate]);
-
   const activeBillingOptions = useMemo(() => {
     if (!selectedServiceDefinition) {
       return null;
     }
-    const computed = evaluateRuntimeValue<unknown[]>(
-      typedRuntimeDefinition?.activeBillingOptions,
-      scope,
-    );
-    if (Array.isArray(computed) && computed.every((entry) => entry === "Pay-per-use" || entry === "RI" || entry === "Yearly/Monthly" || entry === "One-time")) {
+    const computed = evaluateRuntimeValue<unknown[]>(typedRuntimeDefinition?.activeBillingOptions, scope);
+    if (
+      Array.isArray(computed) &&
+      computed.every(
+        (entry) => entry === "Pay-per-use" || entry === "RI" || entry === "Yearly/Monthly" || entry === "One-time",
+      )
+    ) {
       return computed as BillingOption[];
     }
     return selectedServiceDefinition.billingOptions as BillingOption[];
@@ -519,10 +494,7 @@ export function useConfigurableServiceRuntime({
     if (!selectedServiceDefinition) {
       return true;
     }
-    const computed = evaluateRuntimeValue<boolean>(
-      typedRuntimeDefinition?.showSharedUsageHours,
-      scope,
-    );
+    const computed = evaluateRuntimeValue<boolean>(typedRuntimeDefinition?.showSharedUsageHours, scope);
     return computed == null ? true : Boolean(computed);
   }, [scope, selectedServiceDefinition, typedRuntimeDefinition?.showSharedUsageHours]);
 
@@ -530,10 +502,8 @@ export function useConfigurableServiceRuntime({
     if (!selectedServiceDefinition) {
       return {};
     }
-    const computed = evaluateRuntimeValue<ServiceFieldRuntimeValues>(
-      typedRuntimeDefinition?.visibilityContext,
-      scope,
-    ) ?? {};
+    const computed =
+      evaluateRuntimeValue<ServiceFieldRuntimeValues>(typedRuntimeDefinition?.visibilityContext, scope) ?? {};
     return {
       ...Object.fromEntries(Object.entries(activeValues).map(([key, value]) => [key, value])),
       ...(isRecord(computed) ? computed : {}),
@@ -541,94 +511,39 @@ export function useConfigurableServiceRuntime({
     };
   }, [activeValues, billingMode, scope, selectedServiceDefinition, typedRuntimeDefinition?.visibilityContext]);
 
-  const setActiveFieldValue = useCallback((fieldId: string, nextValue: string) => {
-    setServiceValuesByCode((current) => ({
-      ...current,
-      [selectedServiceCode]: {
-        ...(current[selectedServiceCode] ?? {}),
-        [fieldId]: nextValue,
-      },
-    }));
-  }, [selectedServiceCode]);
+  const setActiveFieldValue = useCallback(
+    (fieldId: string, nextValue: string) => {
+      setServiceValuesByCode((current) => ({
+        ...current,
+        [selectedServiceCode]: {
+          ...(current[selectedServiceCode] ?? {}),
+          [fieldId]: nextValue,
+        },
+      }));
+    },
+    [selectedServiceCode],
+  );
 
-  const fieldOptionsById = useMemo(() => {
-    if (!selectedServiceDefinition) {
-      return {};
+  const { fieldOptionsById, fieldMinById, fieldMaxById, fieldDisabledById } = useMemo(() => {
+    const fieldOptionsById: Record<string, Array<{ value: string; label: string }> | undefined> = {};
+    const fieldMinById: Record<string, number | undefined> = {};
+    const fieldMaxById: Record<string, number | undefined> = {};
+    const fieldDisabledById: Record<string, boolean> = {};
+    const sourceScope = { catalog, catalogView, values: activeValues, helpers: declarativeRuntimeHelpers };
+    for (const field of selectedServiceDefinition?.fields ?? []) {
+      const runtime = typedRuntimeDefinition?.fieldRuntime?.[field.id];
+      const resolve = (key: "options" | "min" | "max") =>
+        evaluateRuntimeValue(runtime?.[key], scope) ??
+        (field[`${key}Source`] ? readPath(sourceScope, field[`${key}Source`]!) : field[key]);
+      fieldOptionsById[field.id] = normalizeOptionList(resolve("options"));
+      const min = resolve("min"),
+        max = resolve("max");
+      fieldMinById[field.id] = typeof min === "number" ? min : field.min;
+      fieldMaxById[field.id] = typeof max === "number" ? max : field.max;
+      fieldDisabledById[field.id] = Boolean(evaluateRuntimeValue(runtime?.disabled, scope) ?? false);
     }
-
-    return Object.fromEntries(
-      selectedServiceDefinition.fields.map((field) => {
-
-        const typedRuntimeField = typedRuntimeDefinition?.fieldRuntime?.[field.id];
-        const computed = evaluateRuntimeValue<unknown>(
-          typedRuntimeField?.options,
-          scope,
-        ) ?? (field.optionsSource
-          ? readPath({ catalog, catalogView, values: activeValues, helpers: declarativeRuntimeHelpers }, field.optionsSource)
-          : field.options);
-
-        return [field.id, normalizeOptionList(computed)];
-      }),
-    ) as Record<string, Array<{ value: string; label: string }> | undefined>;
+    return { fieldOptionsById, fieldMinById, fieldMaxById, fieldDisabledById };
   }, [activeValues, catalog, catalogView, scope, selectedServiceDefinition, typedRuntimeDefinition?.fieldRuntime]);
-
-  const fieldMinById = useMemo(() => {
-    if (!selectedServiceDefinition) {
-      return {};
-    }
-
-    return Object.fromEntries(
-      selectedServiceDefinition.fields.map((field) => {
-
-        const typedRuntimeField = typedRuntimeDefinition?.fieldRuntime?.[field.id];
-        const computed = evaluateRuntimeValue<number>(
-          typedRuntimeField?.min,
-          scope,
-        ) ?? (field.minSource
-          ? readPath({ catalog, catalogView, values: activeValues, helpers: declarativeRuntimeHelpers }, field.minSource)
-          : field.min);
-        return [field.id, typeof computed === "number" ? computed : field.min];
-      }),
-    ) as Record<string, number | undefined>;
-  }, [activeValues, catalog, catalogView, scope, selectedServiceDefinition, typedRuntimeDefinition?.fieldRuntime]);
-
-  const fieldMaxById = useMemo(() => {
-    if (!selectedServiceDefinition) {
-      return {};
-    }
-
-    return Object.fromEntries(
-      selectedServiceDefinition.fields.map((field) => {
-
-        const typedRuntimeField = typedRuntimeDefinition?.fieldRuntime?.[field.id];
-        const computed = evaluateRuntimeValue<number>(
-          typedRuntimeField?.max,
-          scope,
-        ) ?? (field.maxSource
-          ? readPath({ catalog, catalogView, values: activeValues, helpers: declarativeRuntimeHelpers }, field.maxSource)
-          : field.max);
-        return [field.id, typeof computed === "number" ? computed : field.max];
-      }),
-    ) as Record<string, number | undefined>;
-  }, [activeValues, catalog, catalogView, scope, selectedServiceDefinition, typedRuntimeDefinition?.fieldRuntime]);
-
-  const fieldDisabledById = useMemo(() => {
-    if (!selectedServiceDefinition) {
-      return {};
-    }
-
-    return Object.fromEntries(
-      selectedServiceDefinition.fields.map((field) => {
-
-        const typedRuntimeField = typedRuntimeDefinition?.fieldRuntime?.[field.id];
-        const computed = evaluateRuntimeValue<boolean>(
-          typedRuntimeField?.disabled,
-          scope,
-        ) ?? false;
-        return [field.id, Boolean(computed)];
-      }),
-    ) as Record<string, boolean | undefined>;
-  }, [scope, selectedServiceDefinition, typedRuntimeDefinition?.fieldRuntime]);
 
   const activePanelProps = useMemo<ConfigurablePanelProps | null>(() => {
     if (!isConfigurableService || !selectedServiceDefinition) {
@@ -644,12 +559,16 @@ export function useConfigurableServiceRuntime({
       minByFieldId: fieldMinById,
       maxByFieldId: fieldMaxById,
       disabledByFieldId: fieldDisabledById,
-      onChangeByFieldId: Object.fromEntries(selectedServiceDefinition.fields.map((field) => [field.id, (value: string) => setActiveFieldValue(field.id, value)])),
+      onChangeByFieldId: Object.fromEntries(
+        selectedServiceDefinition.fields.map((field) => [
+          field.id,
+          (value: string) => setActiveFieldValue(field.id, value),
+        ]),
+      ),
       onBlurByFieldId: Object.fromEntries(
         selectedServiceDefinition.fields.map((field) => [
           field.id,
           () => {
-
             const typedRuntimeField = typedRuntimeDefinition?.fieldRuntime?.[field.id];
             if (!typedRuntimeField?.normalize) {
               return;
@@ -675,53 +594,63 @@ export function useConfigurableServiceRuntime({
       ),
     });
 
-    const notes = normalizeStringList(
-      evaluateRuntimeValue<unknown>(
-        typedRuntimeDefinition?.panelNotes,
-        scope,
-      ),
-    );
-    const effectiveNotes = notes.length > 0
-      ? notes
-      : [...(selectedServiceDefinition.summary?.notes ?? [])];
+    const notes = normalizeStringList(evaluateRuntimeValue<unknown>(typedRuntimeDefinition?.panelNotes, scope));
+    const effectiveNotes = notes.length > 0 ? notes : [...(selectedServiceDefinition.summary?.notes ?? [])];
 
-    const selectionSummary = evaluateRuntimeValue<string>(
-      typedRuntimeDefinition?.selectionSummary,
-      scope,
-    ) ?? (
-      selectedServiceDefinition.summary?.selectionTemplate
+    const selectionSummary =
+      evaluateRuntimeValue<string>(typedRuntimeDefinition?.selectionSummary, scope) ??
+      (selectedServiceDefinition.summary?.selectionTemplate
         ? buildSelectionTemplate(selectedServiceDefinition.summary.selectionTemplate, activeValues)
-        : "Selected specifications:"
-    );
+        : "Selected specifications:");
 
     const selectionNotes = normalizeStringList(
-      evaluateRuntimeValue<unknown>(
-        typedRuntimeDefinition?.selectionNotes,
-        scope,
-      ),
+      evaluateRuntimeValue<unknown>(typedRuntimeDefinition?.selectionNotes, scope),
     );
 
-    const referenceNote = evaluateRuntimeValue<string>(
-      typedRuntimeDefinition?.referenceNote,
-      scope,
-    ) ?? undefined;
+    const referenceNote = evaluateRuntimeValue<string>(typedRuntimeDefinition?.referenceNote, scope) ?? undefined;
 
     return {
       definition: selectedServiceDefinition,
       fields,
       pricingError: pricingError || undefined,
-      pricingLoadingMessage: pricingLoadingByService[selectedServiceCode]
-        ? ((typedRuntimeDefinition?.catalog?.loadingMessage) ?? `Loading ${selectedServiceCode} pricing...`)
+      pricingLoadingMessage: catalogs[catalogKey]?.loading
+        ? (typedRuntimeDefinition?.catalog?.loadingMessage ?? `Loading ${selectedServiceCode} pricing...`)
         : null,
       notes: effectiveNotes,
       selectionSummary,
       selectionNotes,
       referenceNote,
     };
-  }, [activeValues, fieldDisabledById, fieldMaxById, fieldMinById, fieldOptionsById, isConfigurableService, pricingError, pricingLoadingByService, runtimeValues, scope, selectedServiceCode, selectedServiceDefinition, setActiveFieldValue, typedRuntimeDefinition?.catalog?.loadingMessage, typedRuntimeDefinition?.fieldRuntime, typedRuntimeDefinition?.panelNotes, typedRuntimeDefinition?.referenceNote, typedRuntimeDefinition?.selectionNotes, typedRuntimeDefinition?.selectionSummary]);
+  }, [
+    activeValues,
+    fieldDisabledById,
+    fieldMaxById,
+    fieldMinById,
+    fieldOptionsById,
+    isConfigurableService,
+    pricingError,
+    catalogs,
+    catalogKey,
+    runtimeValues,
+    scope,
+    selectedServiceCode,
+    selectedServiceDefinition,
+    setActiveFieldValue,
+    typedRuntimeDefinition?.catalog?.loadingMessage,
+    typedRuntimeDefinition?.fieldRuntime,
+    typedRuntimeDefinition?.panelNotes,
+    typedRuntimeDefinition?.referenceNote,
+    typedRuntimeDefinition?.selectionNotes,
+    typedRuntimeDefinition?.selectionSummary,
+  ]);
 
   const selectedEstimate = useMemo(() => {
-    if (!estimate || typeof estimate.currency !== "string" || typeof estimate.amount !== "number" || typeof estimate.suffix !== "string") {
+    if (
+      !estimate ||
+      typeof estimate.currency !== "string" ||
+      typeof estimate.amount !== "number" ||
+      typeof estimate.suffix !== "string"
+    ) {
       return "USD 0.00";
     }
     return formatFlavorAmount(estimate.currency, estimate.amount, estimate.suffix);
@@ -731,187 +660,214 @@ export function useConfigurableServiceRuntime({
     if (!selectedServiceDefinition) {
       return null;
     }
-    const computed = evaluateRuntimeValue<string | null>(
-      typedRuntimeDefinition?.addToListError,
-      scope,
-    );
+    const computed = evaluateRuntimeValue<string | null>(typedRuntimeDefinition?.addToListError, scope);
     return typeof computed === "string" ? computed : null;
   }, [scope, selectedServiceDefinition, typedRuntimeDefinition?.addToListError]);
 
-  const applyDefaultsForServiceCode = useCallback((serviceCode: string) => {
-    const definition = getConfigurableServiceDefinitionByCode(serviceCode);
-    if (!definition) {
-      return;
-    }
+  const applyDefaultsForServiceCode = useCallback(
+    (serviceCode: string) => {
+      const definition = getConfigurableServiceDefinitionByCode(serviceCode);
+      if (!definition) {
+        return;
+      }
 
-    const nextValues = buildDefaultValues(definition);
-    replaceServiceValues(serviceCode, nextValues);
-    const nextBillingMode = toBillingMode(nextValues.billingMode || definition.billingOptions[0], definition.billingOptions[0] ?? "Pay-per-use");
-    setBillingMode(nextBillingMode);
-    if (typeof nextValues.usageHours === "string" && nextValues.usageHours) {
-      updateUsageHours(nextValues.usageHours);
-    }
-  }, [replaceServiceValues, setBillingMode, updateUsageHours]);
+      const nextValues = buildDefaultValues(definition);
+      replaceServiceValues(serviceCode, nextValues);
+      const nextBillingMode = toBillingMode(
+        nextValues.billingMode || definition.billingOptions[0],
+        definition.billingOptions[0] ?? "Pay-per-use",
+      );
+      setBillingMode(nextBillingMode);
+      if (typeof nextValues.usageHours === "string" && nextValues.usageHours) {
+        updateUsageHours(nextValues.usageHours);
+      }
+    },
+    [replaceServiceValues, setBillingMode, updateUsageHours],
+  );
 
-  const buildScopedCatalogView = useCallback((values: Record<string, string>, nextBillingMode: BillingOption, nextUsageHours: string, nextUsageHoursValue: number, nextInstanceCountValue: number) => {
-    if (!selectedServiceDefinition) {
-      return null;
-    }
+  const buildScopedCatalogView = useCallback(
+    (
+      values: Record<string, string>,
+      nextBillingMode: BillingOption,
+      nextUsageHours: string,
+      nextUsageHoursValue: number,
+      nextInstanceCountValue: number,
+    ) => {
+      if (!selectedServiceDefinition) {
+        return null;
+      }
 
-    const baseScope = buildRuntimeScope({
-      definition: selectedServiceDefinition,
-      selectedServiceCode,
-      selectedService,
-      values,
+      const baseScope = buildRuntimeScope({
+        definition: selectedServiceDefinition,
+        selectedServiceCode,
+        selectedService,
+        values,
+        catalog,
+        catalogRegionId,
+        pricingError,
+        regionValue,
+        billingMode: nextBillingMode,
+        usageHours: nextUsageHours,
+        usageHoursValue: nextUsageHoursValue,
+        instanceCountValue: nextInstanceCountValue,
+      });
+
+      return evaluateServiceConfiguration(typedRuntimeDefinition, baseScope).catalogView;
+    },
+    [
       catalog,
       catalogRegionId,
       pricingError,
       regionValue,
-      billingMode: nextBillingMode,
-      usageHours: nextUsageHours,
-      usageHoursValue: nextUsageHoursValue,
-      instanceCountValue: nextInstanceCountValue,
-    });
 
-    return evaluateCatalogView(typedRuntimeDefinition, baseScope);
-  }, [
-    catalog,
-    catalogRegionId,
-    pricingError,
-    regionValue,
+      selectedService,
+      selectedServiceCode,
+      selectedServiceDefinition,
+      typedRuntimeDefinition,
+    ],
+  );
 
-    selectedService,
-    selectedServiceCode,
-    selectedServiceDefinition,
-    typedRuntimeDefinition,
-  ]);
-
-  const buildBatchScopeForItem = useCallback((item: unknown) => {
-    if (!selectedServiceDefinition || !isRecord(item)) {
-      return null;
-    }
-
-    const itemConfig = isRecord(item.config) ? item.config : null;
-    const mergedItemValues = {
-      ...(itemConfig ?? {}),
-      ...item,
-    };
-
-    let values = {
-      ...buildDefaultValues(selectedServiceDefinition),
-      ...activeValues,
-    };
-
-    for (const field of selectedServiceDefinition.fields) {
-      if (mergedItemValues[field.id] !== undefined) {
-        values = {
-          ...values,
-          [field.id]: normalizeBatchFieldValue(field.type, mergedItemValues[field.id]),
-        };
+  const buildBatchScopeForItem = useCallback(
+    (item: unknown) => {
+      if (!selectedServiceDefinition || !isRecord(item)) {
+        return null;
       }
-    }
 
-    let nextBillingMode = toBillingMode(
-      mergedItemValues.billingMode ?? mergedItemValues.mode ?? values.billingMode ?? billingMode,
-      billingMode,
-    );
-    let nextUsageHours = toPositiveNumberString(
-      mergedItemValues.usageHours ?? mergedItemValues.hours ?? values.usageHours,
-      usageHours,
-    );
-    let nextUsageHoursValue = toPositiveInteger(
-      mergedItemValues.usageHours ?? mergedItemValues.hours ?? values.usageHours,
-      usageHoursValue,
-    );
-    let nextInstanceCountValue = toPositiveInteger(
-      mergedItemValues.instanceCount ?? mergedItemValues.quantity ?? values.quantity,
-      instanceCountValue,
-    );
+      const itemConfig = isRecord(item.config) ? item.config : null;
+      const mergedItemValues = {
+        ...(itemConfig ?? {}),
+        ...item,
+      };
 
-    for (let iteration = 0; iteration < 3; iteration += 1) {
-      const nextCatalogView = buildScopedCatalogView(values, nextBillingMode, nextUsageHours, nextUsageHoursValue, nextInstanceCountValue);
-      const syncedValues = evaluateRuntimeValue<Record<string, unknown>>(
-        typedRuntimeDefinition?.syncValues,
-        buildRuntimeScope({
-          definition: selectedServiceDefinition,
-          selectedServiceCode,
-          selectedService,
-          values,
-          catalog,
-          catalogRegionId,
-          pricingError,
-          regionValue,
-          billingMode: nextBillingMode,
-          usageHours: nextUsageHours,
-          usageHoursValue: nextUsageHoursValue,
-          instanceCountValue: nextInstanceCountValue,
-          item,
-          derived: nextCatalogView,
-        }),
+      let values = {
+        ...buildDefaultValues(selectedServiceDefinition),
+        ...activeValues,
+      };
+
+      for (const field of selectedServiceDefinition.fields) {
+        if (mergedItemValues[field.id] !== undefined) {
+          values = {
+            ...values,
+            [field.id]: normalizeBatchFieldValue(field.type, mergedItemValues[field.id]),
+          };
+        }
+      }
+
+      let nextBillingMode = toBillingMode(
+        mergedItemValues.billingMode ?? mergedItemValues.mode ?? values.billingMode ?? billingMode,
+        billingMode,
+      );
+      let nextUsageHours = toPositiveNumberString(
+        mergedItemValues.usageHours ?? mergedItemValues.hours ?? values.usageHours,
+        usageHours,
+      );
+      let nextUsageHoursValue = toPositiveInteger(
+        mergedItemValues.usageHours ?? mergedItemValues.hours ?? values.usageHours,
+        usageHoursValue,
+      );
+      let nextInstanceCountValue = toPositiveInteger(
+        mergedItemValues.instanceCount ?? mergedItemValues.quantity ?? values.quantity,
+        instanceCountValue,
       );
 
-      if (!syncedValues || !isRecord(syncedValues)) {
-        return {
+      for (let iteration = 0; iteration < 3; iteration += 1) {
+        const nextCatalogView = buildScopedCatalogView(
           values,
-          billingMode: nextBillingMode,
-          usageHours: nextUsageHours,
-          usageHoursValue: nextUsageHoursValue,
-          instanceCountValue: nextInstanceCountValue,
-          catalogView: nextCatalogView,
-        };
+          nextBillingMode,
+          nextUsageHours,
+          nextUsageHoursValue,
+          nextInstanceCountValue,
+        );
+        const syncedValues = evaluateRuntimeValue<Record<string, unknown>>(
+          typedRuntimeDefinition?.syncValues,
+          buildRuntimeScope({
+            definition: selectedServiceDefinition,
+            selectedServiceCode,
+            selectedService,
+            values,
+            catalog,
+            catalogRegionId,
+            pricingError,
+            regionValue,
+            billingMode: nextBillingMode,
+            usageHours: nextUsageHours,
+            usageHoursValue: nextUsageHoursValue,
+            instanceCountValue: nextInstanceCountValue,
+            item,
+            derived: nextCatalogView,
+          }),
+        );
+
+        if (!syncedValues || !isRecord(syncedValues)) {
+          return {
+            values,
+            billingMode: nextBillingMode,
+            usageHours: nextUsageHours,
+            usageHoursValue: nextUsageHoursValue,
+            instanceCountValue: nextInstanceCountValue,
+            catalogView: nextCatalogView,
+          };
+        }
+
+        const normalizedValues = Object.fromEntries(
+          Object.entries(syncedValues).map(([key, value]) => [key, stringifyConfigValue(value)]),
+        ) as Record<string, string>;
+
+        const hasDiff = Object.keys(normalizedValues).some((key) => values[key] !== normalizedValues[key]);
+        if (!hasDiff) {
+          return {
+            values,
+            billingMode: nextBillingMode,
+            usageHours: nextUsageHours,
+            usageHoursValue: nextUsageHoursValue,
+            instanceCountValue: nextInstanceCountValue,
+            catalogView: nextCatalogView,
+          };
+        }
+
+        values = { ...values, ...normalizedValues };
+        nextBillingMode = toBillingMode(values.billingMode || nextBillingMode, nextBillingMode);
+        nextUsageHours = toPositiveNumberString(values.usageHours, nextUsageHours);
+        nextUsageHoursValue = toPositiveInteger(values.usageHours, nextUsageHoursValue);
+        nextInstanceCountValue = toPositiveInteger(values.quantity, nextInstanceCountValue);
       }
 
-      const normalizedValues = Object.fromEntries(
-        Object.entries(syncedValues).map(([key, value]) => [key, stringifyConfigValue(value)]),
-      ) as Record<string, string>;
-
-      const hasDiff = Object.keys(normalizedValues).some((key) => values[key] !== normalizedValues[key]);
-      if (!hasDiff) {
-        return {
+      return {
+        values,
+        billingMode: nextBillingMode,
+        usageHours: nextUsageHours,
+        usageHoursValue: nextUsageHoursValue,
+        instanceCountValue: nextInstanceCountValue,
+        catalogView: buildScopedCatalogView(
           values,
-          billingMode: nextBillingMode,
-          usageHours: nextUsageHours,
-          usageHoursValue: nextUsageHoursValue,
-          instanceCountValue: nextInstanceCountValue,
-          catalogView: nextCatalogView,
-        };
-      }
+          nextBillingMode,
+          nextUsageHours,
+          nextUsageHoursValue,
+          nextInstanceCountValue,
+        ),
+      };
+    },
+    [
+      activeValues,
+      billingMode,
+      buildScopedCatalogView,
+      catalog,
+      catalogRegionId,
+      instanceCountValue,
+      pricingError,
+      regionValue,
 
-      values = { ...values, ...normalizedValues };
-      nextBillingMode = toBillingMode(values.billingMode || nextBillingMode, nextBillingMode);
-      nextUsageHours = toPositiveNumberString(values.usageHours, nextUsageHours);
-      nextUsageHoursValue = toPositiveInteger(values.usageHours, nextUsageHoursValue);
-      nextInstanceCountValue = toPositiveInteger(values.quantity, nextInstanceCountValue);
-    }
-
-    return {
-      values,
-      billingMode: nextBillingMode,
-      usageHours: nextUsageHours,
-      usageHoursValue: nextUsageHoursValue,
-      instanceCountValue: nextInstanceCountValue,
-      catalogView: buildScopedCatalogView(values, nextBillingMode, nextUsageHours, nextUsageHoursValue, nextInstanceCountValue),
-    };
-  }, [
-    activeValues,
-    billingMode,
-    buildScopedCatalogView,
-    catalog,
-    catalogRegionId,
-    instanceCountValue,
-    pricingError,
-    regionValue,
-
-    selectedService,
-    selectedServiceCode,
-    selectedServiceDefinition,
-    typedRuntimeDefinition,
-    usageHours,
-    usageHoursValue,
-  ]);
+      selectedService,
+      selectedServiceCode,
+      selectedServiceDefinition,
+      typedRuntimeDefinition,
+      usageHours,
+      usageHoursValue,
+    ],
+  );
 
   const buildRequestBodies = useCallback((): ProductMutationBody | ProductMutationBody[] | null => {
-    if (!selectedServiceDefinition || (!typedRuntimeDefinition?.buildRequestBodies)) {
+    if (!selectedServiceDefinition || !typedRuntimeDefinition?.buildRequestBodies) {
       return null;
     }
 
@@ -921,156 +877,149 @@ export function useConfigurableServiceRuntime({
     );
   }, [scope, selectedServiceDefinition, typedRuntimeDefinition?.buildRequestBodies]);
 
-  const buildBatchRequestBodies = useCallback((item: unknown): ProductMutationBody[] | null => {
-    if (!selectedServiceDefinition) {
-      return null;
-    }
+  const buildBatchRequestBodies = useCallback(
+    (item: unknown): ProductMutationBody[] | null => {
+      if (!selectedServiceDefinition) {
+        return null;
+      }
 
-    if (typedRuntimeDefinition?.buildBatchRequestBodies) {
+      if (typedRuntimeDefinition?.buildBatchRequestBodies) {
+        const result = evaluateRuntimeValue<ProductMutationBody[] | ProductMutationBody | null>(
+          typedRuntimeDefinition?.buildBatchRequestBodies,
+          { ...scope, item },
+        );
+
+        if (!result) {
+          return null;
+        }
+        return Array.isArray(result) ? result : [result];
+      }
+
+      if (!typedRuntimeDefinition?.buildRequestBodies) {
+        return null;
+      }
+
+      const batchScope = buildBatchScopeForItem(item);
+      if (!batchScope) {
+        return null;
+      }
+
       const result = evaluateRuntimeValue<ProductMutationBody[] | ProductMutationBody | null>(
-        typedRuntimeDefinition?.buildBatchRequestBodies,
-        { ...scope, item },
+        typedRuntimeDefinition.buildRequestBodies,
+        evaluateServiceConfiguration(typedRuntimeDefinition, {
+          definition: selectedServiceDefinition,
+          selectedServiceCode,
+          selectedService,
+          catalog,
+          catalogRegionId,
+          pricingError,
+          regionValue,
+          ...batchScope,
+          item,
+        }),
       );
 
       if (!result) {
         return null;
       }
       return Array.isArray(result) ? result : [result];
-    }
+    },
+    [
+      selectedServiceDefinition,
+      typedRuntimeDefinition,
+      buildBatchScopeForItem,
+      selectedServiceCode,
+      selectedService,
+      catalog,
+      catalogRegionId,
+      pricingError,
+      regionValue,
+      scope,
+    ],
+  );
 
-    if (!typedRuntimeDefinition?.buildRequestBodies) {
-      return null;
-    }
+  const getAddSuccessMessage = useCallback(
+    (input: { requestBodiesCount: number }) => {
+      if (!selectedServiceDefinition || !typedRuntimeDefinition?.addSuccessMessage) {
+        return null;
+      }
 
-    const batchScope = buildBatchScopeForItem(item);
-    if (!batchScope) {
-      return null;
-    }
+      const result = evaluateRuntimeValue<string | null>(typedRuntimeDefinition?.addSuccessMessage, {
+        ...scope,
+        requestBodiesCount: input.requestBodiesCount,
+      });
 
-    const batchEstimate = evaluateRuntimeValue<DeclarativeEstimateRecord>(
-      typedRuntimeDefinition?.estimate,
-      buildRuntimeScope({
-        definition: selectedServiceDefinition,
-        selectedServiceCode,
-        selectedService,
-        values: batchScope.values,
-        catalog,
-        catalogRegionId,
-        pricingError,
-        regionValue,
-        billingMode: batchScope.billingMode,
-        usageHours: batchScope.usageHours,
-        usageHoursValue: batchScope.usageHoursValue,
-        instanceCountValue: batchScope.instanceCountValue,
-        item,
-        derived: batchScope.catalogView,
-      }),
-    );
+      return typeof result === "string" ? result : null;
+    },
+    [scope, selectedServiceDefinition, typedRuntimeDefinition?.addSuccessMessage],
+  );
 
-    const result = evaluateRuntimeValue<ProductMutationBody[] | ProductMutationBody | null>(
-      typedRuntimeDefinition?.buildRequestBodies,
-      buildRuntimeScope({
-        definition: selectedServiceDefinition,
-        selectedServiceCode,
-        selectedService,
-        values: batchScope.values,
-        catalog,
-        catalogRegionId,
-        pricingError,
-        regionValue,
-        billingMode: batchScope.billingMode,
-        usageHours: batchScope.usageHours,
-        usageHoursValue: batchScope.usageHoursValue,
-        instanceCountValue: batchScope.instanceCountValue,
-        item,
-        derived: batchScope.catalogView,
-        estimate: batchEstimate,
-      }),
-    );
+  const getUpdateSuccessMessage = useCallback(
+    (input: { requestBodiesCount: number; extraRequestBodiesCount: number }) => {
+      if (!selectedServiceDefinition || !typedRuntimeDefinition?.updateSuccessMessage) {
+        return null;
+      }
 
-    if (!result) {
-      return null;
-    }
-    return Array.isArray(result) ? result : [result];
-  }, [selectedServiceDefinition, typedRuntimeDefinition?.buildBatchRequestBodies, typedRuntimeDefinition?.buildRequestBodies, typedRuntimeDefinition?.estimate, buildBatchScopeForItem, selectedServiceCode, selectedService, catalog, catalogRegionId, pricingError, regionValue, scope]);
+      const result = evaluateRuntimeValue<string | null>(typedRuntimeDefinition?.updateSuccessMessage, {
+        ...scope,
+        requestBodiesCount: input.requestBodiesCount,
+        extraRequestBodiesCount: input.extraRequestBodiesCount,
+      });
 
-  const getAddSuccessMessage = useCallback((input: { requestBodiesCount: number }) => {
-    if (!selectedServiceDefinition || (!typedRuntimeDefinition?.addSuccessMessage)) {
-      return null;
-    }
+      return typeof result === "string" ? result : null;
+    },
+    [scope, selectedServiceDefinition, typedRuntimeDefinition?.updateSuccessMessage],
+  );
 
-    const result = evaluateRuntimeValue<string | null>(
-      typedRuntimeDefinition?.addSuccessMessage,
-      { ...scope, requestBodiesCount: input.requestBodiesCount },
-    );
+  const getBatchSuccessMessage = useCallback(
+    (input: { createdCount: number; expandedCount: number }) => {
+      if (!selectedServiceDefinition || !typedRuntimeDefinition?.batchSuccessMessage) {
+        return null;
+      }
 
-    return typeof result === "string" ? result : null;
-  }, [scope, selectedServiceDefinition, typedRuntimeDefinition?.addSuccessMessage]);
+      const result = evaluateRuntimeValue<string | null>(typedRuntimeDefinition?.batchSuccessMessage, {
+        ...scope,
+        createdCount: input.createdCount,
+        expandedCount: input.expandedCount,
+      });
 
-  const getUpdateSuccessMessage = useCallback((input: { requestBodiesCount: number; extraRequestBodiesCount: number }) => {
-    if (!selectedServiceDefinition || (!typedRuntimeDefinition?.updateSuccessMessage)) {
-      return null;
-    }
+      return typeof result === "string" ? result : null;
+    },
+    [scope, selectedServiceDefinition, typedRuntimeDefinition?.batchSuccessMessage],
+  );
 
-    const result = evaluateRuntimeValue<string | null>(
-      typedRuntimeDefinition?.updateSuccessMessage,
-      { ...scope, requestBodiesCount: input.requestBodiesCount, extraRequestBodiesCount: input.extraRequestBodiesCount },
-    );
+  const hydrateProduct = useCallback(
+    (product: AppProduct): EditHydrationResult => {
+      if (!selectedServiceDefinition || !typedRuntimeDefinition?.hydrate) {
+        return { handled: false, error: "This product cannot be edited from the calculator." };
+      }
 
-    return typeof result === "string" ? result : null;
-  }, [scope, selectedServiceDefinition, typedRuntimeDefinition?.updateSuccessMessage]);
+      const result = evaluateRuntimeValue<unknown>(typedRuntimeDefinition?.hydrate, { ...scope, product });
 
-  const getBatchSuccessMessage = useCallback((input: { createdCount: number; expandedCount: number }) => {
-    if (!selectedServiceDefinition || (!typedRuntimeDefinition?.batchSuccessMessage)) {
-      return null;
-    }
+      if (isRecord(result) && isRecord(result.values)) {
+        replaceServiceValues(
+          selectedServiceCode,
+          Object.fromEntries(Object.entries(result.values).map(([key, value]) => [key, stringifyConfigValue(value)])),
+        );
+      }
 
-    const result = evaluateRuntimeValue<string | null>(
-      typedRuntimeDefinition?.batchSuccessMessage,
-      { ...scope, createdCount: input.createdCount, expandedCount: input.expandedCount },
-    );
-
-    return typeof result === "string" ? result : null;
-  }, [scope, selectedServiceDefinition, typedRuntimeDefinition?.batchSuccessMessage]);
-
-  const hydrateProduct = useCallback((product: AppProduct): EditHydrationResult => {
-    if (!selectedServiceDefinition || (!typedRuntimeDefinition?.hydrate)) {
-      return { handled: false, error: "This product cannot be edited from the calculator." };
-    }
-
-    const result = evaluateRuntimeValue<unknown>(
-      typedRuntimeDefinition?.hydrate,
-      { ...scope, product },
-    );
-
-    if (isRecord(result) && isRecord(result.values)) {
-      replaceServiceValues(
-        selectedServiceCode,
-        Object.fromEntries(
-          Object.entries(result.values).map(([key, value]) => [key, stringifyConfigValue(value)]),
-        ),
-      );
-    }
-
-    return normalizeHydrationResult(result);
-  }, [replaceServiceValues, scope, selectedServiceCode, selectedServiceDefinition, typedRuntimeDefinition?.hydrate]);
+      return normalizeHydrationResult(result);
+    },
+    [replaceServiceValues, scope, selectedServiceCode, selectedServiceDefinition, typedRuntimeDefinition?.hydrate],
+  );
 
   const batchPanel = useMemo(() => {
     if (!selectedServiceDefinition) {
       return null;
     }
 
-    const evaluateBatchExpression = (typedExpression: TypedDeclarativeValue | undefined) => (
-      evaluateRuntimeValue<string>(
-        typedExpression,
-        scope,
-      ) ?? ""
-    );
+    const evaluateBatchExpression = (typedExpression: TypedDeclarativeValue | undefined) =>
+      evaluateRuntimeValue<string>(typedExpression, scope) ?? "";
 
     const typedBatchPanel = typedRuntimeDefinition?.batchPanel;
 
     if (!typedBatchPanel) {
-      if (!isConfigurableService || (!typedRuntimeDefinition?.buildRequestBodies)) {
+      if (!isConfigurableService || !typedRuntimeDefinition?.buildRequestBodies) {
         return null;
       }
 
@@ -1088,7 +1037,17 @@ export function useConfigurableServiceRuntime({
       defaults: evaluateBatchExpression(typedBatchPanel?.defaults),
       validation: evaluateBatchExpression(typedBatchPanel?.validation),
     };
-  }, [activeValues, billingMode, isConfigurableService, scope, selectedService, selectedServiceDefinition, typedRuntimeDefinition?.batchPanel, typedRuntimeDefinition?.buildRequestBodies, usageHours]);
+  }, [
+    activeValues,
+    billingMode,
+    isConfigurableService,
+    scope,
+    selectedService,
+    selectedServiceDefinition,
+    typedRuntimeDefinition?.batchPanel,
+    typedRuntimeDefinition?.buildRequestBodies,
+    usageHours,
+  ]);
 
   return {
     isConfigurableService,

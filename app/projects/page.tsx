@@ -1,731 +1,53 @@
 "use client";
+import { ActionMenu, ActionModal, type ActionMenuItem } from "@/components/home-page-shell-parts";
+import { getCartCloneDefaultName, getProjectCloneDefaultName, getResponseError } from "@/lib/calculator-page-helpers";
+import type { AppList, AppProject, BillingOption, HuaweiCartSummary } from "@/lib/calculator-types";
+import { useProjectActions } from "@/lib/dashboard/use-project-actions";
+import { useProjectCloning } from "@/lib/dashboard/use-project-cloning";
+import { useResourceSharing } from "@/lib/dashboard/use-resource-sharing";
+import { useResourceTransfer } from "@/lib/dashboard/use-resource-transfer";
+import type { ActiveModal } from "@/lib/page-utils";
+import { getProductConfigSummary as getProductSpecsSummary } from "@/lib/product-config-summary";
 
 import Image from "next/image";
 import Link from "next/link";
-import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from "react";
 
+import { useNavbar } from "@/components/navbar-context";
+import { ProjectAddCartModalContent } from "@/components/project-add-cart-modal-content";
+import { useSessionContext } from "@/components/session-provider";
 import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { ProjectAddCartModalContent } from "@/components/project-add-cart-modal-content";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
+import { huaweiRegions, type HuaweiRegionKey } from "@/lib/huawei-regions";
 import { findServiceCatalogEntry } from "@/lib/service-config";
 import { formatDate, formatDateTime, formatNumber } from "@/lib/utils";
-import { useSessionContext } from "@/components/session-provider";
-import { useNavbar } from "@/components/navbar-context";
-import { huaweiRegions, type HuaweiRegionKey } from "@/lib/huawei-regions";
 import {
-  buildListExportPayload,
-  buildNamedExportFilename,
-  buildProjectExportPayload,
-  downloadProjectWorkbookFile,
-  downloadTextFile,
-} from "@/lib/resource-export";
-import { ArrowRightLeft, Check, ChevronDown, ChevronRight, Copy, Download, Link2, MoreHorizontal, Pencil, Plus, RefreshCw, Share2, ShoppingCart, Trash2, Upload, X } from "lucide-react";
-
-type BillingOption = "Pay-per-use" | "RI" | "Yearly/Monthly" | "One-time";
-
-type AppProduct = {
-  id: string;
-  serviceCode: string;
-  serviceName: string;
-  productType: string;
-  title: string;
-  quantity: number;
-  config: unknown;
-  pricing: unknown;
-  createdAt?: string;
-  updatedAt: string;
-};
-
-type AppList = {
-  id: string;
-  name: string;
-  ownerUserId: string;
-  accessLevel: "owner" | "project_collaborator" | "list_collaborator";
-  canShare: boolean;
-  huaweiCartKey: string | null;
-  huaweiCartName: string | null;
-  huaweiLastSyncedAt: string | null;
-  huaweiLastError: string | null;
-  createdAt: string;
-  updatedAt: string;
-  productCount: number;
-  products: AppProduct[];
-};
-
-function formatObsRequestSummary(value: number, label: string) {
-  if (!Number.isFinite(value) || value <= 0) {
-    return null;
-  }
-
-  const normalized = value / 10_000;
-  const displayValue = Number.isInteger(normalized)
-    ? formatNumber(normalized)
-    : formatNumber(Number(normalized.toFixed(4)));
-  return `${displayValue} x 10k ${label}`;
-}
-
-type AppProject = {
-  id: string;
-  name: string;
-  ownerUserId: string;
-  accessLevel: "owner" | "project_collaborator" | "list_collaborator";
-  canShare: boolean;
-  description: string | null;
-  createdAt: string;
-  updatedAt: string;
-  lists: AppList[];
-};
-
-type HuaweiCartSummary = {
-  key: string;
-  name: string;
-  associatedListId: string | null;
-};
-
-type ActionMenuItem = {
-  label: string;
-  icon: ReactNode;
-  onSelect: () => void;
-  disabled?: boolean;
-};
-
-type ActiveModal =
-  | { kind: "project-add-cart"; projectId: string }
-  | { kind: "project-huawei"; projectId: string }
-  | { kind: "project-clone"; projectId: string }
-  | { kind: "project-share"; projectId: string }
-  | { kind: "list-move"; listId: string }
-  | { kind: "list-link"; listId: string }
-  | { kind: "list-clone"; listId: string }
-  | { kind: "list-share"; listId: string }
-  | null;
-
-type ResourceExportModalState = {
-  title: string;
-  description: string;
-  json: string;
-  filename: string;
-} | null;
+  ArrowRightLeft,
+  Check,
+  ChevronDown,
+  ChevronRight,
+  Copy,
+  Download,
+  Link2,
+  Pencil,
+  Plus,
+  RefreshCw,
+  Share2,
+  ShoppingCart,
+  Trash2,
+  Upload,
+  X,
+} from "lucide-react";
 
 const billingOptions: BillingOption[] = ["Pay-per-use", "RI", "Yearly/Monthly", "One-time"];
 
 function getServiceMeta(serviceCode: string, serviceName: string) {
   return findServiceCatalogEntry(serviceCode, serviceName);
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null;
-}
-
-function getProductSpecsSummary(product: AppProduct) {
-  if (!isRecord(product.config)) {
-    return null;
-  }
-
-  const vcpu = typeof product.config.vcpu === "number" ? product.config.vcpu : Number(product.config.vcpu ?? 0);
-  const ramGiB = typeof product.config.ramGiB === "number" ? product.config.ramGiB : Number(product.config.ramGiB ?? 0);
-  const systemDisk = isRecord(product.config.systemDisk) ? product.config.systemDisk : null;
-  const diskType = typeof product.config.diskType === "string"
-    ? product.config.diskType
-    : systemDisk && typeof systemDisk.type === "string"
-      ? systemDisk.type
-      : null;
-  const diskSizeGiB = typeof product.config.diskSizeGiB === "number"
-    ? product.config.diskSizeGiB
-    : systemDisk && typeof systemDisk.sizeGiB === "number"
-      ? systemDisk.sizeGiB
-      : null;
-  const diskIops = typeof product.config.iops === "number"
-    ? product.config.iops
-    : systemDisk && typeof systemDisk.iops === "number"
-      ? systemDisk.iops
-      : null;
-  const diskThroughput = typeof product.config.throughput === "number"
-    ? product.config.throughput
-    : systemDisk && typeof systemDisk.throughput === "number"
-      ? systemDisk.throughput
-      : null;
-  const includedSystemDiskGiB = typeof product.config.systemDiskGiB === "number"
-    ? product.config.systemDiskGiB
-    : null;
-  const peakBandwidthMbit = typeof product.config.peakBandwidthMbit === "number"
-    ? product.config.peakBandwidthMbit
-    : null;
-  const dataPackageTiB = typeof product.config.dataPackageTiB === "number"
-    ? product.config.dataPackageTiB
-    : null;
-  const storageClass = typeof product.config.storageClass === "string"
-    ? product.config.storageClass
-    : null;
-  const obsProductType = typeof product.config.productType === "string"
-    ? product.config.productType
-    : null;
-  const obsRedundancy = typeof product.config.redundancy === "string"
-    ? product.config.redundancy
-    : null;
-  const storageAmount = typeof product.config.storageAmount === "number"
-    ? product.config.storageAmount
-    : typeof product.config.storageGiB === "number"
-      ? product.config.storageGiB
-      : null;
-  const storageUnit = typeof product.config.storageUnit === "string"
-    ? product.config.storageUnit
-    : "GB";
-  const storageGiB = typeof product.config.storageGiB === "number"
-    ? product.config.storageGiB
-    : null;
-  const durationMonths = typeof product.config.durationMonths === "number"
-    ? product.config.durationMonths
-    : null;
-  const minimumStorageDays = typeof product.config.minimumStorageDays === "number"
-    ? product.config.minimumStorageDays
-    : null;
-  const outboundTrafficAmount = typeof product.config.outboundTrafficAmount === "number"
-    ? product.config.outboundTrafficAmount
-    : null;
-  const outboundTrafficUnit = typeof product.config.outboundTrafficUnit === "string"
-    ? product.config.outboundTrafficUnit
-    : "GB";
-  const readRequests = typeof product.config.readRequests === "number" ? product.config.readRequests : null;
-  const writeRequests = typeof product.config.writeRequests === "number" ? product.config.writeRequests : null;
-  const deleteRequests = typeof product.config.deleteRequests === "number" ? product.config.deleteRequests : null;
-  const pullTrafficAmount = typeof product.config.pullTrafficAmount === "number"
-    ? product.config.pullTrafficAmount
-    : null;
-  const pullTrafficUnit = typeof product.config.pullTrafficUnit === "string"
-    ? product.config.pullTrafficUnit
-    : "GB";
-  const showPullTraffic = typeof product.config.productType === "string"
-    ? product.config.productType === "Object storage"
-    : true;
-  const readTrafficAmount = typeof product.config.readTrafficAmount === "number"
-    ? product.config.readTrafficAmount
-    : null;
-  const readTrafficUnit = typeof product.config.readTrafficUnit === "string"
-    ? product.config.readTrafficUnit
-    : "GB";
-  const restorationType = typeof product.config.restorationType === "string"
-    ? product.config.restorationType
-    : null;
-  const replicationTrafficAmount = typeof product.config.replicationTrafficAmount === "number"
-    ? product.config.replicationTrafficAmount
-    : null;
-  const replicationTrafficUnit = typeof product.config.replicationTrafficUnit === "string"
-    ? product.config.replicationTrafficUnit
-    : "GB";
-  const lifecycleTransitionRequests = typeof product.config.lifecycleTransitionRequests === "number"
-    ? product.config.lifecycleTransitionRequests
-    : null;
-  const elbType = typeof product.config.type === "string"
-    ? product.config.type
-    : null;
-  const elbSpecificationType = typeof product.config.specificationType === "string"
-    ? product.config.specificationType
-    : null;
-  const elbNetworkType = typeof product.config.networkType === "string"
-    ? product.config.networkType
-    : null;
-  const elbFixedAvailabilityAzCount = typeof product.config.fixedAvailabilityAzCount === "number"
-    ? product.config.fixedAvailabilityAzCount
-    : null;
-  const elbFixedSelectedTypes = Array.isArray(product.config.fixedSelectedTypes)
-    ? product.config.fixedSelectedTypes.filter((value): value is string => typeof value === "string")
-    : [];
-  const elbFixedTypeSpecs = isRecord(product.config.fixedTypeSpecs)
-    ? product.config.fixedTypeSpecs
-    : null;
-  const elbSharedChargeMode = typeof product.config.sharedChargeMode === "string"
-    ? product.config.sharedChargeMode
-    : null;
-  const elbSharedBandwidthMbit = typeof product.config.sharedBandwidthMbit === "number"
-    ? product.config.sharedBandwidthMbit
-    : null;
-  const elbSharedTrafficAmount = typeof product.config.sharedTrafficAmount === "number"
-    ? product.config.sharedTrafficAmount
-    : null;
-  const elbSharedTrafficUnit = typeof product.config.sharedTrafficUnit === "string"
-    ? product.config.sharedTrafficUnit
-    : null;
-  const elbSelectedProtocols = Array.isArray(product.config.selectedProtocols)
-    ? product.config.selectedProtocols.filter((value): value is string => typeof value === "string")
-    : [];
-  const elbEstimatedNetworkLcus = typeof product.config.estimatedNetworkLcus === "number"
-    ? product.config.estimatedNetworkLcus
-    : null;
-  const elbEstimatedApplicationLcus = typeof product.config.estimatedApplicationLcus === "number"
-    ? product.config.estimatedApplicationLcus
-    : null;
-  const elbEstimatedTotalLcus = typeof product.config.estimatedTotalLcus === "number"
-    ? product.config.estimatedTotalLcus
-    : null;
-  const elbSelectedNetworkSpecLcus = typeof product.config.selectedNetworkSpecLcus === "number"
-    ? product.config.selectedNetworkSpecLcus
-    : null;
-  const elbSelectedApplicationSpecLcus = typeof product.config.selectedApplicationSpecLcus === "number"
-    ? product.config.selectedApplicationSpecLcus
-    : null;
-  const eipType = typeof product.config.eipType === "string"
-    ? product.config.eipType
-    : null;
-  const eipAllocationType = typeof product.config.type === "string"
-    ? product.config.type
-    : null;
-  const natSize = typeof product.config.size === "string"
-    ? product.config.size
-    : null;
-  const natBillableDays = typeof product.config.billableDays === "number"
-    ? product.config.billableDays
-    : null;
-  const natUsageHours = typeof product.config.usageHours === "number"
-    ? product.config.usageHours
-    : null;
-  const vpnMode = typeof product.config.mode === "string"
-    ? product.config.mode
-    : null;
-  const vpnSpecification = typeof product.config.specification === "string"
-    ? product.config.specification
-    : null;
-  const vpnConnectionGroups = typeof product.config.connectionGroups === "number"
-    ? product.config.connectionGroups
-    : null;
-  const vpnDurationMonths = typeof product.config.durationMonths === "number"
-    ? product.config.durationMonths
-    : null;
-  const vpnUseSharedBandwidth = typeof product.config.useSharedBandwidth === "boolean"
-    ? product.config.useSharedBandwidth
-    : null;
-  const vpnEipBandwidthMbit1 = typeof product.config.eipBandwidthMbit1 === "number"
-    ? product.config.eipBandwidthMbit1
-    : null;
-  const vpnEipBandwidthMbit2 = typeof product.config.eipBandwidthMbit2 === "number"
-    ? product.config.eipBandwidthMbit2
-    : null;
-  const eipChargeMode = typeof product.config.chargeMode === "string"
-    ? product.config.chargeMode
-    : null;
-  const eipBandwidthMbit = typeof product.config.bandwidthMbit === "number"
-    ? product.config.bandwidthMbit
-    : null;
-  const eipDurationMonths = typeof product.config.durationMonths === "number"
-    ? product.config.durationMonths
-    : null;
-  const eipSharedBandwidthQuantity = typeof product.config.sharedBandwidthQuantity === "number"
-    ? product.config.sharedBandwidthQuantity
-    : null;
-  const eipTrafficAmount = typeof product.config.trafficAmount === "number"
-    ? product.config.trafficAmount
-    : null;
-  const eipTrafficUnit = typeof product.config.trafficUnit === "string"
-    ? product.config.trafficUnit
-    : "GB";
-  const parts: string[] = [];
-
-  if (obsProductType) {
-    parts.push(obsProductType);
-  }
-
-  if (elbType) {
-    parts.push(elbType);
-  }
-
-  if (eipType) {
-    parts.push(eipType);
-  }
-
-  if (eipAllocationType) {
-    parts.push(eipAllocationType);
-  }
-
-  if (product.productType === "nat" && natSize) {
-    parts.push(natSize);
-  }
-
-  if (product.productType === "vpn" && vpnMode) {
-    parts.push(vpnMode);
-  }
-
-  if (product.productType === "vpn" && vpnSpecification) {
-    parts.push(vpnSpecification);
-  }
-
-  if (elbSpecificationType && elbType === "Dedicated load balancer") {
-    parts.push(elbSpecificationType);
-  }
-
-  if (elbType === "Dedicated load balancer" && elbSpecificationType === "Fixed" && typeof elbFixedAvailabilityAzCount === "number" && elbFixedAvailabilityAzCount > 0) {
-    parts.push(`${elbFixedAvailabilityAzCount} AZs`);
-  }
-
-  if (elbNetworkType) {
-    parts.push(elbNetworkType);
-  }
-
-  if (elbType === "Dedicated load balancer" && elbSpecificationType === "Fixed" && elbFixedSelectedTypes.length > 0) {
-    parts.push(
-      elbFixedSelectedTypes.map((type) => {
-        const spec = elbFixedTypeSpecs && typeof elbFixedTypeSpecs[type] === "string" ? elbFixedTypeSpecs[type] : null;
-        return spec ? `${type}: ${spec}` : type;
-      }).join(", "),
-    );
-  }
-
-  if (elbType === "Shared load balancer" && elbSharedChargeMode) {
-    parts.push(elbSharedChargeMode);
-  }
-
-  if (elbType === "Shared load balancer" && typeof elbSharedBandwidthMbit === "number" && Number.isFinite(elbSharedBandwidthMbit) && elbSharedBandwidthMbit > 0) {
-    parts.push(`${elbSharedBandwidthMbit} Mbit/s`);
-  }
-
-  if (elbType === "Shared load balancer" && typeof elbSharedTrafficAmount === "number" && Number.isFinite(elbSharedTrafficAmount) && elbSharedTrafficAmount > 0) {
-    parts.push(`${elbSharedTrafficAmount} ${elbSharedTrafficUnit ?? "GB"}`);
-  }
-
-  if (elbType === "Dedicated load balancer" && elbSpecificationType !== "Fixed" && elbSelectedProtocols.length > 0) {
-    parts.push(elbSelectedProtocols.join(", "));
-  }
-
-  if (typeof elbEstimatedTotalLcus === "number" && Number.isFinite(elbEstimatedTotalLcus) && elbEstimatedTotalLcus > 0) {
-    parts.push(`${elbEstimatedTotalLcus} LCU`);
-  }
-
-  if (typeof elbEstimatedNetworkLcus === "number" && Number.isFinite(elbEstimatedNetworkLcus) && elbEstimatedNetworkLcus > 0) {
-    parts.push(`Network ${elbEstimatedNetworkLcus} LCU`);
-  }
-
-  if (typeof elbEstimatedApplicationLcus === "number" && Number.isFinite(elbEstimatedApplicationLcus) && elbEstimatedApplicationLcus > 0) {
-    parts.push(`Application ${elbEstimatedApplicationLcus} LCU`);
-  }
-
-  if (typeof elbSelectedNetworkSpecLcus === "number" && Number.isFinite(elbSelectedNetworkSpecLcus) && elbSelectedNetworkSpecLcus > 0) {
-    parts.push(`Fixed network spec ${elbSelectedNetworkSpecLcus} LCU`);
-  }
-
-  if (typeof elbSelectedApplicationSpecLcus === "number" && Number.isFinite(elbSelectedApplicationSpecLcus) && elbSelectedApplicationSpecLcus > 0) {
-    parts.push(`Fixed application spec ${elbSelectedApplicationSpecLcus} LCU`);
-  }
-
-  if (eipChargeMode) {
-    parts.push(eipChargeMode);
-  }
-
-  if (typeof eipBandwidthMbit === "number" && Number.isFinite(eipBandwidthMbit) && eipBandwidthMbit > 0) {
-    parts.push(`${eipBandwidthMbit} Mbit/s`);
-  }
-
-  if (typeof eipDurationMonths === "number" && Number.isFinite(eipDurationMonths) && eipDurationMonths > 0) {
-    parts.push(`${eipDurationMonths}mo`);
-  }
-
-  if (typeof eipSharedBandwidthQuantity === "number" && Number.isFinite(eipSharedBandwidthQuantity) && eipSharedBandwidthQuantity > 0) {
-    parts.push(`${eipSharedBandwidthQuantity} shared bandwidth${eipSharedBandwidthQuantity === 1 ? "" : "s"}`);
-  }
-
-  if (typeof eipTrafficAmount === "number" && Number.isFinite(eipTrafficAmount) && eipTrafficAmount > 0) {
-    parts.push(`${eipTrafficAmount} ${eipTrafficUnit}`);
-  }
-
-  if (product.productType === "nat" && typeof natBillableDays === "number" && Number.isFinite(natBillableDays) && natBillableDays > 0) {
-    parts.push(`${natBillableDays}d`);
-  }
-
-  if (product.productType === "nat" && typeof natUsageHours === "number" && Number.isFinite(natUsageHours) && natUsageHours > 0) {
-    parts.push(`${natUsageHours}h`);
-  }
-
-  if (product.productType === "vpn" && typeof vpnConnectionGroups === "number" && Number.isFinite(vpnConnectionGroups) && vpnConnectionGroups > 0) {
-    parts.push(`${vpnConnectionGroups} groups`);
-  }
-
-  if (product.productType === "vpn" && vpnUseSharedBandwidth != null) {
-    parts.push(vpnUseSharedBandwidth ? "Shared bandwidth" : "Dedicated bandwidth");
-  }
-
-  if (product.productType === "vpn" && typeof vpnEipBandwidthMbit1 === "number" && Number.isFinite(vpnEipBandwidthMbit1) && vpnEipBandwidthMbit1 > 0) {
-    parts.push(`EIP1 ${vpnEipBandwidthMbit1} Mbit/s`);
-  }
-
-  if (product.productType === "vpn" && typeof vpnEipBandwidthMbit2 === "number" && Number.isFinite(vpnEipBandwidthMbit2) && vpnEipBandwidthMbit2 > 0) {
-    parts.push(`EIP2 ${vpnEipBandwidthMbit2} Mbit/s`);
-  }
-
-  if (product.productType === "vpn" && typeof vpnDurationMonths === "number" && Number.isFinite(vpnDurationMonths) && vpnDurationMonths > 0) {
-    parts.push(`${vpnDurationMonths}mo`);
-  }
-
-  if (storageClass) {
-    parts.push(storageClass);
-  }
-
-  if (obsRedundancy) {
-    parts.push(obsRedundancy);
-  }
-
-  if (typeof storageAmount === "number" && Number.isFinite(storageAmount) && storageAmount > 0) {
-    parts.push(`${storageAmount} ${storageUnit}`);
-  }
-
-  if (typeof storageGiB === "number" && Number.isFinite(storageGiB) && storageGiB > 0) {
-    parts.push(`${storageGiB} GiB effective`);
-  }
-
-  if (Number.isFinite(vcpu) && vcpu > 0) {
-    parts.push(`${vcpu} vCPUs`);
-  }
-
-  if (Number.isFinite(ramGiB) && ramGiB > 0) {
-    parts.push(`${ramGiB} GiB RAM`);
-  }
-
-  if (diskType) {
-    parts.push(diskType);
-  }
-
-  if (typeof diskSizeGiB === "number" && Number.isFinite(diskSizeGiB) && diskSizeGiB > 0) {
-    parts.push(`${diskSizeGiB} GiB`);
-  } else if (typeof includedSystemDiskGiB === "number" && Number.isFinite(includedSystemDiskGiB) && includedSystemDiskGiB > 0) {
-    parts.push(`${includedSystemDiskGiB} GiB system disk`);
-  }
-
-  if (typeof diskIops === "number" && Number.isFinite(diskIops) && diskIops > 0) {
-    parts.push(`${diskIops} IOPS`);
-  }
-
-  if (typeof diskThroughput === "number" && Number.isFinite(diskThroughput) && diskThroughput > 0) {
-    parts.push(`${diskThroughput} MB/s`);
-  }
-
-  if (typeof peakBandwidthMbit === "number" && Number.isFinite(peakBandwidthMbit) && peakBandwidthMbit > 0) {
-    parts.push(`${peakBandwidthMbit} Mbit/s`);
-  }
-
-  if (typeof dataPackageTiB === "number" && Number.isFinite(dataPackageTiB) && dataPackageTiB > 0) {
-    parts.push(`${dataPackageTiB} TB/month`);
-  }
-
-  if (typeof durationMonths === "number" && Number.isFinite(durationMonths) && durationMonths > 0) {
-    parts.push(`${durationMonths}mo`);
-  }
-
-  if (typeof outboundTrafficAmount === "number" && Number.isFinite(outboundTrafficAmount) && outboundTrafficAmount > 0) {
-    parts.push(`Outbound ${outboundTrafficAmount} ${outboundTrafficUnit}`);
-  }
-
-  if (showPullTraffic && typeof pullTrafficAmount === "number" && Number.isFinite(pullTrafficAmount) && pullTrafficAmount > 0) {
-    parts.push(`Pull ${pullTrafficAmount} ${pullTrafficUnit}`);
-  }
-
-  if (restorationType) {
-    parts.push(restorationType);
-  }
-
-  if (typeof readTrafficAmount === "number" && Number.isFinite(readTrafficAmount) && readTrafficAmount > 0) {
-    parts.push(`Read ${readTrafficAmount} ${readTrafficUnit}`);
-  }
-
-  if (typeof replicationTrafficAmount === "number" && Number.isFinite(replicationTrafficAmount) && replicationTrafficAmount > 0) {
-    parts.push(`CRR ${replicationTrafficAmount} ${replicationTrafficUnit}`);
-  }
-
-  const readRequestSummary = typeof readRequests === "number" ? formatObsRequestSummary(readRequests, "reads") : null;
-  if (readRequestSummary) {
-    parts.push(readRequestSummary);
-  }
-
-  const writeRequestSummary = typeof writeRequests === "number" ? formatObsRequestSummary(writeRequests, "writes") : null;
-  if (writeRequestSummary) {
-    parts.push(writeRequestSummary);
-  }
-
-  const deleteRequestSummary = typeof deleteRequests === "number" ? formatObsRequestSummary(deleteRequests, "deletes") : null;
-  if (deleteRequestSummary) {
-    parts.push(deleteRequestSummary);
-  }
-
-  const lifecycleTransitionSummary = typeof lifecycleTransitionRequests === "number"
-    ? formatObsRequestSummary(lifecycleTransitionRequests, "lifecycle transitions")
-    : null;
-  if (lifecycleTransitionSummary) {
-    parts.push(lifecycleTransitionSummary);
-  }
-
-  if (typeof minimumStorageDays === "number" && Number.isFinite(minimumStorageDays) && minimumStorageDays > 0) {
-    parts.push(`${minimumStorageDays}-day minimum`);
-  }
-
-  return parts.length ? parts.join(" · ") : null;
-}
-
-function getResponseError(payload: unknown, fallback: string) {
-  if (payload && typeof payload === "object" && "error" in payload && typeof payload.error === "string") {
-    return payload.error;
-  }
-
-  return fallback;
-}
-
-async function copyText(text: string) {
-  if (typeof navigator !== "undefined" && navigator.clipboard?.writeText) {
-    await navigator.clipboard.writeText(text);
-    return true;
-  }
-
-  if (typeof document === "undefined") {
-    return false;
-  }
-
-  const textarea = document.createElement("textarea");
-  textarea.value = text;
-  textarea.setAttribute("readonly", "");
-  textarea.style.position = "fixed";
-  textarea.style.opacity = "0";
-  textarea.style.pointerEvents = "none";
-  document.body.appendChild(textarea);
-  textarea.focus();
-  textarea.select();
-
-  try {
-    return document.execCommand("copy");
-  } finally {
-    document.body.removeChild(textarea);
-  }
-}
-
-async function parseJsonFile(file: File) {
-  const text = await file.text();
-
-  try {
-    return JSON.parse(text) as unknown;
-  } catch {
-    throw new Error("Import file is not valid JSON");
-  }
-}
-
-function getProjectCloneDefaultName(
-  projectName: string,
-  targetRegion: HuaweiRegionKey | "",
-  targetBillingMode: BillingOption | "",
-) {
-  const base = projectName.trim() || "NeoCalculator project";
-  const suffixParts: string[] = [];
-  if (targetRegion) {
-    suffixParts.push(huaweiRegions[targetRegion].short);
-  }
-  if (targetBillingMode) {
-    suffixParts.push(targetBillingMode);
-  }
-
-  return suffixParts.length ? `${base} ${suffixParts.join(" ")}` : `${base} (Copy)`;
-}
-
-function getCartCloneDefaultName(
-  listName: string,
-  targetRegion: HuaweiRegionKey | "",
-  targetBillingMode: BillingOption | "",
-) {
-  const base = listName.trim() || "NeoCalculator cart";
-  const suffixParts: string[] = [];
-  if (targetRegion) {
-    suffixParts.push(huaweiRegions[targetRegion].short);
-  }
-  if (targetBillingMode) {
-    suffixParts.push(targetBillingMode);
-  }
-
-  return suffixParts.length ? `${base} (${suffixParts.join(" · ")})` : `${base} (Copy)`;
-}
-
-function ActionMenu({
-  open,
-  onOpenChange,
-  label,
-  items,
-}: {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  label: string;
-  items: ActionMenuItem[];
-}) {
-  return (
-    <div data-action-menu-root className="relative">
-      <Button
-        type="button"
-        variant="ghost"
-        size="icon"
-        aria-haspopup="menu"
-        aria-expanded={open}
-        aria-label={label}
-        onClick={() => onOpenChange(!open)}
-      >
-        <MoreHorizontal className="size-4" />
-      </Button>
-      {open ? (
-        <div
-          role="menu"
-          className="absolute top-full right-0 z-30 mt-2 w-52 rounded-xl border border-zinc-200 bg-white p-1 shadow-[0_24px_70px_-32px_rgba(15,23,42,0.45)]"
-        >
-          {items.map((item) => (
-            <button
-              key={item.label}
-              type="button"
-              role="menuitem"
-              disabled={item.disabled}
-              className="flex w-full cursor-pointer items-center gap-2 rounded-lg px-3 py-2 text-left text-sm text-zinc-700 transition hover:bg-zinc-100 disabled:cursor-not-allowed disabled:opacity-50"
-              onClick={() => {
-                onOpenChange(false);
-                item.onSelect();
-              }}
-            >
-              <span className="text-zinc-500">{item.icon}</span>
-              <span>{item.label}</span>
-            </button>
-          ))}
-        </div>
-      ) : null}
-    </div>
-  );
-}
-
-function ActionModal({
-  title,
-  description,
-  onClose,
-  children,
-  panelClassName,
-}: {
-  title: string;
-  description: string;
-  onClose: () => void;
-  children: ReactNode;
-  panelClassName?: string;
-}) {
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-zinc-950/40 p-4" onClick={onClose}>
-      <div
-        role="dialog"
-        aria-modal="true"
-        aria-label={title}
-        className={`w-full rounded-2xl border border-zinc-200 bg-white shadow-[0_32px_100px_-40px_rgba(15,23,42,0.55)] ${panelClassName ?? "max-w-lg"}`}
-        onClick={(event) => event.stopPropagation()}
-      >
-        <div className="flex items-start justify-between gap-4 border-b border-zinc-100 px-5 py-4">
-          <div>
-            <h2 className="text-lg font-semibold text-zinc-950">{title}</h2>
-            <p className="mt-1 text-sm text-zinc-500">{description}</p>
-          </div>
-          <Button type="button" variant="ghost" size="icon" aria-label={`Close ${title}`} onClick={onClose}>
-            <X className="size-4" />
-          </Button>
-        </div>
-        <div className="space-y-4 px-5 py-5">{children}</div>
-      </div>
-    </div>
-  );
 }
 
 export default function ProjectsPage() {
@@ -741,22 +63,9 @@ export default function ProjectsPage() {
   const [projectsError, setProjectsError] = useState("");
   const [expandedProjects, setExpandedProjects] = useState<Record<string, boolean>>({});
   const [expandedLists, setExpandedLists] = useState<Record<string, boolean>>({});
-  const [newProjectName, setNewProjectName] = useState("");
-  const [newProjectPending, setNewProjectPending] = useState(false);
-  const [importProjectPending, setImportProjectPending] = useState(false);
-  const [importProjectMessage, setImportProjectMessage] = useState("");
-  const [importProjectMessageIsError, setImportProjectMessageIsError] = useState(false);
-  const [editingProjectId, setEditingProjectId] = useState<string | null>(null);
-  const [projectNameDrafts, setProjectNameDrafts] = useState<Record<string, string>>({});
-  const [renamingProjectId, setRenamingProjectId] = useState<string | null>(null);
-  const [deletingProjectId, setDeletingProjectId] = useState<string | null>(null);
-  const [listDrafts, setListDrafts] = useState<Record<string, string>>({});
-  const [listBaseDrafts, setListBaseDrafts] = useState<Record<string, string>>({});
-  const [listPendingProjectId, setListPendingProjectId] = useState<string | null>(null);
   const [editingListId, setEditingListId] = useState<string | null>(null);
   const [listNameDrafts, setListNameDrafts] = useState<Record<string, string>>({});
   const [renamingListId, setRenamingListId] = useState<string | null>(null);
-  const [deletingListId, setDeletingListId] = useState<string | null>(null);
   const [cookieValue, setCookieValue] = useState("");
   const [huaweiCarts, setHuaweiCarts] = useState<HuaweiCartSummary[]>([]);
   const [huaweiCartsError, setHuaweiCartsError] = useState("");
@@ -770,39 +79,22 @@ export default function ProjectsPage() {
   const [syncingHuaweiProjectId, setSyncingHuaweiProjectId] = useState<string | null>(null);
   const [projectHuaweiMessages, setProjectHuaweiMessages] = useState<Record<string, string>>({});
   const [projectHuaweiMessageErrors, setProjectHuaweiMessageErrors] = useState<Record<string, boolean>>({});
-  const [projectImportMessages, setProjectImportMessages] = useState<Record<string, string>>({});
-  const [projectImportMessageErrors, setProjectImportMessageErrors] = useState<Record<string, boolean>>({});
-  const [projectExportMessages, setProjectExportMessages] = useState<Record<string, string>>({});
-  const [projectExportMessageErrors, setProjectExportMessageErrors] = useState<Record<string, boolean>>({});
-  const [projectCloneNameDrafts, setProjectCloneNameDrafts] = useState<Record<string, string>>({});
-  const [projectCloneTargetRegions, setProjectCloneTargetRegions] = useState<Record<string, HuaweiRegionKey | "">>({});
-  const [projectCloneTargetBillingModes, setProjectCloneTargetBillingModes] = useState<Record<string, BillingOption | "">>({});
-  const [cloningProjectId, setCloningProjectId] = useState<string | null>(null);
-  const [projectCloneMessages, setProjectCloneMessages] = useState<Record<string, string>>({});
-  const [projectCloneMessageErrors, setProjectCloneMessageErrors] = useState<Record<string, boolean>>({});
   const [listCloneNameDrafts, setListCloneNameDrafts] = useState<Record<string, string>>({});
   const [listCloneTargetRegions, setListCloneTargetRegions] = useState<Record<string, HuaweiRegionKey | "">>({});
-  const [listCloneTargetBillingModes, setListCloneTargetBillingModes] = useState<Record<string, BillingOption | "">>({});
+  const [listCloneTargetBillingModes, setListCloneTargetBillingModes] = useState<Record<string, BillingOption | "">>(
+    {},
+  );
   const [cloningListId, setCloningListId] = useState<string | null>(null);
   const [listCloneMessages, setListCloneMessages] = useState<Record<string, string>>({});
   const [listCloneMessageErrors, setListCloneMessageErrors] = useState<Record<string, boolean>>({});
-  const [sharingProjectKey, setSharingProjectKey] = useState<string | null>(null);
-  const [sharingListKey, setSharingListKey] = useState<string | null>(null);
-  const [projectShareMessages, setProjectShareMessages] = useState<Record<string, string>>({});
-  const [listShareMessages, setListShareMessages] = useState<Record<string, string>>({});
   const [openProjectMenuId, setOpenProjectMenuId] = useState<string | null>(null);
   const [openListMenuId, setOpenListMenuId] = useState<string | null>(null);
   const [isProjectCreateMenuOpen, setIsProjectCreateMenuOpen] = useState(false);
   const [activeModal, setActiveModal] = useState<ActiveModal>(null);
-  const [resourceExportModal, setResourceExportModal] = useState<ResourceExportModalState>(null);
-  const [resourceExportActionMessage, setResourceExportActionMessage] = useState("");
-  const [importCartTargetProjectId, setImportCartTargetProjectId] = useState<string | null>(null);
-  const [importCartPendingProjectId, setImportCartPendingProjectId] = useState<string | null>(null);
-  const projectImportInputRef = useRef<HTMLInputElement>(null);
-  const cartImportInputRef = useRef<HTMLInputElement>(null);
 
-  const cloneableRegions = (Object.entries(huaweiRegions) as Array<[HuaweiRegionKey, (typeof huaweiRegions)[HuaweiRegionKey]]>)
-    .filter(([, labels]) => Boolean(labels.catalogRegionId));
+  const cloneableRegions = (
+    Object.entries(huaweiRegions) as Array<[HuaweiRegionKey, (typeof huaweiRegions)[HuaweiRegionKey]]>
+  ).filter(([, labels]) => Boolean(labels.catalogRegionId));
 
   const totals = useMemo(() => {
     const listCount = projects.reduce((sum, project) => sum + project.lists.length, 0);
@@ -820,12 +112,7 @@ export default function ProjectsPage() {
   const projectsById = useMemo(() => new Map(projects.map((project) => [project.id, project] as const)), [projects]);
 
   const listsById = useMemo(
-    () =>
-      new Map(
-        projects.flatMap((project) =>
-          project.lists.map((list) => [list.id, { list, project }] as const),
-        ),
-      ),
+    () => new Map(projects.flatMap((project) => project.lists.map((list) => [list.id, { list, project }] as const))),
     [projects],
   );
 
@@ -833,10 +120,11 @@ export default function ProjectsPage() {
     activeModal == null
       ? null
       : "projectId" in activeModal
-        ? projectsById.get(activeModal.projectId) ?? null
-        : listsById.get(activeModal.listId)?.project ?? null;
+        ? (projectsById.get(activeModal.projectId) ?? null)
+        : (listsById.get(activeModal.listId)?.project ?? null);
 
-  const activeList = activeModal != null && "listId" in activeModal ? listsById.get(activeModal.listId)?.list ?? null : null;
+  const activeList =
+    activeModal != null && "listId" in activeModal ? (listsById.get(activeModal.listId)?.list ?? null) : null;
 
   const loadProjects = useCallback(async () => {
     if (!session?.user.id) {
@@ -883,113 +171,6 @@ export default function ProjectsPage() {
     }
   }, [session?.user.id]);
 
-  const openProjectImportPicker = () => {
-    if (!session) {
-      setProjectsError("Sign in to save carts and projects.");
-      return;
-    }
-
-    setImportProjectMessage("");
-    setImportProjectMessageIsError(false);
-    if (projectImportInputRef.current) {
-      projectImportInputRef.current.value = "";
-      projectImportInputRef.current.click();
-    }
-  };
-
-  const openCartImportPicker = (projectId: string) => {
-    if (!session) {
-      setProjectsError("Sign in to save carts and projects.");
-      return;
-    }
-
-    setImportCartTargetProjectId(projectId);
-    setProjectImportMessages((current) => ({ ...current, [projectId]: "" }));
-    setProjectImportMessageErrors((current) => ({ ...current, [projectId]: false }));
-    if (cartImportInputRef.current) {
-      cartImportInputRef.current.value = "";
-      cartImportInputRef.current.click();
-    }
-  };
-
-  const handleImportProjectFile = async (file: File) => {
-    setImportProjectPending(true);
-    setImportProjectMessage("");
-    setImportProjectMessageIsError(false);
-    setProjectsError("");
-
-    try {
-      const payload = await parseJsonFile(file);
-      const response = await fetch("/api/import", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ payload }),
-      });
-      const result = (await response.json().catch(() => null)) as
-        | { projectId: string; firstListId: string | null; name: string; importedListCount: number; importedProductCount: number; error?: never }
-        | { error?: string }
-        | null;
-
-      if (!response.ok || !result || !("projectId" in result)) {
-        throw new Error(getResponseError(result, "Unable to import project"));
-      }
-
-      await loadProjects();
-      setExpandedProjects((current) => ({ ...current, [result.projectId]: true }));
-      setImportProjectMessage(
-        `Imported project ${result.name} with ${result.importedListCount} cart(s) and ${result.importedProductCount} product(s).`,
-      );
-      setImportProjectMessageIsError(false);
-    } catch (error) {
-      setImportProjectMessage(error instanceof Error ? error.message : "Unable to import project");
-      setImportProjectMessageIsError(true);
-    } finally {
-      setImportProjectPending(false);
-    }
-  };
-
-  const handleImportCartFile = async (projectId: string, file: File) => {
-    setImportCartPendingProjectId(projectId);
-    setProjectImportMessages((current) => ({ ...current, [projectId]: "" }));
-    setProjectImportMessageErrors((current) => ({ ...current, [projectId]: false }));
-    setProjectsError("");
-
-    try {
-      const payload = await parseJsonFile(file);
-      const response = await fetch("/api/import", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ payload, targetProjectId: projectId }),
-      });
-      const result = (await response.json().catch(() => null)) as
-        | { projectId: string; listId: string; name: string; importedProductCount: number; error?: never }
-        | { error?: string }
-        | null;
-
-      if (!response.ok || !result || !("listId" in result)) {
-        throw new Error(getResponseError(result, "Unable to import cart"));
-      }
-
-      await loadProjects();
-      setExpandedProjects((current) => ({ ...current, [projectId]: true }));
-      setExpandedLists((current) => ({ ...current, [result.listId]: true }));
-      setProjectImportMessages((current) => ({
-        ...current,
-        [projectId]: `Imported cart ${result.name} with ${result.importedProductCount} product(s).`,
-      }));
-      setProjectImportMessageErrors((current) => ({ ...current, [projectId]: false }));
-    } catch (error) {
-      setProjectImportMessages((current) => ({
-        ...current,
-        [projectId]: error instanceof Error ? error.message : "Unable to import cart",
-      }));
-      setProjectImportMessageErrors((current) => ({ ...current, [projectId]: true }));
-    } finally {
-      setImportCartPendingProjectId(null);
-      setImportCartTargetProjectId(null);
-    }
-  };
-
   const loadHuaweiCarts = useCallback(async () => {
     if (!cookieValue.trim()) {
       setHuaweiCarts([]);
@@ -1006,9 +187,11 @@ export default function ProjectsPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ cookie: cookieValue }),
       });
-      const payload = (await response.json().catch(() => null)) as
-        | { carts?: HuaweiCartSummary[]; syncedAt?: string; error?: string }
-        | null;
+      const payload = (await response.json().catch(() => null)) as {
+        carts?: HuaweiCartSummary[];
+        syncedAt?: string;
+        error?: string;
+      } | null;
 
       if (!response.ok) {
         throw new Error(getResponseError(payload, "Unable to load Huawei carts"));
@@ -1097,462 +280,6 @@ export default function ProjectsPage() {
       setActiveModal(null);
     }
   }, [activeModal, listsById, projectsById]);
-
-  const handleCreateProject = async () => {
-    if (!session) {
-      setProjectsError("Sign in to save and share projects.");
-      return;
-    }
-
-    const name = newProjectName.trim();
-    if (!name) {
-      return;
-    }
-
-    setNewProjectPending(true);
-    setProjectsError("");
-
-    try {
-      const response = await fetch("/api/projects", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name }),
-      });
-      const payload = (await response.json().catch(() => null)) as (Omit<AppProject, "lists"> & { error?: never }) | { error?: string } | null;
-
-      if (!response.ok || !payload || !("id" in payload)) {
-        throw new Error(getResponseError(payload, "Unable to create project"));
-      }
-
-      setProjects((current) => [{ ...payload, lists: [] }, ...current]);
-      setExpandedProjects((current) => ({ ...current, [payload.id]: true }));
-      setProjectNameDrafts((current) => ({ ...current, [payload.id]: payload.name }));
-      setNewProjectName("");
-    } catch (error) {
-      setProjectsError(error instanceof Error ? error.message : "Unable to create project");
-    } finally {
-      setNewProjectPending(false);
-    }
-  };
-
-  const handleCreateShare = async (resourceType: "project" | "list", resourceId: string, mode: "copy" | "collaborate") => {
-    const setPending = resourceType === "project" ? setSharingProjectKey : setSharingListKey;
-    const setMessages = resourceType === "project" ? setProjectShareMessages : setListShareMessages;
-
-    setPending(`${resourceType}:${resourceId}:${mode}`);
-    setMessages((current) => ({ ...current, [resourceId]: "" }));
-
-    try {
-      const response = await fetch("/api/share", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ resourceType, resourceId, mode }),
-      });
-      const payload = (await response.json().catch(() => null)) as { shareUrl?: string; error?: string } | null;
-
-      if (!response.ok || !payload?.shareUrl) {
-        throw new Error(getResponseError(payload, "Unable to create share link"));
-      }
-
-      const shareUrl = new URL(payload.shareUrl, window.location.origin).toString();
-      const copied = await copyText(shareUrl);
-      setMessages((current) => ({
-        ...current,
-        [resourceId]: copied
-          ? mode === "copy"
-            ? "Copy link copied."
-            : "Collaborative link copied."
-          : `${mode === "copy" ? "Copy" : "Collaborative"} link: ${shareUrl}`,
-      }));
-    } catch (error) {
-      setMessages((current) => ({
-        ...current,
-        [resourceId]: error instanceof Error ? error.message : "Unable to create share link",
-      }));
-    } finally {
-      setPending(null);
-    }
-  };
-
-  const handleCreateList = async (projectId: string) => {
-    const name = listDrafts[projectId]?.trim();
-    const baseCartKey = listBaseDrafts[projectId] ?? "";
-    const usingHuaweiBase = Boolean(baseCartKey);
-
-    if (!name && !usingHuaweiBase) {
-      return;
-    }
-
-    if (usingHuaweiBase && !cookieValue.trim()) {
-      setProjectsError("Save a Huawei Cloud cookie on the main dashboard before importing a Huawei cart.");
-      return;
-    }
-
-    setListPendingProjectId(projectId);
-    setProjectsError("");
-
-    try {
-      const response = await fetch(`/api/projects/${projectId}/lists`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name,
-          huaweiCartKey: baseCartKey || null,
-          cookie: baseCartKey ? cookieValue : undefined,
-        }),
-      });
-      const payload = (await response.json().catch(() => null)) as
-        | (AppList & { projectId: string; error?: never })
-        | { error?: string }
-        | null;
-
-      if (!response.ok || !payload || !("projectId" in payload)) {
-        throw new Error(getResponseError(payload, "Unable to create cart"));
-      }
-
-      setProjects((current) =>
-        current.map((project) =>
-          project.id === projectId
-            ? {
-                ...project,
-                updatedAt: payload.updatedAt,
-                lists: [...project.lists, payload],
-              }
-            : project,
-        ),
-      );
-      setExpandedProjects((current) => ({ ...current, [projectId]: true }));
-      setExpandedLists((current) => ({ ...current, [payload.id]: true }));
-      setListDrafts((current) => ({ ...current, [projectId]: "" }));
-      setListBaseDrafts((current) => ({ ...current, [projectId]: "" }));
-      setActiveModal((current) => (current?.kind === "project-add-cart" && current.projectId === projectId ? null : current));
-
-      if (baseCartKey) {
-        await loadHuaweiCarts();
-      }
-    } catch (error) {
-      setProjectsError(error instanceof Error ? error.message : "Unable to create cart");
-    } finally {
-      setListPendingProjectId(null);
-    }
-  };
-
-  const handleStartProjectRename = (project: AppProject) => {
-    setEditingProjectId(project.id);
-    setProjectNameDrafts((current) => ({
-      ...current,
-      [project.id]: current[project.id] ?? project.name,
-    }));
-    setProjectsError("");
-  };
-
-  const handleCancelProjectRename = (project: AppProject) => {
-    setEditingProjectId((current) => (current === project.id ? null : current));
-    setProjectNameDrafts((current) => ({
-      ...current,
-      [project.id]: project.name,
-    }));
-  };
-
-  const handleRenameProject = async (project: AppProject) => {
-    const name = (projectNameDrafts[project.id] ?? project.name).trim();
-    if (!name) {
-      setProjectsError("Project name is required.");
-      return;
-    }
-
-    if (name === project.name) {
-      setEditingProjectId(null);
-      return;
-    }
-
-    setRenamingProjectId(project.id);
-    setProjectsError("");
-
-    try {
-      const response = await fetch(`/api/projects/${project.id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name }),
-      });
-      const payload = (await response.json().catch(() => null)) as
-        | { id: string; name: string; description: string | null; updatedAt: string }
-        | { error?: string }
-        | null;
-
-      if (!response.ok || !payload || !("updatedAt" in payload)) {
-        throw new Error(getResponseError(payload, "Unable to rename project"));
-      }
-
-      setProjects((current) =>
-        current.map((item) =>
-          item.id === payload.id
-            ? {
-                ...item,
-                name: payload.name,
-                description: payload.description,
-                updatedAt: payload.updatedAt,
-              }
-            : item,
-        ),
-      );
-      setProjectNameDrafts((current) => ({ ...current, [project.id]: payload.name }));
-      setEditingProjectId(null);
-    } catch (error) {
-      setProjectsError(error instanceof Error ? error.message : "Unable to rename project");
-    } finally {
-      setRenamingProjectId(null);
-    }
-  };
-
-  const handleDeleteProject = async (project: AppProject) => {
-    const confirmed = window.confirm(`Delete "${project.name}" and all of its carts and products?`);
-    if (!confirmed) {
-      return;
-    }
-
-    setDeletingProjectId(project.id);
-    setProjectsError("");
-
-    try {
-      const response = await fetch(`/api/projects/${project.id}`, {
-        method: "DELETE",
-      });
-      const payload = (await response.json().catch(() => null)) as
-        | { id: string; deleted: true }
-        | { error?: string }
-        | null;
-
-      if (!response.ok || !payload || !("deleted" in payload)) {
-        throw new Error(getResponseError(payload, "Unable to delete project"));
-      }
-
-      setProjects((current) => current.filter((item) => item.id !== payload.id));
-      setExpandedProjects((current) => {
-        const nextState = { ...current };
-        delete nextState[project.id];
-        return nextState;
-      });
-      setProjectNameDrafts((current) => {
-        const next = { ...current };
-        delete next[project.id];
-        return next;
-      });
-      setProjectCloneNameDrafts((current) => {
-        const next = { ...current };
-        delete next[project.id];
-        return next;
-      });
-      setProjectCloneTargetRegions((current) => {
-        const next = { ...current };
-        delete next[project.id];
-        return next;
-      });
-      setProjectCloneTargetBillingModes((current) => {
-        const next = { ...current };
-        delete next[project.id];
-        return next;
-      });
-      setProjectHuaweiMessages((current) => {
-        const next = { ...current };
-        delete next[project.id];
-        return next;
-      });
-      setProjectHuaweiMessageErrors((current) => {
-        const next = { ...current };
-        delete next[project.id];
-        return next;
-      });
-      setProjectCloneMessages((current) => {
-        const next = { ...current };
-        delete next[project.id];
-        return next;
-      });
-      setProjectCloneMessageErrors((current) => {
-        const next = { ...current };
-        delete next[project.id];
-        return next;
-      });
-      setExpandedLists((current) => {
-        const next = { ...current };
-        project.lists.forEach((list) => {
-          delete next[list.id];
-        });
-        return next;
-      });
-      setListNameDrafts((current) => {
-        const next = { ...current };
-        project.lists.forEach((list) => {
-          delete next[list.id];
-        });
-        return next;
-      });
-      setListProjectDrafts((current) => {
-        const next = { ...current };
-        project.lists.forEach((list) => {
-          delete next[list.id];
-        });
-        return next;
-      });
-      setListHuaweiCartDrafts((current) => {
-        const next = { ...current };
-        project.lists.forEach((list) => {
-          delete next[list.id];
-        });
-        return next;
-      });
-      setListHuaweiMessages((current) => {
-        const next = { ...current };
-        project.lists.forEach((list) => {
-          delete next[list.id];
-        });
-        return next;
-      });
-      setListHuaweiMessageErrors((current) => {
-        const next = { ...current };
-        project.lists.forEach((list) => {
-          delete next[list.id];
-        });
-        return next;
-      });
-      setListCloneNameDrafts((current) => {
-        const next = { ...current };
-        project.lists.forEach((list) => {
-          delete next[list.id];
-        });
-        return next;
-      });
-      setListCloneTargetRegions((current) => {
-        const next = { ...current };
-        project.lists.forEach((list) => {
-          delete next[list.id];
-        });
-        return next;
-      });
-      setListCloneTargetBillingModes((current) => {
-        const next = { ...current };
-        project.lists.forEach((list) => {
-          delete next[list.id];
-        });
-        return next;
-      });
-      setListCloneMessages((current) => {
-        const next = { ...current };
-        project.lists.forEach((list) => {
-          delete next[list.id];
-        });
-        return next;
-      });
-      setListCloneMessageErrors((current) => {
-        const next = { ...current };
-        project.lists.forEach((list) => {
-          delete next[list.id];
-        });
-        return next;
-      });
-      await loadHuaweiCarts();
-    } catch (error) {
-      setProjectsError(error instanceof Error ? error.message : "Unable to delete project");
-    } finally {
-      setDeletingProjectId(null);
-    }
-  };
-
-  const handleDeleteList = async (list: AppList, projectId: string) => {
-    const confirmed = window.confirm(`Delete "${list.name}" and all of its products?`);
-    if (!confirmed) {
-      return;
-    }
-
-    setDeletingListId(list.id);
-    setProjectsError("");
-
-    try {
-      const response = await fetch(`/api/lists/${list.id}`, {
-        method: "DELETE",
-      });
-      const payload = (await response.json().catch(() => null)) as
-        | { id: string; projectId: string; deleted: true; updatedAt: string }
-        | { error?: string }
-        | null;
-
-      if (!response.ok || !payload || !("deleted" in payload)) {
-        throw new Error(getResponseError(payload, "Unable to delete cart"));
-      }
-
-      setProjects((current) =>
-        current.map((project) =>
-          project.id === projectId
-            ? {
-                ...project,
-                updatedAt: payload.updatedAt,
-                lists: project.lists.filter((item) => item.id !== payload.id),
-              }
-            : project,
-        ),
-      );
-      setExpandedLists((current) => {
-        const next = { ...current };
-        delete next[list.id];
-        return next;
-      });
-      setListNameDrafts((current) => {
-        const next = { ...current };
-        delete next[list.id];
-        return next;
-      });
-      setListProjectDrafts((current) => {
-        const next = { ...current };
-        delete next[list.id];
-        return next;
-      });
-      setListHuaweiCartDrafts((current) => {
-        const next = { ...current };
-        delete next[list.id];
-        return next;
-      });
-      setListHuaweiMessages((current) => {
-        const next = { ...current };
-        delete next[list.id];
-        return next;
-      });
-      setListHuaweiMessageErrors((current) => {
-        const next = { ...current };
-        delete next[list.id];
-        return next;
-      });
-      setListCloneNameDrafts((current) => {
-        const next = { ...current };
-        delete next[list.id];
-        return next;
-      });
-      setListCloneTargetRegions((current) => {
-        const next = { ...current };
-        delete next[list.id];
-        return next;
-      });
-      setListCloneTargetBillingModes((current) => {
-        const next = { ...current };
-        delete next[list.id];
-        return next;
-      });
-      setListCloneMessages((current) => {
-        const next = { ...current };
-        delete next[list.id];
-        return next;
-      });
-      setListCloneMessageErrors((current) => {
-        const next = { ...current };
-        delete next[list.id];
-        return next;
-      });
-      await loadHuaweiCarts();
-    } catch (error) {
-      setProjectsError(error instanceof Error ? error.message : "Unable to delete cart");
-    } finally {
-      setDeletingListId(null);
-    }
-  };
 
   const handleStartListRename = (list: AppList) => {
     setEditingListId(list.id);
@@ -1717,7 +444,8 @@ export default function ProjectsPage() {
   const handleLinkList = async (list: AppList, projectId: string) => {
     const selectedHuaweiCartKey = listHuaweiCartDrafts[list.id] ?? list.huaweiCartKey ?? "";
     const targetCart = huaweiCarts.find((cart) => cart.key === selectedHuaweiCartKey);
-    const targetCartName = targetCart?.name ?? (selectedHuaweiCartKey === list.huaweiCartKey ? list.huaweiCartName : null);
+    const targetCartName =
+      targetCart?.name ?? (selectedHuaweiCartKey === list.huaweiCartKey ? list.huaweiCartName : null);
 
     if (!selectedHuaweiCartKey || !targetCartName) {
       setListHuaweiMessages((current) => ({
@@ -1865,58 +593,6 @@ export default function ProjectsPage() {
     }
   };
 
-  const handleCloneProject = async (project: AppProject) => {
-    setCloningProjectId(project.id);
-    setProjectCloneMessages((current) => ({ ...current, [project.id]: "" }));
-    setProjectCloneMessageErrors((current) => ({ ...current, [project.id]: false }));
-
-    try {
-      const response = await fetch(`/api/projects/${project.id}/clone`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name: projectCloneNameDrafts[project.id]?.trim() || undefined,
-          targetRegion: projectCloneTargetRegions[project.id] || undefined,
-          targetBillingMode: projectCloneTargetBillingModes[project.id] || undefined,
-        }),
-      });
-      const payload = (await response.json().catch(() => null)) as
-        | (AppProject & {
-            cloneSummary?: {
-              totalLists: number;
-              totalProducts: number;
-              convertedEcsCount: number;
-            };
-            error?: never;
-          })
-        | { error?: string }
-        | null;
-
-      if (!response.ok || !payload || !("lists" in payload)) {
-        throw new Error(getResponseError(payload, "Unable to clone project"));
-      }
-
-      setProjects((current) => [payload, ...current]);
-      setExpandedProjects((current) => ({ ...current, [payload.id]: true }));
-      setProjectCloneNameDrafts((current) => ({ ...current, [project.id]: "" }));
-      setProjectCloneTargetRegions((current) => ({ ...current, [project.id]: "" }));
-      setProjectCloneTargetBillingModes((current) => ({ ...current, [project.id]: "" }));
-      setProjectCloneMessages((current) => ({
-        ...current,
-        [project.id]: `Cloned ${project.name} into ${payload.name}. Converted ${payload.cloneSummary?.convertedEcsCount ?? 0} ECS item(s).`,
-      }));
-      setProjectCloneMessageErrors((current) => ({ ...current, [project.id]: false }));
-    } catch (error) {
-      setProjectCloneMessages((current) => ({
-        ...current,
-        [project.id]: error instanceof Error ? error.message : "Unable to clone project",
-      }));
-      setProjectCloneMessageErrors((current) => ({ ...current, [project.id]: true }));
-    } finally {
-      setCloningProjectId(null);
-    }
-  };
-
   const handleSyncProjectHuawei = async (project: AppProject) => {
     if (!cookieValue.trim()) {
       setProjectHuaweiMessages((current) => ({
@@ -2022,94 +698,93 @@ export default function ProjectsPage() {
       setSyncingHuaweiProjectId(null);
     }
   };
+  const [, setSelectedListId] = useState("");
+  const { sharingProjectKey, sharingListKey, projectShareMessages, listShareMessages, handleCreateShare } =
+    useResourceSharing();
+  const {
+    importProjectPending,
+    importProjectMessage,
+    importProjectMessageIsError,
+    resourceExportModal,
+    setResourceExportModal,
+    resourceExportActionMessage,
+    projectImportMessages,
+    projectImportMessageErrors,
+    projectExportMessages,
+    projectExportMessageErrors,
+    importCartTargetProjectId,
+    importCartPendingProjectId,
+    projectImportInputRef,
+    cartImportInputRef,
+    openProjectImportPicker,
+    openCartImportPicker,
+    handleImportProjectFile,
+    handleImportCartFile,
+    handleOpenProjectExport,
+    handleOpenListExport,
+    handleExportProjectExcel,
+    handleCopyResourceExport,
+    handleDownloadResourceExport,
+  } = useResourceTransfer({ session, setProjectsError, reloadProjectsSnapshot: loadProjects });
+  const {
+    projectCloneNameDrafts,
+    setProjectCloneNameDrafts,
+    projectCloneTargetRegions,
+    setProjectCloneTargetRegions,
+    projectCloneTargetBillingModes,
+    setProjectCloneTargetBillingModes,
+    cloningProjectId,
+    projectCloneMessages,
+    setProjectCloneMessages,
+    projectCloneMessageErrors,
+    setProjectCloneMessageErrors,
+    handleCloneProject,
+  } = useProjectCloning({ setProjects, setExpandedProjects });
+  const {
+    newProjectName,
+    setNewProjectName,
+    newProjectPending,
+    editingProjectId,
+    projectNameDrafts,
+    setProjectNameDrafts,
+    renamingProjectId,
+    deletingProjectId,
+    listDrafts,
+    setListDrafts,
+    listBaseDrafts,
+    setListBaseDrafts,
+    listPendingProjectId,
+    deletingListId,
+    handleCreateProject,
+    handleCreateList,
+    handleStartProjectRename,
+    handleCancelProjectRename,
+    handleRenameProject,
+    handleDeleteProject,
+    handleDeleteList,
+  } = useProjectActions({
+    session,
+    setProjectsError,
+    setProjects,
+    setExpandedProjects,
+    cookieValue,
+    setSelectedListId,
+    setActiveModal: (modal) => setActiveModal(modal),
+    setHuaweiActionMessage: setProjectsError,
+    loadHuaweiCarts,
+    setProjectCloneNameDrafts,
+    setProjectCloneTargetRegions,
+    setProjectCloneTargetBillingModes,
+    setProjectCloneMessages,
+    setProjectCloneMessageErrors,
+    editingProductListId: null,
+    handleCancelEdit: () => {},
+  });
 
   const openActionModal = (modal: Exclude<ActiveModal, null>) => {
     setOpenProjectMenuId(null);
     setOpenListMenuId(null);
     setActiveModal(modal);
-  };
-
-  const openResourceExportModal = (title: string, description: string, payload: unknown, filename: string) => {
-    setResourceExportActionMessage("");
-    setResourceExportModal({
-      title,
-      description,
-      json: JSON.stringify(payload, null, 2),
-      filename,
-    });
-  };
-
-  const handleOpenProjectExport = (project: AppProject) => {
-    openResourceExportModal(
-      "Export Project JSON",
-      "This export includes the full project, all carts in it, and every saved product.",
-      buildProjectExportPayload(project),
-      buildNamedExportFilename("project", project.name, "json"),
-    );
-  };
-
-  const handleOpenListExport = (project: AppProject, list: AppList) => {
-    openResourceExportModal(
-      "Export Cart JSON",
-      "This export includes the cart, its parent project reference, and every saved product in the cart.",
-      buildListExportPayload(project, list),
-      buildNamedExportFilename("cart", list.name, "json"),
-    );
-  };
-
-  const handleExportProjectExcel = async (project: AppProject) => {
-    setProjectExportMessages((current) => ({ ...current, [project.id]: "" }));
-    setProjectExportMessageErrors((current) => ({ ...current, [project.id]: false }));
-
-    try {
-      // First, create a share link for the project
-      const shareResponse = await fetch("/api/share", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ 
-          resourceType: "project", 
-          resourceId: project.id, 
-          mode: "copy" 
-        }),
-      });
-      const sharePayload = (await shareResponse.json().catch(() => null)) as { shareUrl?: string; error?: string } | null;
-
-      // Get the full share URL or undefined if creation failed
-      const shareUrl = shareResponse.ok && sharePayload?.shareUrl
-        ? new URL(sharePayload.shareUrl, window.location.origin).toString()
-        : undefined;
-
-      const downloaded = await downloadProjectWorkbookFile(project, shareUrl);
-      setProjectExportMessages((current) => ({
-        ...current,
-        [project.id]: downloaded ? "Excel export download started." : "Unable to start the Excel download in this browser.",
-      }));
-      setProjectExportMessageErrors((current) => ({ ...current, [project.id]: !downloaded }));
-    } catch (error) {
-      setProjectExportMessages((current) => ({
-        ...current,
-        [project.id]: error instanceof Error ? error.message : "Unable to export the project as Excel.",
-      }));
-      setProjectExportMessageErrors((current) => ({ ...current, [project.id]: true }));
-    }
-  };
-
-  const handleCopyResourceExport = async () => {
-    if (!resourceExportModal) {
-      return;
-    }
-
-    const copied = await copyText(resourceExportModal.json);
-    setResourceExportActionMessage(copied ? "JSON copied to clipboard." : "Clipboard access is unavailable in this browser.");
-  };
-
-  const handleDownloadResourceExport = () => {
-    if (!resourceExportModal) {
-      return;
-    }
-
-    const downloaded = downloadTextFile(resourceExportModal.filename, resourceExportModal.json, "application/json;charset=utf-8");
-    setResourceExportActionMessage(downloaded ? "JSON file download started." : "Unable to start the JSON download in this browser.");
   };
 
   const toggleProject = (projectId: string) => {
@@ -2126,12 +801,18 @@ export default function ProjectsPage() {
     }));
   };
 
-  const activeProjectCloneTargetRegion = activeProject ? projectCloneTargetRegions[activeProject.id] ?? "" : "";
-  const activeProjectCloneTargetBillingMode = activeProject ? projectCloneTargetBillingModes[activeProject.id] ?? "" : "";
-  const activeProjectCloneMessage = activeProject ? projectCloneMessages[activeProject.id] ?? "" : "";
-  const activeProjectCloneMessageIsError = activeProject ? projectCloneMessageErrors[activeProject.id] ?? false : false;
-  const activeProjectHuaweiMessage = activeProject ? projectHuaweiMessages[activeProject.id] ?? "" : "";
-  const activeProjectHuaweiMessageIsError = activeProject ? projectHuaweiMessageErrors[activeProject.id] ?? false : false;
+  const activeProjectCloneTargetRegion = activeProject ? (projectCloneTargetRegions[activeProject.id] ?? "") : "";
+  const activeProjectCloneTargetBillingMode = activeProject
+    ? (projectCloneTargetBillingModes[activeProject.id] ?? "")
+    : "";
+  const activeProjectCloneMessage = activeProject ? (projectCloneMessages[activeProject.id] ?? "") : "";
+  const activeProjectCloneMessageIsError = activeProject
+    ? (projectCloneMessageErrors[activeProject.id] ?? false)
+    : false;
+  const activeProjectHuaweiMessage = activeProject ? (projectHuaweiMessages[activeProject.id] ?? "") : "";
+  const activeProjectHuaweiMessageIsError = activeProject
+    ? (projectHuaweiMessageErrors[activeProject.id] ?? false)
+    : false;
   const projectCreateMenuItems: ActionMenuItem[] = [
     {
       label: "Import Project",
@@ -2140,21 +821,24 @@ export default function ProjectsPage() {
       disabled: importProjectPending,
     },
   ];
-  const activeProjectShareMessage = activeProject ? projectShareMessages[activeProject.id] ?? "" : "";
+  const activeProjectShareMessage = activeProject ? (projectShareMessages[activeProject.id] ?? "") : "";
   const isActiveProjectCloning = activeProject ? cloningProjectId === activeProject.id : false;
   const isActiveProjectSyncing = activeProject ? syncingHuaweiProjectId === activeProject.id : false;
   const activeListParentProjectId =
     activeList && activeProject && "listId" in (activeModal ?? {}) ? activeProject.id : "";
-  const activeListTargetProjectId = activeList && activeProject ? listProjectDrafts[activeList.id] ?? activeProject.id : "";
-  const activeSelectedHuaweiCartKey = activeList ? listHuaweiCartDrafts[activeList.id] ?? activeList.huaweiCartKey ?? "" : "";
+  const activeListTargetProjectId =
+    activeList && activeProject ? (listProjectDrafts[activeList.id] ?? activeProject.id) : "";
+  const activeSelectedHuaweiCartKey = activeList
+    ? (listHuaweiCartDrafts[activeList.id] ?? activeList.huaweiCartKey ?? "")
+    : "";
   const activeSelectedHuaweiCart = huaweiCarts.find((cart) => cart.key === activeSelectedHuaweiCartKey) ?? null;
-  const activeListCloneTargetRegion = activeList ? listCloneTargetRegions[activeList.id] ?? "" : "";
-  const activeListCloneTargetBillingMode = activeList ? listCloneTargetBillingModes[activeList.id] ?? "" : "";
-  const activeListCloneMessage = activeList ? listCloneMessages[activeList.id] ?? "" : "";
-  const activeListCloneMessageIsError = activeList ? listCloneMessageErrors[activeList.id] ?? false : false;
-  const activeListHuaweiMessage = activeList ? listHuaweiMessages[activeList.id] ?? "" : "";
-  const activeListHuaweiMessageIsError = activeList ? listHuaweiMessageErrors[activeList.id] ?? false : false;
-  const activeListShareMessage = activeList ? listShareMessages[activeList.id] ?? "" : "";
+  const activeListCloneTargetRegion = activeList ? (listCloneTargetRegions[activeList.id] ?? "") : "";
+  const activeListCloneTargetBillingMode = activeList ? (listCloneTargetBillingModes[activeList.id] ?? "") : "";
+  const activeListCloneMessage = activeList ? (listCloneMessages[activeList.id] ?? "") : "";
+  const activeListCloneMessageIsError = activeList ? (listCloneMessageErrors[activeList.id] ?? false) : false;
+  const activeListHuaweiMessage = activeList ? (listHuaweiMessages[activeList.id] ?? "") : "";
+  const activeListHuaweiMessageIsError = activeList ? (listHuaweiMessageErrors[activeList.id] ?? false) : false;
+  const activeListShareMessage = activeList ? (listShareMessages[activeList.id] ?? "") : "";
   const isActiveListMoving = activeList ? movingListId === activeList.id : false;
   const isActiveListLinking = activeList ? linkingHuaweiListId === activeList.id : false;
   const isActiveListCloning = activeList ? cloningListId === activeList.id : false;
@@ -2175,7 +859,10 @@ export default function ProjectsPage() {
               <CardTitle>Sign In To Save And Share</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4 text-sm text-zinc-500">
-              <p>The calculator is available without an account, but saved carts, saved projects, and share links require sign-in.</p>
+              <p>
+                The calculator is available without an account, but saved carts, saved projects, and share links require
+                sign-in.
+              </p>
               <Link href="/" className={buttonVariants({ className: "bg-zinc-950 hover:bg-zinc-800" })}>
                 Open Calculator
               </Link>
@@ -2222,452 +909,576 @@ export default function ProjectsPage() {
         />
 
         {showSessionState && session ? (
-        <Card className="overflow-hidden shadow-sm">
-          <CardHeader className="pb-3">
-            <div className="flex items-center justify-between gap-3">
-              <div>
-                <CardTitle>My Projects</CardTitle>
-                <p className="mt-1 text-sm text-zinc-500">
-                  {projects.length} project{projects.length !== 1 ? "s" : ""}, {totals.listCount} cart{totals.listCount !== 1 ? "s" : ""}, {totals.productCount} product{totals.productCount !== 1 ? "s" : ""}.
-                </p>
+          <Card className="overflow-hidden shadow-sm">
+            <CardHeader className="pb-3">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <CardTitle>My Projects</CardTitle>
+                  <p className="mt-1 text-sm text-zinc-500">
+                    {projects.length} project{projects.length !== 1 ? "s" : ""}, {totals.listCount} cart
+                    {totals.listCount !== 1 ? "s" : ""}, {totals.productCount} product
+                    {totals.productCount !== 1 ? "s" : ""}.
+                  </p>
+                </div>
+                <Badge variant="secondary">{projects.length}</Badge>
               </div>
-              <Badge variant="secondary">{projects.length}</Badge>
-            </div>
-            <div className="flex flex-col gap-2 sm:flex-row">
-              <Input
-                value={newProjectName}
-                onChange={(event) => setNewProjectName(event.target.value)}
-                placeholder="New project name"
-              />
-              <Button size="sm" onClick={handleCreateProject} disabled={newProjectPending} className="bg-zinc-950 hover:bg-zinc-800">
-                {newProjectPending ? "Adding..." : "New Project"}
-              </Button>
-              <ActionMenu
-                open={isProjectCreateMenuOpen}
-                onOpenChange={setIsProjectCreateMenuOpen}
-                label="Open project actions"
-                items={projectCreateMenuItems}
-              />
-            </div>
-            {projectsError ? <p className="text-sm text-red-600">{projectsError}</p> : null}
-            {importProjectMessage ? (
-              <p className={`text-sm ${importProjectMessageIsError ? "text-red-600" : "text-zinc-600"}`}>{importProjectMessage}</p>
-            ) : null}
-          </CardHeader>
-          <Separator />
-          <CardContent className="px-0">
-            <ScrollArea className="h-[75vh] px-4">
-              <div className={`grid gap-4 py-4 ${anyProjectExpanded ? "grid-cols-1" : "grid-cols-1 xl:grid-cols-2"}`}>
-                {projectsLoading ? (
-                  <div className="rounded-lg border border-dashed bg-zinc-50 p-4 text-sm text-zinc-500">Loading projects...</div>
-                ) : null}
-                {!projectsLoading && projects.length === 0 ? (
-                  <div className="rounded-lg border border-dashed bg-zinc-50 p-4 text-sm text-zinc-500">No projects found.</div>
-                ) : null}
+              <div className="flex flex-col gap-2 sm:flex-row">
+                <Input
+                  value={newProjectName}
+                  onChange={(event) => setNewProjectName(event.target.value)}
+                  placeholder="New project name"
+                />
+                <Button
+                  size="sm"
+                  onClick={handleCreateProject}
+                  disabled={newProjectPending}
+                  className="bg-zinc-950 hover:bg-zinc-800"
+                >
+                  {newProjectPending ? "Adding..." : "New Project"}
+                </Button>
+                <ActionMenu
+                  open={isProjectCreateMenuOpen}
+                  onOpenChange={setIsProjectCreateMenuOpen}
+                  label="Open project actions"
+                  items={projectCreateMenuItems}
+                />
+              </div>
+              {projectsError ? <p className="text-sm text-red-600">{projectsError}</p> : null}
+              {importProjectMessage ? (
+                <p className={`text-sm ${importProjectMessageIsError ? "text-red-600" : "text-zinc-600"}`}>
+                  {importProjectMessage}
+                </p>
+              ) : null}
+            </CardHeader>
+            <Separator />
+            <CardContent className="px-0">
+              <ScrollArea className="h-[75vh] px-4">
+                <div className={`grid gap-4 py-4 ${anyProjectExpanded ? "grid-cols-1" : "grid-cols-1 xl:grid-cols-2"}`}>
+                  {projectsLoading ? (
+                    <div className="rounded-lg border border-dashed bg-zinc-50 p-4 text-sm text-zinc-500">
+                      Loading projects...
+                    </div>
+                  ) : null}
+                  {!projectsLoading && projects.length === 0 ? (
+                    <div className="rounded-lg border border-dashed bg-zinc-50 p-4 text-sm text-zinc-500">
+                      No projects found.
+                    </div>
+                  ) : null}
 
-                {projects.map((project) => {
-                  const isExpanded = expandedProjects[project.id] ?? false;
-                  const isEditingProject = editingProjectId === project.id;
-                  const isRenamingProject = renamingProjectId === project.id;
-                  const isDeletingProject = deletingProjectId === project.id;
-                  const projectHuaweiMessage = projectHuaweiMessages[project.id] ?? "";
-                  const projectHuaweiMessageIsError = projectHuaweiMessageErrors[project.id] ?? false;
-                  const projectImportMessage = projectImportMessages[project.id] ?? "";
-                  const projectImportMessageIsError = projectImportMessageErrors[project.id] ?? false;
-                  const projectExportMessage = projectExportMessages[project.id] ?? "";
-                  const projectExportMessageIsError = projectExportMessageErrors[project.id] ?? false;
-                  const cloneMessage = projectCloneMessages[project.id] ?? "";
-                  const cloneMessageIsError = projectCloneMessageErrors[project.id] ?? false;
-                  const projectShareMessage = projectShareMessages[project.id] ?? "";
-                  const projectMenuItems: ActionMenuItem[] = [
-                    {
-                      label: "Import Cart",
-                      icon: <Upload className="size-4" />,
-                      onSelect: () => openCartImportPicker(project.id),
-                      disabled: importCartPendingProjectId === project.id,
-                    },
-                    {
-                      label: "Create Huawei Carts",
-                      icon: <RefreshCw className="size-4" />,
-                      onSelect: () => openActionModal({ kind: "project-huawei", projectId: project.id }),
-                    },
-                    {
-                      label: "Clone Project",
-                      icon: <Copy className="size-4" />,
-                      onSelect: () => openActionModal({ kind: "project-clone", projectId: project.id }),
-                    },
-                    {
-                      label: "Export Project JSON",
-                      icon: <Download className="size-4" />,
-                      onSelect: () => handleOpenProjectExport(project),
-                    },
-                    {
-                      label: "Export Project Excel",
-                      icon: <Download className="size-4" />,
-                      onSelect: () => void handleExportProjectExcel(project),
-                    },
-                    ...(project.canShare
-                      ? [
-                          {
-                            label: "Share Project",
-                            icon: <Share2 className="size-4" />,
-                            onSelect: () => openActionModal({ kind: "project-share", projectId: project.id }),
-                          },
-                        ]
-                      : []),
-                  ];
+                  {projects.map((project) => {
+                    const isExpanded = expandedProjects[project.id] ?? false;
+                    const isEditingProject = editingProjectId === project.id;
+                    const isRenamingProject = renamingProjectId === project.id;
+                    const isDeletingProject = deletingProjectId === project.id;
+                    const projectHuaweiMessage = projectHuaweiMessages[project.id] ?? "";
+                    const projectHuaweiMessageIsError = projectHuaweiMessageErrors[project.id] ?? false;
+                    const projectImportMessage = projectImportMessages[project.id] ?? "";
+                    const projectImportMessageIsError = projectImportMessageErrors[project.id] ?? false;
+                    const projectExportMessage = projectExportMessages[project.id] ?? "";
+                    const projectExportMessageIsError = projectExportMessageErrors[project.id] ?? false;
+                    const cloneMessage = projectCloneMessages[project.id] ?? "";
+                    const cloneMessageIsError = projectCloneMessageErrors[project.id] ?? false;
+                    const projectShareMessage = projectShareMessages[project.id] ?? "";
+                    const projectMenuItems: ActionMenuItem[] = [
+                      {
+                        label: "Import Cart",
+                        icon: <Upload className="size-4" />,
+                        onSelect: () => openCartImportPicker(project.id),
+                        disabled: importCartPendingProjectId === project.id,
+                      },
+                      {
+                        label: "Create Huawei Carts",
+                        icon: <RefreshCw className="size-4" />,
+                        onSelect: () => openActionModal({ kind: "project-huawei", projectId: project.id }),
+                      },
+                      {
+                        label: "Clone Project",
+                        icon: <Copy className="size-4" />,
+                        onSelect: () => openActionModal({ kind: "project-clone", projectId: project.id }),
+                      },
+                      {
+                        label: "Export Project JSON",
+                        icon: <Download className="size-4" />,
+                        onSelect: () => handleOpenProjectExport(project),
+                      },
+                      {
+                        label: "Export Project Excel",
+                        icon: <Download className="size-4" />,
+                        onSelect: () => void handleExportProjectExcel(project),
+                      },
+                      ...(project.canShare
+                        ? [
+                            {
+                              label: "Share Project",
+                              icon: <Share2 className="size-4" />,
+                              onSelect: () => openActionModal({ kind: "project-share", projectId: project.id }),
+                            },
+                          ]
+                        : []),
+                    ];
 
-                  return (
-                    <div key={project.id} className={`rounded-2xl border border-zinc-200 bg-white shadow-sm transition-shadow hover:shadow-md ${isExpanded ? "xl:col-span-2" : ""}`}>
-                      <div className="flex items-start gap-3 p-5">
-                        <div className="min-w-0 flex-1">
-                          {isEditingProject ? (
-                            <div className="space-y-2">
-                              <Input
-                                value={projectNameDrafts[project.id] ?? project.name}
-                                onChange={(event) =>
-                                  setProjectNameDrafts((current) => ({
-                                    ...current,
-                                    [project.id]: event.target.value,
-                                  }))}
-                                onKeyDown={(event) => {
-                                  if (event.key === "Enter") {
-                                    event.preventDefault();
-                                    void handleRenameProject(project);
+                    return (
+                      <div
+                        key={project.id}
+                        className={`rounded-2xl border border-zinc-200 bg-white shadow-sm transition-shadow hover:shadow-md ${isExpanded ? "xl:col-span-2" : ""}`}
+                      >
+                        <div className="flex items-start gap-3 p-5">
+                          <div className="min-w-0 flex-1">
+                            {isEditingProject ? (
+                              <div className="space-y-2">
+                                <Input
+                                  value={projectNameDrafts[project.id] ?? project.name}
+                                  onChange={(event) =>
+                                    setProjectNameDrafts((current) => ({
+                                      ...current,
+                                      [project.id]: event.target.value,
+                                    }))
                                   }
+                                  onKeyDown={(event) => {
+                                    if (event.key === "Enter") {
+                                      event.preventDefault();
+                                      void handleRenameProject(project);
+                                    }
 
-                                  if (event.key === "Escape") {
-                                    event.preventDefault();
-                                    handleCancelProjectRename(project);
-                                  }
-                                }}
-                                autoFocus
-                                placeholder="Project name"
-                              />
-                              <p className="text-xs text-zinc-500">Press Enter to save or Escape to cancel.</p>
-                            </div>
-                          ) : (
-                            <button type="button" className="min-w-0 text-left" onClick={() => toggleProject(project.id)} aria-expanded={isExpanded}>
-                              <p className="text-lg font-semibold text-zinc-950">{project.name}</p>
-                              <p className="mt-1 text-sm text-zinc-500">
-                                {project.lists.length} carts · {project.lists.reduce((sum, list) => sum + list.productCount, 0)} products · Updated{" "}
-                                {formatDate(project.updatedAt)}
-                              </p>
-                            </button>
-                          )}
-                        </div>
-                        <div className="flex shrink-0 items-center gap-1">
-                          {isEditingProject ? (
-                            <>
-                              <Button variant="ghost" size="icon" onClick={() => void handleRenameProject(project)} disabled={isRenamingProject}>
-                                <Check className="size-4" />
-                              </Button>
-                              <Button variant="ghost" size="icon" onClick={() => handleCancelProjectRename(project)} disabled={isRenamingProject}>
-                                <X className="size-4" />
-                              </Button>
-                            </>
-                          ) : (
-                            <>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                aria-label={`Add cart to ${project.name}`}
-                                onClick={() => openActionModal({ kind: "project-add-cart", projectId: project.id })}
-                                disabled={listPendingProjectId === project.id}
+                                    if (event.key === "Escape") {
+                                      event.preventDefault();
+                                      handleCancelProjectRename(project);
+                                    }
+                                  }}
+                                  autoFocus
+                                  placeholder="Project name"
+                                />
+                                <p className="text-xs text-zinc-500">Press Enter to save or Escape to cancel.</p>
+                              </div>
+                            ) : (
+                              <button
+                                type="button"
+                                className="min-w-0 text-left"
+                                onClick={() => toggleProject(project.id)}
+                                aria-expanded={isExpanded}
                               >
-                                <Plus className="size-4" />
-                              </Button>
-                              {project.canShare ? (
+                                <p className="text-lg font-semibold text-zinc-950">{project.name}</p>
+                                <p className="mt-1 text-sm text-zinc-500">
+                                  {project.lists.length} carts ·{" "}
+                                  {project.lists.reduce((sum, list) => sum + list.productCount, 0)} products · Updated{" "}
+                                  {formatDate(project.updatedAt)}
+                                </p>
+                              </button>
+                            )}
+                          </div>
+                          <div className="flex shrink-0 items-center gap-1">
+                            {isEditingProject ? (
+                              <>
                                 <Button
                                   variant="ghost"
                                   size="icon"
-                                  aria-label={`Share ${project.name}`}
-                                  onClick={() => openActionModal({ kind: "project-share", projectId: project.id })}
+                                  onClick={() => void handleRenameProject(project)}
+                                  disabled={isRenamingProject}
                                 >
-                                  <Share2 className="size-4" />
+                                  <Check className="size-4" />
                                 </Button>
-                              ) : null}
-                              <ActionMenu
-                                open={openProjectMenuId === project.id}
-                                onOpenChange={(open) => setOpenProjectMenuId(open ? project.id : null)}
-                                label={`Open actions for ${project.name}`}
-                                items={projectMenuItems}
-                              />
-                              <Button variant="ghost" size="icon" onClick={() => handleStartProjectRename(project)} disabled={isDeletingProject}>
-                                <Pencil className="size-4" />
-                              </Button>
-                            </>
-                          )}
-                          <Button variant="ghost" size="icon" onClick={() => toggleProject(project.id)} aria-expanded={isExpanded}>
-                            {isExpanded ? <ChevronDown className="size-4" /> : <ChevronRight className="size-4" />}
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => void handleDeleteProject(project)}
-                            disabled={isDeletingProject || isRenamingProject}
-                          >
-                            <Trash2 className="size-4" />
-                          </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => handleCancelProjectRename(project)}
+                                  disabled={isRenamingProject}
+                                >
+                                  <X className="size-4" />
+                                </Button>
+                              </>
+                            ) : (
+                              <>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  aria-label={`Add cart to ${project.name}`}
+                                  onClick={() => openActionModal({ kind: "project-add-cart", projectId: project.id })}
+                                  disabled={listPendingProjectId === project.id}
+                                >
+                                  <Plus className="size-4" />
+                                </Button>
+                                {project.canShare ? (
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    aria-label={`Share ${project.name}`}
+                                    onClick={() => openActionModal({ kind: "project-share", projectId: project.id })}
+                                  >
+                                    <Share2 className="size-4" />
+                                  </Button>
+                                ) : null}
+                                <ActionMenu
+                                  open={openProjectMenuId === project.id}
+                                  onOpenChange={(open) => setOpenProjectMenuId(open ? project.id : null)}
+                                  label={`Open actions for ${project.name}`}
+                                  items={projectMenuItems}
+                                />
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  aria-label={`Rename ${project.name}`}
+                                  onClick={() => handleStartProjectRename(project)}
+                                  disabled={isDeletingProject}
+                                >
+                                  <Pencil className="size-4" />
+                                </Button>
+                              </>
+                            )}
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => toggleProject(project.id)}
+                              aria-expanded={isExpanded}
+                            >
+                              {isExpanded ? <ChevronDown className="size-4" /> : <ChevronRight className="size-4" />}
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              aria-label={`Delete ${project.name}`}
+                              onClick={() => void handleDeleteProject(project)}
+                              disabled={isDeletingProject || isRenamingProject}
+                            >
+                              <Trash2 className="size-4" />
+                            </Button>
+                          </div>
                         </div>
-                      </div>
 
-                      {isExpanded ? (
-                        <div className="border-t border-zinc-100 p-5">
-                          <div className="space-y-4">
-                            {projectHuaweiMessage || cloneMessage || projectImportMessage || projectExportMessage || projectShareMessage ? (
-                              <div className="rounded-xl border bg-zinc-50 p-3">
-                                <div className="space-y-1 text-xs">
-                                  {projectHuaweiMessage ? (
-                                    <p className={projectHuaweiMessageIsError ? "text-red-600" : "text-zinc-600"}>{projectHuaweiMessage}</p>
-                                  ) : null}
-                                  {cloneMessage ? (
-                                    <p className={cloneMessageIsError ? "text-red-600" : "text-zinc-600"}>{cloneMessage}</p>
-                                  ) : null}
-                                  {projectImportMessage ? (
-                                    <p className={projectImportMessageIsError ? "text-red-600" : "text-zinc-600"}>{projectImportMessage}</p>
-                                  ) : null}
-                                  {projectExportMessage ? (
-                                    <p className={projectExportMessageIsError ? "text-red-600" : "text-zinc-600"}>{projectExportMessage}</p>
-                                  ) : null}
-                                  {projectShareMessage ? <p className="text-zinc-600">{projectShareMessage}</p> : null}
+                        {isExpanded ? (
+                          <div className="border-t border-zinc-100 p-5">
+                            <div className="space-y-4">
+                              {projectHuaweiMessage ||
+                              cloneMessage ||
+                              projectImportMessage ||
+                              projectExportMessage ||
+                              projectShareMessage ? (
+                                <div className="rounded-xl border bg-zinc-50 p-3">
+                                  <div className="space-y-1 text-xs">
+                                    {projectHuaweiMessage ? (
+                                      <p className={projectHuaweiMessageIsError ? "text-red-600" : "text-zinc-600"}>
+                                        {projectHuaweiMessage}
+                                      </p>
+                                    ) : null}
+                                    {cloneMessage ? (
+                                      <p className={cloneMessageIsError ? "text-red-600" : "text-zinc-600"}>
+                                        {cloneMessage}
+                                      </p>
+                                    ) : null}
+                                    {projectImportMessage ? (
+                                      <p className={projectImportMessageIsError ? "text-red-600" : "text-zinc-600"}>
+                                        {projectImportMessage}
+                                      </p>
+                                    ) : null}
+                                    {projectExportMessage ? (
+                                      <p className={projectExportMessageIsError ? "text-red-600" : "text-zinc-600"}>
+                                        {projectExportMessage}
+                                      </p>
+                                    ) : null}
+                                    {projectShareMessage ? (
+                                      <p className="text-zinc-600">{projectShareMessage}</p>
+                                    ) : null}
+                                  </div>
                                 </div>
-                              </div>
-                            ) : null}
+                              ) : null}
                               <div className={`grid gap-3 grid-cols-1 ${isExpanded ? "" : "lg:grid-cols-2"}`}>
                                 {project.lists.length === 0 ? (
                                   <div className="rounded-lg border border-dashed bg-zinc-50 p-4 text-sm text-zinc-500">
                                     This project does not have carts yet.
                                   </div>
-                              ) : null}
+                                ) : null}
 
-                              {project.lists.map((list) => {
-                                const isListExpanded = expandedLists[list.id] ?? false;
-                                const isEditingList = editingListId === list.id;
-                                const isRenamingList = renamingListId === list.id;
-                                const listHuaweiMessage = listHuaweiMessages[list.id] ?? "";
-                                const listHuaweiMessageIsError = listHuaweiMessageErrors[list.id] ?? false;
-                                const listCloneMessage = listCloneMessages[list.id] ?? "";
-                                const listCloneMessageIsError = listCloneMessageErrors[list.id] ?? false;
-                                const listShareMessage = listShareMessages[list.id] ?? "";
-                                const listMenuItems: ActionMenuItem[] = [
-                                  {
-                                    label: "Move Cart",
-                                    icon: <ArrowRightLeft className="size-4" />,
-                                    onSelect: () => openActionModal({ kind: "list-move", listId: list.id }),
-                                  },
-                                  {
-                                    label: "Link Huawei Cart",
-                                    icon: <Link2 className="size-4" />,
-                                    onSelect: () => openActionModal({ kind: "list-link", listId: list.id }),
-                                  },
-                                  {
-                                    label: "Export Cart JSON",
-                                    icon: <Download className="size-4" />,
-                                    onSelect: () => handleOpenListExport(project, list),
-                                  },
-                                  {
-                                    label: "Clone Cart",
-                                    icon: <Copy className="size-4" />,
-                                    onSelect: () => openActionModal({ kind: "list-clone", listId: list.id }),
-                                  },
-                                  ...(list.canShare
-                                    ? [
-                                        {
-                                          label: "Share Cart",
-                                          icon: <Share2 className="size-4" />,
-                                          onSelect: () => openActionModal({ kind: "list-share", listId: list.id }),
-                                        },
-                                      ]
-                                    : []),
-                                ];
+                                {project.lists.map((list) => {
+                                  const isListExpanded = expandedLists[list.id] ?? false;
+                                  const isEditingList = editingListId === list.id;
+                                  const isRenamingList = renamingListId === list.id;
+                                  const listHuaweiMessage = listHuaweiMessages[list.id] ?? "";
+                                  const listHuaweiMessageIsError = listHuaweiMessageErrors[list.id] ?? false;
+                                  const listCloneMessage = listCloneMessages[list.id] ?? "";
+                                  const listCloneMessageIsError = listCloneMessageErrors[list.id] ?? false;
+                                  const listShareMessage = listShareMessages[list.id] ?? "";
+                                  const listMenuItems: ActionMenuItem[] = [
+                                    {
+                                      label: "Move Cart",
+                                      icon: <ArrowRightLeft className="size-4" />,
+                                      onSelect: () => openActionModal({ kind: "list-move", listId: list.id }),
+                                    },
+                                    {
+                                      label: "Link Huawei Cart",
+                                      icon: <Link2 className="size-4" />,
+                                      onSelect: () => openActionModal({ kind: "list-link", listId: list.id }),
+                                    },
+                                    {
+                                      label: "Export Cart JSON",
+                                      icon: <Download className="size-4" />,
+                                      onSelect: () => handleOpenListExport(project, list),
+                                    },
+                                    {
+                                      label: "Clone Cart",
+                                      icon: <Copy className="size-4" />,
+                                      onSelect: () => openActionModal({ kind: "list-clone", listId: list.id }),
+                                    },
+                                    ...(list.canShare
+                                      ? [
+                                          {
+                                            label: "Share Cart",
+                                            icon: <Share2 className="size-4" />,
+                                            onSelect: () => openActionModal({ kind: "list-share", listId: list.id }),
+                                          },
+                                        ]
+                                      : []),
+                                  ];
 
-                                return (
-                                  <div key={list.id} className="rounded-xl border border-zinc-100 bg-white shadow-sm transition-shadow hover:shadow-md">
-                                    <div className="flex items-start gap-2 p-4">
-                                      <div className="min-w-0 flex-1">
-                                        {isEditingList ? (
-                                          <div className="space-y-2">
-                                            <Input
-                                              value={listNameDrafts[list.id] ?? list.name}
-                                              onChange={(event) =>
-                                                setListNameDrafts((current) => ({
-                                                  ...current,
-                                                  [list.id]: event.target.value,
-                                                }))}
-                                              onKeyDown={(event) => {
-                                                if (event.key === "Enter") {
-                                                  event.preventDefault();
-                                                  void handleRenameList(list, project.id);
+                                  return (
+                                    <div
+                                      key={list.id}
+                                      className="rounded-xl border border-zinc-100 bg-white shadow-sm transition-shadow hover:shadow-md"
+                                    >
+                                      <div className="flex items-start gap-2 p-4">
+                                        <div className="min-w-0 flex-1">
+                                          {isEditingList ? (
+                                            <div className="space-y-2">
+                                              <Input
+                                                value={listNameDrafts[list.id] ?? list.name}
+                                                onChange={(event) =>
+                                                  setListNameDrafts((current) => ({
+                                                    ...current,
+                                                    [list.id]: event.target.value,
+                                                  }))
                                                 }
+                                                onKeyDown={(event) => {
+                                                  if (event.key === "Enter") {
+                                                    event.preventDefault();
+                                                    void handleRenameList(list, project.id);
+                                                  }
 
-                                                if (event.key === "Escape") {
-                                                  event.preventDefault();
-                                                  handleCancelListRename(list);
-                                                }
-                                              }}
-                                              autoFocus
-                                              placeholder="Cart name"
-                                            />
-                                            <p className="text-xs text-zinc-500">Press Enter to save or Escape to cancel.</p>
-                                          </div>
-                                        ) : (
-                                          <button
-                                            type="button"
-                                            className="min-w-0 w-full text-left"
-                                            onClick={() => toggleList(list.id)}
-                                            aria-expanded={isListExpanded}
-                                          >
-                                            <div className="flex items-start justify-between gap-3">
-                                              <div className="min-w-0">
-                                                <div className="flex flex-wrap items-center gap-2">
-                                                  <div className="flex min-w-0 items-center gap-2">
-                                                    <ShoppingCart className="size-4 shrink-0 text-zinc-500" />
-                                                    <p className="truncate font-medium text-zinc-950">{list.name}</p>
-                                                  </div>
-                                                  {list.huaweiCartKey ? <Badge variant="secondary">Huawei linked</Badge> : null}
-                                                </div>
-                                                <p className="mt-1 text-sm text-zinc-500">
-                                                  {list.productCount} products · Created {formatDate(list.createdAt)}
-                                                </p>
-                                                {list.huaweiCartName ? <p className="mt-1 text-xs text-zinc-400">{list.huaweiCartName}</p> : null}
-                                              </div>
-                                              <Badge variant="outline">{list.productCount}</Badge>
+                                                  if (event.key === "Escape") {
+                                                    event.preventDefault();
+                                                    handleCancelListRename(list);
+                                                  }
+                                                }}
+                                                autoFocus
+                                                placeholder="Cart name"
+                                              />
+                                              <p className="text-xs text-zinc-500">
+                                                Press Enter to save or Escape to cancel.
+                                              </p>
                                             </div>
-                                          </button>
-                                        )}
-                                      </div>
-                                      {isEditingList ? (
-                                        <>
-                                          <Button variant="ghost" size="icon" onClick={() => void handleRenameList(list, project.id)} disabled={isRenamingList}>
-                                            <Check className="size-4" />
-                                          </Button>
-                                          <Button variant="ghost" size="icon" onClick={() => handleCancelListRename(list)} disabled={isRenamingList}>
-                                            <X className="size-4" />
-                                          </Button>
-                                        </>
-                                      ) : (
-                                        <>
-                                          {list.canShare ? (
+                                          ) : (
+                                            <button
+                                              type="button"
+                                              className="min-w-0 w-full text-left"
+                                              onClick={() => toggleList(list.id)}
+                                              aria-expanded={isListExpanded}
+                                            >
+                                              <div className="flex items-start justify-between gap-3">
+                                                <div className="min-w-0">
+                                                  <div className="flex flex-wrap items-center gap-2">
+                                                    <div className="flex min-w-0 items-center gap-2">
+                                                      <ShoppingCart className="size-4 shrink-0 text-zinc-500" />
+                                                      <p className="truncate font-medium text-zinc-950">{list.name}</p>
+                                                    </div>
+                                                    {list.huaweiCartKey ? (
+                                                      <Badge variant="secondary">Huawei linked</Badge>
+                                                    ) : null}
+                                                  </div>
+                                                  <p className="mt-1 text-sm text-zinc-500">
+                                                    {list.productCount} products · Created {formatDate(list.createdAt)}
+                                                  </p>
+                                                  {list.huaweiCartName ? (
+                                                    <p className="mt-1 text-xs text-zinc-400">{list.huaweiCartName}</p>
+                                                  ) : null}
+                                                </div>
+                                                <Badge variant="outline">{list.productCount}</Badge>
+                                              </div>
+                                            </button>
+                                          )}
+                                        </div>
+                                        {isEditingList ? (
+                                          <>
                                             <Button
                                               variant="ghost"
                                               size="icon"
-                                              aria-label={`Share ${list.name}`}
-                                              onClick={() => openActionModal({ kind: "list-share", listId: list.id })}
+                                              onClick={() => void handleRenameList(list, project.id)}
+                                              disabled={isRenamingList}
                                             >
-                                              <Share2 className="size-4" />
+                                              <Check className="size-4" />
                                             </Button>
-                                          ) : null}
-                                          <ActionMenu
-                                            open={openListMenuId === list.id}
-                                            onOpenChange={(open) => setOpenListMenuId(open ? list.id : null)}
-                                            label={`Open actions for ${list.name}`}
-                                            items={listMenuItems}
-                                          />
-                                          <Button variant="ghost" size="icon" onClick={() => handleStartListRename(list)} disabled={deletingListId === list.id}>
-                                            <Pencil className="size-4" />
-                                          </Button>
-                                        </>
-                                      )}
-                                      <Button variant="ghost" size="icon" onClick={() => toggleList(list.id)} aria-expanded={isListExpanded}>
-                                        {isListExpanded ? <ChevronDown className="size-4" /> : <ChevronRight className="size-4" />}
-                                      </Button>
-                                      <Button
-                                        variant="ghost"
-                                        size="icon"
-                                        onClick={() => void handleDeleteList(list, project.id)}
-                                        disabled={deletingListId === list.id}
-                                      >
-                                        <Trash2 className="size-4" />
-                                      </Button>
-                                    </div>
-
-                                     {isListExpanded ? (
-                                       <div className="border-t border-zinc-200 px-4 py-3">
-                                         <div className="grid gap-3 grid-cols-1 xl:grid-cols-2">
-                                           {list.huaweiCartKey || list.huaweiLastSyncedAt || list.huaweiLastError || listHuaweiMessage || listCloneMessage || listShareMessage ? (
-                                            <div className="rounded-lg border bg-white p-3 text-xs">
-                                              <div className="space-y-1">
-                                                {list.huaweiCartKey ? (
-                                                  <p className="text-zinc-600">Linked Huawei cart: {list.huaweiCartName || list.huaweiCartKey}</p>
-                                                ) : null}
-                                                {list.huaweiLastSyncedAt ? (
-                                                  <p className="text-zinc-500">
-                                                    Last Huawei sync: {formatDateTime(list.huaweiLastSyncedAt)}
-                                                  </p>
-                                                ) : null}
-                                                {list.huaweiLastError ? <p className="text-red-600">{list.huaweiLastError}</p> : null}
-                                                {listHuaweiMessage ? (
-                                                  <p className={listHuaweiMessageIsError ? "text-red-600" : "text-zinc-600"}>{listHuaweiMessage}</p>
-                                                ) : null}
-                                                {listCloneMessage ? (
-                                                  <p className={listCloneMessageIsError ? "text-red-600" : "text-zinc-600"}>{listCloneMessage}</p>
-                                                ) : null}
-                                                {listShareMessage ? <p className="text-zinc-600">{listShareMessage}</p> : null}
-                                              </div>
-                                            </div>
-                                          ) : null}
-                                          {list.products.length === 0 ? (
-                                            <div className="lg:col-span-2 2xl:col-span-3 rounded-lg border border-dashed bg-white p-4 text-sm text-zinc-500">
-                                              This cart does not have products yet.
-                                            </div>
+                                            <Button
+                                              variant="ghost"
+                                              size="icon"
+                                              onClick={() => handleCancelListRename(list)}
+                                              disabled={isRenamingList}
+                                            >
+                                              <X className="size-4" />
+                                            </Button>
+                                          </>
+                                        ) : (
+                                          <>
+                                            {list.canShare ? (
+                                              <Button
+                                                variant="ghost"
+                                                size="icon"
+                                                aria-label={`Share ${list.name}`}
+                                                onClick={() => openActionModal({ kind: "list-share", listId: list.id })}
+                                              >
+                                                <Share2 className="size-4" />
+                                              </Button>
+                                            ) : null}
+                                            <ActionMenu
+                                              open={openListMenuId === list.id}
+                                              onOpenChange={(open) => setOpenListMenuId(open ? list.id : null)}
+                                              label={`Open actions for ${list.name}`}
+                                              items={listMenuItems}
+                                            />
+                                            <Button
+                                              variant="ghost"
+                                              size="icon"
+                                              onClick={() => handleStartListRename(list)}
+                                              disabled={deletingListId === list.id}
+                                            >
+                                              <Pencil className="size-4" />
+                                            </Button>
+                                          </>
+                                        )}
+                                        <Button
+                                          variant="ghost"
+                                          size="icon"
+                                          onClick={() => toggleList(list.id)}
+                                          aria-expanded={isListExpanded}
+                                        >
+                                          {isListExpanded ? (
+                                            <ChevronDown className="size-4" />
                                           ) : (
-                                            <div className="grid grid-cols-1 gap-2 lg:grid-cols-2 2xl:grid-cols-3">
-                                              {list.products.map((product) => {
-                                                const specsSummary = getProductSpecsSummary(product);
-                                                const serviceMeta = getServiceMeta(product.serviceCode, product.serviceName);
-
-                                                return (
-                                                  <div key={product.id} className="rounded-lg border border-zinc-100 bg-zinc-50/50 p-3 transition-colors hover:bg-zinc-50">
-                                                    <div className="flex items-start justify-between gap-3">
-                                                      <div className="flex min-w-0 items-start gap-3">
-                                                        {serviceMeta ? (
-                                                          <Image
-                                                            src={serviceMeta.icon}
-                                                            alt=""
-                                                            width={36}
-                                                            height={36}
-                                                            className="mt-0.5 size-9 shrink-0 rounded-md object-contain"
-                                                          />
-                                                        ) : (
-                                                          <div className="mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-md bg-zinc-100 text-xs font-medium text-zinc-500">
-                                                            {product.serviceCode.slice(0, 2).toUpperCase()}
-                                                          </div>
-                                                        )}
-                                                        <div className="min-w-0">
-                                                          <p className="font-medium text-zinc-950">{product.title}</p>
-                                                          <p className="mt-1 text-sm text-zinc-500">
-                                                          {product.serviceName} · Qty {product.quantity}
-                                                          </p>
-                                                          {specsSummary ? (
-                                                            <p className="mt-1 text-xs text-zinc-400">{specsSummary}</p>
-                                                          ) : null}
-                                                        </div>
-                                                      </div>
-                                                      <Badge variant="outline">{product.quantity}</Badge>
-                                                    </div>
-                                                  </div>
-                                                );
-                                              })}
-                                            </div>
+                                            <ChevronRight className="size-4" />
                                           )}
-                                        </div>
+                                        </Button>
+                                        <Button
+                                          variant="ghost"
+                                          size="icon"
+                                          onClick={() => void handleDeleteList(list, project.id)}
+                                          disabled={deletingListId === list.id}
+                                        >
+                                          <Trash2 className="size-4" />
+                                        </Button>
                                       </div>
-                                    ) : null}
-                                  </div>
-                                );
-                              })}
+
+                                      {isListExpanded ? (
+                                        <div className="border-t border-zinc-200 px-4 py-3">
+                                          <div className="grid gap-3 grid-cols-1 xl:grid-cols-2">
+                                            {list.huaweiCartKey ||
+                                            list.huaweiLastSyncedAt ||
+                                            list.huaweiLastError ||
+                                            listHuaweiMessage ||
+                                            listCloneMessage ||
+                                            listShareMessage ? (
+                                              <div className="rounded-lg border bg-white p-3 text-xs">
+                                                <div className="space-y-1">
+                                                  {list.huaweiCartKey ? (
+                                                    <p className="text-zinc-600">
+                                                      Linked Huawei cart: {list.huaweiCartName || list.huaweiCartKey}
+                                                    </p>
+                                                  ) : null}
+                                                  {list.huaweiLastSyncedAt ? (
+                                                    <p className="text-zinc-500">
+                                                      Last Huawei sync: {formatDateTime(list.huaweiLastSyncedAt)}
+                                                    </p>
+                                                  ) : null}
+                                                  {list.huaweiLastError ? (
+                                                    <p className="text-red-600">{list.huaweiLastError}</p>
+                                                  ) : null}
+                                                  {listHuaweiMessage ? (
+                                                    <p
+                                                      className={
+                                                        listHuaweiMessageIsError ? "text-red-600" : "text-zinc-600"
+                                                      }
+                                                    >
+                                                      {listHuaweiMessage}
+                                                    </p>
+                                                  ) : null}
+                                                  {listCloneMessage ? (
+                                                    <p
+                                                      className={
+                                                        listCloneMessageIsError ? "text-red-600" : "text-zinc-600"
+                                                      }
+                                                    >
+                                                      {listCloneMessage}
+                                                    </p>
+                                                  ) : null}
+                                                  {listShareMessage ? (
+                                                    <p className="text-zinc-600">{listShareMessage}</p>
+                                                  ) : null}
+                                                </div>
+                                              </div>
+                                            ) : null}
+                                            {list.products.length === 0 ? (
+                                              <div className="lg:col-span-2 2xl:col-span-3 rounded-lg border border-dashed bg-white p-4 text-sm text-zinc-500">
+                                                This cart does not have products yet.
+                                              </div>
+                                            ) : (
+                                              <div className="grid grid-cols-1 gap-2 lg:grid-cols-2 2xl:grid-cols-3">
+                                                {list.products.map((product) => {
+                                                  const specsSummary = getProductSpecsSummary(product);
+                                                  const serviceMeta = getServiceMeta(
+                                                    product.serviceCode,
+                                                    product.serviceName,
+                                                  );
+
+                                                  return (
+                                                    <div
+                                                      key={product.id}
+                                                      className="rounded-lg border border-zinc-100 bg-zinc-50/50 p-3 transition-colors hover:bg-zinc-50"
+                                                    >
+                                                      <div className="flex items-start justify-between gap-3">
+                                                        <div className="flex min-w-0 items-start gap-3">
+                                                          {serviceMeta ? (
+                                                            <Image
+                                                              src={serviceMeta.icon}
+                                                              alt=""
+                                                              width={36}
+                                                              height={36}
+                                                              className="mt-0.5 size-9 shrink-0 rounded-md object-contain"
+                                                            />
+                                                          ) : (
+                                                            <div className="mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-md bg-zinc-100 text-xs font-medium text-zinc-500">
+                                                              {product.serviceCode.slice(0, 2).toUpperCase()}
+                                                            </div>
+                                                          )}
+                                                          <div className="min-w-0">
+                                                            <p className="font-medium text-zinc-950">{product.title}</p>
+                                                            <p className="mt-1 text-sm text-zinc-500">
+                                                              {product.serviceName} · Qty {product.quantity}
+                                                            </p>
+                                                            {specsSummary ? (
+                                                              <p className="mt-1 text-xs text-zinc-400">
+                                                                {specsSummary}
+                                                              </p>
+                                                            ) : null}
+                                                          </div>
+                                                        </div>
+                                                        <Badge variant="outline">{product.quantity}</Badge>
+                                                      </div>
+                                                    </div>
+                                                  );
+                                                })}
+                                              </div>
+                                            )}
+                                          </div>
+                                        </div>
+                                      ) : null}
+                                    </div>
+                                  );
+                                })}
+                              </div>
                             </div>
                           </div>
-                        </div>
-                      ) : null}
-                    </div>
-                  );
-                })}
-              </div>
-            </ScrollArea>
-          </CardContent>
-        </Card>
+                        ) : null}
+                      </div>
+                    );
+                  })}
+                </div>
+              </ScrollArea>
+            </CardContent>
+          </Card>
         ) : null}
       </div>
       {resourceExportModal ? (
@@ -2686,7 +1497,8 @@ export default function ProjectsPage() {
           />
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <p className="text-sm text-zinc-500">
-              {resourceExportActionMessage || `${formatNumber(resourceExportModal.json.split("\n").length)} lines ready to copy or download.`}
+              {resourceExportActionMessage ||
+                `${formatNumber(resourceExportModal.json.split("\n").length)} lines ready to copy or download.`}
             </p>
             <div className="flex flex-wrap gap-2">
               <Button type="button" variant="outline" onClick={() => void handleCopyResourceExport()}>
@@ -2707,35 +1519,35 @@ export default function ProjectsPage() {
             activeModal.kind === "project-add-cart"
               ? "Add Cart"
               : activeModal.kind === "project-huawei"
-              ? "Create Huawei Carts"
-              : activeModal.kind === "project-clone"
-                ? "Clone Project"
-                : activeModal.kind === "project-share"
-                  ? "Share Project"
-                  : activeModal.kind === "list-move"
-                    ? "Move Cart"
-                    : activeModal.kind === "list-link"
-                      ? "Link Huawei Cart"
-                      : activeModal.kind === "list-clone"
-                        ? "Clone Cart"
-                        : "Share Cart"
+                ? "Create Huawei Carts"
+                : activeModal.kind === "project-clone"
+                  ? "Clone Project"
+                  : activeModal.kind === "project-share"
+                    ? "Share Project"
+                    : activeModal.kind === "list-move"
+                      ? "Move Cart"
+                      : activeModal.kind === "list-link"
+                        ? "Link Huawei Cart"
+                        : activeModal.kind === "list-clone"
+                          ? "Clone Cart"
+                          : "Share Cart"
           }
           description={
             activeModal.kind === "project-add-cart"
               ? "Create a new cart in this project. Optionally start from one of the imported Huawei carts."
               : activeModal.kind === "project-huawei"
-              ? "Create or update one Huawei cart for every NeoCalculator cart in this project."
-              : activeModal.kind === "project-clone"
-                ? "Clone every cart in this project into a new project, with optional region and billing conversion."
-                : activeModal.kind === "project-share"
-                  ? "Choose whether recipients should import a detached copy or join a collaborative project."
-                  : activeModal.kind === "list-move"
-                    ? "Reassign this cart to a different project without cloning it."
-                    : activeModal.kind === "list-link"
-                      ? "Link this cart to an existing Huawei calculator cart using the saved Huawei Cloud cookie."
-                      : activeModal.kind === "list-clone"
-                        ? "Clone this cart with optional region and billing conversion."
-                        : "Create a detached copy link or a collaborative cart link for this cart only."
+                ? "Create or update one Huawei cart for every NeoCalculator cart in this project."
+                : activeModal.kind === "project-clone"
+                  ? "Clone every cart in this project into a new project, with optional region and billing conversion."
+                  : activeModal.kind === "project-share"
+                    ? "Choose whether recipients should import a detached copy or join a collaborative project."
+                    : activeModal.kind === "list-move"
+                      ? "Reassign this cart to a different project without cloning it."
+                      : activeModal.kind === "list-link"
+                        ? "Link this cart to an existing Huawei calculator cart using the saved Huawei Cloud cookie."
+                        : activeModal.kind === "list-clone"
+                          ? "Clone this cart with optional region and billing conversion."
+                          : "Create a detached copy link or a collaborative cart link for this cart only."
           }
           onClose={() => setActiveModal(null)}
         >
@@ -2745,7 +1557,9 @@ export default function ProjectsPage() {
               listName={listDrafts[activeProject.id] ?? ""}
               onListNameChange={(value) => setListDrafts((current) => ({ ...current, [activeProject.id]: value }))}
               baseCartKey={listBaseDrafts[activeProject.id] ?? ""}
-              onBaseCartKeyChange={(value) => setListBaseDrafts((current) => ({ ...current, [activeProject.id]: value }))}
+              onBaseCartKeyChange={(value) =>
+                setListBaseDrafts((current) => ({ ...current, [activeProject.id]: value }))
+              }
               huaweiCarts={huaweiCarts}
               cookieValue={cookieValue}
               pending={listPendingProjectId === activeProject.id}
@@ -2760,7 +1574,9 @@ export default function ProjectsPage() {
                   {activeProjectHuaweiMessage}
                 </p>
               ) : !cookieValue.trim() ? (
-                <p className="text-sm text-zinc-500">Save a Huawei Cloud cookie on the dashboard to enable project sync.</p>
+                <p className="text-sm text-zinc-500">
+                  Save a Huawei Cloud cookie on the dashboard to enable project sync.
+                </p>
               ) : (
                 <p className="text-sm text-zinc-500">
                   Existing Huawei-linked carts are updated; unlinked carts will create new Huawei carts.
@@ -2786,7 +1602,8 @@ export default function ProjectsPage() {
                   setProjectCloneNameDrafts((current) => ({
                     ...current,
                     [activeProject.id]: event.target.value,
-                  }))}
+                  }))
+                }
                 placeholder={getProjectCloneDefaultName(
                   activeProject.name,
                   activeProjectCloneTargetRegion,
@@ -2800,7 +1617,8 @@ export default function ProjectsPage() {
                     setProjectCloneTargetRegions((current) => ({
                       ...current,
                       [activeProject.id]: value && value !== "__keep" ? (value as HuaweiRegionKey) : "",
-                    }))}
+                    }))
+                  }
                 >
                   <SelectTrigger className="bg-white">
                     <SelectValue>
@@ -2824,7 +1642,8 @@ export default function ProjectsPage() {
                     setProjectCloneTargetBillingModes((current) => ({
                       ...current,
                       [activeProject.id]: value && value !== "__keep" ? (value as BillingOption) : "",
-                    }))}
+                    }))
+                  }
                 >
                   <SelectTrigger className="bg-white">
                     <SelectValue>
@@ -2851,7 +1670,11 @@ export default function ProjectsPage() {
                 <p className="text-sm text-zinc-500">Huawei links are not copied to the cloned project.</p>
               )}
               <div className="flex justify-end">
-                <Button variant="outline" onClick={() => void handleCloneProject(activeProject)} disabled={isActiveProjectCloning}>
+                <Button
+                  variant="outline"
+                  onClick={() => void handleCloneProject(activeProject)}
+                  disabled={isActiveProjectCloning}
+                >
                   {isActiveProjectCloning ? "Cloning Project..." : "Clone Project"}
                 </Button>
               </div>
@@ -2873,7 +1696,9 @@ export default function ProjectsPage() {
                   onClick={() => void handleCreateShare("project", activeProject.id, "collaborate")}
                   disabled={sharingProjectKey === `project:${activeProject.id}:collaborate`}
                 >
-                  {sharingProjectKey === `project:${activeProject.id}:collaborate` ? "Sharing..." : "Collaborative Link"}
+                  {sharingProjectKey === `project:${activeProject.id}:collaborate`
+                    ? "Sharing..."
+                    : "Collaborative Link"}
                 </Button>
               </div>
               {activeProjectShareMessage ? <p className="text-sm text-zinc-600">{activeProjectShareMessage}</p> : null}
@@ -2888,7 +1713,8 @@ export default function ProjectsPage() {
                   setListProjectDrafts((current) => ({
                     ...current,
                     [activeList.id]: value || activeProject.id,
-                  }))}
+                  }))
+                }
               >
                 <SelectTrigger className="bg-white">
                   <SelectValue />
@@ -2905,7 +1731,9 @@ export default function ProjectsPage() {
                 <Button
                   variant="outline"
                   onClick={() => void handleMoveList(activeList, activeListParentProjectId)}
-                  disabled={activeListTargetProjectId === activeListParentProjectId || isActiveListMoving || projects.length < 2}
+                  disabled={
+                    activeListTargetProjectId === activeListParentProjectId || isActiveListMoving || projects.length < 2
+                  }
                 >
                   {isActiveListMoving ? "Moving Cart..." : "Move to Project"}
                 </Button>
@@ -2916,10 +1744,14 @@ export default function ProjectsPage() {
           {activeList && activeModal.kind === "list-link" ? (
             <>
               {activeList.huaweiCartKey ? (
-                <p className="text-sm text-zinc-600">Linked to {activeList.huaweiCartName || activeList.huaweiCartKey}</p>
+                <p className="text-sm text-zinc-600">
+                  Linked to {activeList.huaweiCartName || activeList.huaweiCartKey}
+                </p>
               ) : null}
               {activeList.huaweiLastSyncedAt ? (
-                <p className="text-sm text-zinc-500">Last Huawei sync: {formatDateTime(activeList.huaweiLastSyncedAt)}</p>
+                <p className="text-sm text-zinc-500">
+                  Last Huawei sync: {formatDateTime(activeList.huaweiLastSyncedAt)}
+                </p>
               ) : null}
               {activeList.huaweiLastError ? <p className="text-sm text-red-600">{activeList.huaweiLastError}</p> : null}
               {activeListHuaweiMessage ? (
@@ -2927,7 +1759,9 @@ export default function ProjectsPage() {
                   {activeListHuaweiMessage}
                 </p>
               ) : !cookieValue.trim() ? (
-                <p className="text-sm text-zinc-500">Save a Huawei Cloud cookie on the dashboard to load linkable carts here.</p>
+                <p className="text-sm text-zinc-500">
+                  Save a Huawei Cloud cookie on the dashboard to load linkable carts here.
+                </p>
               ) : null}
               <Select
                 value={activeSelectedHuaweiCartKey || "__unlinked"}
@@ -2935,7 +1769,8 @@ export default function ProjectsPage() {
                   setListHuaweiCartDrafts((current) => ({
                     ...current,
                     [activeList.id]: value && value !== "__unlinked" ? value : "",
-                  }))}
+                  }))
+                }
               >
                 <SelectTrigger className="bg-white">
                   <SelectValue>
@@ -2982,7 +1817,8 @@ export default function ProjectsPage() {
                   setListCloneNameDrafts((current) => ({
                     ...current,
                     [activeList.id]: event.target.value,
-                  }))}
+                  }))
+                }
                 placeholder={getCartCloneDefaultName(
                   activeList.name,
                   activeListCloneTargetRegion,
@@ -2996,7 +1832,8 @@ export default function ProjectsPage() {
                     setListCloneTargetRegions((current) => ({
                       ...current,
                       [activeList.id]: value && value !== "__keep" ? (value as HuaweiRegionKey) : "",
-                    }))}
+                    }))
+                  }
                 >
                   <SelectTrigger className="bg-white">
                     <SelectValue>
@@ -3020,7 +1857,8 @@ export default function ProjectsPage() {
                     setListCloneTargetBillingModes((current) => ({
                       ...current,
                       [activeList.id]: value && value !== "__keep" ? (value as BillingOption) : "",
-                    }))}
+                    }))
+                  }
                 >
                   <SelectTrigger className="bg-white">
                     <SelectValue>
@@ -3047,7 +1885,11 @@ export default function ProjectsPage() {
                 <p className="text-sm text-zinc-500">Huawei links are not copied to cloned carts.</p>
               )}
               <div className="flex justify-end">
-                <Button variant="outline" onClick={() => void handleCloneList(activeList, activeListParentProjectId)} disabled={isActiveListCloning}>
+                <Button
+                  variant="outline"
+                  onClick={() => void handleCloneList(activeList, activeListParentProjectId)}
+                  disabled={isActiveListCloning}
+                >
                   {isActiveListCloning ? "Cloning Cart..." : "Clone Cart"}
                 </Button>
               </div>

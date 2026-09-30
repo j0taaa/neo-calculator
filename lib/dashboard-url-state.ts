@@ -6,11 +6,12 @@ export type ActiveModalKind =
   | "project-huawei"
   | "project-clone"
   | "project-share"
+  | "list-move"
   | "list-link"
   | "list-clone"
   | "list-share";
 
-export type DashboardTab = "calculator" | "batch-add";
+export type DashboardTab = "calculator" | "batch-add" | "huawei-live";
 
 export type DashboardUrlState = {
   serviceCode?: string;
@@ -35,8 +36,17 @@ export type DashboardUrlState = {
   showFlexusLInEcs?: boolean;
 };
 
-const dashboardTabs = ["calculator", "batch-add"] as const;
-const modalKinds = ["project-add-cart", "project-huawei", "project-clone", "project-share", "list-link", "list-clone", "list-share"] as const;
+const dashboardTabs = ["calculator", "batch-add", "huawei-live"] as const;
+const modalKinds = [
+  "project-add-cart",
+  "project-huawei",
+  "project-clone",
+  "project-share",
+  "list-move",
+  "list-link",
+  "list-clone",
+  "list-share",
+] as const;
 
 function isDashboardTab(value: unknown): value is DashboardTab {
   return typeof value === "string" && (dashboardTabs as readonly string[]).includes(value);
@@ -67,7 +77,8 @@ export function parseDashboardUrlState(search: string): DashboardUrlState {
     flavorQuery: params.get("flavorQuery") || undefined,
     flavorPage: Number.isFinite(parsedFlavorPage) && parsedFlavorPage > 0 ? Math.floor(parsedFlavorPage) : undefined,
     flavorSort: params.get("flavorSort") || undefined,
-    flavorPageSize: Number.isFinite(parsedFlavorPageSize) && parsedFlavorPageSize > 0 ? Math.floor(parsedFlavorPageSize) : undefined,
+    flavorPageSize:
+      Number.isFinite(parsedFlavorPageSize) && parsedFlavorPageSize > 0 ? Math.floor(parsedFlavorPageSize) : undefined,
     selectedFlavor: params.get("flavor") || undefined,
     minVcpuValue: params.get("minVcpu") || undefined,
     minRamValue: params.get("minRam") || undefined,
