@@ -378,7 +378,20 @@ for (const [service,billingMode] of [["nat","PERIOD"],["ecs","RI"],["ccm","ONETI
     await page.getByRole("button",{name:"Open calculator",exact:true}).click();
     expect((await opened).status()).toBe(200);
     if (billingMode==="RI") {
+      await expect(page.getByTestId("lab-price")).toBeVisible({timeout:110000});
+      await page.locator('select[data-field-id="calculator_ecs_radio:2"]').selectOption({label:"aC8"});
+      await expect(page.getByTestId("lab-price")).toBeVisible({timeout:110000});
+      const images=page.locator('select[data-field-id^="calculator_ims_select:"]');
+      await expect(images).toHaveCount(2);
+      for (const image of await images.all()) {
+        await expect(image).toBeDisabled();
+        await expect(image).toHaveValue("-1");
+        await expect(image.locator("option")).toHaveText(["Not available for this configuration"]);
+      }
       await page.locator('select[data-field-id="calculator_ecs_radio:2"]').selectOption({label:"C7n"});
+      await expect(page.getByTestId("lab-price")).toBeVisible({timeout:110000});
+      await expect(images.first()).toBeEnabled();
+      await page.locator('select[data-field-id="calculator_ecs_radio:2"]').selectOption({label:"aC8"});
       await expect(page.getByTestId("lab-price")).toBeVisible({timeout:110000});
       await page.locator('select[data-field-id="calculator_ecs_RIRadio:1"]').selectOption({label:"3 Years"});
       await expect(page.getByTestId("lab-price")).toBeVisible({timeout:110000});
@@ -401,6 +414,11 @@ for (const [service,billingMode] of [["nat","PERIOD"],["ecs","RI"],["ccm","ONETI
     await page.getByRole("button",{name:`Edit ${product.title}`,exact:true}).click();
     await expect(page.getByTestId("lab-price")).toBeVisible({timeout:110000});
     await expect(page.getByLabel("Huawei billing mode",{exact:true})).toHaveValue(billingMode);
+    if (billingMode==="RI") {
+      await expect(page.locator('select[data-field-id="calculator_ecs_radio:2"] option:checked')).toHaveText("aC8");
+      await expect(page.locator('select[data-field-id="calculator_ims_select:0"]')).toBeDisabled();
+      await expect(page.locator('select[data-field-id="calculator_ims_select:1"]')).toHaveValue("-1");
+    }
     const edited=page.waitForResponse(r=>r.url().endsWith(`/products/${product.id}`) && r.request().method()==="PATCH");
     await page.getByRole("tabpanel",{name:"Huawei live",exact:true}).getByRole("button",{name:"Save Changes",exact:true}).click();
     const editResponse=await edited;expect(editResponse.status()).toBe(200);

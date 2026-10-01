@@ -404,6 +404,9 @@ export function NativeCalculatorPanel({
                             value={String(field.value)}
                             onChange={(e) => change(field, e.target.value)}
                           >
+                            {field.disabled && field.options?.length === 0 && (
+                              <option value={String(field.value)}>Not available for this configuration</option>
+                            )}
                             {field.options?.map((option) => (
                               <option key={option.value} value={option.value} disabled={option.disabled}>
                                 {option.label}
