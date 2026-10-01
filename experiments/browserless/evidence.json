@@ -1,0 +1,417 @@
+{
+  "checkedAt": "2026-10-01T20:26:13.403Z",
+  "verdict": "Keep this experimental. Removing Chromium is feasible for sampled services, but this emulator is slower in sampled openings and cannot safely map 14 service definitions. It does not meet the all-services replacement requirement.",
+  "directory": {
+    "discovered": 97,
+    "sourcesLoaded": 96,
+    "noEligibleCommonHWCScope": ["maas"],
+    "note": "Inventory uses one eligible region/mode per service. Discovery and source loading are not runtime or price verification for every service or region."
+  },
+  "comparison": {
+    "oracle": "Existing Chromium NativeCalculator, using the same fetched Huawei sources and live inquiry API. This is not an independent run of the unmodified official page.",
+    "matchedStates": 26,
+    "failedScopes": 0,
+    "states": [
+      {
+        "service": "nat",
+        "region": "ap-southeast-1",
+        "billingMode": "ONDEMAND",
+        "name": "default",
+        "amount": 2.438
+      },
+      {
+        "service": "nat",
+        "region": "ap-southeast-1",
+        "billingMode": "ONDEMAND",
+        "name": "private-NAT",
+        "amount": 0.102
+      },
+      {
+        "service": "nat",
+        "region": "ap-southeast-1",
+        "billingMode": "ONDEMAND",
+        "name": "quantity-or-duration-two",
+        "amount": 0.204
+      },
+      {
+        "service": "nat",
+        "region": "ap-southeast-1",
+        "billingMode": "PERIOD",
+        "name": "default",
+        "amount": 57.3
+      },
+      {
+        "service": "nat",
+        "region": "ap-southeast-1",
+        "billingMode": "PERIOD",
+        "name": "annual",
+        "amount": 573
+      },
+      {
+        "service": "ecs",
+        "region": "ap-southeast-1",
+        "billingMode": "ONDEMAND",
+        "name": "default",
+        "amount": 0.14968
+      },
+      {
+        "service": "ecs",
+        "region": "ap-southeast-1",
+        "billingMode": "ONDEMAND",
+        "name": "C7n-images-available",
+        "amount": 0.15448
+      },
+      {
+        "service": "ecs",
+        "region": "ap-southeast-1",
+        "billingMode": "ONDEMAND",
+        "name": "aC8-images-unavailable",
+        "amount": 0.13008
+      },
+      {
+        "service": "ecs",
+        "region": "ap-southeast-1",
+        "billingMode": "ONDEMAND",
+        "name": "Kunpeng",
+        "amount": 0.11688
+      },
+      {
+        "service": "ecs",
+        "region": "ap-southeast-1",
+        "billingMode": "ONDEMAND",
+        "name": "x86",
+        "amount": 0.14968
+      },
+      {
+        "service": "ecs",
+        "region": "ap-southeast-1",
+        "billingMode": "ONDEMAND",
+        "name": "quantity-or-duration-two",
+        "amount": 0.29936
+      },
+      {
+        "service": "ecs",
+        "region": "sa-brazil-1",
+        "billingMode": "RI",
+        "name": "default",
+        "amount": 1821.0888,
+        "payment": {
+          "upfront": 0,
+          "recurring": 41.98,
+          "installments": 12,
+          "period": "Month",
+          "extras": [
+            {
+              "mode": "ONDEMAND",
+              "recurring": 109.7774
+            }
+          ]
+        }
+      },
+      {
+        "service": "ecs",
+        "region": "sa-brazil-1",
+        "billingMode": "RI",
+        "name": "C7n-images-available",
+        "amount": 1989.2088,
+        "payment": {
+          "upfront": 0,
+          "recurring": 55.99,
+          "installments": 12,
+          "period": "Month",
+          "extras": [
+            {
+              "mode": "ONDEMAND",
+              "recurring": 109.7774
+            }
+          ]
+        }
+      },
+      {
+        "service": "ecs",
+        "region": "sa-brazil-1",
+        "billingMode": "RI",
+        "name": "aC8-images-unavailable",
+        "amount": 1821.0888,
+        "payment": {
+          "upfront": 0,
+          "recurring": 41.98,
+          "installments": 12,
+          "period": "Month",
+          "extras": [
+            {
+              "mode": "ONDEMAND",
+              "recurring": 109.7774
+            }
+          ]
+        }
+      },
+      {
+        "service": "ecs",
+        "region": "sa-brazil-1",
+        "billingMode": "RI",
+        "name": "three-years",
+        "amount": 4997.7864,
+        "payment": {
+          "upfront": 0,
+          "recurring": 29.05,
+          "installments": 36,
+          "period": "Month",
+          "extras": [
+            {
+              "mode": "ONDEMAND",
+              "recurring": 109.7774
+            }
+          ]
+        }
+      },
+      {
+        "service": "ecs",
+        "region": "sa-brazil-1",
+        "billingMode": "RI",
+        "name": "quantity-or-duration-two",
+        "amount": 9995.5728,
+        "payment": {
+          "upfront": 0,
+          "recurring": 58.1,
+          "installments": 36,
+          "period": "Month",
+          "extras": [
+            {
+              "mode": "ONDEMAND",
+              "recurring": 219.5548
+            }
+          ]
+        }
+      },
+      {
+        "service": "elb",
+        "region": "ap-southeast-1",
+        "billingMode": "ONDEMAND",
+        "name": "default",
+        "amount": 0.03333
+      },
+      {
+        "service": "elb",
+        "region": "ap-southeast-1",
+        "billingMode": "ONDEMAND",
+        "name": "shared",
+        "amount": 0.053
+      },
+      {
+        "service": "elb",
+        "region": "ap-southeast-1",
+        "billingMode": "ONDEMAND",
+        "name": "dedicated",
+        "amount": 0.03333
+      },
+      {
+        "service": "elb",
+        "region": "ap-southeast-1",
+        "billingMode": "ONDEMAND",
+        "name": "fixed",
+        "amount": 0.0695
+      },
+      {
+        "service": "elb",
+        "region": "ap-southeast-1",
+        "billingMode": "ONDEMAND",
+        "name": "quantity-or-duration-two",
+        "amount": 0.139
+      },
+      {
+        "service": "redis",
+        "region": "ap-southeast-3",
+        "billingMode": "ONDEMAND",
+        "name": "default",
+        "amount": 0.00233
+      },
+      {
+        "service": "redis",
+        "region": "ap-southeast-3",
+        "billingMode": "ONDEMAND",
+        "name": "alternative-specification",
+        "amount": 0.00233
+      },
+      {
+        "service": "redis",
+        "region": "ap-southeast-3",
+        "billingMode": "ONDEMAND",
+        "name": "quantity-or-duration-two",
+        "amount": 0.00466
+      },
+      {
+        "service": "ccm",
+        "region": "ap-southeast-1",
+        "billingMode": "ONETIME",
+        "name": "default",
+        "amount": 518
+      },
+      {
+        "service": "ccm",
+        "region": "ap-southeast-1",
+        "billingMode": "ONETIME",
+        "name": "quantity-or-duration-two",
+        "amount": 1036
+      }
+    ],
+    "pinnedSources": {
+      "nat:ap-southeast-1:ONDEMAND": {
+        "page": "6b3f650c493aa7b0acee484168bd559d5ea827f0c5f69770cfb4d2e313fcf810",
+        "config": "cdeeb27fa03ba83eeeb94e051c0de135dadd898a53de2a32b39127d561d624ef",
+        "products": "9e367e2987fcf31fed62b4838f1ca8b86bff32d56fd80cc7a88724e2575fe0b1",
+        "framework": "bd9a0b42e80a5779409416a32232b7af4c7e09342dc49100b81d2c8a9e5d71ff",
+        "menu": "75b799cc2c669528310de42b369669024e87a68125ac1ed37ae45fcc9716dbbf",
+        "fetchedAt": "2026-10-01T20:09:51.791Z"
+      },
+      "nat:ap-southeast-1:PERIOD": {
+        "page": "6b3f650c493aa7b0acee484168bd559d5ea827f0c5f69770cfb4d2e313fcf810",
+        "config": "cdeeb27fa03ba83eeeb94e051c0de135dadd898a53de2a32b39127d561d624ef",
+        "products": "9e367e2987fcf31fed62b4838f1ca8b86bff32d56fd80cc7a88724e2575fe0b1",
+        "framework": "bd9a0b42e80a5779409416a32232b7af4c7e09342dc49100b81d2c8a9e5d71ff",
+        "menu": "75b799cc2c669528310de42b369669024e87a68125ac1ed37ae45fcc9716dbbf",
+        "fetchedAt": "2026-10-01T20:09:51.791Z"
+      },
+      "ecs:ap-southeast-1:ONDEMAND": {
+        "page": "6b3f650c493aa7b0acee484168bd559d5ea827f0c5f69770cfb4d2e313fcf810",
+        "config": "6ffc3213332236defd956da8c3bb25ac247712b98bdef09090f226a02cf49663",
+        "products": "1362e0b46e3be3184b76b3eeade3275c0ab3ad0ab432245e5d7de29f05c79e6d",
+        "framework": "bd9a0b42e80a5779409416a32232b7af4c7e09342dc49100b81d2c8a9e5d71ff",
+        "menu": "75b799cc2c669528310de42b369669024e87a68125ac1ed37ae45fcc9716dbbf",
+        "fetchedAt": "2026-10-01T20:17:33.020Z"
+      },
+      "ecs:sa-brazil-1:RI": {
+        "page": "6b3f650c493aa7b0acee484168bd559d5ea827f0c5f69770cfb4d2e313fcf810",
+        "config": "6ffc3213332236defd956da8c3bb25ac247712b98bdef09090f226a02cf49663",
+        "products": "7996cd0bbbec32c654bb2dec72b15122cb552a292e6218551e854d4eb7f09e2c",
+        "framework": "bd9a0b42e80a5779409416a32232b7af4c7e09342dc49100b81d2c8a9e5d71ff",
+        "menu": "75b799cc2c669528310de42b369669024e87a68125ac1ed37ae45fcc9716dbbf",
+        "fetchedAt": "2026-10-01T20:21:59.833Z"
+      },
+      "elb:ap-southeast-1:ONDEMAND": {
+        "page": "6b3f650c493aa7b0acee484168bd559d5ea827f0c5f69770cfb4d2e313fcf810",
+        "config": "e60e69b064d30766f6a3f0eeee992b45f2c653719bd94f9d488deb21ee33837b",
+        "products": "13f12001ef66f03aba5a0e255901a8292b1a80c3bedb5f12244bd8e303faf172",
+        "framework": "bd9a0b42e80a5779409416a32232b7af4c7e09342dc49100b81d2c8a9e5d71ff",
+        "menu": "75b799cc2c669528310de42b369669024e87a68125ac1ed37ae45fcc9716dbbf",
+        "fetchedAt": "2026-10-01T20:23:33.712Z"
+      },
+      "redis:ap-southeast-3:ONDEMAND": {
+        "page": "6b3f650c493aa7b0acee484168bd559d5ea827f0c5f69770cfb4d2e313fcf810",
+        "config": "977df3441cbe8f3c87931bd2d63cf1800cdfc2d4d21d560c74fd32506ed6e62c",
+        "products": "092a9c146b510fb2b20cdf9dc7560d1a1eea1709e902ce3e244f4e7b8531faa7",
+        "framework": "bd9a0b42e80a5779409416a32232b7af4c7e09342dc49100b81d2c8a9e5d71ff",
+        "menu": "75b799cc2c669528310de42b369669024e87a68125ac1ed37ae45fcc9716dbbf",
+        "fetchedAt": "2026-10-01T20:25:00.185Z"
+      },
+      "ccm:ap-southeast-1:ONETIME": {
+        "page": "6b3f650c493aa7b0acee484168bd559d5ea827f0c5f69770cfb4d2e313fcf810",
+        "config": "326d368de5fd3cf894707a2568e5c49a685f0649344dc18834e9dc3ab9609481",
+        "products": "f0462127cb0d874568ac1d03c29e9c41722e485d3d0e8fa4a6782922f71ab3d6",
+        "framework": "bd9a0b42e80a5779409416a32232b7af4c7e09342dc49100b81d2c8a9e5d71ff",
+        "menu": "75b799cc2c669528310de42b369669024e87a68125ac1ed37ae45fcc9716dbbf",
+        "fetchedAt": "2026-10-01T20:25:43.521Z"
+      }
+    },
+    "completedScopes": 7
+  },
+  "unmappedWidgetServices": [
+    {
+      "service": "function",
+      "components": ["CommonInput"]
+    },
+    {
+      "service": "hcss",
+      "components": ["FuncCombine"]
+    },
+    {
+      "service": "sfsturbo",
+      "components": ["CommonInput"]
+    },
+    {
+      "service": "sfs",
+      "components": ["CommonInput"]
+    },
+    {
+      "service": "wsa",
+      "components": ["CommonInput"]
+    },
+    {
+      "service": "cdn",
+      "components": ["CommonInput"]
+    },
+    {
+      "service": "rdsformariadb",
+      "components": ["FuncTableCalc"]
+    },
+    {
+      "service": "mrs",
+      "components": ["CustomMRSNodeRadio"]
+    },
+    {
+      "service": "dws",
+      "components": ["FuncTableCalc"]
+    },
+    {
+      "service": "search",
+      "components": ["FuncTableCalc"]
+    },
+    {
+      "service": "cloudrtc",
+      "components": ["CommonInput"]
+    },
+    {
+      "service": "vod",
+      "components": ["CustomVODMultiSelect"]
+    },
+    {
+      "service": "mpc",
+      "components": ["CustomVODMultiSelect"]
+    },
+    {
+      "service": "live",
+      "components": ["CommonInput", "CustomVODMultiSelect"]
+    }
+  ],
+  "benchmarks": [
+    {
+      "service": "nat",
+      "candidateSeconds": 9.2,
+      "candidateRssMiB": 550.789,
+      "chromiumSeconds": 5.412
+    },
+    {
+      "service": "ecs",
+      "candidateSeconds": 22.957,
+      "candidateRssMiB": 883.086,
+      "chromiumSeconds": 8.696
+    },
+    {
+      "service": "elb",
+      "candidateSeconds": 21.994,
+      "candidateRssMiB": 1049.969,
+      "chromiumSeconds": 5.921
+    }
+  ],
+  "benchmarkNotes": "One warm-source opening per scope: NAT ONDEMAND Hong Kong, ECS RI Hong Kong, ELB ONDEMAND Hong Kong. Not a statistical benchmark or load test. RSS measures only the candidate Node worker. First ECS/ELB attempts failed under a 768 MiB container limit; workers now have a 1536 MiB cap.",
+  "observedRuntimeGaps": [
+    "FunctionGraph: an unmapped CommonInput blocked the quote.",
+    "VOD: failed to initialize within the runtime deadline.",
+    "MRS: custom node inputs are not mapped; strict metadata preflight now rejects it."
+  ],
+  "scope": "Anonymous international HWC, USD, common availability zones, current advertised region/mode combinations. No accounts, carts, discounts or alternative sites.",
+  "validation": {
+    "unitTests": {
+      "passed": 350,
+      "failed": 0
+    },
+    "typeChecks": ["production project", "isolated experiment project"],
+    "lint": "All experimental TypeScript and worker passed",
+    "publicUI": "Playwright passed: conditional NAT, quantities, RI aC8 image availability, disabled-edit rejection, custom-widget rejections, invalid DTOs, expired sessions, body limit, mobile layout and directory/mode discovery",
+    "sandbox": "Docker inspection passed: non-root, network none, read-only root, no host mounts, dropped capabilities, 1536 MiB memory cap; worker process list contains no Chromium",
+    "deployment": "HTTPS 200 with matching certificate SAN; HTTP redirects 308; main calculator and existing sync-lab both remain HTTP 200",
+    "followupUI": "Service switching clears obsolete diagnostics and scope warnings",
+    "exploratoryCLI": "Unsupported FunctionGraph fails explicitly and exits 1",
+    "comparison": "Final run after pricing and applied-input guards: 26 matching states, seven completed scopes, no failures; exit 0."
+  }
+}

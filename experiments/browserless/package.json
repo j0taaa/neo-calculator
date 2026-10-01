@@ -1,0 +1,15 @@
+{
+  "name": "neo-browserless-experiment",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "worker": "node worker.mjs"
+  },
+  "dependencies": {
+    "fake-indexeddb": "6.2.5",
+    "happy-dom": "20.14.5"
+  },
+  "devDependencies": {
+    "@types/bun": "1.3.13"
+  }
+}
