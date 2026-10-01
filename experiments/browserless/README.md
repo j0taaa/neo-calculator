@@ -126,6 +126,12 @@ a read-only root, dropped capabilities, a PID limit and a memory limit. Docker's
 socket stays in the trusted host controller; it is never mounted into workers.
 The Node VM itself is not the isolation boundary.
 
+Compose also creates a `runtime-image` container that immediately exits with
+code 0. Its retained image reference prevents this host's six-hourly unused-image
+cleanup from deleting the worker image while the demo is idle. Recreate it with
+`docker compose -p neo-browserless-preview -f experiments/browserless/compose.yml up -d`
+after rebuilding the worker image.
+
 The active preview controller is the transient `neo-browserless-demo` systemd
 unit. Stop it and the `neo-browserless-preview` Compose project when retiring the
 demo. The existing `/sync-lab` route and production containers are unaffected.
