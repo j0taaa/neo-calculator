@@ -733,5 +733,16 @@
       "name": "save-and-replay",
       "amount": 9995.5728
     }
-  ]
+  ],
+  "production": {
+    "url": "https://calculator.hwctools.site/?tab=huawei-live",
+    "nativeBrowserScenarios": 4,
+    "legacyCatalogBrowserScenarios": 9,
+    "httpsStatus": 200,
+    "httpRedirectStatus": 308,
+    "sidecarHealthy": true,
+    "runtimeSourceHashesMatch": true,
+    "appImage": "sha256:ea52672a9eb31459b188b42c26ccea216e7dd18c1b4c675a96909304775c6aff",
+    "nativeImage": "sha256:b7815f0a4b99fd23160e2823b10d6bbdb8554134cb59c6b795f501641b77e159"
+  }
 }
