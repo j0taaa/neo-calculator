@@ -80,7 +80,10 @@ export async function readNativeForm(page: Page): Promise<NativeForm> {
           field.disabled ||= !!el.closest(".is-disabled, .disabled");
         }
         field.label = label;
-        if (field.options && (!field.options.length || field.value === "-1")) diagnostics.push(`No selected option for ${label}`);
+        // Huawei intentionally leaves some controls unavailable (for example aC8 images).
+        // A disabled empty control requires no selection; populated or enabled controls still do.
+        const unavailable = field.disabled && field.options?.length === 0;
+        if (field.options && !unavailable && (!field.options.length || field.value === "-1")) diagnostics.push(`No selected option for ${label}`);
         el.setAttribute("data-neo-control", id);
         fields.push(field);
       }

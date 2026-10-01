@@ -21,6 +21,7 @@ const evidence: unknown[] = [];
 const cases: [string,string,NativeBillingMode][] = [
   ["nat","ap-southeast-1","ONDEMAND"], ["nat","ap-southeast-1","PERIOD"],
   ["elb","ap-southeast-1","PERIOD"], ["redis","ap-southeast-3","PERIOD"],
+  ["ecs","ap-southeast-1","ONDEMAND"], ["ecs","sa-brazil-1","ONDEMAND"],
   ["ecs","ap-southeast-1","PERIOD"], ["ecs","ap-southeast-1","RI"],
   ["ecs","sa-brazil-1","RI"], ["ccm","ap-southeast-1","ONETIME"], ["dew","ap-southeast-1","ONETIME"],
 ];
@@ -48,6 +49,7 @@ async function drive(page: Page, field: NativeField, value: string | number | bo
 try {
   for (const [service,region,billingMode] of cases) {
     if (process.env.NATIVE_BILLING_AUDIT_SERVICES && !process.env.NATIVE_BILLING_AUDIT_SERVICES.split(",").includes(service)) continue;
+    if (process.env.NATIVE_BILLING_AUDIT_MODES && !process.env.NATIVE_BILLING_AUDIT_MODES.split(",").includes(billingMode)) continue;
     let state: NativeState | undefined;
     const context = await browser.newContext({viewport:{width:1440,height:1200},serviceWorkers:"block"});
     try {
@@ -125,10 +127,21 @@ try {
         assert(field,`Missing option ${label}`);
         await change(name,field,field.options!.find(o=>o.label===label)!.value);
       }
+      await compare("default");
       if (service === "ecs") {
-        await choose("C7n","usable-generation");
-      } else await compare("default");
+        const generation = state.fields.find(f=>f.options?.some(o=>o.label==="C7n"))!;
+        const original = generation.options!.find(o=>o.value===generation.value)!.label;
+        await choose("aC8","aC8-no-image-selection");
+        const images = state.fields.filter(f=>f.component==="calculator_ims_select");
+        assert.equal(images.length,2);
+        assert(images.every(f=>f.disabled && f.options?.length===0 && f.value==="-1"),"aC8 must preserve Huawei's unavailable images");
+        await choose("C7n","generation-with-images");
+        assert(state.fields.filter(f=>f.component==="calculator_ims_select").every(f=>!f.disabled && f.options!.length>0),"C7n image choices must return");
+        await choose(original,"return-to-original-generation");
+      }
       if (billingMode === "PERIOD") {
+        // Huawei's default aC7 offers monthly terms only; C7n also offers annual terms.
+        if (service === "ecs") await choose("C7n","annual-capable-generation");
         const term = state!.fields.find(f=>f.component==="global_PERIODTIME" && f.type==="select")!;
         assert(term,"Missing purchase term");
         const year = term.options!.find(o=>/1 year/i.test(o.label))!;
