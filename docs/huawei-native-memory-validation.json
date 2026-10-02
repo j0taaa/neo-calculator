@@ -1,0 +1,107 @@
+{
+  "checkedAt": "2026-10-02T14:06:42.794Z",
+  "method": "Isolated production-image container. Working memory = cgroup-v1 usage minus total inactive file cache (Docker stats method), sampled every 250 ms. RSS is cgroup total_rss, not a sum of per-process RSS. Six mixed services open sequentially in one shared Chromium browser.",
+  "results": [
+    {
+      "phase": "idle-before-browser",
+      "sessions": 0,
+      "workingMiB": 62.69140625,
+      "rssMiB": 58.65234375,
+      "swappedMiB": 0,
+      "usageMiB": 70.0390625,
+      "peakWorkingMiB": 62.69140625
+    },
+    {
+      "phase": "nat/ap-southeast-1/ONDEMAND",
+      "sessions": 1,
+      "workingMiB": 414.21875,
+      "rssMiB": 292.875,
+      "swappedMiB": 0,
+      "usageMiB": 651.24609375,
+      "peakWorkingMiB": 414.21875
+    },
+    {
+      "phase": "ecs/ap-southeast-1/ONDEMAND",
+      "sessions": 2,
+      "workingMiB": 750.65234375,
+      "rssMiB": 596.70703125,
+      "swappedMiB": 0,
+      "usageMiB": 931.2890625,
+      "peakWorkingMiB": 758.41015625
+    },
+    {
+      "phase": "elb/ap-southeast-1/ONDEMAND",
+      "sessions": 3,
+      "workingMiB": 1025.14453125,
+      "rssMiB": 838.01953125,
+      "swappedMiB": 1.03125,
+      "usageMiB": 1172.72265625,
+      "peakWorkingMiB": 1026.70703125
+    },
+    {
+      "phase": "redis/ap-southeast-3/ONDEMAND",
+      "sessions": 4,
+      "workingMiB": 1255.4765625,
+      "rssMiB": 1063.34765625,
+      "swappedMiB": 6.05859375,
+      "usageMiB": 1418.5,
+      "peakWorkingMiB": 1255.4765625
+    },
+    {
+      "phase": "ecs/sa-brazil-1/RI",
+      "sessions": 5,
+      "workingMiB": 1345.1015625,
+      "rssMiB": 1169.56640625,
+      "swappedMiB": 20.625,
+      "usageMiB": 1503.53125,
+      "peakWorkingMiB": 1346.46484375
+    },
+    {
+      "phase": "nat/sa-brazil-1/ONDEMAND",
+      "sessions": 6,
+      "workingMiB": 1421.4453125,
+      "rssMiB": 1243.81640625,
+      "swappedMiB": 20.49609375,
+      "usageMiB": 1590.83203125,
+      "peakWorkingMiB": 1502.48046875
+    },
+    {
+      "phase": "all-tabs-closed-browser-retained",
+      "sessions": 0,
+      "workingMiB": 374.15625,
+      "rssMiB": 228.29296875,
+      "swappedMiB": 20.23828125,
+      "usageMiB": 432.8125,
+      "peakWorkingMiB": 1502.48046875
+    },
+    {
+      "phase": "browser-closed",
+      "sessions": 0,
+      "workingMiB": 325.5,
+      "rssMiB": 179.30859375,
+      "swappedMiB": 20.23828125,
+      "usageMiB": 383.125,
+      "peakWorkingMiB": 1502.48046875
+    }
+  ],
+  "image": "sha256:b7815f0a4b99fd23160e2823b10d6bbdb8554134cb59c6b795f501641b77e159",
+  "containerMemoryLimitMiB": 3072,
+  "capacity": 6,
+  "productionObservedIdleWorkingMiB": 97.98,
+  "applicationObservedWorkingMiB": 139.2,
+  "validation": {
+    "nativeQuotes": 6,
+    "diagnostics": "empty for every sampled session",
+    "seventhSession": "rejected with HTTP-equivalent status 503",
+    "contextsAndBrowser": "closed successfully",
+    "containerExitCode": 0,
+    "OOMKilled": false,
+    "unitTestsPassed": 347,
+    "unitTestsFailed": 0,
+    "typeCheck": "passed",
+    "productionNativeHealth": "healthy",
+    "mainAndOriginalLab": "HTTP 200",
+    "browserless": "source/dependencies/temp artifacts removed; controller and containers retired; PR closed"
+  },
+  "limitations": "One measured run on this VPS; six sessions opened sequentially. Includes the anonymous calculator controller and Chromium process tree, excludes Next.js and the client browser. Not a worst-case or simultaneous-opening load test. Source versions, selections, garbage collection, swap and OS cache accounting can change memory use; do not extrapolate a universal per-session maximum."
+}
