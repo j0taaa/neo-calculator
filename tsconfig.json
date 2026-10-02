@@ -42,7 +42,6 @@
     "**/*.test.tsx",
     "**/*.playwright.ts",
     "tests",
-    "scripts",
-    "experiments"
+    "scripts"
   ]
 }
