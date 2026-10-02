@@ -234,5 +234,26 @@
       "failed": 0
     },
     "isolatedTypeCheck": "passed"
+  },
+  "deployment": {
+    "checkedAt": "2026-10-02T15:54:42.904768Z",
+    "site": "https://calculator.hwctools.site/?tab=huawei-live",
+    "nativeContainer": "home-calculator-native-1",
+    "runtimeImage": "sha256:d4d263957f5016bf8ab7ab71a6084eeac6466b0d62c8e9e0d323afe755815243",
+    "health": "healthy",
+    "productionBrowserScenarios": 4,
+    "billingModes": [
+      "ONDEMAND",
+      "PERIOD",
+      "RI",
+      "ONETIME"
+    ],
+    "anonymousTestSessionsReleased": true,
+    "runtimeSourceHashesMatch": true,
+    "httpsStatus": 200,
+    "tlsVerification": 0,
+    "httpRedirectStatus": 301,
+    "mainApplicationContainerUnchanged": true,
+    "strategy": "Overlay clean library sources onto the existing production runtime/dependencies. Recreate only calculator-native, without rebuilding or restarting the main application."
   }
 }
