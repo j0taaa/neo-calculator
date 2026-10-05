@@ -1,3 +1,4 @@
+import type { ConfigurableServiceBundleDefinition } from "@/lib/configurable-service-bundle-types";
 import { and, call, coalesce, eq, ifElse, max, ref, template } from "@/lib/typed-declarative-runtime-ops";
 
 export const configurableServiceBundle = {
@@ -70,10 +71,10 @@ export const configurableServiceBundle = {
         { kind: "field-not-equals", path: "billingEvent", value: "event.type.ges.duration" },
       ],
       fields: [
-        { key: "graphSize", required: true, extractor: { kind: "path-or-template", path: "specDesc" } },
-        { key: "resourceSpecCode", extractor: { kind: "path-or-template", path: "resourceSpecCode" } },
+        { key: "graphSize", required: true, extractor: { kind: "path", path: "specDesc" } },
+        { key: "resourceSpecCode", extractor: { kind: "path", path: "resourceSpecCode" } },
         { key: "prices", extractor: { kind: "rate-set", modes: ["ONDEMAND", "MONTHLY", "YEARLY"] } },
-        { key: "productIds.ONDEMAND", extractor: { kind: "plan-product-id", billingMode: "ONDEMAND", usageFactor: "count" } },
+        { key: "productIds.ONDEMAND", extractor: { kind: "plan-product-id", billingMode: "ONDEMAND" } },
         { key: "productIds.MONTHLY", extractor: { kind: "plan-product-id", billingMode: "MONTHLY" } },
         { key: "productIds.YEARLY", extractor: { kind: "plan-product-id", billingMode: "YEARLY" } },
       ],
@@ -207,7 +208,7 @@ export const configurableServiceBundle = {
       },
     ),
   },
-};
+} as const satisfies ConfigurableServiceBundleDefinition;
 
 export const serviceDefinition = configurableServiceBundle.service;
 export const pricingDefinition = configurableServiceBundle.pricing;

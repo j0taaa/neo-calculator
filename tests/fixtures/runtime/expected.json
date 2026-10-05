@@ -1,0 +1,1960 @@
+[
+  {
+    "code": "DCS",
+    "name": "default",
+    "values": {
+      "edition": "Basic",
+      "version": "7.0",
+      "instanceType": "Single-node",
+      "architecture": "x86 | DRAM",
+      "replicas": "2",
+      "specification": "4 GB",
+      "quantity": "1",
+      "elasticBandwidth": "Buy later",
+      "bandwidthMbit": "1",
+      "usageHours": "744"
+    },
+    "billingMode": "Pay-per-use",
+    "usageHours": 744,
+    "quantity": 1,
+    "catalogRegionId": "sa-brazil-1",
+    "estimate": {
+      "currency": "USD",
+      "amount": 50.592,
+      "suffix": "/744h",
+      "monthlyAverageAmount": 48.96,
+      "quantity": 1,
+      "usageHours": 744,
+      "tier": {
+        "edition": "Basic",
+        "version": "7.0",
+        "instanceType": "Single-node",
+        "architecture": "x86 | DRAM",
+        "memoryGiB": 4,
+        "specification": "4 GB",
+        "replicas": 1,
+        "resourceSpecCode": "redis.single.xu1.large.4",
+        "prices": {
+          "ONDEMAND": 0.068
+        },
+        "productIds": {
+          "ONDEMAND": "OFFI537480958538596442"
+        }
+      },
+      "bandwidthRatePerMbitHour": null,
+      "breakdown": [
+        {
+          "label": "1 x 7.0 Single-node x86 | DRAM 4 GB",
+          "amount": 50.592
+        }
+      ],
+      "notes": [
+        "Instance rate: USD 0.068000/instance/h.",
+        "Elastic bandwidth is set to Buy later, so bandwidth is excluded from this estimate."
+      ]
+    },
+    "product": {
+      "serviceCode": "DCS",
+      "serviceName": "Distributed Cache Service (for Redis)",
+      "productType": "dcs",
+      "title": "Distributed Cache Service (for Redis) 7.0 Single-node 4 GB",
+      "quantity": 1,
+      "config": {
+        "region": "la-sao-paulo1",
+        "catalogRegionId": "sa-brazil-1",
+        "billingMode": "Pay-per-use",
+        "edition": "Basic",
+        "version": "7.0",
+        "instanceType": "Single-node",
+        "architecture": "x86 | DRAM",
+        "replicas": null,
+        "specification": "4 GB",
+        "quantity": 1,
+        "elasticBandwidth": "Buy later",
+        "bandwidthMbit": null,
+        "usageHours": 744,
+        "resourceSpecCode": "redis.single.xu1.large.4",
+        "productId": "OFFI537480958538596442"
+      },
+      "pricing": {
+        "total": "USD 50.59/744h",
+        "estimate": "USD 50.59/744h",
+        "monthlyAverage": "USD 48.96/mo",
+        "breakdown": [
+          {
+            "label": "1 x 7.0 Single-node x86 | DRAM 4 GB",
+            "value": "USD 50.59/744h"
+          }
+        ]
+      }
+    }
+  },
+  {
+    "code": "DCS",
+    "name": "multiple",
+    "values": {
+      "edition": "Basic",
+      "version": "7.0",
+      "instanceType": "Single-node",
+      "architecture": "x86 | DRAM",
+      "replicas": "2",
+      "specification": "4 GB",
+      "quantity": "3",
+      "elasticBandwidth": "Buy later",
+      "bandwidthMbit": "1",
+      "usageHours": "24"
+    },
+    "billingMode": "Pay-per-use",
+    "usageHours": 24,
+    "quantity": 3,
+    "catalogRegionId": "sa-brazil-1",
+    "estimate": {
+      "currency": "USD",
+      "amount": 4.896,
+      "suffix": "/24h",
+      "monthlyAverageAmount": 146.88,
+      "quantity": 3,
+      "usageHours": 24,
+      "tier": {
+        "edition": "Basic",
+        "version": "7.0",
+        "instanceType": "Single-node",
+        "architecture": "x86 | DRAM",
+        "memoryGiB": 4,
+        "specification": "4 GB",
+        "replicas": 1,
+        "resourceSpecCode": "redis.single.xu1.large.4",
+        "prices": {
+          "ONDEMAND": 0.068
+        },
+        "productIds": {
+          "ONDEMAND": "OFFI537480958538596442"
+        }
+      },
+      "bandwidthRatePerMbitHour": null,
+      "breakdown": [
+        {
+          "label": "3 x 7.0 Single-node x86 | DRAM 4 GB",
+          "amount": 4.896
+        }
+      ],
+      "notes": [
+        "Instance rate: USD 0.068000/instance/h.",
+        "Elastic bandwidth is set to Buy later, so bandwidth is excluded from this estimate."
+      ]
+    },
+    "product": {
+      "serviceCode": "DCS",
+      "serviceName": "Distributed Cache Service (for Redis)",
+      "productType": "dcs",
+      "title": "Distributed Cache Service (for Redis) 7.0 Single-node 4 GB",
+      "quantity": 1,
+      "config": {
+        "region": "la-sao-paulo1",
+        "catalogRegionId": "sa-brazil-1",
+        "billingMode": "Pay-per-use",
+        "edition": "Basic",
+        "version": "7.0",
+        "instanceType": "Single-node",
+        "architecture": "x86 | DRAM",
+        "replicas": null,
+        "specification": "4 GB",
+        "quantity": 3,
+        "elasticBandwidth": "Buy later",
+        "bandwidthMbit": null,
+        "usageHours": 24,
+        "resourceSpecCode": "redis.single.xu1.large.4",
+        "productId": "OFFI537480958538596442"
+      },
+      "pricing": {
+        "total": "USD 4.90/24h",
+        "estimate": "USD 4.90/24h",
+        "monthlyAverage": "USD 146.88/mo",
+        "breakdown": [
+          {
+            "label": "3 x 7.0 Single-node x86 | DRAM 4 GB",
+            "value": "USD 4.90/24h"
+          }
+        ]
+      }
+    }
+  },
+  {
+    "code": "NAT",
+    "name": "default",
+    "values": {
+      "natType": "Public NAT Gateway",
+      "natSize": "Small"
+    },
+    "billingMode": "Pay-per-use",
+    "usageHours": 744,
+    "quantity": 1,
+    "catalogRegionId": "sa-brazil-1",
+    "estimate": {
+      "currency": "USD",
+      "amount": 75.578,
+      "suffix": "/31d",
+      "monthlyAverageAmount": 73.14,
+      "tier": {
+        "type": "Public NAT Gateway",
+        "size": "Small",
+        "resourceSpecCode": "natgateway_small",
+        "prices": {
+          "ONDEMAND": 2.438,
+          "MONTHLY": 57.3,
+          "YEARLY": 573
+        }
+      },
+      "hourlyAmount": null,
+      "dailyAmount": 2.438,
+      "monthlyAmount": 57.3,
+      "yearlyAmount": 573,
+      "billableDays": 31,
+      "notes": [
+        "Public NAT Gateway pay-per-use pricing is billed by day. Partial-day usage is rounded up to the next billable day."
+      ]
+    },
+    "product": {
+      "serviceCode": "NAT",
+      "serviceName": "NAT Gateway",
+      "productType": "nat",
+      "title": "NAT Gateway Public NAT Gateway Small",
+      "quantity": 1,
+      "config": {
+        "region": "la-sao-paulo1",
+        "catalogRegionId": "sa-brazil-1",
+        "billingMode": "Pay-per-use",
+        "type": "Public NAT Gateway",
+        "size": "Small",
+        "resourceSpecCode": "natgateway_small",
+        "usageHours": 744,
+        "billableDays": 31
+      },
+      "pricing": {
+        "total": "USD 75.58/31d",
+        "estimate": "USD 75.58/31d"
+      }
+    }
+  },
+  {
+    "code": "NAT",
+    "name": "multiple",
+    "values": {
+      "natType": "Public NAT Gateway",
+      "natSize": "Small"
+    },
+    "billingMode": "Pay-per-use",
+    "usageHours": 24,
+    "quantity": 3,
+    "catalogRegionId": "sa-brazil-1",
+    "estimate": {
+      "currency": "USD",
+      "amount": 2.438,
+      "suffix": "/1d",
+      "monthlyAverageAmount": 73.14,
+      "tier": {
+        "type": "Public NAT Gateway",
+        "size": "Small",
+        "resourceSpecCode": "natgateway_small",
+        "prices": {
+          "ONDEMAND": 2.438,
+          "MONTHLY": 57.3,
+          "YEARLY": 573
+        }
+      },
+      "hourlyAmount": null,
+      "dailyAmount": 2.438,
+      "monthlyAmount": 57.3,
+      "yearlyAmount": 573,
+      "billableDays": 1,
+      "notes": [
+        "Public NAT Gateway pay-per-use pricing is billed by day. Partial-day usage is rounded up to the next billable day."
+      ]
+    },
+    "product": {
+      "serviceCode": "NAT",
+      "serviceName": "NAT Gateway",
+      "productType": "nat",
+      "title": "NAT Gateway Public NAT Gateway Small",
+      "quantity": 3,
+      "config": {
+        "region": "la-sao-paulo1",
+        "catalogRegionId": "sa-brazil-1",
+        "billingMode": "Pay-per-use",
+        "type": "Public NAT Gateway",
+        "size": "Small",
+        "resourceSpecCode": "natgateway_small",
+        "usageHours": 24,
+        "billableDays": 1
+      },
+      "pricing": {
+        "total": "USD 7.31/1d",
+        "estimate": "USD 2.44/1d"
+      }
+    }
+  },
+  {
+    "code": "NAT",
+    "name": "monthly",
+    "values": {
+      "natType": "Public NAT Gateway",
+      "natSize": "Small"
+    },
+    "billingMode": "Yearly/Monthly",
+    "usageHours": 744,
+    "quantity": 2,
+    "catalogRegionId": "sa-brazil-1",
+    "estimate": {
+      "currency": "USD",
+      "amount": 57.3,
+      "suffix": "/mo",
+      "monthlyAverageAmount": 57.3,
+      "tier": {
+        "type": "Public NAT Gateway",
+        "size": "Small",
+        "resourceSpecCode": "natgateway_small",
+        "prices": {
+          "ONDEMAND": 2.438,
+          "MONTHLY": 57.3,
+          "YEARLY": 573
+        }
+      },
+      "hourlyAmount": null,
+      "dailyAmount": 2.438,
+      "monthlyAmount": 57.3,
+      "yearlyAmount": 573,
+      "billableDays": null,
+      "notes": []
+    },
+    "product": {
+      "serviceCode": "NAT",
+      "serviceName": "NAT Gateway",
+      "productType": "nat",
+      "title": "NAT Gateway Public NAT Gateway Small",
+      "quantity": 2,
+      "config": {
+        "region": "la-sao-paulo1",
+        "catalogRegionId": "sa-brazil-1",
+        "billingMode": "Yearly/Monthly",
+        "type": "Public NAT Gateway",
+        "size": "Small",
+        "resourceSpecCode": "natgateway_small",
+        "usageHours": null,
+        "billableDays": null
+      },
+      "pricing": {
+        "total": "USD 114.60/mo",
+        "estimate": "USD 57.30/mo"
+      }
+    }
+  },
+  {
+    "code": "EVS",
+    "name": "default",
+    "values": {
+      "billingMode": "Pay-per-use",
+      "diskType": "General Purpose SSD",
+      "diskSizeGiB": "10",
+      "usageHours": "744",
+      "durationMonths": "1",
+      "iops": "3000",
+      "throughput": "125"
+    },
+    "billingMode": "Pay-per-use",
+    "usageHours": 744,
+    "quantity": 1,
+    "catalogRegionId": "sa-brazil-1",
+    "estimate": {
+      "currency": "USD",
+      "amount": 1.83768,
+      "suffix": "/744h",
+      "unitAmount": 1.83768
+    },
+    "product": [
+      {
+        "serviceCode": "EVS",
+        "serviceName": "Elastic Volume Service",
+        "productType": "evs",
+        "title": "Elastic Volume Service General Purpose SSD 10 GiB",
+        "quantity": 1,
+        "config": {
+          "region": "la-sao-paulo1",
+          "billingMode": "Pay-per-use",
+          "usageHours": 744,
+          "durationMonths": null,
+          "description": "Elastic Volume Service",
+          "diskType": "General Purpose SSD",
+          "diskSizeGiB": 10,
+          "requestedDiskSizeGiB": 10,
+          "splitDiskCount": 1
+        },
+        "pricing": {
+          "total": "USD 1.84/744h",
+          "disk": "USD 1.84/744h"
+        }
+      }
+    ]
+  },
+  {
+    "code": "EVS",
+    "name": "multiple",
+    "values": {
+      "billingMode": "Pay-per-use",
+      "diskType": "General Purpose SSD",
+      "diskSizeGiB": "10",
+      "usageHours": "24",
+      "durationMonths": "1",
+      "iops": "3000",
+      "throughput": "125"
+    },
+    "billingMode": "Pay-per-use",
+    "usageHours": 24,
+    "quantity": 3,
+    "catalogRegionId": "sa-brazil-1",
+    "estimate": {
+      "currency": "USD",
+      "amount": 0.17784,
+      "suffix": "/24h",
+      "unitAmount": 0.05928
+    },
+    "product": [
+      {
+        "serviceCode": "EVS",
+        "serviceName": "Elastic Volume Service",
+        "productType": "evs",
+        "title": "Elastic Volume Service General Purpose SSD 10 GiB",
+        "quantity": 3,
+        "config": {
+          "region": "la-sao-paulo1",
+          "billingMode": "Pay-per-use",
+          "usageHours": 24,
+          "durationMonths": null,
+          "description": "Elastic Volume Service",
+          "diskType": "General Purpose SSD",
+          "diskSizeGiB": 10,
+          "requestedDiskSizeGiB": 10,
+          "splitDiskCount": 1
+        },
+        "pricing": {
+          "total": "USD 0.1778/24h",
+          "disk": "USD 0.0593/24h"
+        }
+      }
+    ]
+  },
+  {
+    "code": "EVS",
+    "name": "monthly",
+    "values": {
+      "billingMode": "Yearly/Monthly",
+      "diskType": "General Purpose SSD",
+      "diskSizeGiB": "10",
+      "usageHours": "744",
+      "durationMonths": "1",
+      "iops": "3000",
+      "throughput": "125"
+    },
+    "billingMode": "Yearly/Monthly",
+    "usageHours": 744,
+    "quantity": 2,
+    "catalogRegionId": "sa-brazil-1",
+    "estimate": {
+      "currency": "USD",
+      "amount": 3.5999999999999996,
+      "suffix": "/1mo",
+      "unitAmount": 1.7999999999999998
+    },
+    "product": [
+      {
+        "serviceCode": "EVS",
+        "serviceName": "Elastic Volume Service",
+        "productType": "evs",
+        "title": "Elastic Volume Service General Purpose SSD 10 GiB",
+        "quantity": 2,
+        "config": {
+          "region": "la-sao-paulo1",
+          "billingMode": "Yearly/Monthly",
+          "usageHours": null,
+          "durationMonths": 1,
+          "description": "Elastic Volume Service",
+          "diskType": "General Purpose SSD",
+          "diskSizeGiB": 10,
+          "requestedDiskSizeGiB": 10,
+          "splitDiskCount": 1
+        },
+        "pricing": {
+          "total": "USD 3.60/1mo",
+          "disk": "USD 1.80/1mo"
+        }
+      }
+    ]
+  },
+  {
+    "code": "DMS",
+    "name": "default",
+    "values": {
+      "flavor": "kafka.2u4g.cluster.small",
+      "brokers": "3",
+      "bandwidth": "100MB/s",
+      "storageType": "Ultra-high I/O",
+      "storageGb": "10",
+      "quantity": "1",
+      "usageHours": "744"
+    },
+    "billingMode": "Pay-per-use",
+    "usageHours": 744,
+    "quantity": 1,
+    "catalogRegionId": "sa-brazil-1",
+    "estimate": {
+      "currency": "USD",
+      "amount": 749.952,
+      "suffix": "/744h",
+      "monthlyAverageAmount": 725.76,
+      "quantity": 1,
+      "brokers": 3,
+      "usageHours": 744,
+      "flavorTier": {
+        "flavor": "kafka.2u4g.cluster.small",
+        "label": "kafka.2u4g.cluster.small",
+        "prices": {
+          "ONDEMAND": 0.048,
+          "MONTHLY": 23.04,
+          "YEARLY": 230.4
+        },
+        "productIds": {
+          "ONDEMAND": "OFFI801627768115228675",
+          "MONTHLY": "OFFI801627768106840073",
+          "YEARLY": "OFFI801627768115228672"
+        }
+      },
+      "bandwidthTier": {
+        "bandwidth": "100MB/s",
+        "label": "100 MB/s",
+        "bandwidthMbps": 100,
+        "prices": {
+          "ONDEMAND": 0.48
+        },
+        "productIds": {
+          "ONDEMAND": "OFFI589724231017873410",
+          "MONTHLY": null,
+          "YEARLY": null
+        }
+      },
+      "storageTier": {
+        "storageType": "Ultra-high I/O",
+        "label": "Ultra-high I/O",
+        "prices": {
+          "ONDEMAND": 0.016
+        },
+        "productIds": {
+          "ONDEMAND": "OFFI589729284746985474",
+          "MONTHLY": null,
+          "YEARLY": null
+        }
+      },
+      "billingMode": "Pay-per-use",
+      "breakdown": [
+        {
+          "label": "1 x 3 brokers x kafka.2u4g.cluster.small",
+          "amount": 35.712
+        },
+        {
+          "label": "1 x Bandwidth 100MB/s",
+          "amount": 357.12
+        },
+        {
+          "label": "1 x 10 GB x 3 brokers x Ultra-high I/O",
+          "amount": 357.12
+        }
+      ],
+      "notes": [
+        "Flavor rate: USD 0.0480/instance/h.",
+        "Bandwidth rate: USD 0.4800/instance/h.",
+        "Storage rate: USD 0.0160/GB/broker/h."
+      ]
+    },
+    "product": {
+      "serviceCode": "DMS",
+      "serviceName": "DMS Kafka",
+      "productType": "dms",
+      "title": "DMS Kafka kafka.2u4g.cluster.small",
+      "quantity": 1,
+      "config": {
+        "region": "la-sao-paulo1",
+        "catalogRegionId": "sa-brazil-1",
+        "billingMode": "Pay-per-use",
+        "flavor": "kafka.2u4g.cluster.small",
+        "brokers": 3,
+        "bandwidth": "100MB/s",
+        "storageType": "Ultra-high I/O",
+        "storageGb": 10,
+        "quantity": 1,
+        "usageHours": 744
+      },
+      "pricing": {
+        "total": "USD 749.95/744h",
+        "estimate": "USD 749.95/744h",
+        "monthlyAverage": "USD 725.76/mo",
+        "breakdown": [
+          {
+            "label": "1 x 3 brokers x kafka.2u4g.cluster.small",
+            "value": "USD 35.71/744h"
+          },
+          {
+            "label": "1 x Bandwidth 100MB/s",
+            "value": "USD 357.12/744h"
+          },
+          {
+            "label": "1 x 10 GB x 3 brokers x Ultra-high I/O",
+            "value": "USD 357.12/744h"
+          }
+        ]
+      }
+    }
+  },
+  {
+    "code": "DMS",
+    "name": "multiple",
+    "values": {
+      "flavor": "kafka.2u4g.cluster.small",
+      "brokers": "3",
+      "bandwidth": "100MB/s",
+      "storageType": "Ultra-high I/O",
+      "storageGb": "10",
+      "quantity": "3",
+      "usageHours": "24"
+    },
+    "billingMode": "Pay-per-use",
+    "usageHours": 24,
+    "quantity": 3,
+    "catalogRegionId": "sa-brazil-1",
+    "estimate": {
+      "currency": "USD",
+      "amount": 72.576,
+      "suffix": "/24h",
+      "monthlyAverageAmount": 2177.28,
+      "quantity": 3,
+      "brokers": 3,
+      "usageHours": 24,
+      "flavorTier": {
+        "flavor": "kafka.2u4g.cluster.small",
+        "label": "kafka.2u4g.cluster.small",
+        "prices": {
+          "ONDEMAND": 0.048,
+          "MONTHLY": 23.04,
+          "YEARLY": 230.4
+        },
+        "productIds": {
+          "ONDEMAND": "OFFI801627768115228675",
+          "MONTHLY": "OFFI801627768106840073",
+          "YEARLY": "OFFI801627768115228672"
+        }
+      },
+      "bandwidthTier": {
+        "bandwidth": "100MB/s",
+        "label": "100 MB/s",
+        "bandwidthMbps": 100,
+        "prices": {
+          "ONDEMAND": 0.48
+        },
+        "productIds": {
+          "ONDEMAND": "OFFI589724231017873410",
+          "MONTHLY": null,
+          "YEARLY": null
+        }
+      },
+      "storageTier": {
+        "storageType": "Ultra-high I/O",
+        "label": "Ultra-high I/O",
+        "prices": {
+          "ONDEMAND": 0.016
+        },
+        "productIds": {
+          "ONDEMAND": "OFFI589729284746985474",
+          "MONTHLY": null,
+          "YEARLY": null
+        }
+      },
+      "billingMode": "Pay-per-use",
+      "breakdown": [
+        {
+          "label": "3 x 3 brokers x kafka.2u4g.cluster.small",
+          "amount": 3.456
+        },
+        {
+          "label": "3 x Bandwidth 100MB/s",
+          "amount": 34.56
+        },
+        {
+          "label": "3 x 10 GB x 3 brokers x Ultra-high I/O",
+          "amount": 34.56
+        }
+      ],
+      "notes": [
+        "Flavor rate: USD 0.0480/instance/h.",
+        "Bandwidth rate: USD 0.4800/instance/h.",
+        "Storage rate: USD 0.0160/GB/broker/h."
+      ]
+    },
+    "product": {
+      "serviceCode": "DMS",
+      "serviceName": "DMS Kafka",
+      "productType": "dms",
+      "title": "DMS Kafka kafka.2u4g.cluster.small",
+      "quantity": 1,
+      "config": {
+        "region": "la-sao-paulo1",
+        "catalogRegionId": "sa-brazil-1",
+        "billingMode": "Pay-per-use",
+        "flavor": "kafka.2u4g.cluster.small",
+        "brokers": 3,
+        "bandwidth": "100MB/s",
+        "storageType": "Ultra-high I/O",
+        "storageGb": 10,
+        "quantity": 3,
+        "usageHours": 24
+      },
+      "pricing": {
+        "total": "USD 72.58/24h",
+        "estimate": "USD 72.58/24h",
+        "monthlyAverage": "USD 2177.28/mo",
+        "breakdown": [
+          {
+            "label": "3 x 3 brokers x kafka.2u4g.cluster.small",
+            "value": "USD 3.46/24h"
+          },
+          {
+            "label": "3 x Bandwidth 100MB/s",
+            "value": "USD 34.56/24h"
+          },
+          {
+            "label": "3 x 10 GB x 3 brokers x Ultra-high I/O",
+            "value": "USD 34.56/24h"
+          }
+        ]
+      }
+    }
+  },
+  {
+    "code": "DMS",
+    "name": "monthly",
+    "values": {
+      "flavor": "kafka.2u4g.cluster.small",
+      "brokers": "3",
+      "bandwidth": "100MB/s",
+      "storageType": "Ultra-high I/O",
+      "storageGb": "10",
+      "quantity": "2",
+      "usageHours": "744"
+    },
+    "billingMode": "Yearly/Monthly",
+    "usageHours": 744,
+    "quantity": 2,
+    "catalogRegionId": "sa-brazil-1",
+    "estimate": {
+      "currency": "USD",
+      "amount": 46,
+      "suffix": "/mo",
+      "monthlyAverageAmount": 46,
+      "quantity": 2,
+      "brokers": 3,
+      "usageHours": 744,
+      "flavorTier": {
+        "flavor": "kafka.2u4g.cluster.small",
+        "label": "kafka.2u4g.cluster.small",
+        "prices": {
+          "ONDEMAND": 0.048,
+          "MONTHLY": 23.04,
+          "YEARLY": 230.4
+        },
+        "productIds": {
+          "ONDEMAND": "OFFI801627768115228675",
+          "MONTHLY": "OFFI801627768106840073",
+          "YEARLY": "OFFI801627768115228672"
+        }
+      },
+      "bandwidthTier": {
+        "bandwidth": "100MB/s",
+        "label": "100 MB/s",
+        "bandwidthMbps": 100,
+        "prices": {
+          "ONDEMAND": 0.48
+        },
+        "productIds": {
+          "ONDEMAND": "OFFI589724231017873410",
+          "MONTHLY": null,
+          "YEARLY": null
+        }
+      },
+      "storageTier": {
+        "storageType": "Ultra-high I/O",
+        "label": "Ultra-high I/O",
+        "prices": {
+          "ONDEMAND": 0.016
+        },
+        "productIds": {
+          "ONDEMAND": "OFFI589729284746985474",
+          "MONTHLY": null,
+          "YEARLY": null
+        }
+      },
+      "billingMode": "Yearly/Monthly",
+      "breakdown": [
+        {
+          "label": "2 x 3 brokers x kafka.2u4g.cluster.small (1mo)",
+          "amount": 46
+        }
+      ],
+      "notes": [
+        "Flavor rate: USD 23.04/mo/instance."
+      ]
+    },
+    "product": {
+      "serviceCode": "DMS",
+      "serviceName": "DMS Kafka",
+      "productType": "dms",
+      "title": "DMS Kafka kafka.2u4g.cluster.small",
+      "quantity": 1,
+      "config": {
+        "region": "la-sao-paulo1",
+        "catalogRegionId": "sa-brazil-1",
+        "billingMode": "Yearly/Monthly",
+        "flavor": "kafka.2u4g.cluster.small",
+        "brokers": 3,
+        "bandwidth": "100MB/s",
+        "storageType": "Ultra-high I/O",
+        "storageGb": 10,
+        "quantity": 2,
+        "usageHours": null
+      },
+      "pricing": {
+        "total": "USD 46.00/mo",
+        "estimate": "USD 46.00/mo",
+        "monthlyAverage": "USD 46.00/mo",
+        "breakdown": [
+          {
+            "label": "2 x 3 brokers x kafka.2u4g.cluster.small (1mo)",
+            "value": "USD 46.00/mo"
+          }
+        ]
+      }
+    }
+  },
+  {
+    "code": "ELB",
+    "name": "default",
+    "values": {
+      "type": "Shared load balancer",
+      "networkType": "Private network",
+      "sharedChargeMode": "By traffic",
+      "usageHours": "744",
+      "sharedBandwidthMbit": "5",
+      "sharedTrafficAmount": "0",
+      "sharedTrafficUnit": "GB",
+      "specificationType": "Fixed",
+      "fixedAvailabilityAzCount": "1",
+      "fixedNetworkEnabled": "true",
+      "fixedNetworkSpec": "Small I",
+      "fixedApplicationEnabled": "false",
+      "fixedApplicationSpec": "Small I",
+      "tcpEnabled": "true",
+      "tcpNewConnections": "0",
+      "tcpMaxConcurrentConnections": "0",
+      "tcpMetricMode": "By traffic",
+      "tcpProcessedTrafficGbPerHour": "0",
+      "tcpAverageBandwidthMbit": "0",
+      "udpEnabled": "false",
+      "udpNewConnections": "0",
+      "udpMaxConcurrentConnections": "0",
+      "udpMetricMode": "By traffic",
+      "udpProcessedTrafficGbPerHour": "0",
+      "udpAverageBandwidthMbit": "0",
+      "tlsEnabled": "false",
+      "tlsNewConnections": "0",
+      "tlsMaxConcurrentConnections": "0",
+      "tlsMetricMode": "By traffic",
+      "tlsProcessedTrafficGbPerHour": "0",
+      "tlsAverageBandwidthMbit": "0",
+      "httpEnabled": "false",
+      "httpNewConnections": "0",
+      "httpMaxConcurrentConnections": "0",
+      "httpMetricMode": "By traffic",
+      "httpProcessedTrafficGbPerHour": "0",
+      "httpAverageBandwidthMbit": "0",
+      "httpQueriesPerSecond": "0",
+      "httpForwardingRules": "0"
+    },
+    "billingMode": "Pay-per-use",
+    "usageHours": 744,
+    "quantity": 1,
+    "catalogRegionId": "sa-brazil-1",
+    "estimate": {
+      "currency": "USD",
+      "amount": 39.432,
+      "suffix": "/744h",
+      "monthlyAverageAmount": 38.16,
+      "breakdown": [
+        {
+          "key": "loadBalancer",
+          "label": "Load balancer",
+          "amount": 39.432
+        }
+      ],
+      "notes": [],
+      "selectedSpecLcus": {
+        "network": 0,
+        "application": 0
+      },
+      "estimatedLcus": {
+        "network": 0,
+        "application": 0,
+        "total": 0
+      },
+      "protocolBreakdowns": []
+    },
+    "product": {
+      "serviceCode": "ELB",
+      "serviceName": "Elastic Load Balance",
+      "productType": "elb",
+      "title": "Elastic Load Balance Shared load balancer",
+      "quantity": 1,
+      "config": {
+        "region": "la-sao-paulo1",
+        "catalogRegionId": "sa-brazil-1",
+        "billingMode": "Pay-per-use",
+        "type": "Shared load balancer",
+        "specificationType": "Fixed",
+        "subAz": "General AZ",
+        "fixedAvailabilityAzCount": null,
+        "fixedSelectedTypes": [],
+        "fixedTypeSpecs": {},
+        "networkType": "Private network",
+        "sharedChargeMode": null,
+        "sharedBandwidthMbit": null,
+        "sharedTrafficAmount": null,
+        "sharedTrafficUnit": null,
+        "selectedProtocols": [],
+        "protocolInputs": {},
+        "estimatedNetworkLcus": 0,
+        "estimatedApplicationLcus": 0,
+        "estimatedTotalLcus": 0,
+        "selectedNetworkSpecLcus": 0,
+        "selectedApplicationSpecLcus": 0,
+        "usageHours": 744
+      },
+      "pricing": {
+        "total": "USD 39.43/744h",
+        "estimate": "USD 39.43/744h",
+        "monthlyAverage": "USD 38.16/mo",
+        "breakdown": [
+          {
+            "label": "Load balancer",
+            "value": "USD 39.43/744h"
+          }
+        ]
+      }
+    }
+  },
+  {
+    "code": "ELB",
+    "name": "multiple",
+    "values": {
+      "type": "Shared load balancer",
+      "networkType": "Private network",
+      "sharedChargeMode": "By traffic",
+      "usageHours": "24",
+      "sharedBandwidthMbit": "5",
+      "sharedTrafficAmount": "0",
+      "sharedTrafficUnit": "GB",
+      "specificationType": "Fixed",
+      "fixedAvailabilityAzCount": "1",
+      "fixedNetworkEnabled": "true",
+      "fixedNetworkSpec": "Small I",
+      "fixedApplicationEnabled": "false",
+      "fixedApplicationSpec": "Small I",
+      "tcpEnabled": "true",
+      "tcpNewConnections": "0",
+      "tcpMaxConcurrentConnections": "0",
+      "tcpMetricMode": "By traffic",
+      "tcpProcessedTrafficGbPerHour": "0",
+      "tcpAverageBandwidthMbit": "0",
+      "udpEnabled": "false",
+      "udpNewConnections": "0",
+      "udpMaxConcurrentConnections": "0",
+      "udpMetricMode": "By traffic",
+      "udpProcessedTrafficGbPerHour": "0",
+      "udpAverageBandwidthMbit": "0",
+      "tlsEnabled": "false",
+      "tlsNewConnections": "0",
+      "tlsMaxConcurrentConnections": "0",
+      "tlsMetricMode": "By traffic",
+      "tlsProcessedTrafficGbPerHour": "0",
+      "tlsAverageBandwidthMbit": "0",
+      "httpEnabled": "false",
+      "httpNewConnections": "0",
+      "httpMaxConcurrentConnections": "0",
+      "httpMetricMode": "By traffic",
+      "httpProcessedTrafficGbPerHour": "0",
+      "httpAverageBandwidthMbit": "0",
+      "httpQueriesPerSecond": "0",
+      "httpForwardingRules": "0"
+    },
+    "billingMode": "Pay-per-use",
+    "usageHours": 24,
+    "quantity": 3,
+    "catalogRegionId": "sa-brazil-1",
+    "estimate": {
+      "currency": "USD",
+      "amount": 1.272,
+      "suffix": "/24h",
+      "monthlyAverageAmount": 38.16,
+      "breakdown": [
+        {
+          "key": "loadBalancer",
+          "label": "Load balancer",
+          "amount": 1.272
+        }
+      ],
+      "notes": [],
+      "selectedSpecLcus": {
+        "network": 0,
+        "application": 0
+      },
+      "estimatedLcus": {
+        "network": 0,
+        "application": 0,
+        "total": 0
+      },
+      "protocolBreakdowns": []
+    },
+    "product": {
+      "serviceCode": "ELB",
+      "serviceName": "Elastic Load Balance",
+      "productType": "elb",
+      "title": "Elastic Load Balance Shared load balancer",
+      "quantity": 3,
+      "config": {
+        "region": "la-sao-paulo1",
+        "catalogRegionId": "sa-brazil-1",
+        "billingMode": "Pay-per-use",
+        "type": "Shared load balancer",
+        "specificationType": "Fixed",
+        "subAz": "General AZ",
+        "fixedAvailabilityAzCount": null,
+        "fixedSelectedTypes": [],
+        "fixedTypeSpecs": {},
+        "networkType": "Private network",
+        "sharedChargeMode": null,
+        "sharedBandwidthMbit": null,
+        "sharedTrafficAmount": null,
+        "sharedTrafficUnit": null,
+        "selectedProtocols": [],
+        "protocolInputs": {},
+        "estimatedNetworkLcus": 0,
+        "estimatedApplicationLcus": 0,
+        "estimatedTotalLcus": 0,
+        "selectedNetworkSpecLcus": 0,
+        "selectedApplicationSpecLcus": 0,
+        "usageHours": 24
+      },
+      "pricing": {
+        "total": "USD 3.82/24h",
+        "estimate": "USD 1.27/24h",
+        "monthlyAverage": "USD 38.16/mo",
+        "breakdown": [
+          {
+            "label": "Load balancer",
+            "value": "USD 1.27/24h"
+          }
+        ]
+      }
+    }
+  },
+  {
+    "code": "ELB",
+    "name": "monthly",
+    "values": {
+      "type": "Shared load balancer",
+      "networkType": "Private network",
+      "sharedChargeMode": "By traffic",
+      "usageHours": "744",
+      "sharedBandwidthMbit": "5",
+      "sharedTrafficAmount": "0",
+      "sharedTrafficUnit": "GB",
+      "specificationType": "Fixed",
+      "fixedAvailabilityAzCount": "1",
+      "fixedNetworkEnabled": "true",
+      "fixedNetworkSpec": "Small I",
+      "fixedApplicationEnabled": "false",
+      "fixedApplicationSpec": "Small I",
+      "tcpEnabled": "true",
+      "tcpNewConnections": "0",
+      "tcpMaxConcurrentConnections": "0",
+      "tcpMetricMode": "By traffic",
+      "tcpProcessedTrafficGbPerHour": "0",
+      "tcpAverageBandwidthMbit": "0",
+      "udpEnabled": "false",
+      "udpNewConnections": "0",
+      "udpMaxConcurrentConnections": "0",
+      "udpMetricMode": "By traffic",
+      "udpProcessedTrafficGbPerHour": "0",
+      "udpAverageBandwidthMbit": "0",
+      "tlsEnabled": "false",
+      "tlsNewConnections": "0",
+      "tlsMaxConcurrentConnections": "0",
+      "tlsMetricMode": "By traffic",
+      "tlsProcessedTrafficGbPerHour": "0",
+      "tlsAverageBandwidthMbit": "0",
+      "httpEnabled": "false",
+      "httpNewConnections": "0",
+      "httpMaxConcurrentConnections": "0",
+      "httpMetricMode": "By traffic",
+      "httpProcessedTrafficGbPerHour": "0",
+      "httpAverageBandwidthMbit": "0",
+      "httpQueriesPerSecond": "0",
+      "httpForwardingRules": "0"
+    },
+    "billingMode": "Yearly/Monthly",
+    "usageHours": 744,
+    "quantity": 2,
+    "catalogRegionId": "sa-brazil-1",
+    "estimate": {
+      "currency": "USD",
+      "amount": 21,
+      "suffix": "/mo",
+      "monthlyAverageAmount": 21,
+      "breakdown": [
+        {
+          "key": "loadBalancer",
+          "label": "Load balancer",
+          "amount": 21
+        }
+      ],
+      "notes": [],
+      "selectedSpecLcus": {
+        "network": 0,
+        "application": 0
+      },
+      "estimatedLcus": {
+        "network": 0,
+        "application": 0,
+        "total": 0
+      },
+      "protocolBreakdowns": []
+    },
+    "product": {
+      "serviceCode": "ELB",
+      "serviceName": "Elastic Load Balance",
+      "productType": "elb",
+      "title": "Elastic Load Balance Shared load balancer",
+      "quantity": 2,
+      "config": {
+        "region": "la-sao-paulo1",
+        "catalogRegionId": "sa-brazil-1",
+        "billingMode": "Yearly/Monthly",
+        "type": "Shared load balancer",
+        "specificationType": "Fixed",
+        "subAz": "General AZ",
+        "fixedAvailabilityAzCount": null,
+        "fixedSelectedTypes": [],
+        "fixedTypeSpecs": {},
+        "networkType": "Private network",
+        "sharedChargeMode": null,
+        "sharedBandwidthMbit": null,
+        "sharedTrafficAmount": null,
+        "sharedTrafficUnit": null,
+        "selectedProtocols": [],
+        "protocolInputs": {},
+        "estimatedNetworkLcus": 0,
+        "estimatedApplicationLcus": 0,
+        "estimatedTotalLcus": 0,
+        "selectedNetworkSpecLcus": 0,
+        "selectedApplicationSpecLcus": 0,
+        "usageHours": 744
+      },
+      "pricing": {
+        "total": "USD 42.00/mo",
+        "estimate": "USD 21.00/mo",
+        "monthlyAverage": "USD 21.00/mo",
+        "breakdown": [
+          {
+            "label": "Load balancer",
+            "value": "USD 21.00/mo"
+          }
+        ]
+      }
+    }
+  },
+  {
+    "code": "VPN",
+    "name": "default",
+    "values": {
+      "edition": "Classic",
+      "mode": "Site-to-Cloud",
+      "networkType": "Public network",
+      "specification": "Basic",
+      "useSharedBandwidth": "No",
+      "eipBandwidthMbit1": "1",
+      "eipBandwidthMbit2": "1",
+      "durationMonths": "1"
+    },
+    "billingMode": "Pay-per-use",
+    "usageHours": 744,
+    "quantity": 1,
+    "catalogRegionId": "sa-brazil-1",
+    "estimate": {
+      "currency": "USD",
+      "amount": 37.2,
+      "suffix": "/744h",
+      "monthlyAverageAmount": 36,
+      "breakdown": [
+        {
+          "key": "gateway",
+          "label": "VPN gateway",
+          "amount": 37.2
+        }
+      ],
+      "notes": [
+        "Gateway pay-per-use flat rate: USD 0.05/h."
+      ],
+      "gatewayTier": {
+        "mode": "Site-to-Cloud",
+        "specification": "Basic",
+        "accessViaNonFixedIp": "Off",
+        "resourceSpecCode": "vpn.s1",
+        "plans": [
+          {
+            "billingMode": "ONDEMAND",
+            "periodNum": null,
+            "tiers": [
+              {
+                "start": 0,
+                "end": null,
+                "amount": 0.05
+              }
+            ]
+          },
+          {
+            "billingMode": "ONDEMAND",
+            "periodNum": null,
+            "tiers": [
+              {
+                "start": 0,
+                "end": null,
+                "amount": 0.05
+              }
+            ]
+          }
+        ]
+      },
+      "bandwidthTier": null
+    },
+    "product": {
+      "serviceCode": "VPN",
+      "serviceName": "Virtual Private Network",
+      "productType": "vpn",
+      "title": "Virtual Private Network Classic Site-to-Cloud Basic",
+      "quantity": 1,
+      "config": {
+        "region": "la-sao-paulo1",
+        "catalogRegionId": "sa-brazil-1",
+        "billingMode": "Pay-per-use",
+        "edition": "Classic",
+        "mode": "Site-to-Cloud",
+        "networkType": "Public network",
+        "specification": "Basic",
+        "accessViaNonFixedIp": "Off",
+        "connectionGroups": 10,
+        "useSharedBandwidth": null,
+        "eipBandwidthMbit1": null,
+        "eipBandwidthMbit2": null,
+        "durationMonths": null,
+        "usageHours": 744,
+        "gatewayResourceSpecCode": "vpn.s1",
+        "bandwidthResourceSpecCode": null
+      },
+      "pricing": {
+        "total": "USD 37.20/744h",
+        "estimate": "USD 37.20/744h",
+        "monthlyAverage": "USD 36.00/mo",
+        "breakdown": [
+          {
+            "label": "VPN gateway",
+            "value": "USD 37.20/744h"
+          }
+        ]
+      }
+    }
+  },
+  {
+    "code": "VPN",
+    "name": "multiple",
+    "values": {
+      "edition": "Classic",
+      "mode": "Site-to-Cloud",
+      "networkType": "Public network",
+      "specification": "Basic",
+      "useSharedBandwidth": "No",
+      "eipBandwidthMbit1": "1",
+      "eipBandwidthMbit2": "1",
+      "durationMonths": "1"
+    },
+    "billingMode": "Pay-per-use",
+    "usageHours": 24,
+    "quantity": 3,
+    "catalogRegionId": "sa-brazil-1",
+    "estimate": {
+      "currency": "USD",
+      "amount": 1.2,
+      "suffix": "/24h",
+      "monthlyAverageAmount": 36,
+      "breakdown": [
+        {
+          "key": "gateway",
+          "label": "VPN gateway",
+          "amount": 1.2
+        }
+      ],
+      "notes": [
+        "Gateway pay-per-use flat rate: USD 0.05/h."
+      ],
+      "gatewayTier": {
+        "mode": "Site-to-Cloud",
+        "specification": "Basic",
+        "accessViaNonFixedIp": "Off",
+        "resourceSpecCode": "vpn.s1",
+        "plans": [
+          {
+            "billingMode": "ONDEMAND",
+            "periodNum": null,
+            "tiers": [
+              {
+                "start": 0,
+                "end": null,
+                "amount": 0.05
+              }
+            ]
+          },
+          {
+            "billingMode": "ONDEMAND",
+            "periodNum": null,
+            "tiers": [
+              {
+                "start": 0,
+                "end": null,
+                "amount": 0.05
+              }
+            ]
+          }
+        ]
+      },
+      "bandwidthTier": null
+    },
+    "product": {
+      "serviceCode": "VPN",
+      "serviceName": "Virtual Private Network",
+      "productType": "vpn",
+      "title": "Virtual Private Network Classic Site-to-Cloud Basic",
+      "quantity": 3,
+      "config": {
+        "region": "la-sao-paulo1",
+        "catalogRegionId": "sa-brazil-1",
+        "billingMode": "Pay-per-use",
+        "edition": "Classic",
+        "mode": "Site-to-Cloud",
+        "networkType": "Public network",
+        "specification": "Basic",
+        "accessViaNonFixedIp": "Off",
+        "connectionGroups": 10,
+        "useSharedBandwidth": null,
+        "eipBandwidthMbit1": null,
+        "eipBandwidthMbit2": null,
+        "durationMonths": null,
+        "usageHours": 24,
+        "gatewayResourceSpecCode": "vpn.s1",
+        "bandwidthResourceSpecCode": null
+      },
+      "pricing": {
+        "total": "USD 3.60/24h",
+        "estimate": "USD 1.20/24h",
+        "monthlyAverage": "USD 36.00/mo",
+        "breakdown": [
+          {
+            "label": "VPN gateway",
+            "value": "USD 1.20/24h"
+          }
+        ]
+      }
+    }
+  },
+  {
+    "code": "VPN",
+    "name": "monthly",
+    "values": {
+      "edition": "Enterprise",
+      "mode": "Site-to-Cloud",
+      "networkType": "Private network",
+      "specification": "Professional 2",
+      "useSharedBandwidth": "No",
+      "eipBandwidthMbit1": "1",
+      "eipBandwidthMbit2": "1",
+      "durationMonths": "1"
+    },
+    "billingMode": "Yearly/Monthly",
+    "usageHours": 744,
+    "quantity": 2,
+    "catalogRegionId": "sa-brazil-1",
+    "estimate": {
+      "currency": "USD",
+      "amount": 603.25,
+      "suffix": "/1mo",
+      "monthlyAverageAmount": 603.25,
+      "breakdown": [
+        {
+          "key": "gateway",
+          "label": "VPN gateway",
+          "amount": 603.25
+        }
+      ],
+      "notes": [
+        "Professional 2 Site-to-Cloud gateway with 10 connection groups."
+      ],
+      "gatewayTier": {
+        "mode": "Site-to-Cloud",
+        "specification": "Professional 2",
+        "accessViaNonFixedIp": "On",
+        "resourceSpecCode": "S2C-VPN-Ent.Pro2-NonFixedIP",
+        "plans": [
+          {
+            "billingMode": "MONTHLY",
+            "periodNum": 1,
+            "tiers": [
+              {
+                "start": 0,
+                "end": 1,
+                "amount": 529
+              },
+              {
+                "start": 1,
+                "end": null,
+                "amount": 8.25
+              }
+            ]
+          },
+          {
+            "billingMode": "YEARLY",
+            "periodNum": 1,
+            "tiers": [
+              {
+                "start": 0,
+                "end": 1,
+                "amount": 5290
+              },
+              {
+                "start": 1,
+                "end": null,
+                "amount": 82.5
+              }
+            ]
+          },
+          {
+            "billingMode": "YEARLY",
+            "periodNum": 2,
+            "tiers": [
+              {
+                "start": 0,
+                "end": 1,
+                "amount": 10580
+              },
+              {
+                "start": 1,
+                "end": null,
+                "amount": 165
+              }
+            ]
+          },
+          {
+            "billingMode": "YEARLY",
+            "periodNum": 3,
+            "tiers": [
+              {
+                "start": 0,
+                "end": 1,
+                "amount": 15870
+              },
+              {
+                "start": 1,
+                "end": null,
+                "amount": 247.5
+              }
+            ]
+          }
+        ]
+      },
+      "bandwidthTier": null
+    },
+    "product": {
+      "serviceCode": "VPN",
+      "serviceName": "Virtual Private Network",
+      "productType": "vpn",
+      "title": "Virtual Private Network Enterprise Site-to-Cloud Professional 2",
+      "quantity": 2,
+      "config": {
+        "region": "la-sao-paulo1",
+        "catalogRegionId": "sa-brazil-1",
+        "billingMode": "Yearly/Monthly",
+        "edition": "Enterprise",
+        "mode": "Site-to-Cloud",
+        "networkType": "Private network",
+        "specification": "Professional 2",
+        "accessViaNonFixedIp": "Off",
+        "connectionGroups": 10,
+        "useSharedBandwidth": null,
+        "eipBandwidthMbit1": null,
+        "eipBandwidthMbit2": null,
+        "durationMonths": 1,
+        "usageHours": null,
+        "gatewayResourceSpecCode": "S2C-VPN-Ent.Pro2-NonFixedIP",
+        "bandwidthResourceSpecCode": null
+      },
+      "pricing": {
+        "total": "USD 1206.50/1mo",
+        "estimate": "USD 603.25/1mo",
+        "monthlyAverage": "USD 603.25/mo",
+        "breakdown": [
+          {
+            "label": "VPN gateway",
+            "value": "USD 603.25/1mo"
+          }
+        ]
+      }
+    }
+  },
+  {
+    "code": "RDS",
+    "name": "default",
+    "values": {
+      "engine": "MySQL",
+      "version": "8.0",
+      "instanceType": "Single",
+      "subAz": "General AZ",
+      "instanceClass": "General-purpose",
+      "size": "2 vCPUs, 4 GB",
+      "storageType": "Flexible SSD",
+      "storageSizeGb": "40",
+      "iops": "3000",
+      "throughputMibps": "128",
+      "usageHours": "744",
+      "quantity": "1"
+    },
+    "billingMode": "Pay-per-use",
+    "usageHours": 744,
+    "quantity": 1,
+    "catalogRegionId": "sa-brazil-1",
+    "estimate": {
+      "currency": "USD",
+      "amount": 102.61248,
+      "suffix": "/mo",
+      "monthlyAverageAmount": 99.3024,
+      "quantity": 1,
+      "computeTier": {
+        "engine": "MySQL",
+        "version": "8.0",
+        "instanceType": "Single",
+        "instanceClass": "General-purpose",
+        "cpu": 2,
+        "memoryGiB": 4,
+        "sizeLabel": "2 vCPUs, 4 GB",
+        "resourceSpecCode": "rds.mysql.n1.large.2",
+        "prices": {
+          "ONDEMAND": 0.13,
+          "MONTHLY": 64.727,
+          "YEARLY": 647.27
+        },
+        "productIds": {
+          "ONDEMAND": "OFFI591541099034394640",
+          "MONTHLY": "OFFI1000302011337981958",
+          "YEARLY": "OFFI1000306480768331777"
+        }
+      },
+      "storageTier": {
+        "engine": "MySQL",
+        "instanceType": "Single",
+        "storageType": "Flexible SSD",
+        "resourceSpecCode": "rds.mysql.volume.gpssd2",
+        "prices": {
+          "ONDEMAND": 0.000198,
+          "MONTHLY": 0.144,
+          "YEARLY": 1.44
+        },
+        "productIds": {
+          "ONDEMAND": "OFFI1205443422074445824",
+          "MONTHLY": "OFFI1205443422208663552",
+          "YEARLY": "OFFI1205443422217052160"
+        },
+        "iopsRatePerUnit": 0.00001233,
+        "throughputRatePerUnit": 0.00009863
+      },
+      "computeAmount": 96.72,
+      "storageAmount": 5.89248,
+      "memorySurchargeAmount": 0,
+      "iopsAmount": 0,
+      "throughputAmount": 0,
+      "breakdown": [
+        {
+          "label": "1 x DB instance",
+          "amount": 96.72
+        },
+        {
+          "label": "1 x Flexible SSD 40 GB",
+          "amount": 5.89248
+        }
+      ],
+      "notes": [
+        "Primary/Standby uses the direct Huawei HA spec rate returned by the catalog for the selected configuration.",
+        "Flexible SSD uses the direct Huawei storage rate returned by the catalog. Additional IOPS and throughput rows are not applied because the API does not expose a reliable billable baseline for the current input."
+      ]
+    },
+    "product": {
+      "serviceCode": "RDS",
+      "serviceName": "Relational Database Service",
+      "productType": "rds",
+      "title": "Relational Database Service MySQL 8.0 2 vCPUs, 4 GB",
+      "quantity": 1,
+      "config": {
+        "region": "la-sao-paulo1",
+        "catalogRegionId": "sa-brazil-1",
+        "billingMode": "Pay-per-use",
+        "engine": "MySQL",
+        "version": "8.0",
+        "instanceType": "Single",
+        "subAz": null,
+        "instanceClass": "General-purpose",
+        "size": "2 vCPUs, 4 GB",
+        "storageType": "Flexible SSD",
+        "storageSizeGb": 40,
+        "iops": 3000,
+        "throughputMibps": 128,
+        "usageHours": 744,
+        "quantity": 1,
+        "computeResourceSpecCode": "rds.mysql.n1.large.2",
+        "computeProductId": "OFFI591541099034394640",
+        "storageResourceSpecCode": "rds.mysql.volume.gpssd2",
+        "storageProductId": "OFFI1205443422074445824"
+      },
+      "pricing": {
+        "total": "USD 102.61/mo",
+        "estimate": "USD 102.61/mo",
+        "monthlyAverage": "USD 99.30/mo",
+        "breakdown": [
+          {
+            "label": "1 x DB instance",
+            "value": "USD 96.72/mo"
+          },
+          {
+            "label": "1 x Flexible SSD 40 GB",
+            "value": "USD 5.89/mo"
+          }
+        ]
+      }
+    }
+  },
+  {
+    "code": "RDS",
+    "name": "multiple",
+    "values": {
+      "engine": "MySQL",
+      "version": "8.0",
+      "instanceType": "Single",
+      "subAz": "General AZ",
+      "instanceClass": "General-purpose",
+      "size": "2 vCPUs, 4 GB",
+      "storageType": "Flexible SSD",
+      "storageSizeGb": "40",
+      "iops": "3000",
+      "throughputMibps": "128",
+      "usageHours": "24",
+      "quantity": "3"
+    },
+    "billingMode": "Pay-per-use",
+    "usageHours": 24,
+    "quantity": 3,
+    "catalogRegionId": "sa-brazil-1",
+    "estimate": {
+      "currency": "USD",
+      "amount": 9.93024,
+      "suffix": "/mo",
+      "monthlyAverageAmount": 297.9072,
+      "quantity": 3,
+      "computeTier": {
+        "engine": "MySQL",
+        "version": "8.0",
+        "instanceType": "Single",
+        "instanceClass": "General-purpose",
+        "cpu": 2,
+        "memoryGiB": 4,
+        "sizeLabel": "2 vCPUs, 4 GB",
+        "resourceSpecCode": "rds.mysql.n1.large.2",
+        "prices": {
+          "ONDEMAND": 0.13,
+          "MONTHLY": 64.727,
+          "YEARLY": 647.27
+        },
+        "productIds": {
+          "ONDEMAND": "OFFI591541099034394640",
+          "MONTHLY": "OFFI1000302011337981958",
+          "YEARLY": "OFFI1000306480768331777"
+        }
+      },
+      "storageTier": {
+        "engine": "MySQL",
+        "instanceType": "Single",
+        "storageType": "Flexible SSD",
+        "resourceSpecCode": "rds.mysql.volume.gpssd2",
+        "prices": {
+          "ONDEMAND": 0.000198,
+          "MONTHLY": 0.144,
+          "YEARLY": 1.44
+        },
+        "productIds": {
+          "ONDEMAND": "OFFI1205443422074445824",
+          "MONTHLY": "OFFI1205443422208663552",
+          "YEARLY": "OFFI1205443422217052160"
+        },
+        "iopsRatePerUnit": 0.00001233,
+        "throughputRatePerUnit": 0.00009863
+      },
+      "computeAmount": 9.36,
+      "storageAmount": 0.57024,
+      "memorySurchargeAmount": 0,
+      "iopsAmount": 0,
+      "throughputAmount": 0,
+      "breakdown": [
+        {
+          "label": "3 x DB instance",
+          "amount": 9.36
+        },
+        {
+          "label": "3 x Flexible SSD 40 GB",
+          "amount": 0.57024
+        }
+      ],
+      "notes": [
+        "Primary/Standby uses the direct Huawei HA spec rate returned by the catalog for the selected configuration.",
+        "Flexible SSD uses the direct Huawei storage rate returned by the catalog. Additional IOPS and throughput rows are not applied because the API does not expose a reliable billable baseline for the current input."
+      ]
+    },
+    "product": {
+      "serviceCode": "RDS",
+      "serviceName": "Relational Database Service",
+      "productType": "rds",
+      "title": "Relational Database Service MySQL 8.0 2 vCPUs, 4 GB",
+      "quantity": 1,
+      "config": {
+        "region": "la-sao-paulo1",
+        "catalogRegionId": "sa-brazil-1",
+        "billingMode": "Pay-per-use",
+        "engine": "MySQL",
+        "version": "8.0",
+        "instanceType": "Single",
+        "subAz": null,
+        "instanceClass": "General-purpose",
+        "size": "2 vCPUs, 4 GB",
+        "storageType": "Flexible SSD",
+        "storageSizeGb": 40,
+        "iops": 3000,
+        "throughputMibps": 128,
+        "usageHours": 24,
+        "quantity": 3,
+        "computeResourceSpecCode": "rds.mysql.n1.large.2",
+        "computeProductId": "OFFI591541099034394640",
+        "storageResourceSpecCode": "rds.mysql.volume.gpssd2",
+        "storageProductId": "OFFI1205443422074445824"
+      },
+      "pricing": {
+        "total": "USD 9.93/mo",
+        "estimate": "USD 9.93/mo",
+        "monthlyAverage": "USD 297.91/mo",
+        "breakdown": [
+          {
+            "label": "3 x DB instance",
+            "value": "USD 9.36/mo"
+          },
+          {
+            "label": "3 x Flexible SSD 40 GB",
+            "value": "USD 0.5702/mo"
+          }
+        ]
+      }
+    }
+  },
+  {
+    "code": "EIP",
+    "name": "default",
+    "values": {
+      "type": "Dedicated EIP",
+      "chargeMode": "By traffic",
+      "bandwidthMbit": "0",
+      "enhanced95DurationMonths": "1",
+      "sharedBandwidthQuantity": "1",
+      "trafficAmount": "1",
+      "trafficUnit": "GB"
+    },
+    "billingMode": "Pay-per-use",
+    "usageHours": 744,
+    "quantity": 1,
+    "catalogRegionId": "sa-brazil-1",
+    "estimate": {
+      "currency": "USD",
+      "amount": 3.855,
+      "suffix": "/744h",
+      "monthlyAverageAmount": 3.73065,
+      "breakdown": [
+        {
+          "key": "eip",
+          "label": "EIP duration",
+          "amount": 3.72
+        },
+        {
+          "key": "traffic",
+          "label": "Traffic",
+          "amount": 0.135
+        }
+      ],
+      "notes": [
+        "Dedicated pay-per-use traffic uses Huawei's tiered outbound traffic rates for the selected region."
+      ],
+      "packageSelection": []
+    },
+    "product": {
+      "serviceCode": "EIP",
+      "serviceName": "Elastic IP",
+      "productType": "eip",
+      "title": "Elastic IP Dedicated EIP Dynamic BGP By traffic",
+      "quantity": 1,
+      "config": {
+        "region": "la-sao-paulo1",
+        "catalogRegionId": "sa-brazil-1",
+        "billingMode": "Pay-per-use",
+        "type": "Dedicated EIP",
+        "eipType": "Dynamic BGP",
+        "chargeMode": "By traffic",
+        "bandwidthMbit": null,
+        "durationMonths": null,
+        "sharedBandwidthQuantity": null,
+        "trafficAmount": 1,
+        "trafficUnit": "GB",
+        "usageHours": 744
+      },
+      "pricing": {
+        "total": "USD 3.85/744h",
+        "estimate": "USD 3.85/744h",
+        "monthlyAverage": "USD 3.73/mo",
+        "breakdown": [
+          {
+            "label": "EIP duration",
+            "value": "USD 3.72/744h"
+          },
+          {
+            "label": "Traffic",
+            "value": "USD 0.1350/744h"
+          }
+        ]
+      }
+    }
+  },
+  {
+    "code": "EIP",
+    "name": "multiple",
+    "values": {
+      "type": "Dedicated EIP",
+      "chargeMode": "By traffic",
+      "bandwidthMbit": "0",
+      "enhanced95DurationMonths": "1",
+      "sharedBandwidthQuantity": "1",
+      "trafficAmount": "1",
+      "trafficUnit": "GB"
+    },
+    "billingMode": "Pay-per-use",
+    "usageHours": 24,
+    "quantity": 3,
+    "catalogRegionId": "sa-brazil-1",
+    "estimate": {
+      "currency": "USD",
+      "amount": 0.255,
+      "suffix": "/24h",
+      "monthlyAverageAmount": 7.65,
+      "breakdown": [
+        {
+          "key": "eip",
+          "label": "EIP duration",
+          "amount": 0.12
+        },
+        {
+          "key": "traffic",
+          "label": "Traffic",
+          "amount": 0.135
+        }
+      ],
+      "notes": [
+        "Dedicated pay-per-use traffic uses Huawei's tiered outbound traffic rates for the selected region."
+      ],
+      "packageSelection": []
+    },
+    "product": {
+      "serviceCode": "EIP",
+      "serviceName": "Elastic IP",
+      "productType": "eip",
+      "title": "Elastic IP Dedicated EIP Dynamic BGP By traffic",
+      "quantity": 3,
+      "config": {
+        "region": "la-sao-paulo1",
+        "catalogRegionId": "sa-brazil-1",
+        "billingMode": "Pay-per-use",
+        "type": "Dedicated EIP",
+        "eipType": "Dynamic BGP",
+        "chargeMode": "By traffic",
+        "bandwidthMbit": null,
+        "durationMonths": null,
+        "sharedBandwidthQuantity": null,
+        "trafficAmount": 1,
+        "trafficUnit": "GB",
+        "usageHours": 24
+      },
+      "pricing": {
+        "total": "USD 0.7650/24h",
+        "estimate": "USD 0.2550/24h",
+        "monthlyAverage": "USD 7.65/mo",
+        "breakdown": [
+          {
+            "label": "EIP duration",
+            "value": "USD 0.1200/24h"
+          },
+          {
+            "label": "Traffic",
+            "value": "USD 0.1350/24h"
+          }
+        ]
+      }
+    }
+  },
+  {
+    "code": "EIP",
+    "name": "monthly",
+    "values": {
+      "type": "Dedicated EIP",
+      "chargeMode": "By traffic",
+      "bandwidthMbit": "0",
+      "enhanced95DurationMonths": "1",
+      "sharedBandwidthQuantity": "1",
+      "trafficAmount": "1",
+      "trafficUnit": "GB"
+    },
+    "billingMode": "Yearly/Monthly",
+    "usageHours": 744,
+    "quantity": 2,
+    "catalogRegionId": "sa-brazil-1",
+    "estimate": null,
+    "product": null
+  }
+]

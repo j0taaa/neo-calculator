@@ -122,7 +122,7 @@ export async function POST(
       projectId: sourceList.project_id,
       userId: apiKeyUser.userId,
       now,
-      products: cloned.products,
+      products: responseProducts,
     });
 
     touchProject(sourceList.project_id, now);

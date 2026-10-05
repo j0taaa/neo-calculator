@@ -1,10 +1,9 @@
-import { declarativeRuntimeHelpers } from "@/lib/declarative-runtime-helpers";
-import { evaluateDeclarativeDerivedValues, evaluateDeclarativeValue } from "@/lib/declarative-runtime-evaluator";
+import { buildDefaultValues, buildRuntimeScope, evaluateCatalogView, evaluateRuntimeValue } from "@/lib/service-runtime";
 import { getTypedDeclarativeRuntimeDefinitionByCode } from "@/lib/declarative-service-runtime-registry";
 import { getCatalogFetchFn } from "@/lib/catalog-fetch-registry";
 import { getConfigurableServiceBundleByCode, getConfigurableServiceDefinitionByCode, serviceCatalog } from "@/lib/service-config";
 import { huaweiRegions, type HuaweiRegionKey } from "@/lib/huawei-regions";
-import { formatFlavorAmount, getDiskPriceForBillingOption, getFlavorPriceForBillingOption, toFlavorCard, toFlexusLFlavorCard, type BillingOption, type ProductMutationBody } from "@/lib/calculator-page-helpers";
+import { formatFlavorAmount, getDiskPriceForBillingOption, toFlavorCard, type BillingOption, type ProductMutationBody } from "@/lib/calculator-page-helpers";
 import { listStoredEcsFlavors, ensureRegionCatalogAvailable } from "@/lib/ecs-flavor-catalog";
 import { fetchRegionSystemDiskPricing } from "@/lib/evs-disk-pricing";
 import { flexusLPricingReference, findFlexusLPlan } from "@/lib/flexus-l-catalog";
@@ -31,58 +30,6 @@ function flavorListSummary(flavors: Array<{ resourceSpecCode: string }>): string
   if (flavors.length === 0) return "none loaded";
   const codes = flavors.slice(0, 5).map((f) => f.resourceSpecCode);
   return codes.join(", ") + (flavors.length > 5 ? `, +${flavors.length - 5} more` : "");
-}
-
-function buildDefaultValues(definition: { fields: Array<{ id: string }>; defaults: Record<string, unknown> }) {
-  const values: Record<string, string> = {};
-  for (const field of definition.fields) {
-    const val = definition.defaults[field.id];
-    values[field.id] = val != null ? String(val) : "";
-  }
-  return values;
-}
-
-function buildScope(input: {
-  definition: ConfigRecord;
-  selectedServiceCode: string;
-  selectedService: string;
-  values: Record<string, string>;
-  catalog: unknown;
-  catalogRegionId: string | null;
-  pricingError: string;
-  regionValue: string;
-  billingMode: BillingOption;
-  usageHours: string;
-  usageHoursValue: number;
-  instanceCountValue: number;
-  derived?: unknown;
-  estimate?: DeclarativeEstimateRecord | null;
-}) {
-  return {
-    helpers: declarativeRuntimeHelpers,
-    definition: input.definition,
-    selectedServiceCode: input.selectedServiceCode,
-    selectedService: input.selectedService,
-    values: input.values,
-    catalog: input.catalog,
-    catalogRegionId: input.catalogRegionId,
-    pricingError: input.pricingError,
-    regionValue: input.regionValue,
-    billingMode: input.billingMode,
-    usageHours: input.usageHours,
-    usageHoursValue: input.usageHoursValue,
-    instanceCountValue: input.instanceCountValue,
-    item: null,
-    product: null,
-    catalogView: null,
-    derived: input.derived ?? null,
-    estimate: input.estimate ?? null,
-    requestBodiesCount: undefined,
-    extraRequestBodiesCount: undefined,
-    createdCount: undefined,
-    expandedCount: undefined,
-    huaweiRegions,
-  };
 }
 
 function configToValues(config: ConfigRecord, defaults: Record<string, string>): Record<string, string> {
@@ -144,7 +91,7 @@ function findProductIdInCatalog(catalog: unknown, specCode?: string): string | n
     }
   }
 
-  for (const [key, value] of Object.entries(cat)) {
+  for (const value of Object.values(cat)) {
     if (Array.isArray(value)) {
       for (const item of value as Array<Record<string, unknown>>) {
         if (specCode && item.resourceSpecCode !== specCode) continue;
@@ -183,7 +130,6 @@ async function tryInquiryPricing(serviceCode: string, catalog: unknown, regionId
   }
 }
 
-const DEFAULT_TIMEOUT_MS = 15_000;
 const MAX_RETRIES = 2;
 const RETRY_DELAY_MS = 1_000;
 
@@ -244,8 +190,8 @@ async function computeConfigurablePricing(serviceCode: string, config: ConfigRec
   const defaults = buildDefaultValues(definition);
   const values = configToValues(config, defaults);
 
-  const baseScope = buildScope({
-    definition: definition as unknown as ConfigRecord,
+  const baseScope = buildRuntimeScope({
+    definition,
     selectedServiceCode: serviceCode,
     selectedService: definition.serviceName,
     values,
@@ -259,28 +205,9 @@ async function computeConfigurablePricing(serviceCode: string, config: ConfigRec
     instanceCountValue: quantity,
   });
 
-  let catalogView: Record<string, unknown> | null = null;
-  let derived: Record<string, unknown> | null = null;
-  if (typedRuntime.derived) {
-    derived = evaluateDeclarativeDerivedValues(typedRuntime.derived, baseScope);
-    (baseScope as Record<string, unknown>).derived = derived;
-    (baseScope as Record<string, unknown>).catalogView = derived;
-    catalogView = derived;
-  } else if (typedRuntime.catalogView) {
-    catalogView = evaluateDeclarativeValue<Record<string, unknown> | null>(
-      typedRuntime.catalogView,
-      baseScope,
-    );
-    derived = catalogView;
-    (baseScope as Record<string, unknown>).catalogView = catalogView;
-    (baseScope as Record<string, unknown>).derived = catalogView;
-  }
-
-  const estimateScope = { ...baseScope, derived, catalogView };
-  const estimate = evaluateDeclarativeValue<DeclarativeEstimateRecord | null>(
-    typedRuntime.estimate,
-    estimateScope,
-  );
+  const catalogView = evaluateCatalogView(typedRuntime, baseScope);
+  const estimateScope = { ...baseScope, derived: catalogView, catalogView };
+  const estimate = evaluateRuntimeValue<DeclarativeEstimateRecord>(typedRuntime.estimate, estimateScope);
 
   const specCode = (config.resourceSpecCode as string) ?? (config.specification as string) ?? (config.flavor as string);
   
@@ -317,7 +244,7 @@ async function computeConfigurablePricing(serviceCode: string, config: ConfigRec
     return { pricing: {}, title: "", productType: serviceCode.toLowerCase(), config, error: `Could not compute estimate for ${serviceCode}. Check config values.` };
   }
 
-  const requestBodies = evaluateDeclarativeValue<ProductMutationBody | null>(
+  const requestBodies = evaluateRuntimeValue<ProductMutationBody | null>(
     typedRuntime.buildRequestBodies,
     { ...estimateScope, estimate },
   );
@@ -351,8 +278,6 @@ async function computeEcsPricing(config: ConfigRecord): Promise<ServerPricingRes
   const catalogRegionId = resolveRegionId(region);
   const billingMode = (config.billingMode as BillingOption) || "Pay-per-use";
   const flavor = config.flavor as string | undefined;
-  const vcpu = typeof config.vcpu === "number" ? config.vcpu : 0;
-  const ramGiB = typeof config.ramGiB === "number" ? config.ramGiB : 0;
   const usageHours = Math.max(1, Math.floor(typeof config.usageHours === "number" ? config.usageHours : 744));
   const quantity = Math.max(1, Math.floor(typeof config.quantity === "number" ? config.quantity : 1));
   const systemDisk = config.systemDisk as ConfigRecord | undefined;
@@ -401,7 +326,6 @@ async function computeEcsPricing(config: ConfigRecord): Promise<ServerPricingRes
   const diskPrice = getDiskPriceForBillingOption(diskPricing, diskType as "High I/O", diskSizeGiB, billingMode, usageHours);
   const flavorCard = toFlavorCard(matchedFlavor, billingMode, usageHours, diskPrice);
 
-  const totalAmount = flavorCard.priceValue * quantity;
   const flavorAmount = matchedFlavor.prices.ONDEMAND != null && billingMode === "Pay-per-use"
     ? matchedFlavor.prices.ONDEMAND * usageHours * quantity
     : (matchedFlavor.prices.MONTHLY ?? matchedFlavor.prices.YEARLY ?? 0) * quantity;

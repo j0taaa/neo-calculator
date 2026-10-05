@@ -63,3 +63,35 @@ docker run -p 3000:3000 -e BETTER_AUTH_SECRET=your-secret-here neo-calculator
 | `lib/` | Core engine, pricing, catalog fetchers |
 | `components/` | UI components |
 | `tests/` | Pricing and E2E tests |
+
+## Architecture and regression checks
+
+`config/services/bundles.ts` is the single list of configurable implementations.
+Register a bundle there to expose its definition, runtime, declarative catalog fetcher,
+and `/api/catalog/<runtime.catalog.route>` endpoint. The catalog directory in
+`config/services/index.ts` also lists products without calculators; keep that display
+metadata up to date when adding a product.
+
+- `lib/service-runtime.ts` provides the pure evaluation scope and catalog-view logic
+  shared by browser and server pricing. React state and effects stay in
+  `lib/use-configurable-service-runtime.ts`.
+- `lib/catalog-fetch-registry.ts` derives fetchers from bundle catalog definitions.
+  Its explicit adapters are for existing custom response parsers.
+- The dynamic catalog route preserves existing endpoint names. ECS, full export,
+  and Global Accelerator retain their specialized routes.
+- Older bundles still use `legacy-runtime-converter.ts`; their converted definitions
+  go through the same runtime interface. New bundles should follow DCS.
+- `service-registry.test.ts` checks every service directory, runtime, helper reference,
+  and catalog adapter. `service-runtime.test.ts` checks calculations, saved products,
+  and edit hydration against fixed pre-refactor results.
+
+Run `bun run test`, `bunx tsc --noEmit --incremental false`, and `bun run lint`.
+The deterministic fixtures test regressions, not current Huawei price freshness;
+`bun run test:pricing` checks the existing VPN cases against Huawei's inquiry API.
+
+For browser regressions, run an isolated local instance with an empty database,
+then run `NEO_TEST_URL=http://127.0.0.1:3308 bunx playwright test --config tests/playwright.config.ts`.
+This suite creates temporary accounts and carts, verifies saving/editing and batch
+pricing, exercises both clone endpoints and API-key pricing, and checks sharing
+and export/import. Its calculator fixtures avoid dependence on changing prices;
+the catalog route and API-key scenarios still require Huawei network access.
