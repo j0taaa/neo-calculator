@@ -114,10 +114,10 @@ export function CartSidebar({
       : [];
   return (
     <>
-      <Card className="overflow-hidden shadow-sm xl:sticky xl:top-1 xl:max-h-[calc(100vh-0.25rem)]">
+      <Card className="min-w-0 overflow-hidden shadow-sm">
         <CardHeader className="pb-3">
-          <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-start">
-            <div className="min-w-0">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div className="min-w-0 basis-full">
               <CardTitle>Cart Contents</CardTitle>
               <p className="mt-1 truncate text-sm text-zinc-500">
                 {selectedList && selectedProject
@@ -149,7 +149,7 @@ export function CartSidebar({
                 </div>
               ) : null}
             </div>
-            <div className="flex flex-wrap items-center gap-2 lg:justify-end">
+            <div className="flex flex-wrap items-center gap-2">
               <Badge variant="outline">
                 {filteredCartProducts.length === selectedCartProducts.length
                   ? `${selectedCartProducts.length} items`
@@ -292,7 +292,7 @@ export function CartSidebar({
         </CardHeader>
         <Separator />
         <CardContent className="px-0">
-          <ScrollArea className="h-[620px] px-4 xl:h-[calc(100vh-15rem)]">
+          <ScrollArea className="px-4 [&>[data-slot=scroll-area-viewport]]:max-h-72 xl:[&>[data-slot=scroll-area-viewport]]:max-h-[calc(100dvh-22rem)]">
             <div className="space-y-3 py-3">
               {!selectedList ? (
                 <div className="rounded-lg border border-dashed bg-zinc-50 p-4 text-sm text-zinc-500">

@@ -153,6 +153,48 @@
 }
 
 @layer components {
+  .dashboard-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas: "calculator" "projects" "cart";
+    align-items: start;
+    gap: 1rem;
+  }
+
+  .dashboard-calculator { grid-area: calculator; }
+  .dashboard-projects { grid-area: projects; }
+  .dashboard-cart { grid-area: cart; }
+
+  @media (min-width: 640px) {
+    .dashboard-grid {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      grid-template-areas: "calculator calculator" "projects cart";
+    }
+  }
+
+  @media (min-width: 1024px) {
+    .dashboard-grid {
+      grid-template-columns: minmax(0, 1fr) 280px;
+      grid-template-areas: "calculator projects" "calculator cart";
+      grid-template-rows: auto 1fr;
+      gap: 1.25rem;
+    }
+  }
+
+  @media (min-width: 1280px) {
+    .dashboard-grid {
+      grid-template-columns: clamp(248px, 19vw, 320px) minmax(0, 1fr) clamp(264px, 20vw, 340px);
+      grid-template-areas: "projects calculator cart";
+      grid-template-rows: auto;
+    }
+
+    .dashboard-projects,
+    .dashboard-cart {
+      position: sticky;
+      top: 5.5rem;
+    }
+  }
+
   [data-calculator-focus-group][data-calculator-shortcut-visible="true"],
   [data-calculator-add-button][data-calculator-shortcut-visible="true"],
   [data-slot="select-item"][data-calculator-shortcut-visible="true"] {

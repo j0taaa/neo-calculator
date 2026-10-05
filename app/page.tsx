@@ -13,7 +13,7 @@ export default function Home() {
   const dashboard = useDashboard();
   const { cartCopyNotice } = dashboard;
   return (
-    <div className="min-h-screen bg-zinc-100 bg-grid-pattern p-5 text-zinc-900 lg:p-8">
+    <div className="min-h-screen bg-zinc-100 bg-grid-pattern p-3 text-zinc-900 sm:p-4 lg:p-6">
       {cartCopyNotice ? (
         <div className="pointer-events-none fixed top-3 left-1/2 z-[80] -translate-x-1/2 px-4">
           <div className="rounded-full border border-blue-200 bg-blue-50 px-4 py-2 text-sm font-medium text-blue-900 shadow-[0_18px_40px_-28px_rgba(37,99,235,0.45)]">
@@ -21,16 +21,22 @@ export default function Home() {
           </div>
         </div>
       ) : null}
-      <div className="mx-auto flex w-full max-w-none flex-col gap-4">
+      <div className="mx-auto flex w-full max-w-[1760px] flex-col gap-4">
         <ServiceSearch {...dashboard.serviceSearch} />
         <ResourceImportInputs {...dashboard.imports} />
 
-        <main className="relative z-0 grid items-start gap-8 xl:justify-center xl:grid-cols-[340px_780px_340px] 2xl:grid-cols-[380px_880px_380px]">
-          <ProjectSidebar {...dashboard.projects} />
+        <main className="dashboard-grid relative z-0">
+          <div className="dashboard-calculator min-w-0">
+            <CalculatorWorkspace {...dashboard.calculator} />
+          </div>
 
-          <CalculatorWorkspace {...dashboard.calculator} />
+          <aside className="dashboard-projects min-w-0" aria-label="Projects">
+            <ProjectSidebar {...dashboard.projects} />
+          </aside>
 
-          <CartSidebar {...dashboard.cart} />
+          <aside className="dashboard-cart min-w-0" aria-label="Cart">
+            <CartSidebar {...dashboard.cart} />
+          </aside>
         </main>
         <ResourceExportDialog {...dashboard.exportDialog} />
         <ResourceActionDialog {...dashboard.actionDialog} />

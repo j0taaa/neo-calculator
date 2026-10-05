@@ -98,7 +98,7 @@ export function ServiceSearch({
                   <div
                     id={listboxId}
                     role="listbox"
-                    className="absolute top-full right-0 left-0 z-50 mt-3 overflow-hidden rounded-[28px] border border-zinc-200 bg-white shadow-[0_28px_80px_-40px_rgba(15,23,42,0.45)]"
+                    className="absolute top-full right-0 left-0 z-50 mt-3 max-h-[calc(100dvh-8rem)] overflow-y-auto rounded-[28px] border border-zinc-200 bg-white shadow-[0_28px_80px_-40px_rgba(15,23,42,0.45)]"
                   >
                     <div className="border-b border-zinc-100 px-5 py-3 text-xs font-medium tracking-[0.18em] text-zinc-500 uppercase">
                       Suggested services
@@ -111,7 +111,7 @@ export function ServiceSearch({
                           type="button"
                           role="option"
                           aria-selected={index === activeSuggestionIndex}
-                          className={`flex w-full items-center justify-between rounded-2xl px-4 py-3 text-left transition ${
+                          className={`flex w-full items-center justify-between gap-2 rounded-2xl px-4 py-3 text-left transition ${
                             index === activeSuggestionIndex
                               ? "bg-zinc-950 text-white"
                               : "text-zinc-900 hover:bg-zinc-100"
@@ -119,16 +119,16 @@ export function ServiceSearch({
                           onMouseEnter={() => setActiveSuggestionIndex(index)}
                           onClick={() => handleSelectService(service.name)}
                         >
-                          <div className="flex items-center gap-3">
+                          <div className="flex min-w-0 items-center gap-3">
                             <Image
                               src={service.icon}
                               alt=""
                               width={36}
                               height={36}
-                              className="size-9 rounded-md object-contain"
+                              className="size-9 shrink-0 rounded-md object-contain"
                             />
-                            <div>
-                              <p className="font-medium">{service.name}</p>
+                            <div className="min-w-0">
+                              <p className="break-words font-medium">{service.name}</p>
                               <p
                                 className={`text-sm ${
                                   index === activeSuggestionIndex
@@ -140,7 +140,7 @@ export function ServiceSearch({
                               </p>
                             </div>
                           </div>
-                          <div className="flex items-center gap-2">
+                          <div className="hidden shrink-0 items-center gap-2 sm:flex">
                             <p
                               className={`rounded-full px-2 py-1 text-xs font-medium ${
                                 index === activeSuggestionIndex

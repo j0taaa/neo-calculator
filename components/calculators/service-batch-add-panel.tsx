@@ -102,7 +102,7 @@ export function ServiceBatchAddPanel(props: ServiceBatchAddPanelProps) {
             {batchAddMessage ? <p className="text-sm text-zinc-500">{batchAddMessage}</p> : null}
           </div>
 
-          <div className="grid gap-4 md:grid-cols-2">
+          <div className="grid gap-4 @min-[480px]/workspace:grid-cols-2">
             <div className="rounded-lg border bg-zinc-50 p-4">
               <p className="text-sm font-medium text-zinc-900">Defaults</p>
               <p className="mt-1 whitespace-pre-line text-sm text-zinc-500">{defaults}</p>
@@ -301,7 +301,7 @@ export function ServiceBatchAddPanel(props: ServiceBatchAddPanelProps) {
           {batchAddMessage ? <p className="text-sm text-zinc-500">{batchAddMessage}</p> : null}
         </div>
 
-        <div className="grid gap-4 md:grid-cols-2">
+        <div className="grid gap-4 @min-[480px]/workspace:grid-cols-2">
           <div className="rounded-lg border bg-zinc-50 p-4">
             <p className="text-sm font-medium text-zinc-900">Defaults</p>
             <p className="mt-1 text-sm text-zinc-500">

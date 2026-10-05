@@ -189,16 +189,16 @@ export function TopNavbar() {
 
   return (
     <header className="sticky top-0 z-50 border-b border-zinc-200 bg-white/90 backdrop-blur">
-      <div className="mx-auto grid max-w-[1600px] grid-cols-1 items-center gap-3 px-4 py-3 lg:grid-cols-[auto_minmax(0,1fr)_auto] lg:gap-4 lg:px-6">
+      <div className="mx-auto grid max-w-[1808px] grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-2 px-3 py-2.5 sm:px-4 xl:grid-cols-[auto_minmax(200px,1fr)_auto] xl:gap-4 lg:px-6">
         {/* Left: Branding + Nav */}
-        <div className="flex flex-wrap items-center gap-3 lg:gap-4">
+        <div className="col-span-2 flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1 sm:col-span-1 xl:gap-4">
           <Link href="/" className="block shrink-0">
             <p className="text-xs font-medium tracking-[0.22em] text-zinc-500 uppercase">NeoCalculator</p>
           </Link>
           <nav className="flex flex-wrap items-center gap-1">
             <Link
               href="/projects"
-              className={`rounded-full px-3 py-2 text-sm font-medium transition ${
+              className={`rounded-full px-2.5 py-1.5 text-xs sm:py-2 sm:text-sm font-medium transition ${
                 isActive(pathname, "/projects")
                   ? "bg-zinc-950 text-white"
                   : "text-zinc-600 hover:bg-zinc-100 hover:text-zinc-950"
@@ -208,7 +208,7 @@ export function TopNavbar() {
             </Link>
             <Link
               href="/"
-              className={`rounded-full px-3 py-2 text-sm font-medium transition ${
+              className={`rounded-full px-2.5 py-1.5 text-xs sm:py-2 sm:text-sm font-medium transition ${
                 isActive(pathname, "/")
                   ? "bg-zinc-950 text-white"
                   : "text-zinc-600 hover:bg-zinc-100 hover:text-zinc-950"
@@ -216,7 +216,7 @@ export function TopNavbar() {
             >
               Dashboard
             </Link>
-            <Link href="/synchronized" className={`rounded-full px-3 py-2 text-sm font-medium transition ${isActive(pathname, "/synchronized") ? "bg-zinc-950 text-white" : "text-zinc-600 hover:bg-zinc-100 hover:text-zinc-950"}`}>
+            <Link href="/synchronized" className={`rounded-full px-2.5 py-1.5 text-xs sm:py-2 sm:text-sm font-medium transition ${isActive(pathname, "/synchronized") ? "bg-zinc-950 text-white" : "text-zinc-600 hover:bg-zinc-100 hover:text-zinc-950"}`}>
               Synced calculator
             </Link>
           </nav>
@@ -224,7 +224,7 @@ export function TopNavbar() {
 
         {/* Center: Search */}
         {showSearch ? (
-          <div className="flex justify-center">
+          <div className="order-3 col-span-2 flex min-w-0 justify-center xl:order-none xl:col-span-1">
             {isDashboard && config.onSearchClick ? (
               <button
                 type="button"
@@ -238,7 +238,7 @@ export function TopNavbar() {
                     {config.searchQuery || "Search service name"}
                   </span>
                 </span>
-                <span className="rounded-full border border-zinc-200 bg-zinc-50 px-2 py-0.5 text-xs font-medium text-zinc-500">
+                <span className="ml-2 shrink-0 rounded-full border border-zinc-200 bg-zinc-50 px-2 py-0.5 text-xs font-medium text-zinc-500">
                   Ctrl K
                 </span>
               </button>
@@ -251,18 +251,18 @@ export function TopNavbar() {
                   <Search className="size-4 text-zinc-400" />
                   <span className="truncate text-sm text-zinc-500">Search service name</span>
                 </span>
-                <span className="rounded-full border border-zinc-200 bg-zinc-50 px-2 py-0.5 text-xs font-medium text-zinc-500">
+                <span className="ml-2 shrink-0 rounded-full border border-zinc-200 bg-zinc-50 px-2 py-0.5 text-xs font-medium text-zinc-500">
                   Ctrl K
                 </span>
               </Link>
             )}
           </div>
         ) : (
-          <div className="hidden lg:block" />
+          <div className="hidden xl:block" />
         )}
 
         {/* Right: Docs + User Actions */}
-        <div className="flex flex-wrap items-center justify-end gap-2">
+        <div className="col-span-2 flex flex-wrap items-center justify-end gap-1 sm:col-span-1 xl:gap-2">
           <Link
             href="/docs"
             className="rounded-full px-3 py-2 text-sm font-medium text-zinc-600 transition hover:bg-zinc-100 hover:text-zinc-950"
@@ -275,9 +275,9 @@ export function TopNavbar() {
           ) : isSignedIn ? (
             <>
               {/* User Info */}
-              <div className="hidden text-right lg:block">
-                <p className="text-sm font-medium text-zinc-900">{session.user.name || session.user.email}</p>
-                <p className="text-xs text-zinc-500">{session.user.email}</p>
+              <div className="hidden max-w-40 truncate text-right 2xl:block">
+                <p className="truncate text-sm font-medium text-zinc-900">{session.user.name || session.user.email}</p>
+                <p className="truncate text-xs text-zinc-500">{session.user.email}</p>
               </div>
 
               {/* Dashboard-specific buttons */}
@@ -309,7 +309,7 @@ export function TopNavbar() {
                 </Button>
 
                 {isSettingsOpen && (
-                  <div className="absolute top-full right-0 z-50 mt-3 w-[min(92vw,420px)] rounded-2xl border border-zinc-200 bg-white shadow-[0_28px_80px_-40px_rgba(15,23,42,0.45)]">
+                  <div className="fixed inset-x-3 top-20 z-50 mt-3 max-h-[calc(100dvh-7rem)] overflow-y-auto rounded-2xl border border-zinc-200 bg-white shadow-[0_28px_80px_-40px_rgba(15,23,42,0.45)] sm:absolute sm:inset-x-auto sm:top-full sm:right-0 sm:w-[min(92vw,420px)]">
                     {/* Tabs */}
                     <div className="flex border-b border-zinc-100">
                       {showDashboardExtras && (

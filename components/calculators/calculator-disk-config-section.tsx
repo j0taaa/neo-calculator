@@ -60,7 +60,7 @@ export function CalculatorDiskConfigSection({
           <p className="text-sm font-medium">{mode === "evs" ? "Volume Type" : "System Disk"}</p>
           {mode === "evs" ? <p className="mt-1 text-sm text-zinc-500">Choose the EVS disk type and capacity you want to price.</p> : null}
         </div>
-        <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
+        <div className="flex flex-col gap-3 @min-[560px]/workspace:flex-row @min-[560px]/workspace:items-center">
           <div data-calculator-focus-group>
           <Select
             value={systemDiskType}
@@ -70,7 +70,7 @@ export function CalculatorDiskConfigSection({
               }
             }}
           >
-            <SelectTrigger data-calculator-focus-target className="w-full bg-white lg:w-72">
+            <SelectTrigger data-calculator-focus-target className="w-full bg-white @min-[560px]/workspace:w-64">
               <SelectValue>{systemDiskType}</SelectValue>
             </SelectTrigger>
             <SelectContent>
@@ -118,7 +118,7 @@ export function CalculatorDiskConfigSection({
         </div>
 
         {showGpSsd2Controls && gpSsd2IopsRange && gpSsd2ThroughputRange ? (
-          <div className="grid gap-4 md:grid-cols-2">
+          <div className="grid gap-4 @min-[480px]/workspace:grid-cols-2">
             <div className="space-y-2" data-calculator-focus-group>
               <p className="text-sm font-medium">IOPS</p>
               <Input

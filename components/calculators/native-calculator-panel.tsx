@@ -9,7 +9,7 @@ import { parseNativeSelection, selectionBillingMode } from "@/lib/huawei-sync/na
 import { nativeBillingModes, type NativeBillingMode } from "@/lib/huawei-sync/native-billing";
 import type { NativeDirectory, NativeField, NativeState } from "@/lib/huawei-sync/native-types";
 
-const selectClass = "mt-2 h-10 w-full rounded-md border border-zinc-200 bg-white px-3 text-sm";
+const selectClass = "mt-2 h-10 w-full min-w-0 rounded-md border border-zinc-200 bg-white px-3 text-sm";
 const names: Record<string, string> = {
   ecs: "ECS · Elastic Cloud Server",
   elb: "ELB · Elastic Load Balance",
@@ -272,9 +272,9 @@ export function NativeCalculatorPanel({
     .slice()
     .sort((a, b) => Number(!!names[b.id]) - Number(!!names[a.id]) || a.name.localeCompare(b.name));
   return (
-    <section className="mx-auto max-w-5xl space-y-6 px-4 py-8">
+    <section className="@container/native mx-auto min-w-0 max-w-5xl space-y-4 px-3 py-4 sm:px-4">
       <div>
-        <h1 className="mt-2 text-3xl font-semibold">Huawei live calculator</h1>
+        <h1 className="text-xl font-semibold @min-[640px]/native:text-2xl">Huawei live calculator</h1>
         <p className="mt-3 max-w-3xl text-sm text-zinc-600">
           Configure services using Huawei’s current options and regional rules. Prices come directly from Huawei after
           each change. Billing modes, purchase terms and payment options follow the selected service and region.
@@ -282,7 +282,7 @@ export function NativeCalculatorPanel({
       </div>
       <Card>
         <CardContent className="space-y-4 pt-5">
-          <fieldset disabled={busy} className="grid gap-4 sm:grid-cols-2">
+          <fieldset disabled={busy} className="grid gap-4 @min-[480px]/native:grid-cols-2">
             <label className="text-sm font-medium">
               Service
               <select
@@ -362,7 +362,7 @@ export function NativeCalculatorPanel({
         </p>
       )}
       {state && (
-        <div className="grid items-start gap-6 lg:grid-cols-[1fr_320px]">
+        <div className="grid items-start gap-4 @min-[760px]/native:grid-cols-[minmax(0,1fr)_280px]">
           <Card>
             <CardHeader>
               <CardTitle>{names[service] ?? services?.find((s) => s.id === service)?.name}</CardTitle>
@@ -437,7 +437,7 @@ export function NativeCalculatorPanel({
               )}
             </CardContent>
           </Card>
-          <Card className="lg:sticky lg:top-6">
+          <Card className="min-w-0 @min-[760px]/native:sticky @min-[760px]/native:top-20">
             <CardHeader>
               <CardTitle>Current estimate</CardTitle>
             </CardHeader>

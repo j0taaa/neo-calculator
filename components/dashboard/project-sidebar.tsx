@@ -102,7 +102,7 @@ export function ProjectSidebar({
   ];
   return (
     <>
-      <Card className="overflow-hidden shadow-sm xl:sticky xl:top-1 xl:max-h-[calc(100vh-0.25rem)]">
+      <Card className="min-w-0 overflow-hidden shadow-sm">
         <CardHeader className="pb-3">
           <div className="flex items-center justify-between">
             <div>
@@ -124,10 +124,11 @@ export function ProjectSidebar({
             <Badge variant="secondary">{projects.length}</Badge>
           </div>
           <div className="flex flex-col gap-2">
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
               <Input
                 value={newProjectName}
                 onChange={(event) => setNewProjectName(event.target.value)}
+                className="min-w-0 basis-full"
                 placeholder="New project name"
                 disabled={!isSignedIn}
               />
@@ -160,7 +161,7 @@ export function ProjectSidebar({
         </CardHeader>
         <Separator />
         <CardContent className="px-0">
-          <ScrollArea className="h-[620px] px-4 xl:h-[calc(100vh-15rem)]">
+          <ScrollArea className="px-4 [&>[data-slot=scroll-area-viewport]]:max-h-72 xl:[&>[data-slot=scroll-area-viewport]]:max-h-[calc(100dvh-22rem)]">
             <div className="space-y-3 py-3">
               {!isSignedIn ? (
                 <div className="rounded-lg border border-dashed bg-zinc-50 p-4 text-sm text-zinc-500">
