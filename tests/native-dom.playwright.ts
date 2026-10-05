@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { readNativeForm } from "../lib/huawei-sync/native-dom";
+import { readNativeForm, setNativeValue } from "../lib/huawei-sync/native-dom";
 
 test("covers inline selects, disk actions, checkboxes, numeric bounds and unlisted globals", async ({ page }) => {
   await page.setContent(`<div id="calculator_disk"><div class="tiny-form-item"><label class="tiny-form-item__label">Data Disk</label>
@@ -25,6 +25,35 @@ test("fails closed on new component types, unmapped inputs, or missing selection
   await page.evaluate(() => Object.assign(window, { viewConfig: { calc_view: { components: [{ id: "calculator_new", type: "NewHuaweiControl" }, { id: "calculator_select", type: "CommonSelect" }] } } }));
   const form = await readNativeForm(page);
   expect(form.diagnostics).toEqual(expect.arrayContaining(["Unsupported Huawei control: NewHuaweiControl", "Unmapped input in calculator_new", "No selected option for Unit"]));
+});
+
+test("disabled empty controls need no choice, while incomplete selectable controls still fail", async ({ page }) => {
+  await page.setContent(`<div id="calculator_ims_select">
+    <div class="base-select"><span title="Image"></span><input disabled><div class="tiny-select-dropdown"></div></div>
+    <div class="base-select"><span title="Image version"></span><input disabled><div class="tiny-select-dropdown"></div></div>
+  </div>`);
+  await page.evaluate(() => Object.assign(window, { viewConfig: { calc_view: { components: [{ id: "calculator_ims_select", type: "CommonSelect" }] } } }));
+  const unavailable = await readNativeForm(page);
+  expect(unavailable.diagnostics).toEqual([]);
+  expect(unavailable.fields).toHaveLength(2);
+  for (const field of unavailable.fields) {
+    expect(field).toMatchObject({ disabled: true, value: "-1", options: [] });
+    await expect(setNativeValue(page, field, "0")).rejects.toThrow("disabled by Huawei");
+  }
+  // A disabled control with choices but no selection remains incomplete.
+  await page.locator(".tiny-select-dropdown").first().evaluate(el => el.innerHTML = '<li class="tiny-select-dropdown__item">Linux</li>');
+  expect((await readNativeForm(page)).diagnostics).toEqual(["No selected option for Image"]);
+  // Empty enabled selectors must still block a quote.
+  await page.locator("input").nth(1).evaluate(el => (el as HTMLInputElement).disabled = false);
+  expect((await readNativeForm(page)).diagnostics).toEqual(["No selected option for Image", "No selected option for Image version"]);
+  // When a flavor supports images again, expose its actual choices and selection.
+  await page.locator("input").first().evaluate(el => (el as HTMLInputElement).disabled = false);
+  await page.locator(".tiny-select-dropdown").first().evaluate(el => el.firstElementChild!.classList.add("selected"));
+  await page.locator(".tiny-select-dropdown").nth(1).evaluate(el => el.innerHTML = '<li class="tiny-select-dropdown__item selected">Ubuntu</li>');
+  const available = await readNativeForm(page);
+  expect(available.diagnostics).toEqual([]);
+  expect(available.fields[0]).toMatchObject({ disabled: false, value: "0", options: [{ label: "Linux" }] });
+  expect(available.fields[1]).toMatchObject({ disabled: false, value: "0", options: [{ label: "Ubuntu" }] });
 });
 
 test("retains dropdown options after Huawei moves its menu into a body portal", async ({ page }) => {
