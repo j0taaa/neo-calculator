@@ -53,3 +53,33 @@ No placeholder native adapter, new provider registry or second cart schema is in
 - Production build and read-only browser checks against the deployed app.
 
 These checks establish regression coverage for the refactor, not universal parity of every legacy calculator with Huawei. Native parity evidence remains documented separately in `huawei-native-calculator.md`.
+
+## Dashboard modules
+
+The route in `app/page.tsx` only composes views. Stateful feature logic lives in `lib/dashboard`, and rendered dashboard sections live in `components/dashboard`.
+
+| Module | Owns |
+| --- | --- |
+| `use-project-store` | Loaded projects, selected cart, project/list indexes and snapshot refresh |
+| `use-project-actions` | Create, rename and delete project/cart operations |
+| `use-resource-cloning` | Clone options, requests and result messages |
+| `use-resource-sharing` | Share links and progress/messages |
+| `use-resource-transfer` | JSON import/export and workbook export |
+| `use-huawei-carts` | Saved Huawei credentials, remote cart listing, linking and synchronization |
+| `use-cart-contents` | Cart search/filter/sort, selection, deletion and clipboard operations |
+| `use-dashboard-url` | URL restoration, navigation events and URL serialization |
+| `use-calculator-shortcuts` / `use-dashboard-keyboard` | Calculator navigation and dashboard/clipboard shortcuts |
+| `use-dashboard` | Composition of feature hooks, common selection state and navbar coordination |
+
+The views receive typed feature objects and common display state. Menu definitions and dialog display values belong to the views that render them. Feature hooks own their pending/error state; the project store owns the shared project snapshot. Hooks receive the specific setters/actions they need, without a global dashboard context or a second copy of project data.
+
+URL restoration waits for session resolution and the current user's project load before opening a saved product or action dialog. The project store discards an initial load response if the user changes or the hook unmounts. This makes readiness explicit instead of relying on effect order between modules.
+
+Custom calculator coordination is separate from the shared controller:
+
+- `lib/use-calculator-controller.tsx` selects the runtime and coordinates billing, quantities, edit hydration and the shared cart workflow.
+- `lib/calculator/controller-types.ts` defines the controller's public interface.
+- `lib/calculator/use-custom-calculator.tsx` owns ECS/Flexus flavor selection, presentation, saved-product hydration and service URL state, using the existing ECS catalog hook.
+- `lib/calculator/use-ecs-disk.ts` owns disk controls, bounds and dependent IOPS/throughput normalization. The custom runtime adds the complete compute/disk selection summary to its panel.
+
+Keep new feature behavior in its owning hook and view. The route should remain layout-only, and the composition hook should not acquire request implementations or service-specific pricing rules. The native Huawei runtime remains deferred.
