@@ -170,3 +170,15 @@ in-flight edit at expiry, rejected opens and final shutdown. The unit fixtures
 cover immutable asset ownership, version replacement and unsupported framework
 updates. See [the cleanup validation](huawei-native-memory-cleanup-validation.json)
 for price comparisons and deployment evidence.
+
+The 2026-10-05 merge-readiness run passed a clean 350-test unit suite, production
+build and type checking, 20 isolated main-application browser scenarios, five
+DOM fixtures, eight real-browser lifecycle checks and four production browser
+scenarios. The two stale NAT/EIP catalog fixtures now assert their existing
+constraints. Fresh official comparisons covered 46 prices across all four
+billing modes, 11 saved replays/fresh saves, three legacy replays and three
+regional/mode rejection guards. Live API samples took 7–11 seconds to open,
+about 1.7–1.8 seconds to edit, and 0.4–1.3 seconds to refresh a saved quote.
+These are measured samples, not response-time guarantees; Huawei availability
+and the six-session pool limit still apply. See
+[the merge-readiness evidence](merge-readiness-validation.json).
