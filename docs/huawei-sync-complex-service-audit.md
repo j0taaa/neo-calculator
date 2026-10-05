@@ -1,3 +1,5 @@
+> Historical documentation: the QuickJS calculator and publication worker were retired on 2026-10-06. Commands below describe the former implementation. Use [Huawei live](huawei-native-calculator.md) and the [retirement notes](synced-calculator-retirement.md) for current behavior.
+
 > This is the earlier QuickJS audit. The preview now runs a browser-backed adapter for complex forms; see [the current implementation and validation](huawei-native-calculator.md). The captured results below are preserved as historical evidence.
 
 # Complex-service and regional sync audit

@@ -1,9 +1,9 @@
 import { expect, test } from "bun:test";
 import { HuaweiCollector } from "./collector";
-import { SyncStore } from "./store";
+import { SourceStore } from "./store";
 
 test("RI callers can refresh recurring catalog rates while retaining the cached configuration", async () => {
-  const store = new SyncStore(":memory:");
+  const store = new SourceStore(":memory:");
   let configs = 0, products = 0;
   const collector = new HuaweiCollector(store, async url => {
     const productRequest = new URL(url).pathname.endsWith("/productInfo");

@@ -1,0 +1,473 @@
+{
+  "checkedAt": "2026-10-05T22:18:01.823848Z",
+  "productionLegacyInventory": 0,
+  "unitTests": 343,
+  "mainBrowserScenarios": 20,
+  "mainBrowserRendererTimeoutRetries": 1,
+  "retirementBrowserScenarios": 3,
+  "releaseContainerBrowserScenarios": 8,
+  "responsiveBrowserScenarios": 13,
+  "nativeDomBrowserScenarios": 5,
+  "nativeLifecycleChecks": 8,
+  "types": "pass",
+  "targetedLint": "pass",
+  "productionBuild": "pass",
+  "runtime": "Bun 1.3.10 / Next.js 16.1.6",
+  "officialPriceComparisons": 46,
+  "officialSaveAndReplayChecks": 11,
+  "olderNativeSelectionReplayChecks": 3,
+  "regionalBillingGuards": 3,
+  "auditNotes": [
+    "An initial DCS replay was rejected by the existing selection guard; a fresh complete DCS audit passed. Guards were not relaxed.",
+    "An independent reference response was unavailable in an initial network audit; the fresh network audit passed.",
+    "The host Bun 1.3.13 launcher crashed during a build attempt. Builds and container checks passed under the production Bun 1.3.10 runtime."
+  ],
+  "sourceHashes": {
+    "lib/huawei-native/native-session.ts": "a5d0cbb0ca46696f7b73b27b5cc20150f51fe8377af140e251ad5c8bafbf9a86",
+    "lib/huawei-native/legacy-product.ts": "35ab40c5d5639697d5a9eb69f82f6f1bcb08213de4e4f7da08c22f1245827d9e",
+    "lib/huawei-native/collector.ts": "eaabf34185bda3ee52efbc6378fbe486ba10282e465fb7526d18fd0e3e7ae29d",
+    "lib/huawei-native/store.ts": "8b944d1dd8cc5f1196d00811ce6d6ff8555ca5a397c8ac8600c9ae0057149e50",
+    "lib/huawei-native/quotes.ts": "4c5a5fe910765ae5c2d0ca77ed3589896befc9dac9e8bc51aa99c5e1f749c7db",
+    "components/calculators/native-calculator-panel.tsx": "8ce0b1bea1d70432eb04098a1fd6cd9c24740f81d8471ea7bab7d64d23e242ee"
+  },
+  "officialEvidence": [
+    {
+      "service": "nat",
+      "region": "ap-southeast-1",
+      "billingMode": "ONDEMAND",
+      "name": "default",
+      "amount": 2.438
+    },
+    {
+      "service": "nat",
+      "region": "ap-southeast-1",
+      "billingMode": "ONDEMAND",
+      "name": "duration-two",
+      "amount": 4.876
+    },
+    {
+      "service": "nat",
+      "region": "ap-southeast-1",
+      "billingMode": "ONDEMAND",
+      "name": "save-and-replay",
+      "amount": 4.876
+    },
+    {
+      "service": "nat",
+      "region": "ap-southeast-1",
+      "billingMode": "ONDEMAND",
+      "name": "legacy-replay",
+      "amount": 4.876
+    },
+    {
+      "service": "nat",
+      "region": "ap-southeast-1",
+      "billingMode": "PERIOD",
+      "name": "default",
+      "amount": 57.3
+    },
+    {
+      "service": "nat",
+      "region": "ap-southeast-1",
+      "billingMode": "PERIOD",
+      "name": "annual",
+      "amount": 573
+    },
+    {
+      "service": "nat",
+      "region": "ap-southeast-1",
+      "billingMode": "PERIOD",
+      "name": "three-years",
+      "amount": 1719
+    },
+    {
+      "service": "nat",
+      "region": "ap-southeast-1",
+      "billingMode": "PERIOD",
+      "name": "save-and-replay",
+      "amount": 1719
+    },
+    {
+      "service": "elb",
+      "region": "ap-southeast-1",
+      "billingMode": "PERIOD",
+      "name": "default",
+      "amount": 26.95
+    },
+    {
+      "service": "elb",
+      "region": "ap-southeast-1",
+      "billingMode": "PERIOD",
+      "name": "annual",
+      "amount": 269.54
+    },
+    {
+      "service": "elb",
+      "region": "ap-southeast-1",
+      "billingMode": "PERIOD",
+      "name": "three-years",
+      "amount": 808.63
+    },
+    {
+      "service": "elb",
+      "region": "ap-southeast-1",
+      "billingMode": "PERIOD",
+      "name": "save-and-replay",
+      "amount": 808.63
+    },
+    {
+      "service": "ecs",
+      "region": "ap-southeast-1",
+      "billingMode": "ONDEMAND",
+      "name": "default",
+      "amount": 0.14968
+    },
+    {
+      "service": "ecs",
+      "region": "ap-southeast-1",
+      "billingMode": "ONDEMAND",
+      "name": "aC8-no-image-selection",
+      "amount": 0.13008
+    },
+    {
+      "service": "ecs",
+      "region": "ap-southeast-1",
+      "billingMode": "ONDEMAND",
+      "name": "generation-with-images",
+      "amount": 0.15448
+    },
+    {
+      "service": "ecs",
+      "region": "ap-southeast-1",
+      "billingMode": "ONDEMAND",
+      "name": "return-to-original-generation",
+      "amount": 0.14968
+    },
+    {
+      "service": "ecs",
+      "region": "ap-southeast-1",
+      "billingMode": "ONDEMAND",
+      "name": "quantity-two",
+      "amount": 0.29936
+    },
+    {
+      "service": "ecs",
+      "region": "ap-southeast-1",
+      "billingMode": "ONDEMAND",
+      "name": "duration-two",
+      "amount": 0.59872
+    },
+    {
+      "service": "ecs",
+      "region": "ap-southeast-1",
+      "billingMode": "ONDEMAND",
+      "name": "save-and-replay",
+      "amount": 0.59872
+    },
+    {
+      "service": "ecs",
+      "region": "ap-southeast-1",
+      "billingMode": "ONDEMAND",
+      "name": "legacy-replay",
+      "amount": 0.59872
+    },
+    {
+      "service": "ecs",
+      "region": "sa-brazil-1",
+      "billingMode": "ONDEMAND",
+      "name": "default",
+      "amount": 0.23888
+    },
+    {
+      "service": "ecs",
+      "region": "sa-brazil-1",
+      "billingMode": "ONDEMAND",
+      "name": "aC8-no-image-selection",
+      "amount": 0.23888
+    },
+    {
+      "service": "ecs",
+      "region": "sa-brazil-1",
+      "billingMode": "ONDEMAND",
+      "name": "generation-with-images",
+      "amount": 0.26838
+    },
+    {
+      "service": "ecs",
+      "region": "sa-brazil-1",
+      "billingMode": "ONDEMAND",
+      "name": "return-to-original-generation",
+      "amount": 0.23888
+    },
+    {
+      "service": "ecs",
+      "region": "sa-brazil-1",
+      "billingMode": "ONDEMAND",
+      "name": "quantity-two",
+      "amount": 0.47776
+    },
+    {
+      "service": "ecs",
+      "region": "sa-brazil-1",
+      "billingMode": "ONDEMAND",
+      "name": "duration-two",
+      "amount": 0.95552
+    },
+    {
+      "service": "ecs",
+      "region": "sa-brazil-1",
+      "billingMode": "ONDEMAND",
+      "name": "save-and-replay",
+      "amount": 0.95552
+    },
+    {
+      "service": "ecs",
+      "region": "sa-brazil-1",
+      "billingMode": "ONDEMAND",
+      "name": "legacy-replay",
+      "amount": 0.95552
+    },
+    {
+      "service": "ecs",
+      "region": "ap-southeast-1",
+      "billingMode": "PERIOD",
+      "name": "default",
+      "amount": 78.08
+    },
+    {
+      "service": "ecs",
+      "region": "ap-southeast-1",
+      "billingMode": "PERIOD",
+      "name": "aC8-no-image-selection",
+      "amount": 67.77
+    },
+    {
+      "service": "ecs",
+      "region": "ap-southeast-1",
+      "billingMode": "PERIOD",
+      "name": "generation-with-images",
+      "amount": 80.6
+    },
+    {
+      "service": "ecs",
+      "region": "ap-southeast-1",
+      "billingMode": "PERIOD",
+      "name": "return-to-original-generation",
+      "amount": 78.08
+    },
+    {
+      "service": "ecs",
+      "region": "ap-southeast-1",
+      "billingMode": "PERIOD",
+      "name": "annual-capable-generation",
+      "amount": 80.6
+    },
+    {
+      "service": "ecs",
+      "region": "ap-southeast-1",
+      "billingMode": "PERIOD",
+      "name": "annual",
+      "amount": 806
+    },
+    {
+      "service": "ecs",
+      "region": "ap-southeast-1",
+      "billingMode": "PERIOD",
+      "name": "quantity-two",
+      "amount": 1612
+    },
+    {
+      "service": "ecs",
+      "region": "ap-southeast-1",
+      "billingMode": "PERIOD",
+      "name": "save-and-replay",
+      "amount": 1612
+    },
+    {
+      "service": "ecs",
+      "region": "ap-southeast-1",
+      "billingMode": "RI",
+      "name": "default",
+      "amount": 915.2688
+    },
+    {
+      "service": "ecs",
+      "region": "ap-southeast-1",
+      "billingMode": "RI",
+      "name": "aC8-no-image-selection",
+      "amount": 915.2688
+    },
+    {
+      "service": "ecs",
+      "region": "ap-southeast-1",
+      "billingMode": "RI",
+      "name": "generation-with-images",
+      "amount": 1053.6288
+    },
+    {
+      "service": "ecs",
+      "region": "ap-southeast-1",
+      "billingMode": "RI",
+      "name": "return-to-original-generation",
+      "amount": 915.2688
+    },
+    {
+      "service": "ecs",
+      "region": "ap-southeast-1",
+      "billingMode": "RI",
+      "name": "3 Years",
+      "amount": 2359.5264
+    },
+    {
+      "service": "ecs",
+      "region": "ap-southeast-1",
+      "billingMode": "RI",
+      "name": "quantity-two",
+      "amount": 4719.0528
+    },
+    {
+      "service": "ecs",
+      "region": "ap-southeast-1",
+      "billingMode": "RI",
+      "name": "save-and-replay",
+      "amount": 4719.0528
+    },
+    {
+      "service": "ecs",
+      "region": "sa-brazil-1",
+      "billingMode": "RI",
+      "name": "default",
+      "amount": 1821.0888
+    },
+    {
+      "service": "ecs",
+      "region": "sa-brazil-1",
+      "billingMode": "RI",
+      "name": "aC8-no-image-selection",
+      "amount": 1821.0888
+    },
+    {
+      "service": "ecs",
+      "region": "sa-brazil-1",
+      "billingMode": "RI",
+      "name": "generation-with-images",
+      "amount": 1989.2088
+    },
+    {
+      "service": "ecs",
+      "region": "sa-brazil-1",
+      "billingMode": "RI",
+      "name": "return-to-original-generation",
+      "amount": 1821.0888
+    },
+    {
+      "service": "ecs",
+      "region": "sa-brazil-1",
+      "billingMode": "RI",
+      "name": "3 Years",
+      "amount": 4997.7864
+    },
+    {
+      "service": "ecs",
+      "region": "sa-brazil-1",
+      "billingMode": "RI",
+      "name": "quantity-two",
+      "amount": 9995.5728
+    },
+    {
+      "service": "ecs",
+      "region": "sa-brazil-1",
+      "billingMode": "RI",
+      "name": "save-and-replay",
+      "amount": 9995.5728
+    },
+    {
+      "service": "ccm",
+      "region": "ap-southeast-1",
+      "billingMode": "ONETIME",
+      "name": "default",
+      "amount": 518
+    },
+    {
+      "service": "ccm",
+      "region": "ap-southeast-1",
+      "billingMode": "ONETIME",
+      "name": "quantity-two",
+      "amount": 1036
+    },
+    {
+      "service": "ccm",
+      "region": "ap-southeast-1",
+      "billingMode": "ONETIME",
+      "name": "validity-three-years",
+      "amount": 3288
+    },
+    {
+      "service": "ccm",
+      "region": "ap-southeast-1",
+      "billingMode": "ONETIME",
+      "name": "save-and-replay",
+      "amount": 3288
+    },
+    {
+      "service": "dew",
+      "region": "ap-southeast-1",
+      "billingMode": "ONETIME",
+      "name": "default",
+      "amount": 13000
+    },
+    {
+      "service": "dew",
+      "region": "ap-southeast-1",
+      "billingMode": "ONETIME",
+      "name": "save-and-replay",
+      "amount": 13000
+    },
+    {
+      "service": "redis",
+      "region": "ap-southeast-3",
+      "billingMode": "PERIOD",
+      "name": "default",
+      "amount": 0.9
+    },
+    {
+      "service": "redis",
+      "region": "ap-southeast-3",
+      "billingMode": "PERIOD",
+      "name": "annual",
+      "amount": 9.09
+    },
+    {
+      "service": "redis",
+      "region": "ap-southeast-3",
+      "billingMode": "PERIOD",
+      "name": "three-years",
+      "amount": 16.36
+    },
+    {
+      "service": "redis",
+      "region": "ap-southeast-3",
+      "billingMode": "PERIOD",
+      "name": "save-and-replay",
+      "amount": 16.36
+    }
+  ],
+  "deployment": {
+    "checkedAt": "2026-10-05T22:22:51.524910Z",
+    "production": "https://calculator.hwctools.site",
+    "preview": "https://calculator-lab.hwctools.site",
+    "appImage": "sha256:b0bcbbf0000fa5b04093a0395fe8c3ff0b1c10eca2f7535e9c068463aaa59745",
+    "nativeImage": "sha256:341b8211a39d86df24b98623fb0f8fd234de96d1b78949a33d97ce54530facf5",
+    "publicBrowserScenarios": 5,
+    "retiredWorker": "removed",
+    "nativeHealth": "healthy",
+    "nativeRestarts": 0,
+    "oom": false,
+    "httpsVerification": "pass",
+    "httpRedirect": "308 to HTTPS",
+    "oldCalculatorRedirect": "307 to /?tab=huawei-live",
+    "backups": "/home/backups/neo-calculator-retirement-20261006",
+    "existingDeployedUserChanges": "preserved",
+    "previewPublicBrowserScenarios": 5
+  }
+}

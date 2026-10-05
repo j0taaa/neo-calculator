@@ -1,4 +1,5 @@
-import { isNativeProduct, verifyNativeProduct } from "@/lib/huawei-sync/native-product";
+import { isLegacyHuaweiProduct, LEGACY_RECONFIGURE_MESSAGE } from "@/lib/huawei-native/legacy-product";
+import { isNativeProduct, verifyNativeProduct } from "@/lib/huawei-native/native-product";
 import type { ProductMutationBody } from "@/lib/calculator-types";
 import { getSessionFromHeaders, jsonError, readJsonBody } from "@/lib/api-route";
 import { db } from "@/lib/db";
@@ -49,6 +50,8 @@ export async function PATCH(request: Request, context: { params: Promise<{ listI
   if (!product) {
     return jsonError("Product not found", 404);
   }
+
+  if (isLegacyHuaweiProduct({ serviceCode, productType })) return jsonError(LEGACY_RECONFIGURE_MESSAGE, 422);
 
   if (isNativeProduct({ serviceCode, productType })) {
     try {

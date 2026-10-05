@@ -27,7 +27,7 @@ flowchart TD
 - `lib/calculator-presentation.ts` only formats the custom ECS/Flexus L calculations. Declarative services no longer have a second, unused presentation implementation. The hardcoded sample ECS price fallback has been removed.
 - `CalculatorPanelRouter` accepts one discriminated, fully typed active panel. Adding another panel requires a checked union case rather than casting through `unknown`/`never`.
 - `lib/calculator-cart.ts` owns save/edit/split/batch sequencing and acknowledged cart updates. Both runtime implementations use its `CalculatorProductSource` interface. Clipboard insertion uses the same state update while preserving its existing append order.
-- The controller selects the runtime, coordinates common controls and edit hydration, and supplies the cart writer. The dashboard retains account/project/list UI. Server repricing continues to use its existing ECS, Flexus L, declarative and synchronized-service paths.
+- The controller selects the runtime, coordinates common controls and edit hydration, and supplies the cart writer. The dashboard retains account/project/list UI. Server repricing uses ECS, Flexus L, declarative and Huawei live paths. Retired `HWC:` estimates require reselecting their configuration through Huawei live before fresh pricing.
 
 ## Product source contract
 

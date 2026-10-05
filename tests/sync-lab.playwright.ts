@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import type { NativeState } from "../lib/huawei-sync/native-types";
+import type { NativeState } from "../lib/huawei-native/native-types";
 
 async function close(request: import("@playwright/test").APIRequestContext, session: string) {
   await request.post("/api/sync-lab/live", { data: { action: "close", session } });

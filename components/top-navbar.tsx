@@ -216,9 +216,7 @@ export function TopNavbar() {
             >
               Dashboard
             </Link>
-            <Link href="/synchronized" className={`rounded-full px-2.5 py-1.5 text-xs sm:py-2 sm:text-sm font-medium transition ${isActive(pathname, "/synchronized") ? "bg-zinc-950 text-white" : "text-zinc-600 hover:bg-zinc-100 hover:text-zinc-950"}`}>
-              Synced calculator
-            </Link>
+
           </nav>
         </div>
 

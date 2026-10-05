@@ -5,9 +5,10 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import type { AppProduct, ProductMutationBody } from "@/lib/calculator-types";
-import { parseNativeSelection, selectionBillingMode } from "@/lib/huawei-sync/native-selection";
-import { nativeBillingModes, type NativeBillingMode } from "@/lib/huawei-sync/native-billing";
-import type { NativeDirectory, NativeField, NativeState } from "@/lib/huawei-sync/native-types";
+import { parseNativeSelection, selectionBillingMode } from "@/lib/huawei-native/native-selection";
+import { nativeBillingModes, type NativeBillingMode } from "@/lib/huawei-native/native-billing";
+import type { NativeDirectory, NativeField, NativeState } from "@/lib/huawei-native/native-types";
+import { isLegacyHuaweiProduct, legacyHuaweiConfiguration } from "@/lib/huawei-native/legacy-product";
 
 const selectClass = "mt-2 h-10 w-full min-w-0 rounded-md border border-zinc-200 bg-white px-3 text-sm";
 const names: Record<string, string> = {
@@ -137,7 +138,11 @@ export function NativeCalculatorPanel({
     };
   }, []);
   const [saveMessage, setSaveMessage] = useState("");
+  const legacy = !!editingProduct && isLegacyHuaweiProduct(editingProduct);
+  const [legacyReviewed, setLegacyReviewed] = useState(false);
   useEffect(() => {
+    setLegacyReviewed(false);
+    setSaveMessage("");
     if (!editingProduct) {
       setBusy(false);
       return;
@@ -147,6 +152,18 @@ export function NativeCalculatorPanel({
     current.current = null;
     setState(null);
     setError("");
+    if (isLegacyHuaweiProduct(editingProduct)) {
+      setBusy(false);
+      try {
+        const saved = legacyHuaweiConfiguration(editingProduct);
+        setService(saved.service);
+        setRegion(saved.region);
+        setBillingMode("ONDEMAND");
+      } catch (error) {
+        setError(error instanceof Error ? error.message : "Invalid old Huawei configuration");
+      }
+      return;
+    }
     let selection;
     try {
       selection = parseNativeSelection((editingProduct.config as { selection?: unknown } | null)?.selection);
@@ -179,7 +196,7 @@ export function NativeCalculatorPanel({
     };
   }, [editingProduct]);
   async function save() {
-    if (!state?.quote || busy || !onSave) return;
+    if (!state?.quote || busy || !onSave || (legacy && !legacyReviewed)) return;
     setBusy(true);
     setSaveMessage("");
     try {
@@ -214,6 +231,7 @@ export function NativeCalculatorPanel({
     current.current = null;
     setState(null);
     setError("");
+    setLegacyReviewed(false);
   }
   async function open(mode = billingMode) {
     if (operation.current) return;
@@ -280,6 +298,20 @@ export function NativeCalculatorPanel({
           each change. Billing modes, purchase terms and payment options follow the selected service and region.
         </p>
       </div>
+      {legacy && editingProduct && (
+        <Card>
+          <CardHeader><CardTitle>Review the original estimate</CardTitle></CardHeader>
+          <CardContent className="space-y-3">
+            <p className="text-sm">This estimate used the retired calculator. Open Huawei live below and reselect its options. Your saved estimate stays unchanged until you save.</p>
+            <p className="text-sm font-medium">{editingProduct.title}</p>
+            <details>
+              <summary className="cursor-pointer text-sm">Original saved configuration</summary>
+              <pre className="mt-3 max-h-64 overflow-auto whitespace-pre-wrap break-all rounded-md bg-zinc-50 p-3 text-xs">{JSON.stringify(editingProduct.config, null, 2)}</pre>
+            </details>
+            <Button variant="outline" onClick={onCancelEdit} disabled={busy}>Cancel editing</Button>
+          </CardContent>
+        </Card>
+      )}
       <Card>
         <CardContent className="space-y-4 pt-5">
           <fieldset disabled={busy} className="grid gap-4 @min-[480px]/native:grid-cols-2">
@@ -294,7 +326,7 @@ export function NativeCalculatorPanel({
                   setService(e.target.value);
                 }}
               >
-                {(services ?? [{ id: "ecs", name: names.ecs }]).map((s) => (
+                {(services ?? [{ id: service, name: names[service] ?? service }]).map((s) => (
                   <option key={s.id} value={s.id}>
                     {names[s.id] ?? s.name}
                   </option>
@@ -498,7 +530,12 @@ export function NativeCalculatorPanel({
               )}
               {onSave && (
                 <div className="space-y-2">
-                  <Button onClick={save} disabled={busy || !state.quote}>
+                  {legacy && <label className="flex items-start gap-2 text-sm">
+                    <input type="checkbox" checked={legacyReviewed} disabled={busy}
+                      onChange={event => setLegacyReviewed(event.target.checked)} />
+                    I reviewed these selections against the original estimate.
+                  </label>}
+                  <Button onClick={save} disabled={busy || !state.quote || (legacy && !legacyReviewed)}>
                     {editingProduct ? "Save Changes" : "Add to List"}
                   </Button>
                   {editingProduct && (

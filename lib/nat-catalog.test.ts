@@ -89,6 +89,9 @@ test("parseNatPricingCatalogResponse extracts public and private NAT tiers", () 
   expect(parsed).toEqual({
     currency: "USD",
     regionId: "ap-southeast-1",
+    constraints: {
+      usageHours: { min: 1, max: 87600 },
+    },
     tiers: [
       {
         type: "Public NAT Gateway",

@@ -2,7 +2,7 @@
 
 The ECS, ELB and DCS audit exposed a limit of the QuickJS interpreter: service configuration is only part of Huawei's behavior. The shared renderer implements dependent defaults, image filtering, repeatable disks, checkbox constraints, unit conversion and derived LCU quantities. Enumerating every flavor and numeric combination is both expensive and insufficient to recover those rules.
 
-The isolated preview at `https://calculator-lab.hwctools.site/sync-lab` now uses a browser adapter. A short-lived anonymous Chromium context runs the official renderer; Neo renders its visible controls and sends validated interactions back to that context. The existing application and verified QuickJS path are preserved. The earlier captured comparison is available at `/sync-lab/audit`.
+The isolated preview at `https://calculator-lab.hwctools.site/sync-lab` now uses a browser adapter. A short-lived anonymous Chromium context runs the official renderer; Neo renders its visible controls and sends validated interactions back to that context. The main workspace uses this same adapter. The older QuickJS calculator and captured audit UI have been retired; `/synchronized` and `/sync-lab/audit` redirect to Huawei live.
 
 ## Data and price flow
 
@@ -44,13 +44,13 @@ The final run passed **81 independent comparisons in 337.5 seconds**: 30 ECS, 24
 
 The integration audit covers ECS, ELB, DCS and NAT in Hong Kong, São Paulo and Singapore. ECS cases include Kunpeng, adding/resizing/removing disks, quantity and no EIP. ELB cases include derived TCP LCUs, HTTP, fixed and shared variants. DCS cases include version, master/standby and quantity. NAT cases include public/private and size. Every scope also changes duration. JSON evidence records source hashes and exact configurations, rather than claiming an entire region passed from a single default.
 
-Browser fixture tests cover inline controls, disabled choices, repeated disk actions, globals omitted from service metadata, new widgets and unmapped inputs. Public preview tests cover the actual Neo UI, immediate price invalidation, invalid numeric drafts, mobile layout, directory discovery and API contract rejection. Existing unit suites continue to cover partial/duplicate/invalid quote responses and the earlier synchronization pipeline.
+Browser fixture tests cover inline controls, disabled choices, repeated disk actions, globals omitted from service metadata, new widgets and unmapped inputs. Public preview tests cover the actual Neo UI, immediate price invalidation, invalid numeric drafts, mobile layout, directory discovery and API contract rejection. Unit suites cover fresh inquiries, partial/duplicate/invalid quote responses, source caching and old-estimate recovery.
 
-The older isolated preview deployment exposes **pay-per-use** only. The main Huawei live workspace supports all four billing families in Huawei’s international calculator menu: **pay-per-use, yearly/monthly, RI and one-time**. It depends on Huawei availability and Chromium, with a higher per-session resource cost than QuickJS. It is integrated into the main saved-cart flow through the Huawei live tab. It is not a guarantee of every flavor/region/billing-mode combination, or a claim that the older interpreter now supports ECS/ELB. Unsupported upstream changes stop quotes and require adapter support.
+An already-running older isolated preview deployment may expose **pay-per-use** only; rebuilding it uses the current adapter. The main Huawei live workspace supports all four billing families in Huawei’s international calculator menu: **pay-per-use, yearly/monthly, RI and one-time**. It depends on Huawei availability and Chromium, with a higher per-session resource cost than source-only HTTP collection. It is integrated into the main saved-cart flow through the Huawei live tab. It is not a guarantee of every flavor/region/billing-mode combination, or a claim that the older interpreter now supports ECS/ELB. Unsupported upstream changes stop quotes and require adapter support.
 
 ## Deployment
 
-Set `SYNC_LAB_AUTH_SECRET`, a separate random `SYNC_LAB_NATIVE_TOKEN` (32+ characters), and `SYNC_LAB_DATA_DIR` in an external env file. The audit directory retains the earlier captured report and database for `/sync-lab/audit`.
+Set `SYNC_LAB_AUTH_SECRET` and a separate random `SYNC_LAB_NATIVE_TOKEN` (32+ characters) in an external env file. The current preview no longer mounts the retired audit database.
 
 ```sh
 docker compose --env-file /home/neo-calculator-lab.env -p neo-sync-lab -f compose.sync-lab.yml up -d --build
@@ -65,7 +65,7 @@ The main application uses its own native sidecar, token and data volume. Set a r
 
 Native selections persist initial controls, an ordered action history and expected final controls. Reopening replays them against current collected sources, checking control identities and selected labels throughout. Saving refreshes the exact session revision on the server; stale revisions, incomplete quotes, changed defaults and unavailable choices reject the operation. The server strips session IDs before persistence. Sessions remain anonymous and contain no account/cart database access.
 
-The main workspace preserves the legacy runtime and saved products alongside the native integration. New services are discoverable in the Huawei live service selector without adding local definitions. Unknown Huawei widgets continue to fail closed.
+The main workspace preserves the original declarative calculators and saved products alongside the native integration. The separate QuickJS synchronization runtime has been removed; old synchronized estimates use the recovery editor described in [retirement notes](synced-calculator-retirement.md). New services are discoverable in the Huawei live service selector without adding local definitions. Unknown Huawei widgets continue to fail closed.
 
 The integration rerun recorded **81 independent comparisons** across ECS, ELB, DCS and NAT in Hong Kong, São Paulo and Singapore; see `huawei-native-integration-validation.json`. That historical run used C7n for São Paulo ECS because the adapter incorrectly treated aC8's disabled empty image selectors as incomplete. The adapter now accepts Huawei's deliberately unavailable controls and still requires a complete official quote. The unavailable-image regression audit covers aC8, switching to C7n and back, and saved-selection replay.
 
@@ -170,3 +170,15 @@ in-flight edit at expiry, rejected opens and final shutdown. The unit fixtures
 cover immutable asset ownership, version replacement and unsupported framework
 updates. See [the cleanup validation](huawei-native-memory-cleanup-validation.json)
 for price comparisons and deployment evidence.
+
+The 2026-10-05 merge-readiness run passed a clean 350-test unit suite, production
+build and type checking, 20 isolated main-application browser scenarios, five
+DOM fixtures, eight real-browser lifecycle checks and four production browser
+scenarios. The two stale NAT/EIP catalog fixtures now assert their existing
+constraints. Fresh official comparisons covered 46 prices across all four
+billing modes, 11 saved replays/fresh saves, three legacy replays and three
+regional/mode rejection guards. Live API samples took 7–11 seconds to open,
+about 1.7–1.8 seconds to edit, and 0.4–1.3 seconds to refresh a saved quote.
+These are measured samples, not response-time guarantees; Huawei availability
+and the six-session pool limit still apply. See
+[the merge-readiness evidence](merge-readiness-validation.json).
