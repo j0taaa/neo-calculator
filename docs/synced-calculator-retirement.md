@@ -23,3 +23,13 @@ Remove the `calculator-sync` service and the app's `HUAWEI_SYNC_DB` setting and 
 Run the unit suite, type checking, targeted lint and production build. Run `tests/retired-calculator.config.ts` against an isolated app with a native sidecar to cover redirects, removed APIs, historical imports, cancellation, cloning/sharing, rejected legacy pricing, reviewed conversion and native replay. Run the existing main calculator, native DOM and responsive suites, plus an independent official billing audit to compare resources and prices across billing modes and regions.
 
 Historical synchronization docs and audit evidence are retained as historical records, not deployment instructions.
+
+## Deployment result
+
+On 2026-10-06, production and the isolated preview were updated to the validated images. The parent Compose no longer defines `calculator-sync` or mounts its database in the app; the stopped worker container was removed. Its volume, SQLite backups, previous Compose file and rollback images remain available. Both native containers passed health checks with zero restarts and no out-of-memory events. Existing deployed metadata and workbook changes were preserved separately from this PR.
+
+Public browser checks confirmed the redirect, removed APIs, all four billing modes and mobile layout. Detailed validation is in [the validation report](synced-calculator-retirement-validation.json). The repeatable public checks are anonymous and do not create accounts or mutate carts:
+
+```sh
+NEO_TEST_URL=https://calculator.hwctools.site bunx playwright test --config tests/retirement-production.config.ts
+```

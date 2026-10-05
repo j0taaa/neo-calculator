@@ -451,5 +451,23 @@
       "name": "save-and-replay",
       "amount": 16.36
     }
-  ]
+  ],
+  "deployment": {
+    "checkedAt": "2026-10-05T22:22:51.524910Z",
+    "production": "https://calculator.hwctools.site",
+    "preview": "https://calculator-lab.hwctools.site",
+    "appImage": "sha256:b0bcbbf0000fa5b04093a0395fe8c3ff0b1c10eca2f7535e9c068463aaa59745",
+    "nativeImage": "sha256:341b8211a39d86df24b98623fb0f8fd234de96d1b78949a33d97ce54530facf5",
+    "publicBrowserScenarios": 5,
+    "retiredWorker": "removed",
+    "nativeHealth": "healthy",
+    "nativeRestarts": 0,
+    "oom": false,
+    "httpsVerification": "pass",
+    "httpRedirect": "308 to HTTPS",
+    "oldCalculatorRedirect": "307 to /?tab=huawei-live",
+    "backups": "/home/backups/neo-calculator-retirement-20261006",
+    "existingDeployedUserChanges": "preserved",
+    "previewPublicBrowserScenarios": 5
+  }
 }
