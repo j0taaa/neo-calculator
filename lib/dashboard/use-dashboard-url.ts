@@ -193,7 +193,8 @@ export function useDashboardUrl({
           ? (projects
               .flatMap((project) => project.lists)
               .find((list) => list.id === targetListId) ?? null)
-          : null;
+          : (projects.flatMap(project => project.lists)
+              .find(list => list.products.some(product => product.id === pendingUrlState.editProductId)) ?? null);
         const targetProduct =
           targetList?.products.find(
             (product) => product.id === pendingUrlState.editProductId,

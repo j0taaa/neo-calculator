@@ -1,3 +1,5 @@
+> Historical documentation: the QuickJS calculator and publication worker were retired on 2026-10-06. Commands below describe the former implementation. Use [Huawei live](huawei-native-calculator.md) and the [retirement notes](synced-calculator-retirement.md) for current behavior.
+
 # Autonomous Huawei calculator synchronization
 
 Status: original roadmap, 2026-09-28. A bounded pay-per-use implementation now exists; see [implementation, operational settings, and remaining coverage](huawei-sync-implementation.md). Sections below describe the broader target and must not be read as a list of completed capabilities.

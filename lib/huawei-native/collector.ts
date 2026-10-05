@@ -1,6 +1,6 @@
 import { sendHttpRequest } from "@/lib/huawei-http";
-import { SyncStore } from "./store";
-import type { Snapshot, SyncService } from "./types";
+import { SourceStore } from "./store";
+import type { Snapshot, HuaweiService } from "./types";
 
 export const CALCULATOR_BASE = "https://portal-intl.huaweicloud.com/api/calculator/rest/cbc/portalcalculatornodeservice/v4/api";
 export const MENU_URL = `${CALCULATOR_BASE}/menuInfo?sign=common&language=en-us`;
@@ -8,10 +8,10 @@ export const PAGE_URL = "https://www.huaweicloud.com/intl/en-us/pricing/calculat
 export type Transport = (url: string) => Promise<{ ok: boolean; status: number; bodyText: string }>;
 const transport: Transport = url => sendHttpRequest({ method: "GET", url, headers: { "X-Language": "en-us" }, timeoutMs: 30_000 });
 
-export function parseDirectory(body: string): SyncService[] {
+export function parseDirectory(body: string): HuaweiService[] {
   const data = JSON.parse(body);
   if (!Array.isArray(data.menuInfos) || !data.menuInfos.length) throw new Error("Invalid or empty Huawei directory");
-  const services: SyncService[] = [];
+  const services: HuaweiService[] = [];
   for (const group of data.menuInfos) {
     if (!Array.isArray(group.subCategoryLists)) throw new Error("Incomplete Huawei directory");
     for (const entry of group.subCategoryLists) {
@@ -25,7 +25,7 @@ export function parseDirectory(body: string): SyncService[] {
 }
 
 export class HuaweiCollector {
-  constructor(readonly store: SyncStore, private readonly request: Transport = transport) {}
+  constructor(readonly store: SourceStore, private readonly request: Transport = transport) {}
   async fetch(url: string, ttlMs = 0, validate?: (body: string) => void): Promise<Snapshot> {
     const cached = this.store.latest(url);
     if (cached && Date.now() - Date.parse(cached.fetchedAt) < ttlMs) { validate?.(cached.body); return cached; }
@@ -45,10 +45,8 @@ export class HuaweiCollector {
     throw error;
   }
   async directory() {
-    const previous = this.store.latest(MENU_URL);
     const snapshot = await this.fetch(MENU_URL, 6 * 60 * 60_000, body => { parseDirectory(body); });
     const services = parseDirectory(snapshot.body);
-    if (previous?.fetchedAt !== snapshot.fetchedAt || !this.store.directory().length) this.store.directory(services);
     return { snapshot, services };
   }
   async framework() {

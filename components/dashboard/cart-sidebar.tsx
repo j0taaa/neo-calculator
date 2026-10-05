@@ -1,4 +1,6 @@
 "use client";
+
+import { isHuaweiCalculatorProduct } from "@/lib/huawei-native/legacy-product";
 import { type ActionMenuItem } from "@/components/home-page-shell-parts";
 import { Copy, Download, Link2, RefreshCw, Share2, Trash2 } from "lucide-react";
 
@@ -389,7 +391,7 @@ export function CartSidebar({
                               >
                                 Cancel
                               </Button>
-                              {product.productType !== "huawei-native" && (
+                              {!isHuaweiCalculatorProduct(product) && (
                                 <Button
                                   type="button"
                                   size="sm"
@@ -415,13 +417,7 @@ export function CartSidebar({
                               size="icon"
                               onClick={(event) => {
                                 event.stopPropagation();
-                                if (product.serviceCode.startsWith("HWC:")) {
-                                  window.location.assign(
-                                    `/synchronized?service=${encodeURIComponent(product.serviceCode.slice(4))}&edit=${encodeURIComponent(product.id)}`,
-                                  );
-                                } else {
-                                  handleEditProduct(product);
-                                }
+                                handleEditProduct(product);
                               }}
                               disabled={deletingProductId === product.id}
                               aria-label={`Edit ${product.title}`}

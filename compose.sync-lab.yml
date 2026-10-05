@@ -12,11 +12,8 @@ services:
       HWC_SOCKS5_PROXY: socks5h://host.docker.internal:40001
       HUAWEI_NATIVE_URL: http://native-calculator:3001
       HUAWEI_NATIVE_TOKEN: ${SYNC_LAB_NATIVE_TOKEN:?Set a separate native adapter token}
-      HUAWEI_SYNC_LAB_DIR: /app/audit
-      HUAWEI_SYNC_DB: /app/audit/sync.sqlite
       CATALOG_DB_PATH: /app/data/catalog.db
     volumes:
-      - ${SYNC_LAB_DATA_DIR:?Set the captured audit directory}:/app/audit
       - sync_lab_data:/app/data
     extra_hosts:
       - host.docker.internal:host-gateway

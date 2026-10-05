@@ -1,4 +1,4 @@
-import type { Inquiry, Quote, SyncService } from "./types";
+import type { Inquiry, Quote, HuaweiService } from "./types";
 import type { NativeBillingMode } from "./native-billing";
 
 export type NativeField = {
@@ -29,4 +29,4 @@ export type NativeState = NativeForm & {
   priceError?: string;
 };
 export type NativeAction = { session: string; revision: number; field: string; value: string | number | boolean };
-export type NativeDirectory = { services: SyncService[]; regions: { id: string; name: string }[]; billingModes: Record<string, Record<string, NativeBillingMode[]>> };
+export type NativeDirectory = { services: HuaweiService[]; regions: { id: string; name: string }[]; billingModes: Record<string, Record<string, NativeBillingMode[]>> };

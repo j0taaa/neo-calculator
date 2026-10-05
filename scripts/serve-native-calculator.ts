@@ -1,13 +1,13 @@
 import { createServer } from "node:http";
 import { timingSafeEqual } from "node:crypto";
-import { NativeCalculator, NativeError } from "../lib/huawei-sync/native-session";
-import { HuaweiCollector } from "../lib/huawei-sync/collector";
-import { SyncStore } from "../lib/huawei-sync/store";
-import { isNativeBillingMode } from "../lib/huawei-sync/native-billing";
+import { NativeCalculator, NativeError } from "../lib/huawei-native/native-session";
+import { HuaweiCollector } from "../lib/huawei-native/collector";
+import { SourceStore } from "../lib/huawei-native/store";
+import { isNativeBillingMode } from "../lib/huawei-native/native-billing";
 
 const token = process.env.HUAWEI_NATIVE_TOKEN;
 if (!token || token.length < 32) throw new Error("Set a private HUAWEI_NATIVE_TOKEN (32+ characters)");
-const store = new SyncStore(process.env.HUAWEI_SYNC_DB ?? "/app/data/native.sqlite");
+const store = new SourceStore(process.env.HUAWEI_SOURCE_DB ?? "/app/data/native.sqlite");
 const calculator = new NativeCalculator(new HuaweiCollector(store), 6);
 const server = createServer(async (request, response) => {
   response.setHeader("content-type", "application/json");
@@ -71,7 +71,7 @@ const server = createServer(async (request, response) => {
   }
 });
 server.requestTimeout = 120000;
-server.listen(Number(process.env.PORT ?? 3001), "0.0.0.0");
+server.listen(Number(process.env.PORT ?? 3001), process.env.HOST ?? "0.0.0.0");
 const sweep = setInterval(() => void calculator.sweep().catch(console.error), 30000);
 async function stop() {
   clearInterval(sweep);

@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { readNativeForm, setNativeValue } from "../lib/huawei-sync/native-dom";
+import { readNativeForm, setNativeValue } from "../lib/huawei-native/native-dom";
 
 test("covers inline selects, disk actions, checkboxes, numeric bounds and unlisted globals", async ({ page }) => {
   await page.setContent(`<div id="calculator_disk"><div class="tiny-form-item"><label class="tiny-form-item__label">Data Disk</label>
@@ -74,7 +74,7 @@ test("purchase terms and installment choices are exposed even when Huawei uses i
   expect(form.diagnostics).toEqual([]);
   expect(form.fields.map(f=>f.component)).toEqual(["global_PERIODTIME","global_FEEINSTALLMODE"]);
   expect(form.fields[0].options?.map(o=>o.label)).toEqual(["1 month","1 year","3 years"]);
-  const {setNativeValue} = await import("../lib/huawei-sync/native-dom");
+  const {setNativeValue} = await import("../lib/huawei-native/native-dom");
   await setNativeValue(page,form.fields[0],"2");
   await setNativeValue(page,form.fields[1],"1");
 });

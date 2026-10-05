@@ -2,18 +2,18 @@
 import assert from "node:assert/strict";
 import { mkdir, writeFile } from "node:fs/promises";
 import { chromium, type Page } from "playwright";
-import { NativeCalculator } from "../lib/huawei-sync/native-session";
-import { HuaweiCollector, PAGE_URL } from "../lib/huawei-sync/collector";
-import { SyncStore, canonical } from "../lib/huawei-sync/store";
-import { semanticInquiry } from "../lib/huawei-sync/browser-verifier";
-import type { Inquiry } from "../lib/huawei-sync/types";
-import type { NativeState, NativeField } from "../lib/huawei-sync/native-types";
-import type { NativeBillingMode } from "../lib/huawei-sync/native-billing";
-import type { InquiryResponse } from "../lib/huawei-sync/quotes";
+import { NativeCalculator } from "../lib/huawei-native/native-session";
+import { HuaweiCollector, PAGE_URL } from "../lib/huawei-native/collector";
+import { SourceStore, canonical } from "../lib/huawei-native/store";
+import { semanticInquiry } from "../lib/huawei-native/inquiry";
+import type { Inquiry } from "../lib/huawei-native/types";
+import type { NativeState, NativeField } from "../lib/huawei-native/native-types";
+import type { NativeBillingMode } from "../lib/huawei-native/native-billing";
+import type { InquiryResponse } from "../lib/huawei-native/quotes";
 
 const output = process.env.NATIVE_BILLING_AUDIT_DIR ?? "/tmp/neo-native-billing-audit";
 await mkdir(output,{recursive:true});
-const store = new SyncStore(`${output}/sources.sqlite`);
+const store = new SourceStore(`${output}/sources.sqlite`);
 const calculator = new NativeCalculator(new HuaweiCollector(store));
 const proxy = process.env.HWC_SOCKS5_PROXY?.replace("socks5h://","socks5://");
 const browser = await chromium.launch({headless:true,...(proxy ? {proxy:{server:proxy}} : {})});
@@ -83,7 +83,7 @@ try {
       const guide = page.locator(".guide-dialog").getByRole("button",{name:"Close",exact:true});
       if (await guide.isVisible()) await guide.click();
       // Use the DOM mapper only to tag controls for interaction. Price evidence is independent.
-      const {readNativeForm} = await import("../lib/huawei-sync/native-dom");
+      const {readNativeForm} = await import("../lib/huawei-native/native-dom");
       async function compare(name: string) {
         const deadline = Date.now()+20000;
         while ((!receivedAt || Date.now()-receivedAt<1800) && Date.now()<deadline) await page.waitForTimeout(200);

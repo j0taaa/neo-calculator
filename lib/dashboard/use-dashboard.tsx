@@ -1,5 +1,7 @@
 "use client";
 
+import { isHuaweiCalculatorProduct } from "@/lib/huawei-native/legacy-product";
+
 import { applyProductMutation, saveCalculatorProducts } from "@/lib/calculator-cart";
 import { useNavbar } from "@/components/navbar-context";
 import { useSessionContext } from "@/components/session-provider";
@@ -184,7 +186,7 @@ export function useDashboard() {
   const calculatorController = {
     ...legacyController,
     handleEditProduct: (product: AppProduct, listId = projectStore.selectedListId) => {
-      if (product.productType !== "huawei-native") {
+      if (!isHuaweiCalculatorProduct(product)) {
         setNativeEditingProduct(null);
         legacyController.handleEditProduct(product, listId);
         return;

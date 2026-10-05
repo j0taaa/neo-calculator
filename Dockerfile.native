@@ -7,6 +7,6 @@ RUN bunx playwright install --with-deps chromium
 COPY tsconfig.json ./
 COPY lib ./lib
 COPY scripts/serve-native-calculator.ts ./scripts/serve-native-calculator.ts
-ENV HUAWEI_SYNC_DB=/app/data/native.sqlite
+ENV HUAWEI_SOURCE_DB=/app/data/native.sqlite
 RUN mkdir -p /app/data
 CMD ["bun", "run", "scripts/serve-native-calculator.ts"]

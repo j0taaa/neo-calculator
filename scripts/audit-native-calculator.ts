@@ -2,16 +2,16 @@
 import assert from "node:assert/strict";
 import { mkdir, writeFile } from "node:fs/promises";
 import { chromium, type Page } from "playwright";
-import { NativeCalculator } from "../lib/huawei-sync/native-session";
-import { HuaweiCollector, PAGE_URL } from "../lib/huawei-sync/collector";
-import { SyncStore, canonical } from "../lib/huawei-sync/store";
-import { semanticInquiry } from "../lib/huawei-sync/browser-verifier";
-import type { Inquiry } from "../lib/huawei-sync/types";
-import type { NativeState } from "../lib/huawei-sync/native-types";
+import { NativeCalculator } from "../lib/huawei-native/native-session";
+import { HuaweiCollector, PAGE_URL } from "../lib/huawei-native/collector";
+import { SourceStore, canonical } from "../lib/huawei-native/store";
+import { semanticInquiry } from "../lib/huawei-native/inquiry";
+import type { Inquiry } from "../lib/huawei-native/types";
+import type { NativeState } from "../lib/huawei-native/native-types";
 
 const output = process.env.NATIVE_AUDIT_DIR ?? "/tmp/neo-native-audit";
 await mkdir(output, { recursive: true });
-const store = new SyncStore(`${output}/sources.sqlite`);
+const store = new SourceStore(`${output}/sources.sqlite`);
 const calculator = new NativeCalculator(new HuaweiCollector(store));
 const proxy = process.env.HWC_SOCKS5_PROXY?.replace("socks5h://", "socks5://");
 const browser = await chromium.launch({ headless: true, ...(proxy ? { proxy: { server: proxy } } : {}) });
