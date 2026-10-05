@@ -185,15 +185,17 @@ export function TopNavbar() {
   const showSearch = isDashboard || isProjects;
   const showDashboardExtras = isDashboard && config.showHuaweiCarts !== false;
 
+  if (pathname === "/sync-lab") return null;
+
   return (
     <header className="sticky top-0 z-50 border-b border-zinc-200 bg-white/90 backdrop-blur">
-      <div className="mx-auto grid max-w-[1600px] grid-cols-[auto_1fr_auto] items-center gap-4 px-4 py-3 lg:px-6">
+      <div className="mx-auto grid max-w-[1600px] grid-cols-1 items-center gap-3 px-4 py-3 lg:grid-cols-[auto_minmax(0,1fr)_auto] lg:gap-4 lg:px-6">
         {/* Left: Branding + Nav */}
-        <div className="flex items-center gap-4">
+        <div className="flex flex-wrap items-center gap-3 lg:gap-4">
           <Link href="/" className="block shrink-0">
             <p className="text-xs font-medium tracking-[0.22em] text-zinc-500 uppercase">NeoCalculator</p>
           </Link>
-          <nav className="flex items-center gap-1">
+          <nav className="flex flex-wrap items-center gap-1">
             <Link
               href="/projects"
               className={`rounded-full px-3 py-2 text-sm font-medium transition ${
@@ -213,6 +215,9 @@ export function TopNavbar() {
               }`}
             >
               Dashboard
+            </Link>
+            <Link href="/synchronized" className={`rounded-full px-3 py-2 text-sm font-medium transition ${isActive(pathname, "/synchronized") ? "bg-zinc-950 text-white" : "text-zinc-600 hover:bg-zinc-100 hover:text-zinc-950"}`}>
+              Synced calculator
             </Link>
           </nav>
         </div>
@@ -253,11 +258,11 @@ export function TopNavbar() {
             )}
           </div>
         ) : (
-          <div />
+          <div className="hidden lg:block" />
         )}
 
         {/* Right: Docs + User Actions */}
-        <div className="flex items-center justify-end gap-2">
+        <div className="flex flex-wrap items-center justify-end gap-2">
           <Link
             href="/docs"
             className="rounded-full px-3 py-2 text-sm font-medium text-zinc-600 transition hover:bg-zinc-100 hover:text-zinc-950"

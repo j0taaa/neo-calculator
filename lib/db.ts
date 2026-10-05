@@ -2,6 +2,7 @@ import { mkdirSync } from "node:fs";
 import { join } from "node:path";
 
 import { Database } from "bun:sqlite";
+import { configureSqlite } from "./sqlite-settings";
 
 const dataDir = join(process.cwd(), "data");
 mkdirSync(dataDir, { recursive: true });
@@ -10,9 +11,7 @@ const sqlitePath = join(dataDir, "app.sqlite");
 
 export const db = new Database(sqlitePath);
 
-db.exec("PRAGMA foreign_keys = ON;");
-db.exec("PRAGMA journal_mode = WAL;");
-db.exec("PRAGMA busy_timeout = 10000;");
+configureSqlite(db);
 
 function hasColumn(tableName: string, columnName: string) {
   const columns = db.query<{ name: string }, []>(`PRAGMA table_info(${tableName})`).all();
