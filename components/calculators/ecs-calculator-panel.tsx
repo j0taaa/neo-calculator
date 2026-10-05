@@ -82,7 +82,7 @@ export function EcsCalculatorPanel({
   return (
     <>
       <section className="space-y-3">
-        <div className="grid gap-4 md:grid-cols-2">
+        <div className="grid gap-4 @min-[480px]/workspace:grid-cols-2">
           <div className="space-y-2" data-calculator-focus-group>
             <p className="text-sm font-medium">Minimum vCPUs</p>
             <Input
@@ -107,11 +107,11 @@ export function EcsCalculatorPanel({
       </section>
 
       <section className="space-y-3">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="space-y-3">
           <div>
             <p className="text-sm font-medium">Flavor</p>
           </div>
-          <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
+          <div className="grid grid-cols-1 gap-2 @min-[480px]/workspace:grid-cols-2 @min-[780px]/workspace:grid-cols-[auto_minmax(0,1fr)_auto_auto]">
             {showFlexusLToggleVisible ? (
               <label data-calculator-focus-group className="flex cursor-pointer items-center gap-2 rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-700">
                 <Checkbox
@@ -123,7 +123,7 @@ export function EcsCalculatorPanel({
                 <span>Show Flexus L</span>
               </label>
             ) : null}
-            <div className="w-full sm:w-44" data-calculator-focus-group>
+            <div className="min-w-0" data-calculator-focus-group>
               <Input
                 value={flavorQuery}
                 data-calculator-focus-target
@@ -140,7 +140,7 @@ export function EcsCalculatorPanel({
                 }
               }}
             >
-              <SelectTrigger data-calculator-focus-target className="w-full bg-white sm:w-52">
+              <SelectTrigger data-calculator-focus-target className="w-full min-w-0 bg-white">
                 <SelectValue>{flavorSortOptions.find((option) => option.value === flavorSort)?.label ?? flavorSort}</SelectValue>
               </SelectTrigger>
               <SelectContent>
@@ -165,7 +165,7 @@ export function EcsCalculatorPanel({
                 }
               }}
             >
-              <SelectTrigger data-calculator-focus-target className="w-full bg-white sm:w-36">
+              <SelectTrigger data-calculator-focus-target className="w-full min-w-0 bg-white">
                 <SelectValue>{`${flavorPageSize} per page`}</SelectValue>
               </SelectTrigger>
               <SelectContent>
@@ -201,17 +201,17 @@ export function EcsCalculatorPanel({
                   type="button"
                   data-calculator-focus-target={isSelected ? "" : undefined}
                   aria-pressed={isSelected}
-                  className={`flex w-full items-center justify-between gap-3 rounded-lg border px-3 py-3 text-left ${
+                  className={`flex w-full flex-col items-start justify-between gap-2 @min-[480px]/workspace:flex-row @min-[480px]/workspace:items-center rounded-lg border px-3 py-3 text-left ${
                     isSelected ? "border-zinc-950 bg-white" : "border-zinc-200 bg-white/80"
                   }`}
                   onClick={() => onSelectFlavor(flavor.name, flavor.vcpu, flavor.ram)}
                 >
                   <div className="min-w-0 flex-1">
-                    <p className="font-medium text-zinc-950">{flavor.name}</p>
+                    <p className="break-all font-medium text-zinc-950">{flavor.name}</p>
                     <p className="text-sm text-zinc-500">{flavor.family}</p>
                     <p className="text-xs text-zinc-400">{flavor.priceModeLabel}</p>
                   </div>
-                  <div className="shrink-0 text-right text-sm">
+                  <div className="shrink-0 text-sm @min-[480px]/workspace:text-right">
                     <p className="font-medium text-zinc-950">{flavor.price}</p>
                     <p className="text-zinc-500">
                       {flavor.vcpu} vCPUs · {flavor.ram} GiB RAM
@@ -228,7 +228,7 @@ export function EcsCalculatorPanel({
             ) : null}
           </div>
 
-          <div className="mt-3 flex items-center justify-between text-sm text-zinc-500">
+          <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-sm text-zinc-500">
             <span>
               Page {currentFlavorPage} of {totalFlavorPages}
             </span>

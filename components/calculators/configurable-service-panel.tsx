@@ -106,7 +106,7 @@ export function ConfigurableServicePanel({
   return (
     <>
       <section className="space-y-3">
-        <div className="grid gap-4 md:grid-cols-2">
+        <div className="grid gap-4 @min-[480px]/workspace:grid-cols-2">
           {groupedFields.map((group) => {
             const field = group.field;
             const hint = getFieldHint(field);
@@ -115,7 +115,7 @@ export function ConfigurableServicePanel({
               <div
                 key={field.definition.id}
                 data-calculator-focus-group
-                className={field.definition.type === "checkbox" ? "space-y-2 md:col-span-2" : "space-y-2"}
+                className={field.definition.type === "checkbox" ? "space-y-2 @min-[480px]/workspace:col-span-2" : "space-y-2"}
               >
                 {field.definition.type === "checkbox" ? (
                   <label className="flex items-start gap-3 rounded-lg border border-zinc-200 bg-white px-3 py-3 text-sm text-zinc-700">
