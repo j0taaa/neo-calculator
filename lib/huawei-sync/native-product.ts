@@ -1,6 +1,7 @@
 import type { ProductMutationBody } from "@/lib/calculator-types";
 import type { NativeState } from "./native-types";
-import { parseNativeSelection, sameSelection } from "./native-selection";
+import { parseNativeSelection, sameSelection, selectionBillingMode } from "./native-selection";
+import { nativeBillingModes } from "./native-billing";
 import { nativeRequest } from "./native-client";
 
 export function isNativeProduct(product: { serviceCode?: string; productType?: string }) {
@@ -20,10 +21,11 @@ export async function verifyNativeProduct(
     billingMode?: string;
   };
   const selection = parseNativeSelection(config?.selection);
+  const billingMode = selectionBillingMode(selection);
   if (
     product.serviceCode !== `HUAWEI:${selection.service}` ||
     (config.region && config.region !== selection.region) ||
-    (config.billingMode && config.billingMode !== "Pay-per-use")
+    (config.billingMode && config.billingMode !== nativeBillingModes[billingMode].label)
   )
     throw new Error("Saved Huawei service, region or billing mode does not match its configuration");
   let state: NativeState | undefined;
@@ -37,7 +39,8 @@ export async function verifyNativeProduct(
       temporary = true;
       state = await request<NativeState>({ action: "restore", selection });
     }
-    if (!state.quote || !state.inquiry || state.diagnostics.length)
+    if (!state.quote || (!state.inquiry && state.quote.aggregation !== "huawei-renderer") || state.diagnostics.length ||
+        state.billingMode !== billingMode || state.region !== selection.region || state.service !== selection.service)
       throw new Error(state.priceError || "A complete Huawei quote is required");
     const quantity = Number(state.fields.find((field) => field.component === "global_QUANTITY")?.value ?? 1);
     return {
@@ -47,7 +50,7 @@ export async function verifyNativeProduct(
       config: {
         runtime: "huawei-native",
         region: state.region,
-        billingMode: "Pay-per-use",
+        billingMode: nativeBillingModes[billingMode].label,
         selection: state.selection,
         source: state.source,
       },
@@ -59,6 +62,7 @@ export async function verifyNativeProduct(
         quotedAt: state.quote.quotedAt,
         requestHash: state.quote.requestHash,
         breakdown: state.quote.breakdown,
+        ...(state.quote.payment ? {payment: state.quote.payment} : {}),
       },
     };
   } finally {

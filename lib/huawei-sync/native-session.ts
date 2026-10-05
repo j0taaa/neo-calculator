@@ -4,7 +4,11 @@ import {
   selectionFields,
   sameSelection,
   type NativeSelection,
+  selectionBillingMode,
 } from "./native-selection";
+import { nativeBillingDirectory, nativeBillingModes, isNativeBillingMode, type NativeBillingMode } from "./native-billing";
+import { instrumentNativePricing, readNativePricing, refreshNativePricing, buildNativeQuote, type NativeInquiryQuote } from "./native-pricing";
+import { canonical, hash } from "./store";
 import { randomUUID } from "node:crypto";
 import { chromium, type Browser, type BrowserContext, type Page } from "playwright";
 import { HuaweiCollector, PAGE_URL } from "./collector";
@@ -29,6 +33,7 @@ type Session = {
   context: BrowserContext;
   service: string;
   region: string;
+  billingMode: NativeBillingMode;
   created: number;
   touched: number;
   revision: number;
@@ -40,6 +45,8 @@ type Session = {
   generation: number;
   requestedAt: number;
   inquiry: Inquiry | null;
+  prices: Map<string, NativeInquiryQuote>;
+  inquiries: Inquiry[];
   quote: Quote | null;
   priceError?: string;
 };
@@ -59,6 +66,7 @@ export class NativeCalculator {
     const menu = JSON.parse(snapshot.body);
     return {
       services: services.filter((service) => service.available),
+      billingModes: nativeBillingDirectory(menu),
       regions: Object.keys(menu.regionRules)
         .filter(
           (id) =>
@@ -104,7 +112,7 @@ export class NativeCalculator {
     await (await this.browser)?.close();
     this.browser = undefined;
   }
-  async open(service: string, region: string): Promise<NativeState> {
+  async open(service: string, region: string, requestedMode?: NativeBillingMode): Promise<NativeState> {
     await this.sweep();
     if (this.sessions.size + this.opening >= this.capacity)
       throw new NativeError("The preview is busy. Close another preview or try again shortly.", 503);
@@ -114,13 +122,17 @@ export class NativeCalculator {
       const directory = await this.directory();
       if (!directory.services.some((s) => s.id === service) || !directory.regions.some((r) => r.id === region))
         throw new NativeError("Unknown service or region");
+      const modes = directory.billingModes[service]?.[region] ?? [];
+      const billingMode = requestedMode ?? (modes.includes("ONDEMAND") ? "ONDEMAND" : modes[0]);
+      if (!isNativeBillingMode(billingMode) || !modes.includes(billingMode)) throw new NativeError("Huawei does not offer this billing mode in the selected service and region");
       const [{ config, products }, framework, { snapshot: menu }] = await Promise.all([
-        this.collector.service(service, region),
+        this.collector.service(service, region, billingMode === "RI"),
         this.collector.framework(),
         this.collector.directory(),
       ]);
       const pageSource = this.collector.store.latest(PAGE_URL);
       if (!pageSource) throw new Error("Huawei calculator page snapshot is missing");
+      const pricingFramework = instrumentNativePricing(framework.body);
       context = await (
         await this.getBrowser()
       ).newContext({ viewport: { width: 1440, height: 1200 }, serviceWorkers: "block", acceptDownloads: false });
@@ -162,7 +174,19 @@ export class NativeCalculator {
           return route.fulfill({ contentType: "application/json", body: menu.body });
         if (url.pathname.endsWith("/framework.js")) {
           if (request.url() !== framework.url) return route.abort();
-          return route.fulfill({ contentType: "application/javascript", body: framework.body });
+          return route.fulfill({ contentType: "application/javascript", body: pricingFramework });
+        }
+        if (url.pathname.endsWith("/inquiry/resource") && request.method() === "POST") {
+          try {
+            const inquiry = request.postDataJSON() as Inquiry;
+            if (!session || inquiry.regionId !== region || inquiry.siteCode !== "HWC" || ![0, 1, 2, 10].includes(inquiry.chargingMode)) throw new Error("Unexpected Huawei pricing scope");
+            const response = await this.gateway.inquire(inquiry);
+            session.prices.set(hash(canonical(inquiry)), { inquiry, response });
+            return route.fulfill({ contentType: "application/json", body: JSON.stringify(response) });
+          } catch (error) {
+            if (session) session.priceError = error instanceof Error ? error.message : "Huawei pricing failed";
+            return route.abort();
+          }
         }
         return route.continue();
       });
@@ -177,11 +201,12 @@ export class NativeCalculator {
         context,
         service,
         region,
+        billingMode,
         created: Date.now(),
         touched: Date.now(),
         revision: 0,
         busy: true,
-        selection: { version: 1, service, region, initial: [], steps: [], fields: [] },
+        selection: { version: 2, service, region, billingMode, initial: [], steps: [], fields: [] },
         source: {
           page: pageSource.hash,
           config: config.hash,
@@ -195,6 +220,8 @@ export class NativeCalculator {
         generation: 0,
         requestedAt: 0,
         inquiry: null,
+        prices: new Map(),
+        inquiries: [],
         quote: null,
       };
       const current = session;
@@ -208,7 +235,7 @@ export class NativeCalculator {
         current.priceError = undefined;
         try {
           const inquiry = request.postDataJSON() as Inquiry;
-          if (inquiry.regionId !== region || inquiry.chargingMode !== 1 || inquiry.siteCode !== "HWC")
+          if (inquiry.regionId !== region || ![0, 1, 2, 10].includes(inquiry.chargingMode) || inquiry.siteCode !== "HWC")
             throw new Error("Huawei returned a different region or billing mode");
           current.inquiry = inquiry;
         } catch (error) {
@@ -226,11 +253,11 @@ export class NativeCalculator {
       );
       await page.locator('[id^="calculator_"]').first().waitFor({ timeout: 45000 });
       await page.evaluate(
-        (region) =>
+        ({region, billingMode}) =>
           (window as unknown as { iframeSetValue: (value: unknown) => void }).iframeSetValue({
-            global_REGIONINFO: { region, chargeMode: "ONDEMAND", locationType: "commonAZ" },
+            global_REGIONINFO: { region, chargeMode: billingMode, locationType: "commonAZ" },
           }),
-        region,
+        {region, billingMode},
       );
       const guide = page.locator(".guide-dialog").getByRole("button", { name: "Close", exact: true });
       if (await guide.isVisible()) {
@@ -259,9 +286,11 @@ export class NativeCalculator {
       revision: s.revision,
       service: s.service,
       region: s.region,
+      billingMode: s.billingMode,
       source: s.source,
       expiresAt: new Date(Math.min(s.touched + IDLE_MS, s.created + MAX_AGE_MS)).toISOString(),
       inquiry: s.form.diagnostics.length ? null : s.inquiry,
+      inquiries: s.form.diagnostics.length ? [] : s.inquiries,
       quote: s.form.diagnostics.length ? null : s.quote,
       priceError: s.priceError,
     };
@@ -272,13 +301,15 @@ export class NativeCalculator {
       stableSince = Date.now();
     while (Date.now() < deadline) {
       const form = await readNativeForm(s.page);
+      const pricing = await readNativePricing(s.page);
       form.diagnostics.push(...new Set(s.sourceErrors));
       const signature = JSON.stringify(form);
       if (signature !== previous) {
         previous = signature;
         stableSince = Date.now();
       }
-      if (s.generation > after && Date.now() - Math.max(stableSince, s.requestedAt) >= 1500) {
+      if (pricing && !pricing.pending && pricing.selectedProduct.chargeMode === s.billingMode && pricing.result &&
+          (s.generation > after || pricing.result.productRatingResult?.length) && Date.now() - Math.max(stableSince, s.requestedAt) >= 1500) {
         s.form = form;
         return;
       }
@@ -291,21 +322,32 @@ export class NativeCalculator {
       502,
     );
   }
-  private async price(s: Session) {
+  private async price(s: Session, fresh = false) {
     s.quote = null;
-    if (s.form.diagnostics.length || !s.inquiry) return;
-    s.priceError = undefined;
-    const generation = s.generation;
+    if (s.form.diagnostics.length) return;
     try {
-      const quote = await this.gateway.quote(
-        `${s.source.config}:${s.source.products}:${s.source.framework}`,
-        s.inquiry,
-        true,
-      );
+      if (fresh) {
+        s.prices.clear();
+        await refreshNativePricing(s.page);
+      }
+      const pricing = await readNativePricing(s.page);
+      if (!pricing) throw new Error("Huawei's pricing aggregation is unavailable");
+      const generation = s.generation;
+      const { quote, inquiries } = buildNativeQuote(pricing, [...s.prices.values()], {
+        service: s.service, region: s.region, billingMode: s.billingMode,
+        releaseId: `${s.source.config}:${s.source.products}:${s.source.framework}`,
+      });
       const current = await readNativeForm(s.page);
-      if (s.sourceErrors.length || s.generation !== generation || JSON.stringify(current) !== JSON.stringify(s.form))
+      const latestPricing = await readNativePricing(s.page);
+      if (s.sourceErrors.length || s.generation !== generation || latestPricing?.epoch !== pricing.epoch || latestPricing?.pending || JSON.stringify(current) !== JSON.stringify(s.form))
         throw new Error("Huawei changed the configuration while pricing. Reopen to retry.");
       s.quote = quote;
+      s.inquiries = inquiries;
+      // Keep only the current aggregation; edit history is stored separately.
+      for (const [key, value] of s.prices)
+        if (!inquiries.includes(value.inquiry)) s.prices.delete(key);
+      s.inquiry = inquiries.find(inquiry => inquiry.chargingMode === nativeBillingModes[s.billingMode].chargingMode) ?? inquiries[0] ?? null;
+      s.priceError = undefined;
     } catch (error) {
       s.priceError = error instanceof Error ? error.message : "Huawei price unavailable";
     }
@@ -361,7 +403,7 @@ export class NativeCalculator {
     s.busy = true;
     s.touched = Date.now();
     try {
-      await this.price(s);
+      await this.price(s, true);
       if (!s.quote || s.form.diagnostics.length)
         throw new NativeError(s.priceError ?? "A complete Huawei price is required before saving.");
       return this.state(s);
@@ -371,7 +413,7 @@ export class NativeCalculator {
   }
   async restore(input: unknown): Promise<NativeState> {
     const saved = parseNativeSelection(input);
-    let state = await this.open(saved.service, saved.region);
+    let state = await this.open(saved.service, saved.region, selectionBillingMode(saved));
     try {
       if (!sameSelection(selectionFields(state), saved.initial))
         throw new NativeError("Huawei's defaults or controls changed. Configure this item again before saving.");
@@ -393,6 +435,11 @@ export class NativeCalculator {
       }
       if (!sameSelection(selectionFields(state), saved.fields))
         throw new NativeError("Huawei could not restore the exact saved configuration.");
+      if (saved.version === 1) {
+        const session = this.sessions.get(state.session);
+        if (session) session.selection = { ...session.selection, version: 1, billingMode: undefined };
+        state = { ...state, selection: { ...state.selection, version: 1, billingMode: undefined } };
+      }
       return state;
     } catch (error) {
       await this.remove(state.session);

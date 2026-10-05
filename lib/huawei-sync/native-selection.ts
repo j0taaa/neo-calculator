@@ -1,16 +1,18 @@
 import type { NativeField, NativeForm } from "./native-types";
+import { isNativeBillingMode, type NativeBillingMode } from "./native-billing";
 
 export type NativeSelectionField = Pick<NativeField, "id" | "component" | "label" | "type" | "value"> & {
   optionLabel?: string;
 };
 export type NativeSelection = {
-  version: 1;
   service: string;
   region: string;
   initial: NativeSelectionField[];
   steps: { before: NativeSelectionField; value: string | number | boolean; optionLabel?: string }[];
   fields: NativeSelectionField[];
-};
+} & ({ version: 1; billingMode?: never } | { version: 2; billingMode: NativeBillingMode });
+
+export const selectionBillingMode = (selection: NativeSelection): NativeBillingMode => selection.billingMode ?? "ONDEMAND";
 
 export function selectionField(field: NativeField): NativeSelectionField {
   return {
@@ -45,7 +47,9 @@ export function parseNativeSelection(value: unknown): NativeSelection {
   if (!value || typeof value !== "object") throw new Error("Missing saved Huawei configuration");
   const selection = value as NativeSelection;
   if (
-    selection.version !== 1 ||
+    ![1, 2].includes(selection.version) ||
+    (selection.version === 2 && !isNativeBillingMode(selection.billingMode)) ||
+    (selection.version === 1 && selection.billingMode !== undefined) ||
     typeof selection.service !== "string" ||
     typeof selection.region !== "string" ||
     !Array.isArray(selection.initial) ||

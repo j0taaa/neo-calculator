@@ -76,7 +76,9 @@ try {
         assert.equal(canonical(semanticInquiry(state!.inquiry!)), canonical(semanticInquiry(official.inquiry)), `${service}/${region}/${name}: complete inquiry mismatch`);
         assert.equal(state!.quote!.currency, official.currency);
         assert(Math.abs(state!.quote!.amount - official.amount) < 0.000001, `${name}: total mismatch`);
-        assert.deepEqual(state!.quote!.breakdown.map(p => p.amount).sort((a,b) => a-b), official.components.sort((a,b) => a-b));
+        // The complete renderer also includes free catalog images omitted from the billing API.
+        const charged = (values: number[]) => values.filter(value => value !== 0).sort((a,b) => a-b);
+        assert.deepEqual(charged(state!.quote!.breakdown.map(p => p.amount)), charged(official.components));
         // Independent input coverage check: all visible upstream numeric inputs must be exposed, including inline controls.
         const numericCount = await page.locator('[id^="calculator_"] input[role="spinbutton"]:visible, #global_ONDEMANDTIME input[role="spinbutton"]:visible, #global_QUANTITY input[role="spinbutton"]:visible').count();
         assert.equal(state!.fields.filter(f => f.type === "number").length, numericCount, "Missing numeric controls");

@@ -42,3 +42,16 @@ test("transient quote failures retry once, share the retry, and never cache a fa
   await expect(new QuoteGateway(async () => { permanent++; throw new Error("Invalid inquiry"); }).quote("a", inquiry)).rejects.toThrow();
   expect(permanent).toBe(1);
 });
+
+test("fresh inquiries preserve RI installments and reject invalid recurring rates", async () => {
+  const response = {amount:0, currency:"USD", perAmount:0.0476, productRatingResult:[{id:"0",amount:0,perAmount:0.0476,officialExtra:"retained"}]};
+  let calls = 0;
+  const gateway = new QuoteGateway(async () => {calls++;return response;});
+  expect(await gateway.inquire(inquiry)).toEqual(response);
+  expect(await gateway.inquire(inquiry)).toEqual(response);
+  expect(calls).toBe(2);
+  for (const perAmount of [NaN,Infinity,-1]) {
+    await expect(new QuoteGateway(async () => ({...response,perAmount})).inquire(inquiry)).rejects.toThrow();
+    await expect(new QuoteGateway(async () => ({...response,productRatingResult:[{id:"0",amount:0,perAmount}]})).inquire(inquiry)).rejects.toThrow();
+  }
+});

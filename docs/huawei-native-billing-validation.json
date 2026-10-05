@@ -1,0 +1,543 @@
+{
+  "checkedAt": "2026-09-30T02:50:03.017469+00:00",
+  "liveChecks": 34,
+  "officialComparisons": 24,
+  "regionalGuards": 3,
+  "elapsedSeconds": 230.567,
+  "method": "Unmodified official-renderer executions with pinned public sources; complete inquiry sets, displayed totals, exact ordinary API totals, and independently summed RI payment schedules. Saved selections replayed and freshly quoted.",
+  "unitTests": 347,
+  "mainApplicationScenarios": 20,
+  "domFixtureTests": 4,
+  "limitations": [
+    "This is sampled service/region/configuration coverage, not every possible combination.",
+    "Checked ECS RI flavors currently offer No Upfront; Partial and All Upfront schedules are covered by unit fixtures.",
+    "Official aC8 image defaults can be incomplete; ECS checks explicitly select C7n."
+  ],
+  "cases": [
+    {
+      "service": "nat",
+      "region": "ap-southeast-1",
+      "billingMode": "ONDEMAND",
+      "name": "default",
+      "amount": 2.438,
+      "source": {
+        "page": "6b3f650c493aa7b0acee484168bd559d5ea827f0c5f69770cfb4d2e313fcf810",
+        "config": "cdeeb27fa03ba83eeeb94e051c0de135dadd898a53de2a32b39127d561d624ef",
+        "products": "9e367e2987fcf31fed62b4838f1ca8b86bff32d56fd80cc7a88724e2575fe0b1",
+        "framework": "bd9a0b42e80a5779409416a32232b7af4c7e09342dc49100b81d2c8a9e5d71ff",
+        "menu": "75b799cc2c669528310de42b369669024e87a68125ac1ed37ae45fcc9716dbbf",
+        "fetchedAt": "2026-09-30T02:37:48.644Z"
+      }
+    },
+    {
+      "service": "nat",
+      "region": "ap-southeast-1",
+      "billingMode": "ONDEMAND",
+      "name": "duration-two",
+      "amount": 4.876,
+      "source": {
+        "page": "6b3f650c493aa7b0acee484168bd559d5ea827f0c5f69770cfb4d2e313fcf810",
+        "config": "cdeeb27fa03ba83eeeb94e051c0de135dadd898a53de2a32b39127d561d624ef",
+        "products": "9e367e2987fcf31fed62b4838f1ca8b86bff32d56fd80cc7a88724e2575fe0b1",
+        "framework": "bd9a0b42e80a5779409416a32232b7af4c7e09342dc49100b81d2c8a9e5d71ff",
+        "menu": "75b799cc2c669528310de42b369669024e87a68125ac1ed37ae45fcc9716dbbf",
+        "fetchedAt": "2026-09-30T02:37:48.644Z"
+      }
+    },
+    {
+      "service": "nat",
+      "region": "ap-southeast-1",
+      "billingMode": "ONDEMAND",
+      "name": "save-and-replay",
+      "amount": 4.876
+    },
+    {
+      "service": "nat",
+      "region": "ap-southeast-1",
+      "billingMode": "ONDEMAND",
+      "name": "legacy-replay",
+      "amount": 4.876
+    },
+    {
+      "service": "nat",
+      "region": "ap-southeast-1",
+      "billingMode": "PERIOD",
+      "name": "default",
+      "amount": 57.3,
+      "source": {
+        "page": "6b3f650c493aa7b0acee484168bd559d5ea827f0c5f69770cfb4d2e313fcf810",
+        "config": "cdeeb27fa03ba83eeeb94e051c0de135dadd898a53de2a32b39127d561d624ef",
+        "products": "9e367e2987fcf31fed62b4838f1ca8b86bff32d56fd80cc7a88724e2575fe0b1",
+        "framework": "bd9a0b42e80a5779409416a32232b7af4c7e09342dc49100b81d2c8a9e5d71ff",
+        "menu": "75b799cc2c669528310de42b369669024e87a68125ac1ed37ae45fcc9716dbbf",
+        "fetchedAt": "2026-09-30T02:37:48.644Z"
+      }
+    },
+    {
+      "service": "nat",
+      "region": "ap-southeast-1",
+      "billingMode": "PERIOD",
+      "name": "annual",
+      "amount": 573,
+      "source": {
+        "page": "6b3f650c493aa7b0acee484168bd559d5ea827f0c5f69770cfb4d2e313fcf810",
+        "config": "cdeeb27fa03ba83eeeb94e051c0de135dadd898a53de2a32b39127d561d624ef",
+        "products": "9e367e2987fcf31fed62b4838f1ca8b86bff32d56fd80cc7a88724e2575fe0b1",
+        "framework": "bd9a0b42e80a5779409416a32232b7af4c7e09342dc49100b81d2c8a9e5d71ff",
+        "menu": "75b799cc2c669528310de42b369669024e87a68125ac1ed37ae45fcc9716dbbf",
+        "fetchedAt": "2026-09-30T02:37:48.644Z"
+      }
+    },
+    {
+      "service": "nat",
+      "region": "ap-southeast-1",
+      "billingMode": "PERIOD",
+      "name": "three-years",
+      "amount": 1719,
+      "source": {
+        "page": "6b3f650c493aa7b0acee484168bd559d5ea827f0c5f69770cfb4d2e313fcf810",
+        "config": "cdeeb27fa03ba83eeeb94e051c0de135dadd898a53de2a32b39127d561d624ef",
+        "products": "9e367e2987fcf31fed62b4838f1ca8b86bff32d56fd80cc7a88724e2575fe0b1",
+        "framework": "bd9a0b42e80a5779409416a32232b7af4c7e09342dc49100b81d2c8a9e5d71ff",
+        "menu": "75b799cc2c669528310de42b369669024e87a68125ac1ed37ae45fcc9716dbbf",
+        "fetchedAt": "2026-09-30T02:37:48.644Z"
+      }
+    },
+    {
+      "service": "nat",
+      "region": "ap-southeast-1",
+      "billingMode": "PERIOD",
+      "name": "save-and-replay",
+      "amount": 1719
+    },
+    {
+      "service": "elb",
+      "region": "ap-southeast-1",
+      "billingMode": "PERIOD",
+      "name": "default",
+      "amount": 26.95,
+      "source": {
+        "page": "6b3f650c493aa7b0acee484168bd559d5ea827f0c5f69770cfb4d2e313fcf810",
+        "config": "e60e69b064d30766f6a3f0eeee992b45f2c653719bd94f9d488deb21ee33837b",
+        "products": "13f12001ef66f03aba5a0e255901a8292b1a80c3bedb5f12244bd8e303faf172",
+        "framework": "bd9a0b42e80a5779409416a32232b7af4c7e09342dc49100b81d2c8a9e5d71ff",
+        "menu": "75b799cc2c669528310de42b369669024e87a68125ac1ed37ae45fcc9716dbbf",
+        "fetchedAt": "2026-09-30T02:38:38.999Z"
+      }
+    },
+    {
+      "service": "elb",
+      "region": "ap-southeast-1",
+      "billingMode": "PERIOD",
+      "name": "annual",
+      "amount": 269.54,
+      "source": {
+        "page": "6b3f650c493aa7b0acee484168bd559d5ea827f0c5f69770cfb4d2e313fcf810",
+        "config": "e60e69b064d30766f6a3f0eeee992b45f2c653719bd94f9d488deb21ee33837b",
+        "products": "13f12001ef66f03aba5a0e255901a8292b1a80c3bedb5f12244bd8e303faf172",
+        "framework": "bd9a0b42e80a5779409416a32232b7af4c7e09342dc49100b81d2c8a9e5d71ff",
+        "menu": "75b799cc2c669528310de42b369669024e87a68125ac1ed37ae45fcc9716dbbf",
+        "fetchedAt": "2026-09-30T02:38:38.999Z"
+      }
+    },
+    {
+      "service": "elb",
+      "region": "ap-southeast-1",
+      "billingMode": "PERIOD",
+      "name": "three-years",
+      "amount": 808.63,
+      "source": {
+        "page": "6b3f650c493aa7b0acee484168bd559d5ea827f0c5f69770cfb4d2e313fcf810",
+        "config": "e60e69b064d30766f6a3f0eeee992b45f2c653719bd94f9d488deb21ee33837b",
+        "products": "13f12001ef66f03aba5a0e255901a8292b1a80c3bedb5f12244bd8e303faf172",
+        "framework": "bd9a0b42e80a5779409416a32232b7af4c7e09342dc49100b81d2c8a9e5d71ff",
+        "menu": "75b799cc2c669528310de42b369669024e87a68125ac1ed37ae45fcc9716dbbf",
+        "fetchedAt": "2026-09-30T02:38:38.999Z"
+      }
+    },
+    {
+      "service": "elb",
+      "region": "ap-southeast-1",
+      "billingMode": "PERIOD",
+      "name": "save-and-replay",
+      "amount": 808.63
+    },
+    {
+      "service": "redis",
+      "region": "ap-southeast-3",
+      "billingMode": "PERIOD",
+      "name": "default",
+      "amount": 0.9,
+      "source": {
+        "page": "6b3f650c493aa7b0acee484168bd559d5ea827f0c5f69770cfb4d2e313fcf810",
+        "config": "977df3441cbe8f3c87931bd2d63cf1800cdfc2d4d21d560c74fd32506ed6e62c",
+        "products": "092a9c146b510fb2b20cdf9dc7560d1a1eea1709e902ce3e244f4e7b8531faa7",
+        "framework": "bd9a0b42e80a5779409416a32232b7af4c7e09342dc49100b81d2c8a9e5d71ff",
+        "menu": "75b799cc2c669528310de42b369669024e87a68125ac1ed37ae45fcc9716dbbf",
+        "fetchedAt": "2026-09-30T02:45:37.740Z"
+      }
+    },
+    {
+      "service": "redis",
+      "region": "ap-southeast-3",
+      "billingMode": "PERIOD",
+      "name": "annual",
+      "amount": 9.09,
+      "source": {
+        "page": "6b3f650c493aa7b0acee484168bd559d5ea827f0c5f69770cfb4d2e313fcf810",
+        "config": "977df3441cbe8f3c87931bd2d63cf1800cdfc2d4d21d560c74fd32506ed6e62c",
+        "products": "092a9c146b510fb2b20cdf9dc7560d1a1eea1709e902ce3e244f4e7b8531faa7",
+        "framework": "bd9a0b42e80a5779409416a32232b7af4c7e09342dc49100b81d2c8a9e5d71ff",
+        "menu": "75b799cc2c669528310de42b369669024e87a68125ac1ed37ae45fcc9716dbbf",
+        "fetchedAt": "2026-09-30T02:45:37.740Z"
+      }
+    },
+    {
+      "service": "redis",
+      "region": "ap-southeast-3",
+      "billingMode": "PERIOD",
+      "name": "three-years",
+      "amount": 16.36,
+      "source": {
+        "page": "6b3f650c493aa7b0acee484168bd559d5ea827f0c5f69770cfb4d2e313fcf810",
+        "config": "977df3441cbe8f3c87931bd2d63cf1800cdfc2d4d21d560c74fd32506ed6e62c",
+        "products": "092a9c146b510fb2b20cdf9dc7560d1a1eea1709e902ce3e244f4e7b8531faa7",
+        "framework": "bd9a0b42e80a5779409416a32232b7af4c7e09342dc49100b81d2c8a9e5d71ff",
+        "menu": "75b799cc2c669528310de42b369669024e87a68125ac1ed37ae45fcc9716dbbf",
+        "fetchedAt": "2026-09-30T02:45:37.740Z"
+      }
+    },
+    {
+      "service": "redis",
+      "region": "ap-southeast-3",
+      "billingMode": "PERIOD",
+      "name": "save-and-replay",
+      "amount": 16.36
+    },
+    {
+      "service": "ecs",
+      "region": "ap-southeast-1",
+      "billingMode": "PERIOD",
+      "name": "usable-generation",
+      "amount": 80.6,
+      "source": {
+        "page": "6b3f650c493aa7b0acee484168bd559d5ea827f0c5f69770cfb4d2e313fcf810",
+        "config": "6ffc3213332236defd956da8c3bb25ac247712b98bdef09090f226a02cf49663",
+        "products": "e45a80a80a2e19f60fa0181c309648fc0985e87ca70916607a7f1cb27914f6bb",
+        "framework": "bd9a0b42e80a5779409416a32232b7af4c7e09342dc49100b81d2c8a9e5d71ff",
+        "menu": "75b799cc2c669528310de42b369669024e87a68125ac1ed37ae45fcc9716dbbf",
+        "fetchedAt": "2026-09-30T02:46:04.242Z"
+      }
+    },
+    {
+      "service": "ecs",
+      "region": "ap-southeast-1",
+      "billingMode": "PERIOD",
+      "name": "annual",
+      "amount": 806,
+      "source": {
+        "page": "6b3f650c493aa7b0acee484168bd559d5ea827f0c5f69770cfb4d2e313fcf810",
+        "config": "6ffc3213332236defd956da8c3bb25ac247712b98bdef09090f226a02cf49663",
+        "products": "e45a80a80a2e19f60fa0181c309648fc0985e87ca70916607a7f1cb27914f6bb",
+        "framework": "bd9a0b42e80a5779409416a32232b7af4c7e09342dc49100b81d2c8a9e5d71ff",
+        "menu": "75b799cc2c669528310de42b369669024e87a68125ac1ed37ae45fcc9716dbbf",
+        "fetchedAt": "2026-09-30T02:46:04.242Z"
+      }
+    },
+    {
+      "service": "ecs",
+      "region": "ap-southeast-1",
+      "billingMode": "PERIOD",
+      "name": "quantity-two",
+      "amount": 1612,
+      "source": {
+        "page": "6b3f650c493aa7b0acee484168bd559d5ea827f0c5f69770cfb4d2e313fcf810",
+        "config": "6ffc3213332236defd956da8c3bb25ac247712b98bdef09090f226a02cf49663",
+        "products": "e45a80a80a2e19f60fa0181c309648fc0985e87ca70916607a7f1cb27914f6bb",
+        "framework": "bd9a0b42e80a5779409416a32232b7af4c7e09342dc49100b81d2c8a9e5d71ff",
+        "menu": "75b799cc2c669528310de42b369669024e87a68125ac1ed37ae45fcc9716dbbf",
+        "fetchedAt": "2026-09-30T02:46:04.242Z"
+      }
+    },
+    {
+      "service": "ecs",
+      "region": "ap-southeast-1",
+      "billingMode": "PERIOD",
+      "name": "save-and-replay",
+      "amount": 1612
+    },
+    {
+      "service": "ecs",
+      "region": "ap-southeast-1",
+      "billingMode": "RI",
+      "name": "usable-generation",
+      "amount": 1053.6288,
+      "payment": {
+        "upfront": 0,
+        "recurring": 46.28,
+        "installments": 12,
+        "period": "Month",
+        "extras": [
+          {
+            "mode": "ONDEMAND",
+            "recurring": 41.5224
+          }
+        ]
+      },
+      "source": {
+        "page": "6b3f650c493aa7b0acee484168bd559d5ea827f0c5f69770cfb4d2e313fcf810",
+        "config": "6ffc3213332236defd956da8c3bb25ac247712b98bdef09090f226a02cf49663",
+        "products": "e45a80a80a2e19f60fa0181c309648fc0985e87ca70916607a7f1cb27914f6bb",
+        "framework": "bd9a0b42e80a5779409416a32232b7af4c7e09342dc49100b81d2c8a9e5d71ff",
+        "menu": "75b799cc2c669528310de42b369669024e87a68125ac1ed37ae45fcc9716dbbf",
+        "fetchedAt": "2026-09-30T02:46:32.694Z"
+      }
+    },
+    {
+      "service": "ecs",
+      "region": "ap-southeast-1",
+      "billingMode": "RI",
+      "name": "3 Years",
+      "amount": 2648.6064,
+      "payment": {
+        "upfront": 0,
+        "recurring": 32.05,
+        "installments": 36,
+        "period": "Month",
+        "extras": [
+          {
+            "mode": "ONDEMAND",
+            "recurring": 41.5224
+          }
+        ]
+      },
+      "source": {
+        "page": "6b3f650c493aa7b0acee484168bd559d5ea827f0c5f69770cfb4d2e313fcf810",
+        "config": "6ffc3213332236defd956da8c3bb25ac247712b98bdef09090f226a02cf49663",
+        "products": "e45a80a80a2e19f60fa0181c309648fc0985e87ca70916607a7f1cb27914f6bb",
+        "framework": "bd9a0b42e80a5779409416a32232b7af4c7e09342dc49100b81d2c8a9e5d71ff",
+        "menu": "75b799cc2c669528310de42b369669024e87a68125ac1ed37ae45fcc9716dbbf",
+        "fetchedAt": "2026-09-30T02:46:32.694Z"
+      }
+    },
+    {
+      "service": "ecs",
+      "region": "ap-southeast-1",
+      "billingMode": "RI",
+      "name": "quantity-two",
+      "amount": 5297.2128,
+      "payment": {
+        "upfront": 0,
+        "recurring": 64.1,
+        "installments": 36,
+        "period": "Month",
+        "extras": [
+          {
+            "mode": "ONDEMAND",
+            "recurring": 83.0448
+          }
+        ]
+      },
+      "source": {
+        "page": "6b3f650c493aa7b0acee484168bd559d5ea827f0c5f69770cfb4d2e313fcf810",
+        "config": "6ffc3213332236defd956da8c3bb25ac247712b98bdef09090f226a02cf49663",
+        "products": "e45a80a80a2e19f60fa0181c309648fc0985e87ca70916607a7f1cb27914f6bb",
+        "framework": "bd9a0b42e80a5779409416a32232b7af4c7e09342dc49100b81d2c8a9e5d71ff",
+        "menu": "75b799cc2c669528310de42b369669024e87a68125ac1ed37ae45fcc9716dbbf",
+        "fetchedAt": "2026-09-30T02:46:32.694Z"
+      }
+    },
+    {
+      "service": "ecs",
+      "region": "ap-southeast-1",
+      "billingMode": "RI",
+      "name": "save-and-replay",
+      "amount": 5297.2128
+    },
+    {
+      "service": "ecs",
+      "region": "sa-brazil-1",
+      "billingMode": "RI",
+      "name": "usable-generation",
+      "amount": 1989.2088,
+      "payment": {
+        "upfront": 0,
+        "recurring": 55.99,
+        "installments": 12,
+        "period": "Month",
+        "extras": [
+          {
+            "mode": "ONDEMAND",
+            "recurring": 109.7774
+          }
+        ]
+      },
+      "source": {
+        "page": "6b3f650c493aa7b0acee484168bd559d5ea827f0c5f69770cfb4d2e313fcf810",
+        "config": "6ffc3213332236defd956da8c3bb25ac247712b98bdef09090f226a02cf49663",
+        "products": "7996cd0bbbec32c654bb2dec72b15122cb552a292e6218551e854d4eb7f09e2c",
+        "framework": "bd9a0b42e80a5779409416a32232b7af4c7e09342dc49100b81d2c8a9e5d71ff",
+        "menu": "75b799cc2c669528310de42b369669024e87a68125ac1ed37ae45fcc9716dbbf",
+        "fetchedAt": "2026-09-30T02:47:04.926Z"
+      }
+    },
+    {
+      "service": "ecs",
+      "region": "sa-brazil-1",
+      "billingMode": "RI",
+      "name": "3 Years",
+      "amount": 5347.3464,
+      "payment": {
+        "upfront": 0,
+        "recurring": 38.76,
+        "installments": 36,
+        "period": "Month",
+        "extras": [
+          {
+            "mode": "ONDEMAND",
+            "recurring": 109.7774
+          }
+        ]
+      },
+      "source": {
+        "page": "6b3f650c493aa7b0acee484168bd559d5ea827f0c5f69770cfb4d2e313fcf810",
+        "config": "6ffc3213332236defd956da8c3bb25ac247712b98bdef09090f226a02cf49663",
+        "products": "7996cd0bbbec32c654bb2dec72b15122cb552a292e6218551e854d4eb7f09e2c",
+        "framework": "bd9a0b42e80a5779409416a32232b7af4c7e09342dc49100b81d2c8a9e5d71ff",
+        "menu": "75b799cc2c669528310de42b369669024e87a68125ac1ed37ae45fcc9716dbbf",
+        "fetchedAt": "2026-09-30T02:47:04.926Z"
+      }
+    },
+    {
+      "service": "ecs",
+      "region": "sa-brazil-1",
+      "billingMode": "RI",
+      "name": "quantity-two",
+      "amount": 10694.6928,
+      "payment": {
+        "upfront": 0,
+        "recurring": 77.52,
+        "installments": 36,
+        "period": "Month",
+        "extras": [
+          {
+            "mode": "ONDEMAND",
+            "recurring": 219.5548
+          }
+        ]
+      },
+      "source": {
+        "page": "6b3f650c493aa7b0acee484168bd559d5ea827f0c5f69770cfb4d2e313fcf810",
+        "config": "6ffc3213332236defd956da8c3bb25ac247712b98bdef09090f226a02cf49663",
+        "products": "7996cd0bbbec32c654bb2dec72b15122cb552a292e6218551e854d4eb7f09e2c",
+        "framework": "bd9a0b42e80a5779409416a32232b7af4c7e09342dc49100b81d2c8a9e5d71ff",
+        "menu": "75b799cc2c669528310de42b369669024e87a68125ac1ed37ae45fcc9716dbbf",
+        "fetchedAt": "2026-09-30T02:47:04.926Z"
+      }
+    },
+    {
+      "service": "ecs",
+      "region": "sa-brazil-1",
+      "billingMode": "RI",
+      "name": "save-and-replay",
+      "amount": 10694.6928
+    },
+    {
+      "service": "ccm",
+      "region": "ap-southeast-1",
+      "billingMode": "ONETIME",
+      "name": "default",
+      "amount": 518,
+      "source": {
+        "page": "6b3f650c493aa7b0acee484168bd559d5ea827f0c5f69770cfb4d2e313fcf810",
+        "config": "326d368de5fd3cf894707a2568e5c49a685f0649344dc18834e9dc3ab9609481",
+        "products": "f0462127cb0d874568ac1d03c29e9c41722e485d3d0e8fa4a6782922f71ab3d6",
+        "framework": "bd9a0b42e80a5779409416a32232b7af4c7e09342dc49100b81d2c8a9e5d71ff",
+        "menu": "75b799cc2c669528310de42b369669024e87a68125ac1ed37ae45fcc9716dbbf",
+        "fetchedAt": "2026-09-30T02:47:38.576Z"
+      }
+    },
+    {
+      "service": "ccm",
+      "region": "ap-southeast-1",
+      "billingMode": "ONETIME",
+      "name": "quantity-two",
+      "amount": 1036,
+      "source": {
+        "page": "6b3f650c493aa7b0acee484168bd559d5ea827f0c5f69770cfb4d2e313fcf810",
+        "config": "326d368de5fd3cf894707a2568e5c49a685f0649344dc18834e9dc3ab9609481",
+        "products": "f0462127cb0d874568ac1d03c29e9c41722e485d3d0e8fa4a6782922f71ab3d6",
+        "framework": "bd9a0b42e80a5779409416a32232b7af4c7e09342dc49100b81d2c8a9e5d71ff",
+        "menu": "75b799cc2c669528310de42b369669024e87a68125ac1ed37ae45fcc9716dbbf",
+        "fetchedAt": "2026-09-30T02:47:38.576Z"
+      }
+    },
+    {
+      "service": "ccm",
+      "region": "ap-southeast-1",
+      "billingMode": "ONETIME",
+      "name": "validity-three-years",
+      "amount": 3288,
+      "source": {
+        "page": "6b3f650c493aa7b0acee484168bd559d5ea827f0c5f69770cfb4d2e313fcf810",
+        "config": "326d368de5fd3cf894707a2568e5c49a685f0649344dc18834e9dc3ab9609481",
+        "products": "f0462127cb0d874568ac1d03c29e9c41722e485d3d0e8fa4a6782922f71ab3d6",
+        "framework": "bd9a0b42e80a5779409416a32232b7af4c7e09342dc49100b81d2c8a9e5d71ff",
+        "menu": "75b799cc2c669528310de42b369669024e87a68125ac1ed37ae45fcc9716dbbf",
+        "fetchedAt": "2026-09-30T02:47:38.576Z"
+      }
+    },
+    {
+      "service": "ccm",
+      "region": "ap-southeast-1",
+      "billingMode": "ONETIME",
+      "name": "save-and-replay",
+      "amount": 3288
+    },
+    {
+      "service": "dew",
+      "region": "ap-southeast-1",
+      "billingMode": "ONETIME",
+      "name": "default",
+      "amount": 13000,
+      "source": {
+        "page": "6b3f650c493aa7b0acee484168bd559d5ea827f0c5f69770cfb4d2e313fcf810",
+        "config": "57f66bf14ac764edf294248cfeea0b69e06715cc0eb304a6c3db85ed45e96dc0",
+        "products": "ed63f63ddf5d6a92dc7b266518265099358548c85aa0da99973ff96eb088c13c",
+        "framework": "bd9a0b42e80a5779409416a32232b7af4c7e09342dc49100b81d2c8a9e5d71ff",
+        "menu": "75b799cc2c669528310de42b369669024e87a68125ac1ed37ae45fcc9716dbbf",
+        "fetchedAt": "2026-09-30T02:48:02.752Z"
+      }
+    },
+    {
+      "service": "dew",
+      "region": "ap-southeast-1",
+      "billingMode": "ONETIME",
+      "name": "save-and-replay",
+      "amount": 13000
+    }
+  ],
+  "payPerUseRegression": {
+    "comparisons": 27,
+    "elapsedSeconds": 101.0,
+    "services": [
+      "ecs",
+      "elb",
+      "redis",
+      "nat"
+    ],
+    "region": "ap-southeast-1",
+    "method": "Complete semantic inquiry, exact API total and every charged component; the renderer may additionally include zero-price catalog image components."
+  },
+  "deployment": {
+    "url": "https://calculator.hwctools.site/?tab=huawei-live",
+    "productionBrowserChecks": 13,
+    "nativeModeChecks": 4,
+    "legacyChecks": 9,
+    "httpStatus": 200,
+    "httpRedirect": 308,
+    "tlsVerified": true,
+    "sidecarHealthy": true,
+    "routing": "Explicit traefik.docker.network=home_web on the app"
+  }
+}

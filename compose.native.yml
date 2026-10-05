@@ -1,6 +1,9 @@
-# Optional production overlay: docker compose -f /home/docker-compose.yml -f compose.native.yml up -d --build calculator calculator-native
+# Sidecar definition referenced by the VPS parent Compose file.
+# Deploy: docker compose -f /home/docker-compose.yml up -d --build calculator-native calculator
 services:
   calculator:
+    labels:
+      - traefik.docker.network=home_web
     env_file:
       - ${NATIVE_ENV_FILE:-/home/neo-calculator-native.env}
     environment:
