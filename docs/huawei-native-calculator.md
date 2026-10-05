@@ -96,3 +96,44 @@ The billing run passed **24 independent official comparisons and 10 saved-select
 The additional pay-per-use regression passed **27 independent comparisons in 101.0 seconds** across ECS, ELB, DCS and NAT in Hong Kong. It verifies complete inquiries, exact totals and charged components; the full renderer also retains zero-price catalog image components that the rating API omits.
 
 Production verification passed four live-mode browser scenarios and nine legacy/catalog checks. HTTPS returns 200 with a valid calculator.hwctools.site certificate, HTTP redirects with 308, and the native sidecar is healthy. The VPS parent Compose file already references `compose.native.yml`; deploy through the parent file with `docker compose -f /home/docker-compose.yml up -d --build calculator-native calculator`.
+
+## Memory budget and runtime decision
+
+The browserless experiment was retired at the user's request. Its code, nested
+dependencies, temporary artifacts and public preview were removed; the production
+Chromium runtime remains unchanged. The experiment's PR was closed.
+
+The native service shares one Chromium browser across a maximum of six sessions;
+each session has its own browser context and page. Closing a session closes its
+context. Idle sessions expire after ten minutes, and sessions have a thirty-minute
+maximum age. These limits are applied when the service sweeps its sessions.
+
+An isolated container using the exact production image measured the following
+total backend working memory, including the anonymous controller and Chromium:
+
+| Open sessions | Sample | Working memory |
+| --- | --- | ---: |
+| 1 | NAT, Hong Kong | 414 MiB |
+| 2 | NAT + ECS, Hong Kong | 751 MiB |
+| 3 | NAT + ECS + ELB, Hong Kong | 1,025 MiB |
+| 6 | Above plus Redis Singapore, ECS RI São Paulo and NAT São Paulo | 1,421 MiB |
+| 0, after closing all six | Shared browser retained | 374 MiB |
+
+The sampled peak was 1,502 MiB. A seventh session was rejected, all six produced
+complete quotes without diagnostics, and context/browser cleanup passed. The
+production service currently has a 3 GiB container memory limit. The tested mixed
+workload fits that limit; this is not proof that every six-session configuration
+or simultaneous opening burst fits it.
+
+At the time of measurement the existing idle production native container used
+about 98 MiB, while the separate Next.js application used about 139 MiB. Warmed
+memory can remain higher after closing tabs because the browser and controller
+retain caches and garbage collection is not immediate.
+
+These figures use cgroup-v1 memory usage minus inactive file cache, following
+Docker's working-memory accounting. They avoid summing subprocess RSS, which can
+count shared pages multiple times. The six-session sample also had about 20 MiB
+in swap. It was one run with sequential openings, not a worst-case load test.
+Source data, selections, caching, swap and garbage collection affect the results.
+See [the raw measurements](huawei-native-memory-validation.json) for timestamps,
+the exact production image, per-phase values and verification details.
