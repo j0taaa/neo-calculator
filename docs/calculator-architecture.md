@@ -1,6 +1,6 @@
 # Calculator architecture and Huawei integration seam
 
-This refactor prepares the existing calculator for another runtime. It does not route the main calculator through the native Huawei preview, change stored product schemas, or migrate saved carts.
+The main workspace offers the existing Price Calculator and a Huawei live tab. Both save to the same projects and carts. Existing saved products keep their original runtime; native products use a versioned replayable configuration.
 
 ## Responsibilities
 
@@ -15,6 +15,11 @@ flowchart TD
   cart --> transport[Existing authenticated product endpoints]
   cart --> state[Shared immutable cart update]
   controller --> panel[Typed active panel]
+  page --> nativePanel[Shared Huawei live panel]
+  nativePanel --> renderer[Private Huawei renderer]
+  nativePanel --> cart
+  transport --> verifier[Fresh native quote verification]
+  verifier --> renderer
 ```
 
 - `lib/calculator-types.ts` owns shared calculator and saved-product contracts without importing React, UI formatting, storage or a pricing engine. Existing JSON fields and API response shapes remain unchanged.
@@ -32,18 +37,23 @@ The writer is injected. Saves update the original item first when editing; split
 
 Pricing is opaque to the cart workflow. It never recomputes, rounds or multiplies a source's price. Quantity and configuration are passed through unchanged. Validation and authentication at the existing endpoints remain in effect.
 
-## Next integration, deliberately deferred
+## Huawei live integration
 
-The native implementation remains under `lib/huawei-sync` and `/sync-lab`. To integrate it:
+`NativeCalculatorPanel` is shared by the main workspace and the preview. It discovers services and regions through `/api/calculator/native`; `/api/sync-lab/live` remains a compatibility alias. The main dashboard supplies the existing cart writer and uses `saveCalculatorProducts` for save/edit operations. Opening a native cart item selects the Huawei live tab and replays its saved configuration. Switching to a different runtime cancels the current edit.
 
-1. Adapt native form/session state to a typed active panel, including loading, expiry, unavailable configurations and invalidation of stale quotes after edits.
-2. Implement `CalculatorProductSource` for a verified native selection. Its asynchronous builder must obtain a fresh quote for the current revision before producing a saved product. The shared cart workflow already awaits it.
-3. Persist a versioned, durable selection that can reopen and replay the configuration after a session expires. A transient native session ID is not sufficient for saved-cart editing.
-4. Validate and reprice those saved native products on the server before accepting them. The current legacy client pricing payload must not be treated as proof of a verified Huawei quote.
-5. Add native edit hydration and service discovery/region availability to the main selector. Keep explicit unsupported states and existing legacy products editable during migration.
-6. Test save/edit/reopen/batch behavior, expired sessions, concurrent option changes, regional availability and independent Huawei price parity before switching any service over.
+Native products have `productType: huawei-native`, `serviceCode: HUAWEI:<Huawei ID>`, and a versioned `config.selection`. The selection records initial controls, validated interactions (including repeated disk actions), and final control values/option labels. It contains no persistent browser session dependency. Replaying checks initial defaults, each control identity/option label and the complete final selection. Changed upstream defaults or unavailable options require reconfiguration; they cannot silently quote another product.
 
-No placeholder native adapter, new provider registry or second cart schema is introduced here. There are two concrete product-source implementations today; the future native adapter will reuse that same cart workflow.
+Authenticated product POST/PATCH endpoints ignore client-supplied native prices. `verifyNativeProduct` asks the private renderer for a fresh quote of the exact session revision, or replays a durable selection if no session is supplied. Only the resulting server selection, source hashes, quantity and price are persisted; transient session IDs are stripped. Private API repricing uses the same verifier. Import/export and cloning retain saved snapshots; they do not imply a new live quote or automatic conversion to another region/billing mode.
+
+The Huawei runtime currently supports pay-per-use. The existing runtime remains available for monthly/yearly, RI and legacy batch inputs. The live directory discovers new services automatically; unknown controls or incomplete inquiries block pricing. Source refresh, expiry, capacity and unavailable-upstream behavior remain in the native sidecar.
+
+## Shared core
+
+- The projects page and dashboard share project mutations, sharing, transfer, project cloning, product contracts and summaries. Page-specific list management and layouts remain local.
+- `evaluateServiceConfiguration` owns catalog derivation and estimate scope construction for interactive forms, batch items and server repricing.
+- Catalog data, resolved region, loading and error state are a single entry keyed by service and requested region. A different region cannot temporarily use the previous region's catalog.
+- All service bundles use the same runtime definition type. The eight former legacy bundles now use compiled callbacks for complex expressions. The string evaluator, `new Function` execution and legacy converter are removed. Declarative fields and existing typed operations remain supported.
+- The callback migration is checked against 28 captured pre-change configurations in addition to existing pricing fixtures.
 
 ## Verification
 
@@ -51,6 +61,8 @@ No placeholder native adapter, new provider registry or second cart schema is in
 - `bunx tsc --noEmit` and `bun run lint`.
 - `bunx playwright test --config tests/playwright.config.ts`: eight declarative forms, public routes, saved-cart edit/batch/clone/share/export/import, and ECS/Flexus L save/edit/batch scenarios. Run write scenarios only against an isolated local app database.
 - Production build and read-only browser checks against the deployed app.
+
+With an isolated native sidecar, `NEO_NATIVE_TESTS=1 bunx playwright test --config tests/playwright.config.ts` also exercises the main native cart, durable selection replay, authenticated/private API verification, and invalid saved configuration recovery. Write tests reject production hostnames.
 
 These checks establish regression coverage for the refactor, not universal parity of every legacy calculator with Huawei. Native parity evidence remains documented separately in `huawei-native-calculator.md`.
 
@@ -82,4 +94,4 @@ Custom calculator coordination is separate from the shared controller:
 - `lib/calculator/use-custom-calculator.tsx` owns ECS/Flexus flavor selection, presentation, saved-product hydration and service URL state, using the existing ECS catalog hook.
 - `lib/calculator/use-ecs-disk.ts` owns disk controls, bounds and dependent IOPS/throughput normalization. The custom runtime adds the complete compute/disk selection summary to its panel.
 
-Keep new feature behavior in its owning hook and view. The route should remain layout-only, and the composition hook should not acquire request implementations or service-specific pricing rules. The native Huawei runtime remains deferred.
+Keep new feature behavior in its owning hook and view. The route should remain layout-only, and the composition hook should not acquire request implementations or service-specific pricing rules. The native Huawei runtime is isolated behind its form/session interface and server verifier.

@@ -1,5 +1,6 @@
 "use client";
 
+import { applyProductMutation, saveCalculatorProducts } from "@/lib/calculator-cart";
 import { useNavbar } from "@/components/navbar-context";
 import { useSessionContext } from "@/components/session-provider";
 import { getResponseError } from "@/lib/calculator-page-helpers";
@@ -16,20 +17,9 @@ import { useResourceSharing } from "@/lib/dashboard/use-resource-sharing";
 import { useResourceTransfer } from "@/lib/dashboard/use-resource-transfer";
 import { type HuaweiRegionKey } from "@/lib/huawei-regions";
 import { type ActiveModal, type BillingOption } from "@/lib/page-utils";
-import {
-  getConfigurableServiceBundleByCode,
-  serviceCatalog,
-} from "@/lib/service-config";
+import { getConfigurableServiceBundleByCode, serviceCatalog } from "@/lib/service-config";
 import { useCalculatorController } from "@/lib/use-calculator-controller";
-import {
-  useCallback,
-  useEffect,
-  useId,
-  useMemo,
-  useRef,
-  useState,
-  useSyncExternalStore,
-} from "react";
+import { useCallback, useEffect, useId, useMemo, useRef, useState, useSyncExternalStore } from "react";
 
 const services = serviceCatalog;
 const subscribeToHydration = () => () => {};
@@ -41,11 +31,7 @@ export function useDashboard() {
 
   const { setConfig } = useNavbar();
 
-  const hasMounted = useSyncExternalStore(
-    subscribeToHydration,
-    clientSnapshot,
-    serverSnapshot,
-  );
+  const hasMounted = useSyncExternalStore(subscribeToHydration, clientSnapshot, serverSnapshot);
 
   const showSessionState = hasMounted && !isSessionPending;
 
@@ -53,16 +39,13 @@ export function useDashboard() {
 
   const [query, setQuery] = useState("");
 
-  const [selectedService, setSelectedService] = useState(
-    "Elastic Cloud Server",
-  );
+  const [selectedService, setSelectedService] = useState("Elastic Cloud Server");
 
   const [isSearchOpen, setIsSearchOpen] = useState(false);
 
   const [activeSuggestionIndex, setActiveSuggestionIndex] = useState(0);
 
-  const [regionValue, setRegionValue] =
-    useState<HuaweiRegionKey>("la-sao-paulo1");
+  const [regionValue, setRegionValue] = useState<HuaweiRegionKey>("la-sao-paulo1");
 
   const [billingMode, setBillingMode] = useState<BillingOption>("Pay-per-use");
 
@@ -85,9 +68,7 @@ export function useDashboard() {
 
   const [editingProductId, setEditingProductId] = useState<string | null>(null);
 
-  const [editingProductListId, setEditingProductListId] = useState<
-    string | null
-  >(null);
+  const [editingProductListId, setEditingProductListId] = useState<string | null>(null);
 
   const [activeTab, setActiveTab] = useState("calculator");
 
@@ -102,9 +83,7 @@ export function useDashboard() {
 
   const sharing = useResourceSharing();
 
-  const [openProjectMenuId, setOpenProjectMenuId] = useState<string | null>(
-    null,
-  );
+  const [openProjectMenuId, setOpenProjectMenuId] = useState<string | null>(null);
 
   const [isProjectCreateMenuOpen, setIsProjectCreateMenuOpen] = useState(false);
 
@@ -133,27 +112,21 @@ export function useDashboard() {
     : [];
 
   const selectedServiceMeta = useMemo(
-    () =>
-      services.find((service) => service.name === selectedService) ??
-      services[0],
+    () => services.find((service) => service.name === selectedService) ?? services[0],
     [selectedService],
   );
 
   const selectedServiceCode = selectedServiceMeta.code;
 
-  const selectedServiceBundle =
-    getConfigurableServiceBundleByCode(selectedServiceCode);
+  const selectedServiceBundle = getConfigurableServiceBundleByCode(selectedServiceCode);
 
   const selectedServiceDefinition = selectedServiceBundle?.service ?? null;
 
-  const selectedServiceDefinitionStatus =
-    selectedServiceBundle?.metadata.status ?? null;
+  const selectedServiceDefinitionStatus = selectedServiceBundle?.metadata.status ?? null;
 
   const hasSuggestions = isSearchOpen && suggestions.length > 0;
 
-  const activeDescendant = hasSuggestions
-    ? `${listboxId}-${activeSuggestionIndex}`
-    : undefined;
+  const activeDescendant = hasSuggestions ? `${listboxId}-${activeSuggestionIndex}` : undefined;
 
   const mutateListProduct = useCallback(
     async (
@@ -182,7 +155,7 @@ export function useDashboard() {
     [],
   );
 
-  const calculatorController = useCalculatorController({
+  const legacyController = useCalculatorController({
     selectedService,
     selectedServiceMeta,
     regionValue,
@@ -207,6 +180,45 @@ export function useDashboard() {
     mutateListProduct,
   });
 
+  const [nativeEditingProduct, setNativeEditingProduct] = useState<AppProduct | null>(null);
+  const calculatorController = {
+    ...legacyController,
+    handleEditProduct: (product: AppProduct, listId = projectStore.selectedListId) => {
+      if (product.productType !== "huawei-native") {
+        setNativeEditingProduct(null);
+        legacyController.handleEditProduct(product, listId);
+        return;
+      }
+      setNativeEditingProduct(product);
+      setEditingProductId(product.id);
+      setEditingProductListId(listId);
+      projectStore.setSelectedListId(listId);
+      setActiveTab("huawei-live");
+    },
+    handleCancelEdit: () => {
+      setNativeEditingProduct(null);
+      legacyController.handleCancelEdit();
+    },
+  };
+  const saveNativeProduct = async (product: ProductMutationBody) => {
+    if (!isSignedIn) throw new Error("Sign in to save carts and projects.");
+    if (!projectStore.selectedListId) throw new Error("Create or select a cart first.");
+    await saveCalculatorProducts(
+      { buildRequestBodies: () => product },
+      {
+        listId: projectStore.selectedListId,
+        editing:
+          nativeEditingProduct && editingProductId && editingProductListId
+            ? { productId: editingProductId, listId: editingProductListId }
+            : undefined,
+      },
+      {
+        mutate: mutateListProduct,
+        onSaved: (saved, method) => projectStore.setProjects((current) => applyProductMutation(current, saved, method)),
+      },
+    );
+  };
+
   useCalculatorShortcuts({
     activeTab,
     calculatorBillingOptions: calculatorController.calculatorBillingOptions,
@@ -225,8 +237,7 @@ export function useDashboard() {
     loadHuaweiCarts: huawei.loadHuaweiCarts,
     setProjectCloneNameDrafts: cloning.setProjectCloneNameDrafts,
     setProjectCloneTargetRegions: cloning.setProjectCloneTargetRegions,
-    setProjectCloneTargetBillingModes:
-      cloning.setProjectCloneTargetBillingModes,
+    setProjectCloneTargetBillingModes: cloning.setProjectCloneTargetBillingModes,
     setProjectCloneMessages: cloning.setProjectCloneMessages,
     setProjectCloneMessageErrors: cloning.setProjectCloneMessageErrors,
     editingProductListId,
@@ -292,10 +303,7 @@ export function useDashboard() {
     }
 
     const handlePointerDown = (event: MouseEvent) => {
-      if (
-        event.target instanceof Element &&
-        event.target.closest("[data-action-menu-root]")
-      ) {
+      if (event.target instanceof Element && event.target.closest("[data-action-menu-root]")) {
         return;
       }
 
@@ -331,10 +339,8 @@ export function useDashboard() {
 
   if (
     activeModal &&
-    (("projectId" in activeModal &&
-      !projectStore.projectsById.has(activeModal.projectId)) ||
-      ("listId" in activeModal &&
-        !projectStore.listsById.has(activeModal.listId)))
+    (("projectId" in activeModal && !projectStore.projectsById.has(activeModal.projectId)) ||
+      ("listId" in activeModal && !projectStore.listsById.has(activeModal.listId)))
   )
     setActiveModal(null);
 
@@ -430,6 +436,8 @@ export function useDashboard() {
       setOpenProjectMenuId,
     },
     calculator: {
+      nativeEditingProduct,
+      saveNativeProduct,
       calculatorController,
       projectStore,
       locationState,

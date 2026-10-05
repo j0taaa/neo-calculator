@@ -1,15 +1,29 @@
 import type { Inquiry, Quote, SyncService } from "./types";
 
 export type NativeField = {
-  id: string; component: string; label: string; type: "select" | "number" | "checkbox" | "action";
-  value: string | number | boolean; disabled: boolean; unit?: string; min?: number; max?: number;
+  id: string;
+  component: string;
+  label: string;
+  type: "select" | "number" | "checkbox" | "action";
+  value: string | number | boolean;
+  disabled: boolean;
+  unit?: string;
+  min?: number;
+  max?: number;
   options?: { value: string; label: string; disabled: boolean }[];
 };
 export type NativeForm = { fields: NativeField[]; notes: string[]; diagnostics: string[] };
 export type NativeState = NativeForm & {
-  session: string; revision: number; service: string; region: string; expiresAt: string;
+  selection: import("./native-selection").NativeSelection;
+  session: string;
+  revision: number;
+  service: string;
+  region: string;
+  expiresAt: string;
   source: { page: string; config: string; products: string; framework: string; menu: string; fetchedAt: string };
-  inquiry: Inquiry | null; quote: Quote | null; priceError?: string;
+  inquiry: Inquiry | null;
+  quote: Quote | null;
+  priceError?: string;
 };
 export type NativeAction = { session: string; revision: number; field: string; value: string | number | boolean };
 export type NativeDirectory = { services: SyncService[]; regions: { id: string; name: string }[] };

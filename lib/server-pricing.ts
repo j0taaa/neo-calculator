@@ -1,20 +1,24 @@
-import { buildDefaultValues, buildRuntimeScope, evaluateCatalogView, evaluateRuntimeValue } from "@/lib/service-runtime";
-import { getTypedDeclarativeRuntimeDefinitionByCode } from "@/lib/declarative-service-runtime-registry";
-import { getCatalogFetchFn } from "@/lib/catalog-fetch-registry";
-import { getConfigurableServiceBundleByCode, getConfigurableServiceDefinitionByCode, serviceCatalog } from "@/lib/service-config";
-import { huaweiRegions, type HuaweiRegionKey } from "@/lib/huawei-regions";
-import type { BillingOption, ProductMutationBody } from "@/lib/calculator-types";
 import { formatFlavorAmount, getDiskPriceForBillingOption, toFlavorCard } from "@/lib/calculator-page-helpers";
-import { listStoredEcsFlavors, ensureRegionCatalogAvailable } from "@/lib/ecs-flavor-catalog";
-import { fetchRegionSystemDiskPricing } from "@/lib/evs-disk-pricing";
-import { flexusLPricingReference, findFlexusLPlan } from "@/lib/flexus-l-catalog";
+import type { BillingOption, ProductMutationBody } from "@/lib/calculator-types";
+import { getCatalogFetchFn } from "@/lib/catalog-fetch-registry";
 import { ecsDiskSizeBounds } from "@/lib/configurable-runtime-utils";
-import type { DeclarativeEstimateRecord } from "@/lib/declarative-service-runtime-types";
+import { getTypedDeclarativeRuntimeDefinitionByCode } from "@/lib/declarative-service-runtime-registry";
+import { ensureRegionCatalogAvailable, listStoredEcsFlavors } from "@/lib/ecs-flavor-catalog";
+import { fetchRegionSystemDiskPricing } from "@/lib/evs-disk-pricing";
+import { findFlexusLPlan, flexusLPricingReference } from "@/lib/flexus-l-catalog";
+import { huaweiRegions, type HuaweiRegionKey } from "@/lib/huawei-regions";
 import { fetchInquiryPricing, type InquiryPricingResult } from "@/lib/inquiry-pricing";
+import {
+  getConfigurableServiceBundleByCode,
+  getConfigurableServiceDefinitionByCode,
+  serviceCatalog,
+} from "@/lib/service-config";
+import { buildDefaultValues, evaluateRuntimeValue, evaluateServiceConfiguration } from "@/lib/service-runtime";
 
 type ConfigRecord = Record<string, unknown>;
 
 export type ServerPricingResult = {
+  quantity?: number;
   pricing: Record<string, unknown>;
   title: string;
   productType: string;
@@ -44,11 +48,11 @@ function configToValues(config: ConfigRecord, defaults: Record<string, string>):
 }
 
 const EVS_PRODUCT_IDS: Record<string, Record<string, string>> = {
-  "sa-brazil-1": { SSD: "00301-135024-0--0", "High I/O": "00301-135025-0--0", "SAS": "00301-135026-0--0" },
-  "ap-southeast-1": { SSD: "00301-133631-0--0", "High I/O": "00301-133632-0--0", "SAS": "00301-133633-0--0" },
-  "ap-southeast-2": { SSD: "00301-133631-0--0", "High I/O": "00301-133632-0--0", "SAS": "00301-133633-0--0" },
-  "la-south-1": { SSD: "00301-133631-0--0", "High I/O": "00301-133632-0--0", "SAS": "00301-133633-0--0" },
-  "af-south-1": { SSD: "00301-133631-0--0", "High I/O": "00301-133632-0--0", "SAS": "00301-133633-0--0" },
+  "sa-brazil-1": { SSD: "00301-135024-0--0", "High I/O": "00301-135025-0--0", SAS: "00301-135026-0--0" },
+  "ap-southeast-1": { SSD: "00301-133631-0--0", "High I/O": "00301-133632-0--0", SAS: "00301-133633-0--0" },
+  "ap-southeast-2": { SSD: "00301-133631-0--0", "High I/O": "00301-133632-0--0", SAS: "00301-133633-0--0" },
+  "la-south-1": { SSD: "00301-133631-0--0", "High I/O": "00301-133632-0--0", SAS: "00301-133633-0--0" },
+  "af-south-1": { SSD: "00301-133631-0--0", "High I/O": "00301-133632-0--0", SAS: "00301-133633-0--0" },
 };
 
 function getEvsProductId(diskType: string, regionId: string): string | null {
@@ -113,19 +117,30 @@ function findProductIdInCatalog(catalog: unknown, specCode?: string): string | n
   return null;
 }
 
-async function tryInquiryPricing(serviceCode: string, catalog: unknown, regionId: string, usageHours: number, specCode?: string, resourceSize?: number): Promise<InquiryPricingResult | null> {
+async function tryInquiryPricing(
+  serviceCode: string,
+  catalog: unknown,
+  regionId: string,
+  usageHours: number,
+  specCode?: string,
+  resourceSize?: number,
+): Promise<InquiryPricingResult | null> {
   const productId = findProductIdInCatalog(catalog, specCode);
   if (!productId) return null;
 
   try {
-    return await fetchWithRetry(() => fetchInquiryPricing({
-      serviceCode,
-      regionId,
-      productId,
-      usageValue: usageHours,
-      resourceSpecCode: specCode,
-      resourceSize,
-    }), `${serviceCode} inquiry`);
+    return await fetchWithRetry(
+      () =>
+        fetchInquiryPricing({
+          serviceCode,
+          regionId,
+          productId,
+          usageValue: usageHours,
+          resourceSpecCode: specCode,
+          resourceSize,
+        }),
+      `${serviceCode} inquiry`,
+    );
   } catch {
     return null;
   }
@@ -140,7 +155,12 @@ async function fetchWithRetry<T>(fn: () => Promise<T>, serviceName: string, atte
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     const lower = msg.toLowerCase();
-    const isRetryable = lower.includes("timeout") || lower.includes("timed out") || lower.includes("econnreset") || lower.includes("econnrefused") || (lower.includes("503") && attempt < 1);
+    const isRetryable =
+      lower.includes("timeout") ||
+      lower.includes("timed out") ||
+      lower.includes("econnreset") ||
+      lower.includes("econnrefused") ||
+      (lower.includes("503") && attempt < 1);
     const shouldRetry = attempt < MAX_RETRIES && isRetryable;
 
     if (shouldRetry) {
@@ -156,22 +176,46 @@ async function computeConfigurablePricing(serviceCode: string, config: ConfigRec
   const bundle = getConfigurableServiceBundleByCode(serviceCode);
   const definition = getConfigurableServiceDefinitionByCode(serviceCode);
   if (!bundle || !definition) {
-    return { pricing: {}, title: "", productType: serviceCode.toLowerCase(), config, error: `No configurable definition for ${serviceCode}` };
+    return {
+      pricing: {},
+      title: "",
+      productType: serviceCode.toLowerCase(),
+      config,
+      error: `No configurable definition for ${serviceCode}`,
+    };
   }
 
   const typedRuntime = getTypedDeclarativeRuntimeDefinitionByCode(serviceCode);
   if (!typedRuntime) {
-    return { pricing: {}, title: "", productType: serviceCode.toLowerCase(), config, error: `No runtime definition for ${serviceCode}` };
+    return {
+      pricing: {},
+      title: "",
+      productType: serviceCode.toLowerCase(),
+      config,
+      error: `No runtime definition for ${serviceCode}`,
+    };
   }
 
   const catalogSource = typedRuntime.catalog;
   if (!catalogSource) {
-    return { pricing: {}, title: "", productType: serviceCode.toLowerCase(), config, error: `No catalog source for ${serviceCode}` };
+    return {
+      pricing: {},
+      title: "",
+      productType: serviceCode.toLowerCase(),
+      config,
+      error: `No catalog source for ${serviceCode}`,
+    };
   }
 
   const fetchFn = getCatalogFetchFn(serviceCode);
   if (!fetchFn) {
-    return { pricing: {}, title: "", productType: serviceCode.toLowerCase(), config, error: `No catalog fetch function for ${serviceCode}` };
+    return {
+      pricing: {},
+      title: "",
+      productType: serviceCode.toLowerCase(),
+      config,
+      error: `No catalog fetch function for ${serviceCode}`,
+    };
   }
 
   const region = (config.region as string) || "ap-southeast-1";
@@ -191,7 +235,7 @@ async function computeConfigurablePricing(serviceCode: string, config: ConfigRec
   const defaults = buildDefaultValues(definition);
   const values = configToValues(config, defaults);
 
-  const baseScope = buildRuntimeScope({
+  const estimateScope = evaluateServiceConfiguration(typedRuntime, {
     definition,
     selectedServiceCode: serviceCode,
     selectedService: definition.serviceName,
@@ -206,16 +250,11 @@ async function computeConfigurablePricing(serviceCode: string, config: ConfigRec
     instanceCountValue: quantity,
   });
 
-  const catalogView = evaluateCatalogView(typedRuntime, baseScope);
-  const estimateScope = { ...baseScope, derived: catalogView, catalogView };
-  const estimate = evaluateRuntimeValue<DeclarativeEstimateRecord>(typedRuntime.estimate, estimateScope);
+  const estimate = estimateScope.estimate;
 
   const specCode = (config.resourceSpecCode as string) ?? (config.specification as string) ?? (config.flavor as string);
-  
-  const [, inquiryResult] = await Promise.all([
-    Promise.resolve(estimate),
-    tryInquiryPricing(serviceCode, catalog, catalogRegionId, usageHours, specCode),
-  ]);
+
+  const inquiryResult = await tryInquiryPricing(serviceCode, catalog, catalogRegionId, usageHours, specCode);
 
   let primaryEstimate = estimate;
   let priceWarning: string | undefined;
@@ -242,13 +281,19 @@ async function computeConfigurablePricing(serviceCode: string, config: ConfigRec
   }
 
   if (!primaryEstimate) {
-    return { pricing: {}, title: "", productType: serviceCode.toLowerCase(), config, error: `Could not compute estimate for ${serviceCode}. Check config values.` };
+    return {
+      pricing: {},
+      title: "",
+      productType: serviceCode.toLowerCase(),
+      config,
+      error: `Could not compute estimate for ${serviceCode}. Check config values.`,
+    };
   }
 
-  const requestBodies = evaluateRuntimeValue<ProductMutationBody | null>(
-    typedRuntime.buildRequestBodies,
-    { ...estimateScope, estimate },
-  );
+  const requestBodies = evaluateRuntimeValue<ProductMutationBody | null>(typedRuntime.buildRequestBodies, {
+    ...estimateScope,
+    estimate,
+  });
 
   const pricingResult: Record<string, unknown> = {
     total: formatFlavorAmount(primaryEstimate.currency, primaryEstimate.amount, primaryEstimate.suffix),
@@ -264,7 +309,7 @@ async function computeConfigurablePricing(serviceCode: string, config: ConfigRec
   }
 
   const resolvedConfig = (requestBodies?.config as ConfigRecord) ?? config;
-  const resolvedTitle = (requestBodies?.title as string) || config.title as string || definition.serviceName;
+  const resolvedTitle = (requestBodies?.title as string) || (config.title as string) || definition.serviceName;
 
   return {
     pricing: pricingResult,
@@ -283,7 +328,10 @@ async function computeEcsPricing(config: ConfigRecord): Promise<ServerPricingRes
   const quantity = Math.max(1, Math.floor(typeof config.quantity === "number" ? config.quantity : 1));
   const systemDisk = config.systemDisk as ConfigRecord | undefined;
   const diskType = (systemDisk?.type as string) || "High I/O";
-  const diskSizeGiB = Math.max(ecsDiskSizeBounds.min, Math.floor(typeof systemDisk?.sizeGiB === "number" ? systemDisk.sizeGiB : ecsDiskSizeBounds.min));
+  const diskSizeGiB = Math.max(
+    ecsDiskSizeBounds.min,
+    Math.floor(typeof systemDisk?.sizeGiB === "number" ? systemDisk.sizeGiB : ecsDiskSizeBounds.min),
+  );
 
   if (!flavor) {
     return { pricing: {}, title: "", productType: "ecs", config, error: "Missing required field: config.flavor" };
@@ -292,44 +340,67 @@ async function computeEcsPricing(config: ConfigRecord): Promise<ServerPricingRes
   try {
     await fetchWithRetry(() => ensureRegionCatalogAvailable(catalogRegionId), "ECS catalog");
   } catch (err) {
-    return { pricing: {}, title: "", productType: "ecs", config, error: `Failed to load ECS catalog for ${region}: ${err instanceof Error ? err.message : "Unknown error"}` };
+    return {
+      pricing: {},
+      title: "",
+      productType: "ecs",
+      config,
+      error: `Failed to load ECS catalog for ${region}: ${err instanceof Error ? err.message : "Unknown error"}`,
+    };
   }
 
   const flavors = listStoredEcsFlavors(catalogRegionId);
   const matchedFlavor = flavors.find((f) => f.resourceSpecCode === flavor);
 
   if (!matchedFlavor) {
-    return { pricing: {}, title: "", productType: "ecs", config, error: `Flavor '${flavor}' not found in region ${region}. Available flavors: ${flavorListSummary(flavors)}. The catalog may still be syncing.` };
+    return {
+      pricing: {},
+      title: "",
+      productType: "ecs",
+      config,
+      error: `Flavor '${flavor}' not found in region ${region}. Available flavors: ${flavorListSummary(flavors)}. The catalog may still be syncing.`,
+    };
   }
 
   let diskPricing = null;
   let inquiryDiskPricing = null;
 
   const diskProductId = getEvsProductId(diskType, catalogRegionId);
-  
+
   const [catalogDiskResult, inquiryDiskResult] = await Promise.all([
     fetchWithRetry(() => fetchRegionSystemDiskPricing(catalogRegionId), "EVS disk pricing").catch(() => null),
-    diskSizeGiB > 0 && diskProductId 
-      ? fetchWithRetry(() => fetchInquiryPricing({
-          serviceCode: "EVS",
-          regionId: catalogRegionId,
-          productId: diskProductId,
-          resourceSize: diskSizeGiB,
-          usageValue: usageHours,
-          resourceSpecCode: diskType === "SSD" ? "SSD" : "SAS",
-        }), "EVS inquiry").catch(() => null)
+    diskSizeGiB > 0 && diskProductId
+      ? fetchWithRetry(
+          () =>
+            fetchInquiryPricing({
+              serviceCode: "EVS",
+              regionId: catalogRegionId,
+              productId: diskProductId,
+              resourceSize: diskSizeGiB,
+              usageValue: usageHours,
+              resourceSpecCode: diskType === "SSD" ? "SSD" : "SAS",
+            }),
+          "EVS inquiry",
+        ).catch(() => null)
       : Promise.resolve(null),
   ]);
 
   diskPricing = catalogDiskResult;
   inquiryDiskPricing = inquiryDiskResult;
 
-  const diskPrice = getDiskPriceForBillingOption(diskPricing, diskType as "High I/O", diskSizeGiB, billingMode, usageHours);
+  const diskPrice = getDiskPriceForBillingOption(
+    diskPricing,
+    diskType as "High I/O",
+    diskSizeGiB,
+    billingMode,
+    usageHours,
+  );
   const flavorCard = toFlavorCard(matchedFlavor, billingMode, usageHours, diskPrice);
 
-  const flavorAmount = matchedFlavor.prices.ONDEMAND != null && billingMode === "Pay-per-use"
-    ? matchedFlavor.prices.ONDEMAND * usageHours * quantity
-    : (matchedFlavor.prices.MONTHLY ?? matchedFlavor.prices.YEARLY ?? 0) * quantity;
+  const flavorAmount =
+    matchedFlavor.prices.ONDEMAND != null && billingMode === "Pay-per-use"
+      ? matchedFlavor.prices.ONDEMAND * usageHours * quantity
+      : (matchedFlavor.prices.MONTHLY ?? matchedFlavor.prices.YEARLY ?? 0) * quantity;
 
   const resolvedConfig: ConfigRecord = {
     ...config,
@@ -359,9 +430,7 @@ async function computeEcsPricing(config: ConfigRecord): Promise<ServerPricingRes
   }
 
   const catalogTotal = flavorCard.priceValue * quantity;
-  const inquiryTotal = inquiryDiskPricing
-    ? (flavorAmount + inquiryDiskPricing.amount)
-    : null;
+  const inquiryTotal = inquiryDiskPricing ? flavorAmount + inquiryDiskPricing.amount : null;
 
   let priceWarning: string | undefined;
   if (inquiryTotal && Math.abs(catalogTotal - inquiryTotal) > 0.0001) {
@@ -393,7 +462,13 @@ function computeFlexusLPricing(config: ConfigRecord): ServerPricingResult {
 
   const plan = findFlexusLPlan(planId);
   if (!plan) {
-    return { pricing: {}, title: "", productType: "flexus-l", config, error: `Unknown Flexus L plan: ${planId}. Valid plans: basic_v3, basic_v4, basic_v5, basic_v6, basic_v7` };
+    return {
+      pricing: {},
+      title: "",
+      productType: "flexus-l",
+      config,
+      error: `Unknown Flexus L plan: ${planId}. Valid plans: basic_v3, basic_v4, basic_v5, basic_v6, basic_v7`,
+    };
   }
 
   const totalAmount = plan.monthlyPriceUsd * quantity;
@@ -430,18 +505,59 @@ function isConfigurableService(serviceCode: string): boolean {
 }
 
 export async function computeServerPricing(serviceCode: string, config: ConfigRecord): Promise<ServerPricingResult> {
+  if (serviceCode.startsWith("HUAWEI:")) {
+    try {
+      const { verifyNativeProduct } = await import("@/lib/huawei-sync/native-product");
+      const result = await verifyNativeProduct({
+        serviceCode,
+        serviceName: serviceCode.slice(7),
+        productType: "huawei-native",
+        title: serviceCode.slice(7),
+        quantity: 1,
+        config,
+        pricing: null,
+      });
+      return {
+        quantity: result.quantity,
+        pricing: result.pricing as Record<string, unknown>,
+        config: result.config as ConfigRecord,
+        title: result.title,
+        productType: result.productType,
+      };
+    } catch (error) {
+      return {
+        pricing: {},
+        config,
+        title: "",
+        productType: "huawei-native",
+        error: error instanceof Error ? error.message : "Huawei verification failed",
+      };
+    }
+  }
   if (serviceCode.startsWith("HWC:")) {
     try {
       const { currentRelease, parseFormInput, syncedQuote } = await import("@/lib/huawei-sync/service");
       const saved = config.huaweiSync as { input?: unknown } | undefined;
       const input = parseFormInput(saved?.input);
       input.region = resolveRegionId(String(config.region ?? input.region));
-      if (config.billingMode && config.billingMode !== "Pay-per-use") throw new Error("This synchronized scope supports pay-per-use billing");
+      if (config.billingMode && config.billingMode !== "Pay-per-use")
+        throw new Error("This synchronized scope supports pay-per-use billing");
       const service = serviceCode.slice(4);
       const result = await syncedQuote(service, input, currentRelease(service, input.region).id, true);
-      return { pricing: result.product.pricing, title: result.product.title, productType: result.product.productType, config: result.product.config };
+      return {
+        pricing: result.product.pricing,
+        title: result.product.title,
+        productType: result.product.productType,
+        config: result.product.config,
+      };
     } catch (error) {
-      return { pricing: {}, title: "", productType: "huawei-synchronized", config, error: error instanceof Error ? error.message : "Synchronized pricing unavailable" };
+      return {
+        pricing: {},
+        title: "",
+        productType: "huawei-synchronized",
+        config,
+        error: error instanceof Error ? error.message : "Synchronized pricing unavailable",
+      };
     }
   }
   if (serviceCode === "ECS") {

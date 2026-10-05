@@ -1,0 +1,42 @@
+# Optional production overlay: docker compose -f /home/docker-compose.yml -f compose.native.yml up -d --build calculator calculator-native
+services:
+  calculator:
+    env_file:
+      - ${NATIVE_ENV_FILE:-/home/neo-calculator-native.env}
+    environment:
+      HUAWEI_NATIVE_URL: http://calculator-native:3001
+      BETTER_AUTH_URL: https://calculator.hwctools.site
+    networks:
+      - web
+      - calculator_native
+  calculator-native:
+    build:
+      context: ${NEO_CALCULATOR_DIR:-/home/neo-calculator}
+      dockerfile: Dockerfile.native
+    image: neo-calculator-native:production
+    env_file:
+      - ${NATIVE_ENV_FILE:-/home/neo-calculator-native.env}
+    environment:
+      HWC_SOCKS5_PROXY: socks5h://host.docker.internal:40001
+    extra_hosts:
+      - host.docker.internal:host-gateway
+    volumes:
+      - calculator_native_data:/app/data
+    init: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    shm_size: 512mb
+    mem_limit: 3g
+    pids_limit: 512
+    healthcheck:
+      test: [CMD, bun, -e, "fetch('http://127.0.0.1:3001/health',{headers:{authorization:'Bearer '+process.env.HUAWEI_NATIVE_TOKEN}}).then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    restart: unless-stopped
+    networks:
+      - calculator_native
+volumes:
+  calculator_native_data:
+networks:
+  calculator_native:

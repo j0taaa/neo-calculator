@@ -16,13 +16,11 @@ export function stringifyConfigValue(value: unknown) {
   return String(value);
 }
 
-
 export function buildDefaultValues(definition: ServiceDefinition) {
   return Object.fromEntries(
     definition.fields.map((field) => [field.id, stringifyConfigValue(definition.defaults[field.id])]),
   ) as Record<string, string>;
 }
-
 
 export function buildRuntimeScope(input: {
   definition: ServiceDefinition;
@@ -76,8 +74,10 @@ export function buildRuntimeScope(input: {
   };
 }
 
-
-export function evaluateRuntimeValue<T>(value: TypedDeclarativeValue | undefined, scope: Record<string, unknown> | null): T | null {
+export function evaluateRuntimeValue<T>(
+  value: TypedDeclarativeValue | undefined,
+  scope: Record<string, unknown> | null,
+): T | null {
   return value === undefined || !scope ? null : evaluateDeclarativeValue<T>(value, scope);
 }
 
@@ -86,4 +86,16 @@ export function evaluateCatalogView(runtime: TypedDeclarativeRuntimeDefinition |
   return runtime.catalogView
     ? evaluateDeclarativeValue(runtime.catalogView, scope)
     : evaluateDeclarativeDerivedValues(runtime.derived, scope);
+}
+
+/** Shared calculation pipeline for interactive forms, batch items and server repricing. */
+export function evaluateServiceConfiguration(
+  runtime: TypedDeclarativeRuntimeDefinition | null,
+  input: Parameters<typeof buildRuntimeScope>[0],
+) {
+  const base = buildRuntimeScope(input);
+  const catalogView = evaluateCatalogView(runtime, base);
+  const derivedScope = { ...base, derived: catalogView, catalogView };
+  const estimate = evaluateRuntimeValue<DeclarativeEstimateRecord>(runtime?.estimate, derivedScope);
+  return { ...derivedScope, estimate };
 }

@@ -9,30 +9,75 @@ if (!token || token.length < 32) throw new Error("Set a private HUAWEI_NATIVE_TO
 const store = new SyncStore(process.env.HUAWEI_SYNC_DB ?? "/app/data/native.sqlite");
 const calculator = new NativeCalculator(new HuaweiCollector(store), 6);
 const server = createServer(async (request, response) => {
-  response.setHeader("content-type", "application/json"); response.setHeader("cache-control", "no-store");
-  const auth = Buffer.from(request.headers.authorization ?? ""), expected = Buffer.from(`Bearer ${token}`);
-  if (auth.length !== expected.length || !timingSafeEqual(auth, expected)) { response.writeHead(401).end('{}'); return; }
+  response.setHeader("content-type", "application/json");
+  response.setHeader("cache-control", "no-store");
+  const auth = Buffer.from(request.headers.authorization ?? ""),
+    expected = Buffer.from(`Bearer ${token}`);
+  if (auth.length !== expected.length || !timingSafeEqual(auth, expected)) {
+    response.writeHead(401).end("{}");
+    return;
+  }
   try {
-    if (request.method === "GET" && request.url === "/health") { response.end(JSON.stringify({ ok: true })); return; }
-    if (request.method === "GET" && request.url === "/directory") { response.end(JSON.stringify(await calculator.directory())); return; }
-    if (request.method !== "POST" || request.url !== "/session") { response.writeHead(404).end('{}'); return; }
+    if (request.method === "GET" && request.url === "/health") {
+      response.end(JSON.stringify({ ok: true }));
+      return;
+    }
+    if (request.method === "GET" && request.url === "/directory") {
+      response.end(JSON.stringify(await calculator.directory()));
+      return;
+    }
+    if (request.method !== "POST" || request.url !== "/session") {
+      response.writeHead(404).end("{}");
+      return;
+    }
     let raw = "";
-    for await (const chunk of request) { raw += chunk; if (raw.length > 16000) throw new NativeError("Request too large", 413); }
+    for await (const chunk of request) {
+      raw += chunk;
+      if (raw.length > 120000) throw new NativeError("Request too large", 413);
+    }
     const body = JSON.parse(raw);
     let result;
-    if (body.action === "open" && typeof body.service === "string" && typeof body.region === "string") result = await calculator.open(body.service, body.region);
-    else if (body.action === "change" && typeof body.session === "string" && Number.isSafeInteger(body.revision) && typeof body.field === "string") result = await calculator.act(body);
-    else if (body.action === "close" && typeof body.session === "string") { await calculator.remove(body.session); result = { ok: true }; }
-    else throw new NativeError("Invalid action");
+    if (body.action === "open" && typeof body.service === "string" && typeof body.region === "string")
+      result = await calculator.open(body.service, body.region);
+    else if (
+      body.action === "change" &&
+      typeof body.session === "string" &&
+      Number.isSafeInteger(body.revision) &&
+      typeof body.field === "string"
+    )
+      result = await calculator.act(body);
+    else if (body.action === "restore") result = await calculator.restore(body.selection);
+    else if (body.action === "refresh" && typeof body.session === "string" && Number.isSafeInteger(body.revision))
+      result = await calculator.refresh(body.session, body.revision);
+    else if (body.action === "close" && typeof body.session === "string") {
+      await calculator.remove(body.session);
+      result = { ok: true };
+    } else throw new NativeError("Invalid action");
     if (response.destroyed && result && "session" in result) await calculator.remove(result.session);
     else response.end(JSON.stringify(result));
   } catch (error) {
     console.error(error instanceof Error ? error.message : "Native calculator error");
-    response.writeHead(error instanceof NativeError ? error.status : 502).end(JSON.stringify({ error: error instanceof NativeError ? error.message : "Huawei could not complete this request. Reopen the calculator to retry." }));
+    response
+      .writeHead(error instanceof NativeError ? error.status : 502)
+      .end(
+        JSON.stringify({
+          error:
+            error instanceof NativeError
+              ? error.message
+              : "Huawei could not complete this request. Reopen the calculator to retry.",
+        }),
+      );
   }
 });
 server.requestTimeout = 120000;
 server.listen(Number(process.env.PORT ?? 3001), "0.0.0.0");
 const sweep = setInterval(() => void calculator.sweep().catch(console.error), 30000);
-async function stop() { clearInterval(sweep); server.close(); await calculator.close(); store.close(); process.exit(0); }
-process.on("SIGTERM", stop); process.on("SIGINT", stop);
+async function stop() {
+  clearInterval(sweep);
+  server.close();
+  await calculator.close();
+  store.close();
+  process.exit(0);
+}
+process.on("SIGTERM", stop);
+process.on("SIGINT", stop);

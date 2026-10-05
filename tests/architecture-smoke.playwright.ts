@@ -273,3 +273,94 @@ test("saved-item deep links, cart filtering, clipboard and project actions retai
   await page.getByRole("button", { name: "Delete Disk Beta", exact: true }).click();
   await expect.poll(async () => (await (await page.request.get(`/api/lists/${list.id}/products`)).json()).length).toBe(2);
 });
+
+test("projects page shares create, clone, export and delete workflows with the dashboard", async ({page,baseURL}) => {
+  const errors: string[]=[]; page.on('pageerror', error=>errors.push(error.message));
+  const {project,list}=await createTestCart(page,baseURL);
+  await page.goto('/projects');
+  await expect(page.getByText(project.name,{exact:true}).first()).toBeVisible();
+  await page.getByPlaceholder('New project name').fill('Shared workflow project');
+  await page.getByRole('button',{name:'New Project',exact:true}).click();
+  await expect(page.getByText('Shared workflow project',{exact:true})).toBeVisible();
+  await page.getByRole('button',{name:`Open actions for ${project.name}`,exact:true}).click();
+  await page.getByRole('menuitem',{name:'Clone Project',exact:true}).click();
+  const dialog=page.getByRole('dialog');
+  await dialog.getByRole('button',{name:'Clone Project',exact:true}).click();
+  await expect(dialog).toContainText(`Cloned ${project.name}`);
+  await page.keyboard.press('Escape');
+  const projects=await (await page.request.get('/api/projects')).json();
+  expect(projects.some((p: {id:string;lists:{name:string}[]})=>p.id!==project.id&&p.lists.some(l=>l.name===list.name))).toBe(true);
+  await page.getByRole('button',{name:`Open actions for ${project.name}`,exact:true}).click();
+  await page.getByRole('menuitem',{name:'Export Project JSON',exact:true}).click();
+  const exported=JSON.parse(await page.getByLabel('Resource export JSON').inputValue());
+  expect(JSON.stringify(exported)).toContain(list.name);
+  await page.getByRole('button',{name:'Close Export Project JSON',exact:true}).click();
+  page.once('dialog',dialog=>dialog.accept());
+  await page.getByRole('button',{name:'Delete Shared workflow project',exact:true}).click();
+  await expect(page.getByText('Shared workflow project',{exact:true})).toHaveCount(0);
+  expect(errors).toEqual([]);
+});
+
+test("Huawei live saves verified prices into the main cart and reopens durable selections", async ({page,baseURL}) => {
+  test.skip(process.env.NEO_NATIVE_TESTS!=='1','Requires the isolated native sidecar');
+  test.setTimeout(300000);
+  const errors: string[]=[];page.on('pageerror',error=>errors.push(error.message));
+  await useCatalogFixtures(page);
+  const {project,list}=await createTestCart(page,baseURL);
+  await page.goto(`/?project=${project.id}&list=${list.id}&tab=huawei-live`);
+  await page.getByLabel('Huawei service',{exact:true}).selectOption('nat');
+  await page.getByRole('button',{name:'Open calculator',exact:true}).click();
+  await expect(page.getByTestId('lab-price')).toBeVisible({timeout:110000});
+  const duration=page.locator('[data-field-id="global_ONDEMANDTIME:0"]');
+  await duration.fill('2'); await duration.press('Tab');
+  await expect(page.getByTestId('lab-price')).toBeVisible();
+  const price=await page.getByTestId('lab-price').innerText();
+  const saveResponse=page.waitForResponse(r=>r.url().endsWith(`/api/lists/${list.id}/products`)&&r.request().method()==='POST');
+  await page.getByRole('button',{name:'Add to List',exact:true}).click();
+  const response=await saveResponse;expect(response.status()).toBe(201);
+  const product=await response.json();
+  expect(product.productType).toBe('huawei-native');
+  expect(product.pricing.source).toBe('huawei-inquiry');
+  expect(product.pricing.amount).toBe(Number(price.replace('USD','').replaceAll(',','').trim()));
+  expect(product.config.selection.version).toBe(1);
+  expect(product.config.selection.steps.length).toBeGreaterThan(0);
+  expect(product.config.session).toBeUndefined();
+  await page.reload(); // unmount releases the renderer; editing must start a new one
+  await page.getByRole('button',{name:`Edit ${product.title}`,exact:true}).click();
+  await expect(page.getByTestId('lab-price')).toBeVisible({timeout:110000});
+  const saveEdit=page.waitForResponse(r=>r.url().endsWith(`/products/${product.id}`)&&r.request().method()==='PATCH');
+  await page.getByRole('tabpanel',{name:'Huawei live',exact:true}).getByRole('button',{name:'Save Changes',exact:true}).click();
+  const editedResponse=await saveEdit;expect(editedResponse.status()).toBe(200);
+  const edited=await editedResponse.json();
+  expect(edited.config.selection).toEqual(product.config.selection);
+  expect(edited.pricing.amount).toBe(product.pricing.amount);
+  const forged=await page.request.post(`/api/lists/${list.id}/products`,{data:{...product,config:{...product.config,selection:{...product.config.selection,region:'invented'}},pricing:{total:'USD 0'}}});
+  expect(forged.status()).toBe(422);
+  expect((await (await page.request.get(`/api/lists/${list.id}/products`)).json()).length).toBe(1);
+  const keyResponse=await page.request.post('/api/api-keys');
+  const {key}=await keyResponse.json();
+  const apiCopy=await page.request.post(`/api/v1/private/lists/${list.id}/products`,{headers:{'X-API-Key':key},data:{...product,productType:'forged',quantity:999,pricing:{total:'USD 0'}}});
+  expect(apiCopy.status()).toBe(201);
+  const copied=await apiCopy.json();
+  expect(copied.productType).toBe('huawei-native');
+  expect(copied.quantity).toBe(product.quantity);
+  expect(copied.pricing.amount).toBe(product.pricing.amount);
+  const apiEdit=await page.request.patch(`/api/v1/private/lists/${list.id}/products/${copied.id}`,{headers:{'X-API-Key':key},data:{...copied,quantity:999,pricing:{total:'USD 0'}}});
+  expect(apiEdit.status()).toBe(200);
+  expect((await apiEdit.json()).pricing.amount).toBe(product.pricing.amount);
+  await page.route('**/api/projects',async route=>{
+    const response=await route.fetch();
+    const projects=await response.json();
+    for(const project of projects) for(const list of project.lists) for(const item of list.products){
+      if(item.id===product.id){item.config=null;item.title='Invalid native selection';}
+    }
+    await route.fulfill({response,json:projects});
+  });
+  await page.reload();
+  // The saved edit deep link automatically reopens this invalid item.
+  await expect(page.getByRole('alert').filter({hasText:'Missing saved Huawei configuration'})).toBeVisible();
+  await expect(page.getByTestId('lab-price')).toBeHidden();
+  expect(errors).toEqual([]);
+  await page.unrouteAll({behavior:'wait'});
+  await page.goto('/projects');
+});

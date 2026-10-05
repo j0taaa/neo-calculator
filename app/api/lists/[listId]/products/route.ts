@@ -1,17 +1,20 @@
+import { isNativeProduct, verifyNativeProduct } from "@/lib/huawei-sync/native-product";
 import type { ProductMutationBody } from "@/lib/calculator-types";
 import { getSessionFromHeaders, jsonError, readJsonBody } from "@/lib/api-route";
 import { db } from "@/lib/db";
 import { getListAccessForUser } from "@/lib/resource-access";
-import { insertListProducts, mapStoredProductRow, touchProject, type StoredProductRow } from "@/lib/resource-persistence";
+import {
+  insertListProducts,
+  mapStoredProductRow,
+  touchProject,
+  type StoredProductRow,
+} from "@/lib/resource-persistence";
 
 export const runtime = "nodejs";
 
 type CreateListProductBody = Partial<ProductMutationBody>;
 
-export async function GET(
-  request: Request,
-  context: { params: Promise<{ listId: string }> },
-) {
+export async function GET(request: Request, context: { params: Promise<{ listId: string }> }) {
   const session = await getSessionFromHeaders(request.headers);
 
   if (!session) {
@@ -39,10 +42,7 @@ export async function GET(
   return Response.json(products.map(mapStoredProductRow));
 }
 
-export async function POST(
-  request: Request,
-  context: { params: Promise<{ listId: string }> },
-) {
+export async function POST(request: Request, context: { params: Promise<{ listId: string }> }) {
   const session = await getSessionFromHeaders(request.headers);
 
   if (!session) {
@@ -50,13 +50,13 @@ export async function POST(
   }
 
   const { listId } = await context.params;
-  const body = await readJsonBody<CreateListProductBody>(request);
+  let body = await readJsonBody<CreateListProductBody>(request);
 
   const serviceCode = body?.serviceCode?.trim();
   const serviceName = body?.serviceName?.trim();
-  const productType = body?.productType?.trim();
+  let productType = body?.productType?.trim();
   const title = body?.title?.trim();
-  const quantity = Math.max(1, Math.floor(body?.quantity ?? 1));
+  let quantity = Math.max(1, Math.floor(body?.quantity ?? 1));
 
   if (!serviceCode || !serviceName || !productType || !title) {
     return jsonError("serviceCode, serviceName, productType, and title are required");
@@ -69,6 +69,16 @@ export async function POST(
   }
   if (!list.canEditProducts) {
     return jsonError("You do not have permission to edit this cart", 403);
+  }
+
+  if (isNativeProduct({ serviceCode, productType })) {
+    try {
+      body = await verifyNativeProduct(body as ProductMutationBody);
+      quantity = body.quantity!;
+      productType = body.productType!;
+    } catch (error) {
+      return jsonError(error instanceof Error ? error.message : "Huawei verification failed", 422);
+    }
   }
 
   const now = new Date().toISOString();
@@ -91,7 +101,9 @@ export async function POST(
       projectId: list.projectId,
       userId: session.user.id,
       now,
-      products: [{ serviceCode, serviceName, productType, title, quantity, config: body?.config, pricing: body?.pricing }],
+      products: [
+        { serviceCode, serviceName, productType, title, quantity, config: body?.config, pricing: body?.pricing },
+      ],
     });
 
     db.query("UPDATE project_list SET updated_at = ? WHERE id = ?").run(now, listId);

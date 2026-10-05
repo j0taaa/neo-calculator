@@ -8,18 +8,9 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
-import {
-  isRecord,
-  splitProductPriceSummary,
-} from "@/lib/calculator-page-helpers";
+import { isRecord, splitProductPriceSummary } from "@/lib/calculator-page-helpers";
 import type { DashboardModel } from "@/lib/dashboard/use-dashboard";
 import { getServiceMeta, type CartSortOption } from "@/lib/page-utils";
 import { getProductConfigSummary } from "@/lib/product-config-summary";
@@ -43,8 +34,7 @@ export function CartSidebar({
   isSignedIn,
 }: DashboardModel["cart"]) {
   const { selectedList, selectedProject, selectedListId } = projectStore;
-  const { huaweiActionMessage, handleSyncSelectedList, syncingHuaweiListId } =
-    huawei;
+  const { huaweiActionMessage, handleSyncSelectedList, syncingHuaweiListId } = huawei;
   const { cloneActionMessage, cloneActionIsError } = cloning;
   const { listShareMessages } = sharing;
   const {
@@ -70,21 +60,14 @@ export function CartSidebar({
     deletingProductId,
     handleDeleteProduct,
   } = cart;
-  const {
-    handleCancelEdit,
-    addToListPending,
-    handleAddToList,
-    handleEditProduct,
-  } = calculatorController;
+  const { handleCancelEdit, addToListPending, handleAddToList, handleEditProduct } = calculatorController;
   const { handleOpenListExport } = transfer;
   const { handleDeleteList, deletingListId } = projectActions;
   const selectedCartMenuItems: ActionMenuItem[] =
     selectedList && selectedProject
       ? [
           {
-            label: selectedList.huaweiCartKey
-              ? "Sync Huawei Cart"
-              : "Create Huawei Cart",
+            label: selectedList.huaweiCartKey ? "Sync Huawei Cart" : "Create Huawei Cart",
             icon: <RefreshCw className="size-4" />,
             onSelect: () => {
               void handleSyncSelectedList();
@@ -94,8 +77,7 @@ export function CartSidebar({
           {
             label: "Link Huawei Cart",
             icon: <Link2 className="size-4" />,
-            onSelect: () =>
-              openActionModal({ kind: "list-link", listId: selectedList.id }),
+            onSelect: () => openActionModal({ kind: "list-link", listId: selectedList.id }),
           },
           {
             label: "Export Cart JSON",
@@ -105,8 +87,7 @@ export function CartSidebar({
           {
             label: "Clone Cart",
             icon: <Copy className="size-4" />,
-            onSelect: () =>
-              openActionModal({ kind: "list-clone", listId: selectedList.id }),
+            onSelect: () => openActionModal({ kind: "list-clone", listId: selectedList.id }),
           },
           ...(selectedList.canShare
             ? [
@@ -145,42 +126,25 @@ export function CartSidebar({
               </p>
               {selectedList?.huaweiCartKey ? (
                 <p className="mt-1 text-xs text-zinc-400">
-                  Linked to Huawei cart{" "}
-                  {selectedList.huaweiCartName || selectedList.huaweiCartKey}
+                  Linked to Huawei cart {selectedList.huaweiCartName || selectedList.huaweiCartKey}
                 </p>
               ) : null}
               {selectedList?.huaweiLastSyncedAt ? (
                 <p className="mt-1 text-xs text-zinc-400">
-                  Last Huawei sync:{" "}
-                  {formatDateTime(selectedList.huaweiLastSyncedAt)}
+                  Last Huawei sync: {formatDateTime(selectedList.huaweiLastSyncedAt)}
                 </p>
               ) : null}
               {selectedList?.huaweiLastError ? (
-                <p className="mt-1 text-xs text-red-600">
-                  {selectedList.huaweiLastError}
-                </p>
+                <p className="mt-1 text-xs text-red-600">{selectedList.huaweiLastError}</p>
               ) : null}
-              {selectedList &&
-              (huaweiActionMessage ||
-                cloneActionMessage ||
-                listShareMessages[selectedList.id]) ? (
+              {selectedList && (huaweiActionMessage || cloneActionMessage || listShareMessages[selectedList.id]) ? (
                 <div className="mt-2 space-y-1 text-xs">
-                  {huaweiActionMessage ? (
-                    <p className="text-zinc-500">{huaweiActionMessage}</p>
-                  ) : null}
+                  {huaweiActionMessage ? <p className="text-zinc-500">{huaweiActionMessage}</p> : null}
                   {cloneActionMessage ? (
-                    <p
-                      className={
-                        cloneActionIsError ? "text-red-600" : "text-zinc-500"
-                      }
-                    >
-                      {cloneActionMessage}
-                    </p>
+                    <p className={cloneActionIsError ? "text-red-600" : "text-zinc-500"}>{cloneActionMessage}</p>
                   ) : null}
                   {listShareMessages[selectedList.id] ? (
-                    <p className="text-zinc-500">
-                      {listShareMessages[selectedList.id]}
-                    </p>
+                    <p className="text-zinc-500">{listShareMessages[selectedList.id]}</p>
                   ) : null}
                 </div>
               ) : null}
@@ -191,9 +155,7 @@ export function CartSidebar({
                   ? `${selectedCartProducts.length} items`
                   : `${filteredCartProducts.length} of ${selectedCartProducts.length} items`}
               </Badge>
-              {selectedList?.huaweiCartKey ? (
-                <Badge variant="secondary">Huawei linked</Badge>
-              ) : null}
+              {selectedList?.huaweiCartKey ? <Badge variant="secondary">Huawei linked</Badge> : null}
               {selectedList?.canShare ? (
                 <Button
                   type="button"
@@ -235,11 +197,7 @@ export function CartSidebar({
               <div ref={cartFilterAreaRef} className="relative">
                 <Button
                   type="button"
-                  variant={
-                    isCartFiltersOpen || hasActiveCartFilters
-                      ? "default"
-                      : "outline"
-                  }
+                  variant={isCartFiltersOpen || hasActiveCartFilters ? "default" : "outline"}
                   size="icon"
                   onClick={() => setIsCartFiltersOpen((current) => !current)}
                   aria-label="Open cart filters"
@@ -250,9 +208,7 @@ export function CartSidebar({
                 {isCartFiltersOpen ? (
                   <div className="absolute top-full right-0 z-20 mt-2 w-72 rounded-xl border border-zinc-200 bg-white p-3 shadow-[0_18px_40px_-30px_rgba(15,23,42,0.35)]">
                     <div className="flex items-center justify-between gap-3">
-                      <p className="text-sm font-medium text-zinc-950">
-                        Filter & Sort
-                      </p>
+                      <p className="text-sm font-medium text-zinc-950">Filter & Sort</p>
                       <Button
                         type="button"
                         variant="ghost"
@@ -271,14 +227,10 @@ export function CartSidebar({
                     </div>
                     <div className="mt-3 space-y-3">
                       <div className="space-y-1.5">
-                        <p className="text-xs font-medium tracking-[0.16em] text-zinc-500 uppercase">
-                          Service
-                        </p>
+                        <p className="text-xs font-medium tracking-[0.16em] text-zinc-500 uppercase">Service</p>
                         <Select
                           value={cartServiceFilter}
-                          onValueChange={(value) =>
-                            setCartServiceFilter(value ?? "__all")
-                          }
+                          onValueChange={(value) => setCartServiceFilter(value ?? "__all")}
                         >
                           <SelectTrigger className="bg-white">
                             <SelectValue />
@@ -286,10 +238,7 @@ export function CartSidebar({
                           <SelectContent>
                             <SelectItem value="__all">All services</SelectItem>
                             {cartServiceFilterOptions.map((option) => (
-                              <SelectItem
-                                key={option.serviceCode}
-                                value={option.serviceCode}
-                              >
+                              <SelectItem key={option.serviceCode} value={option.serviceCode}>
                                 {option.serviceName}
                               </SelectItem>
                             ))}
@@ -297,14 +246,10 @@ export function CartSidebar({
                         </Select>
                       </div>
                       <div className="space-y-1.5">
-                        <p className="text-xs font-medium tracking-[0.16em] text-zinc-500 uppercase">
-                          Order
-                        </p>
+                        <p className="text-xs font-medium tracking-[0.16em] text-zinc-500 uppercase">Order</p>
                         <Select
                           value={cartSortOption}
-                          onValueChange={(value) =>
-                            setCartSortOption(value as CartSortOption)
-                          }
+                          onValueChange={(value) => setCartSortOption(value as CartSortOption)}
                         >
                           <SelectTrigger className="bg-white">
                             <SelectValue />
@@ -312,15 +257,9 @@ export function CartSidebar({
                           <SelectContent>
                             <SelectItem value="default">Saved order</SelectItem>
                             <SelectItem value="title-asc">Title A-Z</SelectItem>
-                            <SelectItem value="title-desc">
-                              Title Z-A
-                            </SelectItem>
-                            <SelectItem value="price-desc">
-                              Price high to low
-                            </SelectItem>
-                            <SelectItem value="price-asc">
-                              Price low to high
-                            </SelectItem>
+                            <SelectItem value="title-desc">Title Z-A</SelectItem>
+                            <SelectItem value="price-desc">Price high to low</SelectItem>
+                            <SelectItem value="price-asc">Price low to high</SelectItem>
                           </SelectContent>
                         </Select>
                       </div>
@@ -347,9 +286,7 @@ export function CartSidebar({
               </Button>
             </div>
           ) : null}
-          {selectedList &&
-          cartClipboardMessage &&
-          cartClipboardMessageIsError ? (
+          {selectedList && cartClipboardMessage && cartClipboardMessageIsError ? (
             <p className="mt-3 text-xs text-red-600">{cartClipboardMessage}</p>
           ) : null}
         </CardHeader>
@@ -369,29 +306,21 @@ export function CartSidebar({
                 </div>
               ) : null}
 
-              {selectedList &&
-              selectedCartProducts.length > 0 &&
-              filteredCartProducts.length === 0 ? (
+              {selectedList && selectedCartProducts.length > 0 && filteredCartProducts.length === 0 ? (
                 <div className="rounded-lg border border-dashed bg-zinc-50 p-4 text-sm text-zinc-500">
                   No cart items matched the current search or filter settings.
                 </div>
               ) : null}
 
               {filteredCartProducts.map((product) => {
-                const serviceMeta = getServiceMeta(
-                  product.serviceCode,
-                  product.serviceName,
-                );
+                const serviceMeta = getServiceMeta(product.serviceCode, product.serviceName);
                 const priceSummary = splitProductPriceSummary(product);
                 const priceWarning =
-                  isRecord(product.pricing) &&
-                  typeof product.pricing.priceWarning === "string"
+                  isRecord(product.pricing) && typeof product.pricing.priceWarning === "string"
                     ? product.pricing.priceWarning
                     : null;
                 const isEditingProduct = editingProductId === product.id;
-                const isSelectedProduct = selectedCartItemIds.includes(
-                  product.id,
-                );
+                const isSelectedProduct = selectedCartItemIds.includes(product.id);
 
                 return (
                   <div
@@ -428,39 +357,23 @@ export function CartSidebar({
                           ) : null}
                           <div className="min-w-0">
                             <div className="flex flex-wrap items-center gap-2">
-                              <p className="truncate font-medium">
-                                {product.title}
-                              </p>
+                              <p className="truncate font-medium">{product.title}</p>
                               {isSelectedProduct ? (
-                                <Badge className="bg-blue-600 text-white hover:bg-blue-600">
-                                  Selected
-                                </Badge>
+                                <Badge className="bg-blue-600 text-white hover:bg-blue-600">Selected</Badge>
                               ) : null}
                               {isEditingProduct ? <Badge>Editing</Badge> : null}
                             </div>
-                            <p className="mt-1 text-sm text-zinc-500">
-                              {getProductConfigSummary(product)}
-                            </p>
+                            <p className="mt-1 text-sm text-zinc-500">{getProductConfigSummary(product)}</p>
                             <p className="mt-1 text-xs text-zinc-400">
-                              {product.serviceCode} ·{" "}
-                              {product.productType.toUpperCase()} · Qty{" "}
-                              {product.quantity}
+                              {product.serviceCode} · {product.productType.toUpperCase()} · Qty {product.quantity}
                             </p>
                           </div>
                         </div>
                       </div>
                       <div className="text-left sm:text-right">
-                        <p className="text-lg font-semibold text-zinc-950">
-                          {priceSummary.amount}
-                        </p>
-                        <p className="text-sm text-zinc-500">
-                          {priceSummary.timeframe ?? "Saved item"}
-                        </p>
-                        {priceWarning ? (
-                          <p className="mt-1 text-xs text-amber-600">
-                            {priceWarning}
-                          </p>
-                        ) : null}
+                        <p className="text-lg font-semibold text-zinc-950">{priceSummary.amount}</p>
+                        <p className="text-sm text-zinc-500">{priceSummary.timeframe ?? "Saved item"}</p>
+                        {priceWarning ? <p className="mt-1 text-xs text-amber-600">{priceWarning}</p> : null}
                         <div className="mt-3 flex items-center gap-2 sm:justify-end">
                           {isEditingProduct ? (
                             <>
@@ -472,31 +385,28 @@ export function CartSidebar({
                                   event.stopPropagation();
                                   handleCancelEdit();
                                 }}
-                                disabled={
-                                  addToListPending ||
-                                  deletingProductId === product.id
-                                }
+                                disabled={addToListPending || deletingProductId === product.id}
                               >
                                 Cancel
                               </Button>
-                              <Button
-                                type="button"
-                                size="sm"
-                                onClick={(event) => {
-                                  event.stopPropagation();
-                                  handleAddToList();
-                                }}
-                                disabled={
-                                  addToListPending ||
-                                  !selectedListId ||
-                                  !isSignedIn ||
-                                  deletingProductId === product.id
-                                }
-                              >
-                                {addToListPending
-                                  ? "Saving..."
-                                  : "Save Changes"}
-                              </Button>
+                              {product.productType !== "huawei-native" && (
+                                <Button
+                                  type="button"
+                                  size="sm"
+                                  onClick={(event) => {
+                                    event.stopPropagation();
+                                    handleAddToList();
+                                  }}
+                                  disabled={
+                                    addToListPending ||
+                                    !selectedListId ||
+                                    !isSignedIn ||
+                                    deletingProductId === product.id
+                                  }
+                                >
+                                  {addToListPending ? "Saving..." : "Save Changes"}
+                                </Button>
+                              )}
                             </>
                           ) : (
                             <Button
@@ -529,9 +439,7 @@ export function CartSidebar({
                             }}
                             disabled={deletingProductId === product.id}
                             aria-label={
-                              deletingProductId === product.id
-                                ? `Deleting ${product.title}`
-                                : `Delete ${product.title}`
+                              deletingProductId === product.id ? `Deleting ${product.title}` : `Delete ${product.title}`
                             }
                           >
                             <Trash2 className="size-4" />
