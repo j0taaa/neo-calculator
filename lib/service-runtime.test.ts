@@ -4,7 +4,7 @@ import { getTypedDeclarativeRuntimeDefinitionByCode } from "@/lib/declarative-se
 import { buildDefaultValues, buildRuntimeScope, evaluateCatalogView, evaluateRuntimeValue } from "@/lib/service-runtime";
 import type { BillingOption } from "@/lib/service-config-types";
 import type { DeclarativeEstimateRecord } from "@/lib/declarative-service-runtime-types";
-import type { ProductMutationBody } from "@/lib/calculator-page-helpers";
+import type { ProductMutationBody } from "@/lib/calculator-types";
 import expected from "@/tests/fixtures/runtime/expected.json";
 
 // Captured from the pre-refactor runtime using fixed Huawei catalog responses.

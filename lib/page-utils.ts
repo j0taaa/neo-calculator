@@ -1,5 +1,5 @@
 import { findServiceCatalogEntry } from "@/lib/service-config";
-import type { AppProduct, AppProject, BillingOption as PageBillingOption, ProductMutationBody } from "@/lib/calculator-page-helpers";
+import type { AppProduct, AppProject, BillingOption as PageBillingOption, ProductMutationBody } from "@/lib/calculator-types";
 import type { ActiveModalKind } from "@/lib/dashboard-url-state";
 
 export type BillingOption = PageBillingOption;
@@ -131,30 +131,6 @@ export function getCalculatorActionButton() {
   }
 
   return button;
-}
-
-export function appendProductToProjects(
-  current: AppProject[],
-  payload: AppProduct & { listId: string; projectId: string },
-) {
-  return current.map((project) =>
-    project.id === payload.projectId
-      ? {
-          ...project,
-          updatedAt: payload.updatedAt,
-          lists: project.lists.map((list) =>
-            list.id === payload.listId
-              ? {
-                  ...list,
-                  updatedAt: payload.updatedAt,
-                  productCount: list.productCount + 1,
-                  products: [...list.products, payload],
-                }
-              : list,
-          ),
-        }
-      : project,
-  );
 }
 
 export function removeProductFromProjects(

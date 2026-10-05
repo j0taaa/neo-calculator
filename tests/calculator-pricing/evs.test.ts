@@ -1,7 +1,7 @@
 import { expect, test } from "bun:test";
 
 import { buildEvsProductMutationBodies, buildEvsSplitNotice, evsDiskSizeBounds, splitEvsDiskSizes } from "@/lib/configurable-runtime-utils";
-import type { DiskPricing } from "@/lib/calculator-page-helpers";
+import type { DiskPricing } from "@/lib/calculator-types";
 
 const diskPricing: DiskPricing<"High I/O"> = {
   currency: "USD",

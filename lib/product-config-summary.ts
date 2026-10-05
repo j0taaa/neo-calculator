@@ -1,5 +1,6 @@
 import { formatNumber } from "@/lib/utils";
-import { isRecord, type AppProduct } from "@/lib/calculator-page-helpers";
+import type { AppProduct } from "@/lib/calculator-types";
+import { isRecord } from "@/lib/calculator-page-helpers";
 
 function formatObsRequestSummary(value: number, label: string) {
   const normalized = value / 10_000;

@@ -37,6 +37,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Check, ChevronDown, ChevronRight, Copy, Download, Link2, Pencil, Plus, RefreshCw, RotateCcw, Search, Share2, SlidersHorizontal, Trash2, Upload, X } from "lucide-react";
+import type { AppList, AppProduct, AppProject, HuaweiCartSummary, ProductMutationBody } from "@/lib/calculator-types";
+import { applyProductMutation } from "@/lib/calculator-cart";
 import {
   copyText,
   getCartCloneDefaultName,
@@ -46,17 +48,11 @@ import {
   isRecord,
   parseJsonFile,
   splitProductPriceSummary,
-  type AppList,
-  type AppProduct,
-  type AppProject,
-  type HuaweiCartSummary,
-  type ProductMutationBody,
 } from "@/lib/calculator-page-helpers";
 import { getProductConfigSummary } from "@/lib/product-config-summary";
 import { parseDashboardUrlState, type DashboardUrlState } from "@/lib/dashboard-url-state";
 import { useCalculatorController } from "@/lib/use-calculator-controller";
 import {
-  appendProductToProjects,
   chooseOpenCalculatorSelectItem,
   getCalculatorActionButton,
   getCalculatorFocusTarget,
@@ -1890,7 +1886,7 @@ export default function Home() {
           "Unable to paste cart items",
         );
         createdIds.push(createdPayload.id);
-        setProjects((current) => appendProductToProjects(current, createdPayload));
+        setProjects((current) => applyProductMutation(current, createdPayload, "POST", "end"));
       }
 
       setSelectedCartItemIds(createdIds);
@@ -2955,12 +2951,7 @@ export default function Home() {
                           ) : null}
                         </section>
                       ) : null}
-                      <CalculatorPanelRouter
-                        activeServiceCode={calculatorPanelProps.activeServiceCode}
-                        configurablePanel={calculatorPanelProps.configurablePanel as never}
-                        ecsPanel={calculatorPanelProps.ecsPanel as never}
-                        flexusLPanel={calculatorPanelProps.flexusLPanel as never}
-                      />
+                      <CalculatorPanelRouter {...calculatorPanelProps} />
                     </CardContent>
                   </>
                 ) : (
