@@ -36,72 +36,14 @@
       "region": "ap-southeast-1",
       "billingMode": "ONDEMAND",
       "name": "default",
-      "amount": 2.438,
-      "inquiries": [
-        {
-          "regionId": "ap-southeast-1",
-          "chargingMode": 1,
-          "periodType": 4,
-          "periodNum": 1,
-          "subscriptionNum": 1,
-          "siteCode": "HWC",
-          "productInfos": [
-            {
-              "cloudServiceType": "hws.service.type.natgateway",
-              "resourceType": "hws.resource.type.natgateway",
-              "resourceSpecCode": "natgateway_small",
-              "productNum": 1,
-              "usageFactor": "duration",
-              "usageMeasureId": 0,
-              "usageValue": 1
-            }
-          ]
-        }
-      ],
-      "source": {
-        "page": "6b3f650c493aa7b0acee484168bd559d5ea827f0c5f69770cfb4d2e313fcf810",
-        "config": "cdeeb27fa03ba83eeeb94e051c0de135dadd898a53de2a32b39127d561d624ef",
-        "products": "9e367e2987fcf31fed62b4838f1ca8b86bff32d56fd80cc7a88724e2575fe0b1",
-        "framework": "bd9a0b42e80a5779409416a32232b7af4c7e09342dc49100b81d2c8a9e5d71ff",
-        "menu": "75b799cc2c669528310de42b369669024e87a68125ac1ed37ae45fcc9716dbbf",
-        "fetchedAt": "2026-10-05T22:14:28.928Z"
-      }
+      "amount": 2.438
     },
     {
       "service": "nat",
       "region": "ap-southeast-1",
       "billingMode": "ONDEMAND",
       "name": "duration-two",
-      "amount": 4.876,
-      "inquiries": [
-        {
-          "regionId": "ap-southeast-1",
-          "chargingMode": 1,
-          "periodType": 4,
-          "periodNum": 1,
-          "subscriptionNum": 1,
-          "siteCode": "HWC",
-          "productInfos": [
-            {
-              "cloudServiceType": "hws.service.type.natgateway",
-              "resourceType": "hws.resource.type.natgateway",
-              "resourceSpecCode": "natgateway_small",
-              "productNum": 1,
-              "usageFactor": "duration",
-              "usageMeasureId": 0,
-              "usageValue": 2
-            }
-          ]
-        }
-      ],
-      "source": {
-        "page": "6b3f650c493aa7b0acee484168bd559d5ea827f0c5f69770cfb4d2e313fcf810",
-        "config": "cdeeb27fa03ba83eeeb94e051c0de135dadd898a53de2a32b39127d561d624ef",
-        "products": "9e367e2987fcf31fed62b4838f1ca8b86bff32d56fd80cc7a88724e2575fe0b1",
-        "framework": "bd9a0b42e80a5779409416a32232b7af4c7e09342dc49100b81d2c8a9e5d71ff",
-        "menu": "75b799cc2c669528310de42b369669024e87a68125ac1ed37ae45fcc9716dbbf",
-        "fetchedAt": "2026-10-05T22:14:28.928Z"
-      }
+      "amount": 4.876
     },
     {
       "service": "nat",
@@ -122,99 +64,21 @@
       "region": "ap-southeast-1",
       "billingMode": "PERIOD",
       "name": "default",
-      "amount": 57.3,
-      "inquiries": [
-        {
-          "regionId": "ap-southeast-1",
-          "chargingMode": 0,
-          "periodType": 2,
-          "periodNum": 1,
-          "subscriptionNum": 1,
-          "siteCode": "HWC",
-          "productInfos": [
-            {
-              "cloudServiceType": "hws.service.type.natgateway",
-              "resourceType": "hws.resource.type.natgateway",
-              "resourceSpecCode": "natgateway_small",
-              "productNum": 1
-            }
-          ]
-        }
-      ],
-      "source": {
-        "page": "6b3f650c493aa7b0acee484168bd559d5ea827f0c5f69770cfb4d2e313fcf810",
-        "config": "cdeeb27fa03ba83eeeb94e051c0de135dadd898a53de2a32b39127d561d624ef",
-        "products": "9e367e2987fcf31fed62b4838f1ca8b86bff32d56fd80cc7a88724e2575fe0b1",
-        "framework": "bd9a0b42e80a5779409416a32232b7af4c7e09342dc49100b81d2c8a9e5d71ff",
-        "menu": "75b799cc2c669528310de42b369669024e87a68125ac1ed37ae45fcc9716dbbf",
-        "fetchedAt": "2026-10-05T22:14:28.928Z"
-      }
+      "amount": 57.3
     },
     {
       "service": "nat",
       "region": "ap-southeast-1",
       "billingMode": "PERIOD",
       "name": "annual",
-      "amount": 573,
-      "inquiries": [
-        {
-          "regionId": "ap-southeast-1",
-          "chargingMode": 0,
-          "periodType": 3,
-          "periodNum": 1,
-          "subscriptionNum": 1,
-          "siteCode": "HWC",
-          "productInfos": [
-            {
-              "cloudServiceType": "hws.service.type.natgateway",
-              "resourceType": "hws.resource.type.natgateway",
-              "resourceSpecCode": "natgateway_small",
-              "productNum": 1
-            }
-          ]
-        }
-      ],
-      "source": {
-        "page": "6b3f650c493aa7b0acee484168bd559d5ea827f0c5f69770cfb4d2e313fcf810",
-        "config": "cdeeb27fa03ba83eeeb94e051c0de135dadd898a53de2a32b39127d561d624ef",
-        "products": "9e367e2987fcf31fed62b4838f1ca8b86bff32d56fd80cc7a88724e2575fe0b1",
-        "framework": "bd9a0b42e80a5779409416a32232b7af4c7e09342dc49100b81d2c8a9e5d71ff",
-        "menu": "75b799cc2c669528310de42b369669024e87a68125ac1ed37ae45fcc9716dbbf",
-        "fetchedAt": "2026-10-05T22:14:28.928Z"
-      }
+      "amount": 573
     },
     {
       "service": "nat",
       "region": "ap-southeast-1",
       "billingMode": "PERIOD",
       "name": "three-years",
-      "amount": 1719,
-      "inquiries": [
-        {
-          "regionId": "ap-southeast-1",
-          "chargingMode": 0,
-          "periodType": 3,
-          "periodNum": 3,
-          "subscriptionNum": 1,
-          "siteCode": "HWC",
-          "productInfos": [
-            {
-              "cloudServiceType": "hws.service.type.natgateway",
-              "resourceType": "hws.resource.type.natgateway",
-              "resourceSpecCode": "natgateway_small",
-              "productNum": 1
-            }
-          ]
-        }
-      ],
-      "source": {
-        "page": "6b3f650c493aa7b0acee484168bd559d5ea827f0c5f69770cfb4d2e313fcf810",
-        "config": "cdeeb27fa03ba83eeeb94e051c0de135dadd898a53de2a32b39127d561d624ef",
-        "products": "9e367e2987fcf31fed62b4838f1ca8b86bff32d56fd80cc7a88724e2575fe0b1",
-        "framework": "bd9a0b42e80a5779409416a32232b7af4c7e09342dc49100b81d2c8a9e5d71ff",
-        "menu": "75b799cc2c669528310de42b369669024e87a68125ac1ed37ae45fcc9716dbbf",
-        "fetchedAt": "2026-10-05T22:14:28.928Z"
-      }
+      "amount": 1719
     },
     {
       "service": "nat",
@@ -228,105 +92,21 @@
       "region": "ap-southeast-1",
       "billingMode": "PERIOD",
       "name": "default",
-      "amount": 26.95,
-      "inquiries": [
-        {
-          "regionId": "ap-southeast-1",
-          "chargingMode": 0,
-          "periodType": 2,
-          "periodNum": 1,
-          "subscriptionNum": 1,
-          "siteCode": "HWC",
-          "productInfos": [
-            {
-              "cloudServiceType": "hws.service.type.elb",
-              "resourceType": "hws.resource.type.elbv3",
-              "resourceSpecCode": "elbv3.basic.1az",
-              "productNum": 1,
-              "resourceSize": 10,
-              "resouceSizeMeasureId": 14
-            }
-          ]
-        }
-      ],
-      "source": {
-        "page": "6b3f650c493aa7b0acee484168bd559d5ea827f0c5f69770cfb4d2e313fcf810",
-        "config": "e60e69b064d30766f6a3f0eeee992b45f2c653719bd94f9d488deb21ee33837b",
-        "products": "13f12001ef66f03aba5a0e255901a8292b1a80c3bedb5f12244bd8e303faf172",
-        "framework": "bd9a0b42e80a5779409416a32232b7af4c7e09342dc49100b81d2c8a9e5d71ff",
-        "menu": "75b799cc2c669528310de42b369669024e87a68125ac1ed37ae45fcc9716dbbf",
-        "fetchedAt": "2026-10-05T22:15:18.453Z"
-      }
+      "amount": 26.95
     },
     {
       "service": "elb",
       "region": "ap-southeast-1",
       "billingMode": "PERIOD",
       "name": "annual",
-      "amount": 269.54,
-      "inquiries": [
-        {
-          "regionId": "ap-southeast-1",
-          "chargingMode": 0,
-          "periodType": 3,
-          "periodNum": 1,
-          "subscriptionNum": 1,
-          "siteCode": "HWC",
-          "productInfos": [
-            {
-              "cloudServiceType": "hws.service.type.elb",
-              "resourceType": "hws.resource.type.elbv3",
-              "resourceSpecCode": "elbv3.basic.1az",
-              "productNum": 1,
-              "resourceSize": 10,
-              "resouceSizeMeasureId": 14
-            }
-          ]
-        }
-      ],
-      "source": {
-        "page": "6b3f650c493aa7b0acee484168bd559d5ea827f0c5f69770cfb4d2e313fcf810",
-        "config": "e60e69b064d30766f6a3f0eeee992b45f2c653719bd94f9d488deb21ee33837b",
-        "products": "13f12001ef66f03aba5a0e255901a8292b1a80c3bedb5f12244bd8e303faf172",
-        "framework": "bd9a0b42e80a5779409416a32232b7af4c7e09342dc49100b81d2c8a9e5d71ff",
-        "menu": "75b799cc2c669528310de42b369669024e87a68125ac1ed37ae45fcc9716dbbf",
-        "fetchedAt": "2026-10-05T22:15:18.453Z"
-      }
+      "amount": 269.54
     },
     {
       "service": "elb",
       "region": "ap-southeast-1",
       "billingMode": "PERIOD",
       "name": "three-years",
-      "amount": 808.63,
-      "inquiries": [
-        {
-          "regionId": "ap-southeast-1",
-          "chargingMode": 0,
-          "periodType": 3,
-          "periodNum": 3,
-          "subscriptionNum": 1,
-          "siteCode": "HWC",
-          "productInfos": [
-            {
-              "cloudServiceType": "hws.service.type.elb",
-              "resourceType": "hws.resource.type.elbv3",
-              "resourceSpecCode": "elbv3.basic.1az",
-              "productNum": 1,
-              "resourceSize": 10,
-              "resouceSizeMeasureId": 14
-            }
-          ]
-        }
-      ],
-      "source": {
-        "page": "6b3f650c493aa7b0acee484168bd559d5ea827f0c5f69770cfb4d2e313fcf810",
-        "config": "e60e69b064d30766f6a3f0eeee992b45f2c653719bd94f9d488deb21ee33837b",
-        "products": "13f12001ef66f03aba5a0e255901a8292b1a80c3bedb5f12244bd8e303faf172",
-        "framework": "bd9a0b42e80a5779409416a32232b7af4c7e09342dc49100b81d2c8a9e5d71ff",
-        "menu": "75b799cc2c669528310de42b369669024e87a68125ac1ed37ae45fcc9716dbbf",
-        "fetchedAt": "2026-10-05T22:15:18.453Z"
-      }
+      "amount": 808.63
     },
     {
       "service": "elb",
@@ -340,348 +120,42 @@
       "region": "ap-southeast-1",
       "billingMode": "ONDEMAND",
       "name": "default",
-      "amount": 0.14968,
-      "inquiries": [
-        {
-          "regionId": "ap-southeast-1",
-          "chargingMode": 1,
-          "periodType": 4,
-          "periodNum": 1,
-          "subscriptionNum": 1,
-          "siteCode": "HWC",
-          "productInfos": [
-            {
-              "cloudServiceType": "hws.service.type.ebs",
-              "resourceType": "hws.resource.type.volume",
-              "resourceSpecCode": "GPSSD",
-              "productNum": 1,
-              "resourceSize": 40,
-              "resouceSizeMeasureId": 17,
-              "usageFactor": "Duration",
-              "usageMeasureId": 4,
-              "usageValue": 1
-            },
-            {
-              "cloudServiceType": "hws.service.type.ec2",
-              "resourceType": "hws.resource.type.vm",
-              "resourceSpecCode": "c9.large.2.linux",
-              "productNum": 1,
-              "usageFactor": "Duration",
-              "usageMeasureId": 4,
-              "usageValue": 1
-            },
-            {
-              "cloudServiceType": "hws.service.type.vpc",
-              "resourceType": "hws.resource.type.bandwidth",
-              "resourceSpecCode": "19_bgp",
-              "productNum": 1,
-              "resourceSize": 5,
-              "resouceSizeMeasureId": 15,
-              "usageFactor": "Duration",
-              "usageMeasureId": 4,
-              "usageValue": 1
-            }
-          ]
-        }
-      ],
-      "source": {
-        "page": "6b3f650c493aa7b0acee484168bd559d5ea827f0c5f69770cfb4d2e313fcf810",
-        "config": "6ffc3213332236defd956da8c3bb25ac247712b98bdef09090f226a02cf49663",
-        "products": "1362e0b46e3be3184b76b3eeade3275c0ab3ad0ab432245e5d7de29f05c79e6d",
-        "framework": "bd9a0b42e80a5779409416a32232b7af4c7e09342dc49100b81d2c8a9e5d71ff",
-        "menu": "75b799cc2c669528310de42b369669024e87a68125ac1ed37ae45fcc9716dbbf",
-        "fetchedAt": "2026-10-05T22:11:28.087Z"
-      }
+      "amount": 0.14968
     },
     {
       "service": "ecs",
       "region": "ap-southeast-1",
       "billingMode": "ONDEMAND",
       "name": "aC8-no-image-selection",
-      "amount": 0.13008,
-      "inquiries": [
-        {
-          "regionId": "ap-southeast-1",
-          "chargingMode": 1,
-          "periodType": 4,
-          "periodNum": 1,
-          "subscriptionNum": 1,
-          "siteCode": "HWC",
-          "productInfos": [
-            {
-              "cloudServiceType": "hws.service.type.ebs",
-              "resourceType": "hws.resource.type.volume",
-              "resourceSpecCode": "GPSSD",
-              "productNum": 1,
-              "resourceSize": 40,
-              "resouceSizeMeasureId": 17,
-              "usageFactor": "Duration",
-              "usageMeasureId": 4,
-              "usageValue": 1
-            },
-            {
-              "cloudServiceType": "hws.service.type.ec2",
-              "resourceType": "hws.resource.type.vm",
-              "resourceSpecCode": "ac8.large.2.linux",
-              "productNum": 1,
-              "usageFactor": "Duration",
-              "usageMeasureId": 4,
-              "usageValue": 1
-            },
-            {
-              "cloudServiceType": "hws.service.type.vpc",
-              "resourceType": "hws.resource.type.bandwidth",
-              "resourceSpecCode": "19_bgp",
-              "productNum": 1,
-              "resourceSize": 5,
-              "resouceSizeMeasureId": 15,
-              "usageFactor": "Duration",
-              "usageMeasureId": 4,
-              "usageValue": 1
-            }
-          ]
-        }
-      ],
-      "source": {
-        "page": "6b3f650c493aa7b0acee484168bd559d5ea827f0c5f69770cfb4d2e313fcf810",
-        "config": "6ffc3213332236defd956da8c3bb25ac247712b98bdef09090f226a02cf49663",
-        "products": "1362e0b46e3be3184b76b3eeade3275c0ab3ad0ab432245e5d7de29f05c79e6d",
-        "framework": "bd9a0b42e80a5779409416a32232b7af4c7e09342dc49100b81d2c8a9e5d71ff",
-        "menu": "75b799cc2c669528310de42b369669024e87a68125ac1ed37ae45fcc9716dbbf",
-        "fetchedAt": "2026-10-05T22:11:28.087Z"
-      }
+      "amount": 0.13008
     },
     {
       "service": "ecs",
       "region": "ap-southeast-1",
       "billingMode": "ONDEMAND",
       "name": "generation-with-images",
-      "amount": 0.15448,
-      "inquiries": [
-        {
-          "regionId": "ap-southeast-1",
-          "chargingMode": 1,
-          "periodType": 4,
-          "periodNum": 1,
-          "subscriptionNum": 1,
-          "siteCode": "HWC",
-          "productInfos": [
-            {
-              "cloudServiceType": "hws.service.type.ebs",
-              "resourceType": "hws.resource.type.volume",
-              "resourceSpecCode": "GPSSD",
-              "productNum": 1,
-              "resourceSize": 40,
-              "resouceSizeMeasureId": 17,
-              "usageFactor": "Duration",
-              "usageMeasureId": 4,
-              "usageValue": 1
-            },
-            {
-              "cloudServiceType": "hws.service.type.ec2",
-              "resourceType": "hws.resource.type.vm",
-              "resourceSpecCode": "c7n.large.2.linux",
-              "productNum": 1,
-              "usageFactor": "Duration",
-              "usageMeasureId": 4,
-              "usageValue": 1
-            },
-            {
-              "cloudServiceType": "hws.service.type.vpc",
-              "resourceType": "hws.resource.type.bandwidth",
-              "resourceSpecCode": "19_bgp",
-              "productNum": 1,
-              "resourceSize": 5,
-              "resouceSizeMeasureId": 15,
-              "usageFactor": "Duration",
-              "usageMeasureId": 4,
-              "usageValue": 1
-            }
-          ]
-        }
-      ],
-      "source": {
-        "page": "6b3f650c493aa7b0acee484168bd559d5ea827f0c5f69770cfb4d2e313fcf810",
-        "config": "6ffc3213332236defd956da8c3bb25ac247712b98bdef09090f226a02cf49663",
-        "products": "1362e0b46e3be3184b76b3eeade3275c0ab3ad0ab432245e5d7de29f05c79e6d",
-        "framework": "bd9a0b42e80a5779409416a32232b7af4c7e09342dc49100b81d2c8a9e5d71ff",
-        "menu": "75b799cc2c669528310de42b369669024e87a68125ac1ed37ae45fcc9716dbbf",
-        "fetchedAt": "2026-10-05T22:11:28.087Z"
-      }
+      "amount": 0.15448
     },
     {
       "service": "ecs",
       "region": "ap-southeast-1",
       "billingMode": "ONDEMAND",
       "name": "return-to-original-generation",
-      "amount": 0.14968,
-      "inquiries": [
-        {
-          "regionId": "ap-southeast-1",
-          "chargingMode": 1,
-          "periodType": 4,
-          "periodNum": 1,
-          "subscriptionNum": 1,
-          "siteCode": "HWC",
-          "productInfos": [
-            {
-              "cloudServiceType": "hws.service.type.ebs",
-              "resourceType": "hws.resource.type.volume",
-              "resourceSpecCode": "GPSSD",
-              "productNum": 1,
-              "resourceSize": 40,
-              "resouceSizeMeasureId": 17,
-              "usageFactor": "Duration",
-              "usageMeasureId": 4,
-              "usageValue": 1
-            },
-            {
-              "cloudServiceType": "hws.service.type.ec2",
-              "resourceType": "hws.resource.type.vm",
-              "resourceSpecCode": "c9.large.2.linux",
-              "productNum": 1,
-              "usageFactor": "Duration",
-              "usageMeasureId": 4,
-              "usageValue": 1
-            },
-            {
-              "cloudServiceType": "hws.service.type.vpc",
-              "resourceType": "hws.resource.type.bandwidth",
-              "resourceSpecCode": "19_bgp",
-              "productNum": 1,
-              "resourceSize": 5,
-              "resouceSizeMeasureId": 15,
-              "usageFactor": "Duration",
-              "usageMeasureId": 4,
-              "usageValue": 1
-            }
-          ]
-        }
-      ],
-      "source": {
-        "page": "6b3f650c493aa7b0acee484168bd559d5ea827f0c5f69770cfb4d2e313fcf810",
-        "config": "6ffc3213332236defd956da8c3bb25ac247712b98bdef09090f226a02cf49663",
-        "products": "1362e0b46e3be3184b76b3eeade3275c0ab3ad0ab432245e5d7de29f05c79e6d",
-        "framework": "bd9a0b42e80a5779409416a32232b7af4c7e09342dc49100b81d2c8a9e5d71ff",
-        "menu": "75b799cc2c669528310de42b369669024e87a68125ac1ed37ae45fcc9716dbbf",
-        "fetchedAt": "2026-10-05T22:11:28.087Z"
-      }
+      "amount": 0.14968
     },
     {
       "service": "ecs",
       "region": "ap-southeast-1",
       "billingMode": "ONDEMAND",
       "name": "quantity-two",
-      "amount": 0.29936,
-      "inquiries": [
-        {
-          "regionId": "ap-southeast-1",
-          "chargingMode": 1,
-          "periodType": 4,
-          "periodNum": 1,
-          "subscriptionNum": 1,
-          "siteCode": "HWC",
-          "productInfos": [
-            {
-              "cloudServiceType": "hws.service.type.ebs",
-              "resourceType": "hws.resource.type.volume",
-              "resourceSpecCode": "GPSSD",
-              "productNum": 2,
-              "resourceSize": 40,
-              "resouceSizeMeasureId": 17,
-              "usageFactor": "Duration",
-              "usageMeasureId": 4,
-              "usageValue": 1
-            },
-            {
-              "cloudServiceType": "hws.service.type.ec2",
-              "resourceType": "hws.resource.type.vm",
-              "resourceSpecCode": "c9.large.2.linux",
-              "productNum": 2,
-              "usageFactor": "Duration",
-              "usageMeasureId": 4,
-              "usageValue": 1
-            },
-            {
-              "cloudServiceType": "hws.service.type.vpc",
-              "resourceType": "hws.resource.type.bandwidth",
-              "resourceSpecCode": "19_bgp",
-              "productNum": 2,
-              "resourceSize": 5,
-              "resouceSizeMeasureId": 15,
-              "usageFactor": "Duration",
-              "usageMeasureId": 4,
-              "usageValue": 1
-            }
-          ]
-        }
-      ],
-      "source": {
-        "page": "6b3f650c493aa7b0acee484168bd559d5ea827f0c5f69770cfb4d2e313fcf810",
-        "config": "6ffc3213332236defd956da8c3bb25ac247712b98bdef09090f226a02cf49663",
-        "products": "1362e0b46e3be3184b76b3eeade3275c0ab3ad0ab432245e5d7de29f05c79e6d",
-        "framework": "bd9a0b42e80a5779409416a32232b7af4c7e09342dc49100b81d2c8a9e5d71ff",
-        "menu": "75b799cc2c669528310de42b369669024e87a68125ac1ed37ae45fcc9716dbbf",
-        "fetchedAt": "2026-10-05T22:11:28.087Z"
-      }
+      "amount": 0.29936
     },
     {
       "service": "ecs",
       "region": "ap-southeast-1",
       "billingMode": "ONDEMAND",
       "name": "duration-two",
-      "amount": 0.59872,
-      "inquiries": [
-        {
-          "regionId": "ap-southeast-1",
-          "chargingMode": 1,
-          "periodType": 4,
-          "periodNum": 1,
-          "subscriptionNum": 1,
-          "siteCode": "HWC",
-          "productInfos": [
-            {
-              "cloudServiceType": "hws.service.type.ebs",
-              "resourceType": "hws.resource.type.volume",
-              "resourceSpecCode": "GPSSD",
-              "productNum": 2,
-              "resourceSize": 40,
-              "resouceSizeMeasureId": 17,
-              "usageFactor": "Duration",
-              "usageMeasureId": 4,
-              "usageValue": 2
-            },
-            {
-              "cloudServiceType": "hws.service.type.ec2",
-              "resourceType": "hws.resource.type.vm",
-              "resourceSpecCode": "c9.large.2.linux",
-              "productNum": 2,
-              "usageFactor": "Duration",
-              "usageMeasureId": 4,
-              "usageValue": 2
-            },
-            {
-              "cloudServiceType": "hws.service.type.vpc",
-              "resourceType": "hws.resource.type.bandwidth",
-              "resourceSpecCode": "19_bgp",
-              "productNum": 2,
-              "resourceSize": 5,
-              "resouceSizeMeasureId": 15,
-              "usageFactor": "Duration",
-              "usageMeasureId": 4,
-              "usageValue": 2
-            }
-          ]
-        }
-      ],
-      "source": {
-        "page": "6b3f650c493aa7b0acee484168bd559d5ea827f0c5f69770cfb4d2e313fcf810",
-        "config": "6ffc3213332236defd956da8c3bb25ac247712b98bdef09090f226a02cf49663",
-        "products": "1362e0b46e3be3184b76b3eeade3275c0ab3ad0ab432245e5d7de29f05c79e6d",
-        "framework": "bd9a0b42e80a5779409416a32232b7af4c7e09342dc49100b81d2c8a9e5d71ff",
-        "menu": "75b799cc2c669528310de42b369669024e87a68125ac1ed37ae45fcc9716dbbf",
-        "fetchedAt": "2026-10-05T22:11:28.087Z"
-      }
+      "amount": 0.59872
     },
     {
       "service": "ecs",
@@ -702,348 +176,42 @@
       "region": "sa-brazil-1",
       "billingMode": "ONDEMAND",
       "name": "default",
-      "amount": 0.23888,
-      "inquiries": [
-        {
-          "regionId": "sa-brazil-1",
-          "chargingMode": 1,
-          "periodType": 4,
-          "periodNum": 1,
-          "subscriptionNum": 1,
-          "siteCode": "HWC",
-          "productInfos": [
-            {
-              "cloudServiceType": "hws.service.type.ebs",
-              "resourceType": "hws.resource.type.volume",
-              "resourceSpecCode": "GPSSD",
-              "productNum": 1,
-              "resourceSize": 40,
-              "resouceSizeMeasureId": 17,
-              "usageFactor": "Duration",
-              "usageMeasureId": 4,
-              "usageValue": 1
-            },
-            {
-              "cloudServiceType": "hws.service.type.ec2",
-              "resourceType": "hws.resource.type.vm",
-              "resourceSpecCode": "ac8.large.2.linux",
-              "productNum": 1,
-              "usageFactor": "Duration",
-              "usageMeasureId": 4,
-              "usageValue": 1
-            },
-            {
-              "cloudServiceType": "hws.service.type.vpc",
-              "resourceType": "hws.resource.type.bandwidth",
-              "resourceSpecCode": "19_bgp",
-              "productNum": 1,
-              "resourceSize": 5,
-              "resouceSizeMeasureId": 15,
-              "usageFactor": "Duration",
-              "usageMeasureId": 4,
-              "usageValue": 1
-            }
-          ]
-        }
-      ],
-      "source": {
-        "page": "6b3f650c493aa7b0acee484168bd559d5ea827f0c5f69770cfb4d2e313fcf810",
-        "config": "6ffc3213332236defd956da8c3bb25ac247712b98bdef09090f226a02cf49663",
-        "products": "7996cd0bbbec32c654bb2dec72b15122cb552a292e6218551e854d4eb7f09e2c",
-        "framework": "bd9a0b42e80a5779409416a32232b7af4c7e09342dc49100b81d2c8a9e5d71ff",
-        "menu": "75b799cc2c669528310de42b369669024e87a68125ac1ed37ae45fcc9716dbbf",
-        "fetchedAt": "2026-10-05T22:12:23.931Z"
-      }
+      "amount": 0.23888
     },
     {
       "service": "ecs",
       "region": "sa-brazil-1",
       "billingMode": "ONDEMAND",
       "name": "aC8-no-image-selection",
-      "amount": 0.23888,
-      "inquiries": [
-        {
-          "regionId": "sa-brazil-1",
-          "chargingMode": 1,
-          "periodType": 4,
-          "periodNum": 1,
-          "subscriptionNum": 1,
-          "siteCode": "HWC",
-          "productInfos": [
-            {
-              "cloudServiceType": "hws.service.type.ebs",
-              "resourceType": "hws.resource.type.volume",
-              "resourceSpecCode": "GPSSD",
-              "productNum": 1,
-              "resourceSize": 40,
-              "resouceSizeMeasureId": 17,
-              "usageFactor": "Duration",
-              "usageMeasureId": 4,
-              "usageValue": 1
-            },
-            {
-              "cloudServiceType": "hws.service.type.ec2",
-              "resourceType": "hws.resource.type.vm",
-              "resourceSpecCode": "ac8.large.2.linux",
-              "productNum": 1,
-              "usageFactor": "Duration",
-              "usageMeasureId": 4,
-              "usageValue": 1
-            },
-            {
-              "cloudServiceType": "hws.service.type.vpc",
-              "resourceType": "hws.resource.type.bandwidth",
-              "resourceSpecCode": "19_bgp",
-              "productNum": 1,
-              "resourceSize": 5,
-              "resouceSizeMeasureId": 15,
-              "usageFactor": "Duration",
-              "usageMeasureId": 4,
-              "usageValue": 1
-            }
-          ]
-        }
-      ],
-      "source": {
-        "page": "6b3f650c493aa7b0acee484168bd559d5ea827f0c5f69770cfb4d2e313fcf810",
-        "config": "6ffc3213332236defd956da8c3bb25ac247712b98bdef09090f226a02cf49663",
-        "products": "7996cd0bbbec32c654bb2dec72b15122cb552a292e6218551e854d4eb7f09e2c",
-        "framework": "bd9a0b42e80a5779409416a32232b7af4c7e09342dc49100b81d2c8a9e5d71ff",
-        "menu": "75b799cc2c669528310de42b369669024e87a68125ac1ed37ae45fcc9716dbbf",
-        "fetchedAt": "2026-10-05T22:12:23.931Z"
-      }
+      "amount": 0.23888
     },
     {
       "service": "ecs",
       "region": "sa-brazil-1",
       "billingMode": "ONDEMAND",
       "name": "generation-with-images",
-      "amount": 0.26838,
-      "inquiries": [
-        {
-          "regionId": "sa-brazil-1",
-          "chargingMode": 1,
-          "periodType": 4,
-          "periodNum": 1,
-          "subscriptionNum": 1,
-          "siteCode": "HWC",
-          "productInfos": [
-            {
-              "cloudServiceType": "hws.service.type.ebs",
-              "resourceType": "hws.resource.type.volume",
-              "resourceSpecCode": "GPSSD",
-              "productNum": 1,
-              "resourceSize": 40,
-              "resouceSizeMeasureId": 17,
-              "usageFactor": "Duration",
-              "usageMeasureId": 4,
-              "usageValue": 1
-            },
-            {
-              "cloudServiceType": "hws.service.type.ec2",
-              "resourceType": "hws.resource.type.vm",
-              "resourceSpecCode": "c7n.large.2.linux",
-              "productNum": 1,
-              "usageFactor": "Duration",
-              "usageMeasureId": 4,
-              "usageValue": 1
-            },
-            {
-              "cloudServiceType": "hws.service.type.vpc",
-              "resourceType": "hws.resource.type.bandwidth",
-              "resourceSpecCode": "19_bgp",
-              "productNum": 1,
-              "resourceSize": 5,
-              "resouceSizeMeasureId": 15,
-              "usageFactor": "Duration",
-              "usageMeasureId": 4,
-              "usageValue": 1
-            }
-          ]
-        }
-      ],
-      "source": {
-        "page": "6b3f650c493aa7b0acee484168bd559d5ea827f0c5f69770cfb4d2e313fcf810",
-        "config": "6ffc3213332236defd956da8c3bb25ac247712b98bdef09090f226a02cf49663",
-        "products": "7996cd0bbbec32c654bb2dec72b15122cb552a292e6218551e854d4eb7f09e2c",
-        "framework": "bd9a0b42e80a5779409416a32232b7af4c7e09342dc49100b81d2c8a9e5d71ff",
-        "menu": "75b799cc2c669528310de42b369669024e87a68125ac1ed37ae45fcc9716dbbf",
-        "fetchedAt": "2026-10-05T22:12:23.931Z"
-      }
+      "amount": 0.26838
     },
     {
       "service": "ecs",
       "region": "sa-brazil-1",
       "billingMode": "ONDEMAND",
       "name": "return-to-original-generation",
-      "amount": 0.23888,
-      "inquiries": [
-        {
-          "regionId": "sa-brazil-1",
-          "chargingMode": 1,
-          "periodType": 4,
-          "periodNum": 1,
-          "subscriptionNum": 1,
-          "siteCode": "HWC",
-          "productInfos": [
-            {
-              "cloudServiceType": "hws.service.type.ebs",
-              "resourceType": "hws.resource.type.volume",
-              "resourceSpecCode": "GPSSD",
-              "productNum": 1,
-              "resourceSize": 40,
-              "resouceSizeMeasureId": 17,
-              "usageFactor": "Duration",
-              "usageMeasureId": 4,
-              "usageValue": 1
-            },
-            {
-              "cloudServiceType": "hws.service.type.ec2",
-              "resourceType": "hws.resource.type.vm",
-              "resourceSpecCode": "ac8.large.2.linux",
-              "productNum": 1,
-              "usageFactor": "Duration",
-              "usageMeasureId": 4,
-              "usageValue": 1
-            },
-            {
-              "cloudServiceType": "hws.service.type.vpc",
-              "resourceType": "hws.resource.type.bandwidth",
-              "resourceSpecCode": "19_bgp",
-              "productNum": 1,
-              "resourceSize": 5,
-              "resouceSizeMeasureId": 15,
-              "usageFactor": "Duration",
-              "usageMeasureId": 4,
-              "usageValue": 1
-            }
-          ]
-        }
-      ],
-      "source": {
-        "page": "6b3f650c493aa7b0acee484168bd559d5ea827f0c5f69770cfb4d2e313fcf810",
-        "config": "6ffc3213332236defd956da8c3bb25ac247712b98bdef09090f226a02cf49663",
-        "products": "7996cd0bbbec32c654bb2dec72b15122cb552a292e6218551e854d4eb7f09e2c",
-        "framework": "bd9a0b42e80a5779409416a32232b7af4c7e09342dc49100b81d2c8a9e5d71ff",
-        "menu": "75b799cc2c669528310de42b369669024e87a68125ac1ed37ae45fcc9716dbbf",
-        "fetchedAt": "2026-10-05T22:12:23.931Z"
-      }
+      "amount": 0.23888
     },
     {
       "service": "ecs",
       "region": "sa-brazil-1",
       "billingMode": "ONDEMAND",
       "name": "quantity-two",
-      "amount": 0.47776,
-      "inquiries": [
-        {
-          "regionId": "sa-brazil-1",
-          "chargingMode": 1,
-          "periodType": 4,
-          "periodNum": 1,
-          "subscriptionNum": 1,
-          "siteCode": "HWC",
-          "productInfos": [
-            {
-              "cloudServiceType": "hws.service.type.ebs",
-              "resourceType": "hws.resource.type.volume",
-              "resourceSpecCode": "GPSSD",
-              "productNum": 2,
-              "resourceSize": 40,
-              "resouceSizeMeasureId": 17,
-              "usageFactor": "Duration",
-              "usageMeasureId": 4,
-              "usageValue": 1
-            },
-            {
-              "cloudServiceType": "hws.service.type.ec2",
-              "resourceType": "hws.resource.type.vm",
-              "resourceSpecCode": "ac8.large.2.linux",
-              "productNum": 2,
-              "usageFactor": "Duration",
-              "usageMeasureId": 4,
-              "usageValue": 1
-            },
-            {
-              "cloudServiceType": "hws.service.type.vpc",
-              "resourceType": "hws.resource.type.bandwidth",
-              "resourceSpecCode": "19_bgp",
-              "productNum": 2,
-              "resourceSize": 5,
-              "resouceSizeMeasureId": 15,
-              "usageFactor": "Duration",
-              "usageMeasureId": 4,
-              "usageValue": 1
-            }
-          ]
-        }
-      ],
-      "source": {
-        "page": "6b3f650c493aa7b0acee484168bd559d5ea827f0c5f69770cfb4d2e313fcf810",
-        "config": "6ffc3213332236defd956da8c3bb25ac247712b98bdef09090f226a02cf49663",
-        "products": "7996cd0bbbec32c654bb2dec72b15122cb552a292e6218551e854d4eb7f09e2c",
-        "framework": "bd9a0b42e80a5779409416a32232b7af4c7e09342dc49100b81d2c8a9e5d71ff",
-        "menu": "75b799cc2c669528310de42b369669024e87a68125ac1ed37ae45fcc9716dbbf",
-        "fetchedAt": "2026-10-05T22:12:23.931Z"
-      }
+      "amount": 0.47776
     },
     {
       "service": "ecs",
       "region": "sa-brazil-1",
       "billingMode": "ONDEMAND",
       "name": "duration-two",
-      "amount": 0.95552,
-      "inquiries": [
-        {
-          "regionId": "sa-brazil-1",
-          "chargingMode": 1,
-          "periodType": 4,
-          "periodNum": 1,
-          "subscriptionNum": 1,
-          "siteCode": "HWC",
-          "productInfos": [
-            {
-              "cloudServiceType": "hws.service.type.ebs",
-              "resourceType": "hws.resource.type.volume",
-              "resourceSpecCode": "GPSSD",
-              "productNum": 2,
-              "resourceSize": 40,
-              "resouceSizeMeasureId": 17,
-              "usageFactor": "Duration",
-              "usageMeasureId": 4,
-              "usageValue": 2
-            },
-            {
-              "cloudServiceType": "hws.service.type.ec2",
-              "resourceType": "hws.resource.type.vm",
-              "resourceSpecCode": "ac8.large.2.linux",
-              "productNum": 2,
-              "usageFactor": "Duration",
-              "usageMeasureId": 4,
-              "usageValue": 2
-            },
-            {
-              "cloudServiceType": "hws.service.type.vpc",
-              "resourceType": "hws.resource.type.bandwidth",
-              "resourceSpecCode": "19_bgp",
-              "productNum": 2,
-              "resourceSize": 5,
-              "resouceSizeMeasureId": 15,
-              "usageFactor": "Duration",
-              "usageMeasureId": 4,
-              "usageValue": 2
-            }
-          ]
-        }
-      ],
-      "source": {
-        "page": "6b3f650c493aa7b0acee484168bd559d5ea827f0c5f69770cfb4d2e313fcf810",
-        "config": "6ffc3213332236defd956da8c3bb25ac247712b98bdef09090f226a02cf49663",
-        "products": "7996cd0bbbec32c654bb2dec72b15122cb552a292e6218551e854d4eb7f09e2c",
-        "framework": "bd9a0b42e80a5779409416a32232b7af4c7e09342dc49100b81d2c8a9e5d71ff",
-        "menu": "75b799cc2c669528310de42b369669024e87a68125ac1ed37ae45fcc9716dbbf",
-        "fetchedAt": "2026-10-05T22:12:23.931Z"
-      }
+      "amount": 0.95552
     },
     {
       "service": "ecs",
@@ -1064,343 +232,49 @@
       "region": "ap-southeast-1",
       "billingMode": "PERIOD",
       "name": "default",
-      "amount": 78.08,
-      "inquiries": [
-        {
-          "regionId": "ap-southeast-1",
-          "chargingMode": 0,
-          "periodType": 2,
-          "periodNum": 1,
-          "subscriptionNum": 1,
-          "siteCode": "HWC",
-          "productInfos": [
-            {
-              "cloudServiceType": "hws.service.type.ebs",
-              "resourceType": "hws.resource.type.volume",
-              "resourceSpecCode": "GPSSD",
-              "productNum": 1,
-              "resourceSize": 40,
-              "resouceSizeMeasureId": 17
-            },
-            {
-              "cloudServiceType": "hws.service.type.ec2",
-              "resourceType": "hws.resource.type.vm",
-              "resourceSpecCode": "c9.large.2.linux",
-              "productNum": 1
-            },
-            {
-              "cloudServiceType": "hws.service.type.vpc",
-              "resourceType": "hws.resource.type.bandwidth",
-              "resourceSpecCode": "19_bgp",
-              "productNum": 1,
-              "resourceSize": 5,
-              "resouceSizeMeasureId": 15
-            }
-          ]
-        }
-      ],
-      "source": {
-        "page": "6b3f650c493aa7b0acee484168bd559d5ea827f0c5f69770cfb4d2e313fcf810",
-        "config": "6ffc3213332236defd956da8c3bb25ac247712b98bdef09090f226a02cf49663",
-        "products": "1362e0b46e3be3184b76b3eeade3275c0ab3ad0ab432245e5d7de29f05c79e6d",
-        "framework": "bd9a0b42e80a5779409416a32232b7af4c7e09342dc49100b81d2c8a9e5d71ff",
-        "menu": "75b799cc2c669528310de42b369669024e87a68125ac1ed37ae45fcc9716dbbf",
-        "fetchedAt": "2026-10-05T22:11:28.087Z"
-      }
+      "amount": 78.08
     },
     {
       "service": "ecs",
       "region": "ap-southeast-1",
       "billingMode": "PERIOD",
       "name": "aC8-no-image-selection",
-      "amount": 67.77,
-      "inquiries": [
-        {
-          "regionId": "ap-southeast-1",
-          "chargingMode": 0,
-          "periodType": 2,
-          "periodNum": 1,
-          "subscriptionNum": 1,
-          "siteCode": "HWC",
-          "productInfos": [
-            {
-              "cloudServiceType": "hws.service.type.ebs",
-              "resourceType": "hws.resource.type.volume",
-              "resourceSpecCode": "GPSSD",
-              "productNum": 1,
-              "resourceSize": 40,
-              "resouceSizeMeasureId": 17
-            },
-            {
-              "cloudServiceType": "hws.service.type.ec2",
-              "resourceType": "hws.resource.type.vm",
-              "resourceSpecCode": "ac8.large.2.linux",
-              "productNum": 1
-            },
-            {
-              "cloudServiceType": "hws.service.type.vpc",
-              "resourceType": "hws.resource.type.bandwidth",
-              "resourceSpecCode": "19_bgp",
-              "productNum": 1,
-              "resourceSize": 5,
-              "resouceSizeMeasureId": 15
-            }
-          ]
-        }
-      ],
-      "source": {
-        "page": "6b3f650c493aa7b0acee484168bd559d5ea827f0c5f69770cfb4d2e313fcf810",
-        "config": "6ffc3213332236defd956da8c3bb25ac247712b98bdef09090f226a02cf49663",
-        "products": "1362e0b46e3be3184b76b3eeade3275c0ab3ad0ab432245e5d7de29f05c79e6d",
-        "framework": "bd9a0b42e80a5779409416a32232b7af4c7e09342dc49100b81d2c8a9e5d71ff",
-        "menu": "75b799cc2c669528310de42b369669024e87a68125ac1ed37ae45fcc9716dbbf",
-        "fetchedAt": "2026-10-05T22:11:28.087Z"
-      }
+      "amount": 67.77
     },
     {
       "service": "ecs",
       "region": "ap-southeast-1",
       "billingMode": "PERIOD",
       "name": "generation-with-images",
-      "amount": 80.6,
-      "inquiries": [
-        {
-          "regionId": "ap-southeast-1",
-          "chargingMode": 0,
-          "periodType": 2,
-          "periodNum": 1,
-          "subscriptionNum": 1,
-          "siteCode": "HWC",
-          "productInfos": [
-            {
-              "cloudServiceType": "hws.service.type.ebs",
-              "resourceType": "hws.resource.type.volume",
-              "resourceSpecCode": "GPSSD",
-              "productNum": 1,
-              "resourceSize": 40,
-              "resouceSizeMeasureId": 17
-            },
-            {
-              "cloudServiceType": "hws.service.type.ec2",
-              "resourceType": "hws.resource.type.vm",
-              "resourceSpecCode": "c7n.large.2.linux",
-              "productNum": 1
-            },
-            {
-              "cloudServiceType": "hws.service.type.vpc",
-              "resourceType": "hws.resource.type.bandwidth",
-              "resourceSpecCode": "19_bgp",
-              "productNum": 1,
-              "resourceSize": 5,
-              "resouceSizeMeasureId": 15
-            }
-          ]
-        }
-      ],
-      "source": {
-        "page": "6b3f650c493aa7b0acee484168bd559d5ea827f0c5f69770cfb4d2e313fcf810",
-        "config": "6ffc3213332236defd956da8c3bb25ac247712b98bdef09090f226a02cf49663",
-        "products": "1362e0b46e3be3184b76b3eeade3275c0ab3ad0ab432245e5d7de29f05c79e6d",
-        "framework": "bd9a0b42e80a5779409416a32232b7af4c7e09342dc49100b81d2c8a9e5d71ff",
-        "menu": "75b799cc2c669528310de42b369669024e87a68125ac1ed37ae45fcc9716dbbf",
-        "fetchedAt": "2026-10-05T22:11:28.087Z"
-      }
+      "amount": 80.6
     },
     {
       "service": "ecs",
       "region": "ap-southeast-1",
       "billingMode": "PERIOD",
       "name": "return-to-original-generation",
-      "amount": 78.08,
-      "inquiries": [
-        {
-          "regionId": "ap-southeast-1",
-          "chargingMode": 0,
-          "periodType": 2,
-          "periodNum": 1,
-          "subscriptionNum": 1,
-          "siteCode": "HWC",
-          "productInfos": [
-            {
-              "cloudServiceType": "hws.service.type.ebs",
-              "resourceType": "hws.resource.type.volume",
-              "resourceSpecCode": "GPSSD",
-              "productNum": 1,
-              "resourceSize": 40,
-              "resouceSizeMeasureId": 17
-            },
-            {
-              "cloudServiceType": "hws.service.type.ec2",
-              "resourceType": "hws.resource.type.vm",
-              "resourceSpecCode": "c9.large.2.linux",
-              "productNum": 1
-            },
-            {
-              "cloudServiceType": "hws.service.type.vpc",
-              "resourceType": "hws.resource.type.bandwidth",
-              "resourceSpecCode": "19_bgp",
-              "productNum": 1,
-              "resourceSize": 5,
-              "resouceSizeMeasureId": 15
-            }
-          ]
-        }
-      ],
-      "source": {
-        "page": "6b3f650c493aa7b0acee484168bd559d5ea827f0c5f69770cfb4d2e313fcf810",
-        "config": "6ffc3213332236defd956da8c3bb25ac247712b98bdef09090f226a02cf49663",
-        "products": "1362e0b46e3be3184b76b3eeade3275c0ab3ad0ab432245e5d7de29f05c79e6d",
-        "framework": "bd9a0b42e80a5779409416a32232b7af4c7e09342dc49100b81d2c8a9e5d71ff",
-        "menu": "75b799cc2c669528310de42b369669024e87a68125ac1ed37ae45fcc9716dbbf",
-        "fetchedAt": "2026-10-05T22:11:28.087Z"
-      }
+      "amount": 78.08
     },
     {
       "service": "ecs",
       "region": "ap-southeast-1",
       "billingMode": "PERIOD",
       "name": "annual-capable-generation",
-      "amount": 80.6,
-      "inquiries": [
-        {
-          "regionId": "ap-southeast-1",
-          "chargingMode": 0,
-          "periodType": 2,
-          "periodNum": 1,
-          "subscriptionNum": 1,
-          "siteCode": "HWC",
-          "productInfos": [
-            {
-              "cloudServiceType": "hws.service.type.ebs",
-              "resourceType": "hws.resource.type.volume",
-              "resourceSpecCode": "GPSSD",
-              "productNum": 1,
-              "resourceSize": 40,
-              "resouceSizeMeasureId": 17
-            },
-            {
-              "cloudServiceType": "hws.service.type.ec2",
-              "resourceType": "hws.resource.type.vm",
-              "resourceSpecCode": "c7n.large.2.linux",
-              "productNum": 1
-            },
-            {
-              "cloudServiceType": "hws.service.type.vpc",
-              "resourceType": "hws.resource.type.bandwidth",
-              "resourceSpecCode": "19_bgp",
-              "productNum": 1,
-              "resourceSize": 5,
-              "resouceSizeMeasureId": 15
-            }
-          ]
-        }
-      ],
-      "source": {
-        "page": "6b3f650c493aa7b0acee484168bd559d5ea827f0c5f69770cfb4d2e313fcf810",
-        "config": "6ffc3213332236defd956da8c3bb25ac247712b98bdef09090f226a02cf49663",
-        "products": "1362e0b46e3be3184b76b3eeade3275c0ab3ad0ab432245e5d7de29f05c79e6d",
-        "framework": "bd9a0b42e80a5779409416a32232b7af4c7e09342dc49100b81d2c8a9e5d71ff",
-        "menu": "75b799cc2c669528310de42b369669024e87a68125ac1ed37ae45fcc9716dbbf",
-        "fetchedAt": "2026-10-05T22:11:28.087Z"
-      }
+      "amount": 80.6
     },
     {
       "service": "ecs",
       "region": "ap-southeast-1",
       "billingMode": "PERIOD",
       "name": "annual",
-      "amount": 806,
-      "inquiries": [
-        {
-          "regionId": "ap-southeast-1",
-          "chargingMode": 0,
-          "periodType": 3,
-          "periodNum": 1,
-          "subscriptionNum": 1,
-          "siteCode": "HWC",
-          "productInfos": [
-            {
-              "cloudServiceType": "hws.service.type.ebs",
-              "resourceType": "hws.resource.type.volume",
-              "resourceSpecCode": "GPSSD",
-              "productNum": 1,
-              "resourceSize": 40,
-              "resouceSizeMeasureId": 17
-            },
-            {
-              "cloudServiceType": "hws.service.type.ec2",
-              "resourceType": "hws.resource.type.vm",
-              "resourceSpecCode": "c7n.large.2.linux",
-              "productNum": 1
-            },
-            {
-              "cloudServiceType": "hws.service.type.vpc",
-              "resourceType": "hws.resource.type.bandwidth",
-              "resourceSpecCode": "19_bgp",
-              "productNum": 1,
-              "resourceSize": 5,
-              "resouceSizeMeasureId": 15
-            }
-          ]
-        }
-      ],
-      "source": {
-        "page": "6b3f650c493aa7b0acee484168bd559d5ea827f0c5f69770cfb4d2e313fcf810",
-        "config": "6ffc3213332236defd956da8c3bb25ac247712b98bdef09090f226a02cf49663",
-        "products": "1362e0b46e3be3184b76b3eeade3275c0ab3ad0ab432245e5d7de29f05c79e6d",
-        "framework": "bd9a0b42e80a5779409416a32232b7af4c7e09342dc49100b81d2c8a9e5d71ff",
-        "menu": "75b799cc2c669528310de42b369669024e87a68125ac1ed37ae45fcc9716dbbf",
-        "fetchedAt": "2026-10-05T22:11:28.087Z"
-      }
+      "amount": 806
     },
     {
       "service": "ecs",
       "region": "ap-southeast-1",
       "billingMode": "PERIOD",
       "name": "quantity-two",
-      "amount": 1612,
-      "inquiries": [
-        {
-          "regionId": "ap-southeast-1",
-          "chargingMode": 0,
-          "periodType": 3,
-          "periodNum": 1,
-          "subscriptionNum": 1,
-          "siteCode": "HWC",
-          "productInfos": [
-            {
-              "cloudServiceType": "hws.service.type.ebs",
-              "resourceType": "hws.resource.type.volume",
-              "resourceSpecCode": "GPSSD",
-              "productNum": 2,
-              "resourceSize": 40,
-              "resouceSizeMeasureId": 17
-            },
-            {
-              "cloudServiceType": "hws.service.type.ec2",
-              "resourceType": "hws.resource.type.vm",
-              "resourceSpecCode": "c7n.large.2.linux",
-              "productNum": 2
-            },
-            {
-              "cloudServiceType": "hws.service.type.vpc",
-              "resourceType": "hws.resource.type.bandwidth",
-              "resourceSpecCode": "19_bgp",
-              "productNum": 2,
-              "resourceSize": 5,
-              "resouceSizeMeasureId": 15
-            }
-          ]
-        }
-      ],
-      "source": {
-        "page": "6b3f650c493aa7b0acee484168bd559d5ea827f0c5f69770cfb4d2e313fcf810",
-        "config": "6ffc3213332236defd956da8c3bb25ac247712b98bdef09090f226a02cf49663",
-        "products": "1362e0b46e3be3184b76b3eeade3275c0ab3ad0ab432245e5d7de29f05c79e6d",
-        "framework": "bd9a0b42e80a5779409416a32232b7af4c7e09342dc49100b81d2c8a9e5d71ff",
-        "menu": "75b799cc2c669528310de42b369669024e87a68125ac1ed37ae45fcc9716dbbf",
-        "fetchedAt": "2026-10-05T22:11:28.087Z"
-      }
+      "amount": 1612
     },
     {
       "service": "ecs",
@@ -1414,474 +288,42 @@
       "region": "ap-southeast-1",
       "billingMode": "RI",
       "name": "default",
-      "amount": 915.2688,
-      "payment": {
-        "upfront": 0,
-        "recurring": 34.75,
-        "installments": 12,
-        "period": "Month",
-        "extras": [
-          {
-            "mode": "ONDEMAND",
-            "recurring": 41.5224
-          }
-        ]
-      },
-      "inquiries": [
-        {
-          "regionId": "ap-southeast-1",
-          "chargingMode": 1,
-          "periodType": 3,
-          "periodNum": 1,
-          "subscriptionNum": 1,
-          "siteCode": "HWC",
-          "productInfos": [
-            {
-              "cloudServiceType": "hws.service.type.ebs",
-              "resourceType": "hws.resource.type.volume",
-              "resourceSpecCode": "GPSSD",
-              "productNum": 1,
-              "resourceSize": 40,
-              "resouceSizeMeasureId": 17,
-              "usageFactor": "Duration",
-              "usageMeasureId": 4,
-              "usageValue": 730
-            },
-            {
-              "cloudServiceType": "hws.service.type.vpc",
-              "resourceType": "hws.resource.type.bandwidth",
-              "resourceSpecCode": "19_bgp",
-              "productNum": 1,
-              "resourceSize": 5,
-              "resouceSizeMeasureId": 15,
-              "usageFactor": "Duration",
-              "usageMeasureId": 4,
-              "usageValue": 730
-            }
-          ]
-        },
-        {
-          "regionId": "ap-southeast-1",
-          "chargingMode": 10,
-          "periodType": 3,
-          "periodNum": 1,
-          "subscriptionNum": 1,
-          "siteCode": "HWC",
-          "productInfos": [
-            {
-              "cloudServiceType": "hws.service.type.ec2",
-              "resourceType": "hws.resource.type.vm",
-              "resourceSpecCode": "ac8.large.2.linux",
-              "productNum": 1,
-              "skuCode": "bd130f516be24ef8bf25f44349e5fd14",
-              "productId": "e843f29dcdd141a791bdf333ddee1ce1"
-            }
-          ]
-        }
-      ],
-      "source": {
-        "page": "6b3f650c493aa7b0acee484168bd559d5ea827f0c5f69770cfb4d2e313fcf810",
-        "config": "6ffc3213332236defd956da8c3bb25ac247712b98bdef09090f226a02cf49663",
-        "products": "1362e0b46e3be3184b76b3eeade3275c0ab3ad0ab432245e5d7de29f05c79e6d",
-        "framework": "bd9a0b42e80a5779409416a32232b7af4c7e09342dc49100b81d2c8a9e5d71ff",
-        "menu": "75b799cc2c669528310de42b369669024e87a68125ac1ed37ae45fcc9716dbbf",
-        "fetchedAt": "2026-10-05T22:14:13.980Z"
-      }
+      "amount": 915.2688
     },
     {
       "service": "ecs",
       "region": "ap-southeast-1",
       "billingMode": "RI",
       "name": "aC8-no-image-selection",
-      "amount": 915.2688,
-      "payment": {
-        "upfront": 0,
-        "recurring": 34.75,
-        "installments": 12,
-        "period": "Month",
-        "extras": [
-          {
-            "mode": "ONDEMAND",
-            "recurring": 41.5224
-          }
-        ]
-      },
-      "inquiries": [
-        {
-          "regionId": "ap-southeast-1",
-          "chargingMode": 1,
-          "periodType": 3,
-          "periodNum": 1,
-          "subscriptionNum": 1,
-          "siteCode": "HWC",
-          "productInfos": [
-            {
-              "cloudServiceType": "hws.service.type.ebs",
-              "resourceType": "hws.resource.type.volume",
-              "resourceSpecCode": "GPSSD",
-              "productNum": 1,
-              "resourceSize": 40,
-              "resouceSizeMeasureId": 17,
-              "usageFactor": "Duration",
-              "usageMeasureId": 4,
-              "usageValue": 730
-            },
-            {
-              "cloudServiceType": "hws.service.type.vpc",
-              "resourceType": "hws.resource.type.bandwidth",
-              "resourceSpecCode": "19_bgp",
-              "productNum": 1,
-              "resourceSize": 5,
-              "resouceSizeMeasureId": 15,
-              "usageFactor": "Duration",
-              "usageMeasureId": 4,
-              "usageValue": 730
-            }
-          ]
-        },
-        {
-          "regionId": "ap-southeast-1",
-          "chargingMode": 10,
-          "periodType": 3,
-          "periodNum": 1,
-          "subscriptionNum": 1,
-          "siteCode": "HWC",
-          "productInfos": [
-            {
-              "cloudServiceType": "hws.service.type.ec2",
-              "resourceType": "hws.resource.type.vm",
-              "resourceSpecCode": "ac8.large.2.linux",
-              "productNum": 1,
-              "skuCode": "bd130f516be24ef8bf25f44349e5fd14",
-              "productId": "e843f29dcdd141a791bdf333ddee1ce1"
-            }
-          ]
-        }
-      ],
-      "source": {
-        "page": "6b3f650c493aa7b0acee484168bd559d5ea827f0c5f69770cfb4d2e313fcf810",
-        "config": "6ffc3213332236defd956da8c3bb25ac247712b98bdef09090f226a02cf49663",
-        "products": "1362e0b46e3be3184b76b3eeade3275c0ab3ad0ab432245e5d7de29f05c79e6d",
-        "framework": "bd9a0b42e80a5779409416a32232b7af4c7e09342dc49100b81d2c8a9e5d71ff",
-        "menu": "75b799cc2c669528310de42b369669024e87a68125ac1ed37ae45fcc9716dbbf",
-        "fetchedAt": "2026-10-05T22:14:13.980Z"
-      }
+      "amount": 915.2688
     },
     {
       "service": "ecs",
       "region": "ap-southeast-1",
       "billingMode": "RI",
       "name": "generation-with-images",
-      "amount": 1053.6288,
-      "payment": {
-        "upfront": 0,
-        "recurring": 46.28,
-        "installments": 12,
-        "period": "Month",
-        "extras": [
-          {
-            "mode": "ONDEMAND",
-            "recurring": 41.5224
-          }
-        ]
-      },
-      "inquiries": [
-        {
-          "regionId": "ap-southeast-1",
-          "chargingMode": 10,
-          "periodType": 3,
-          "periodNum": 1,
-          "subscriptionNum": 1,
-          "siteCode": "HWC",
-          "productInfos": [
-            {
-              "cloudServiceType": "hws.service.type.ec2",
-              "resourceType": "hws.resource.type.vm",
-              "resourceSpecCode": "c7n.large.2.linux",
-              "productNum": 1,
-              "skuCode": "36cf7d5f28c94ddf8bd06087f45df2c5",
-              "productId": "4a5e49f7609d4731a34faed7664f1dd9"
-            }
-          ]
-        },
-        {
-          "regionId": "ap-southeast-1",
-          "chargingMode": 1,
-          "periodType": 3,
-          "periodNum": 1,
-          "subscriptionNum": 1,
-          "siteCode": "HWC",
-          "productInfos": [
-            {
-              "cloudServiceType": "hws.service.type.ebs",
-              "resourceType": "hws.resource.type.volume",
-              "resourceSpecCode": "GPSSD",
-              "productNum": 1,
-              "resourceSize": 40,
-              "resouceSizeMeasureId": 17,
-              "usageFactor": "Duration",
-              "usageMeasureId": 4,
-              "usageValue": 730
-            },
-            {
-              "cloudServiceType": "hws.service.type.vpc",
-              "resourceType": "hws.resource.type.bandwidth",
-              "resourceSpecCode": "19_bgp",
-              "productNum": 1,
-              "resourceSize": 5,
-              "resouceSizeMeasureId": 15,
-              "usageFactor": "Duration",
-              "usageMeasureId": 4,
-              "usageValue": 730
-            }
-          ]
-        }
-      ],
-      "source": {
-        "page": "6b3f650c493aa7b0acee484168bd559d5ea827f0c5f69770cfb4d2e313fcf810",
-        "config": "6ffc3213332236defd956da8c3bb25ac247712b98bdef09090f226a02cf49663",
-        "products": "1362e0b46e3be3184b76b3eeade3275c0ab3ad0ab432245e5d7de29f05c79e6d",
-        "framework": "bd9a0b42e80a5779409416a32232b7af4c7e09342dc49100b81d2c8a9e5d71ff",
-        "menu": "75b799cc2c669528310de42b369669024e87a68125ac1ed37ae45fcc9716dbbf",
-        "fetchedAt": "2026-10-05T22:14:13.980Z"
-      }
+      "amount": 1053.6288
     },
     {
       "service": "ecs",
       "region": "ap-southeast-1",
       "billingMode": "RI",
       "name": "return-to-original-generation",
-      "amount": 915.2688,
-      "payment": {
-        "upfront": 0,
-        "recurring": 34.75,
-        "installments": 12,
-        "period": "Month",
-        "extras": [
-          {
-            "mode": "ONDEMAND",
-            "recurring": 41.5224
-          }
-        ]
-      },
-      "inquiries": [
-        {
-          "regionId": "ap-southeast-1",
-          "chargingMode": 10,
-          "periodType": 3,
-          "periodNum": 1,
-          "subscriptionNum": 1,
-          "siteCode": "HWC",
-          "productInfos": [
-            {
-              "cloudServiceType": "hws.service.type.ec2",
-              "resourceType": "hws.resource.type.vm",
-              "resourceSpecCode": "ac8.large.2.linux",
-              "productNum": 1,
-              "skuCode": "bd130f516be24ef8bf25f44349e5fd14",
-              "productId": "e843f29dcdd141a791bdf333ddee1ce1"
-            }
-          ]
-        },
-        {
-          "regionId": "ap-southeast-1",
-          "chargingMode": 1,
-          "periodType": 3,
-          "periodNum": 1,
-          "subscriptionNum": 1,
-          "siteCode": "HWC",
-          "productInfos": [
-            {
-              "cloudServiceType": "hws.service.type.ebs",
-              "resourceType": "hws.resource.type.volume",
-              "resourceSpecCode": "GPSSD",
-              "productNum": 1,
-              "resourceSize": 40,
-              "resouceSizeMeasureId": 17,
-              "usageFactor": "Duration",
-              "usageMeasureId": 4,
-              "usageValue": 730
-            },
-            {
-              "cloudServiceType": "hws.service.type.vpc",
-              "resourceType": "hws.resource.type.bandwidth",
-              "resourceSpecCode": "19_bgp",
-              "productNum": 1,
-              "resourceSize": 5,
-              "resouceSizeMeasureId": 15,
-              "usageFactor": "Duration",
-              "usageMeasureId": 4,
-              "usageValue": 730
-            }
-          ]
-        }
-      ],
-      "source": {
-        "page": "6b3f650c493aa7b0acee484168bd559d5ea827f0c5f69770cfb4d2e313fcf810",
-        "config": "6ffc3213332236defd956da8c3bb25ac247712b98bdef09090f226a02cf49663",
-        "products": "1362e0b46e3be3184b76b3eeade3275c0ab3ad0ab432245e5d7de29f05c79e6d",
-        "framework": "bd9a0b42e80a5779409416a32232b7af4c7e09342dc49100b81d2c8a9e5d71ff",
-        "menu": "75b799cc2c669528310de42b369669024e87a68125ac1ed37ae45fcc9716dbbf",
-        "fetchedAt": "2026-10-05T22:14:13.980Z"
-      }
+      "amount": 915.2688
     },
     {
       "service": "ecs",
       "region": "ap-southeast-1",
       "billingMode": "RI",
       "name": "3 Years",
-      "amount": 2359.5264,
-      "payment": {
-        "upfront": 0,
-        "recurring": 24.02,
-        "installments": 36,
-        "period": "Month",
-        "extras": [
-          {
-            "mode": "ONDEMAND",
-            "recurring": 41.5224
-          }
-        ]
-      },
-      "inquiries": [
-        {
-          "regionId": "ap-southeast-1",
-          "chargingMode": 10,
-          "periodType": 3,
-          "periodNum": 3,
-          "subscriptionNum": 1,
-          "siteCode": "HWC",
-          "productInfos": [
-            {
-              "cloudServiceType": "hws.service.type.ec2",
-              "resourceType": "hws.resource.type.vm",
-              "resourceSpecCode": "ac8.large.2.linux",
-              "productNum": 1,
-              "skuCode": "bd130f516be24ef8bf25f44349e5fd14",
-              "productId": "e843f29dcdd141a791bdf333ddee1ce1"
-            }
-          ]
-        },
-        {
-          "regionId": "ap-southeast-1",
-          "chargingMode": 1,
-          "periodType": 3,
-          "periodNum": 3,
-          "subscriptionNum": 1,
-          "siteCode": "HWC",
-          "productInfos": [
-            {
-              "cloudServiceType": "hws.service.type.ebs",
-              "resourceType": "hws.resource.type.volume",
-              "resourceSpecCode": "GPSSD",
-              "productNum": 1,
-              "resourceSize": 40,
-              "resouceSizeMeasureId": 17,
-              "usageFactor": "Duration",
-              "usageMeasureId": 4,
-              "usageValue": 730
-            },
-            {
-              "cloudServiceType": "hws.service.type.vpc",
-              "resourceType": "hws.resource.type.bandwidth",
-              "resourceSpecCode": "19_bgp",
-              "productNum": 1,
-              "resourceSize": 5,
-              "resouceSizeMeasureId": 15,
-              "usageFactor": "Duration",
-              "usageMeasureId": 4,
-              "usageValue": 730
-            }
-          ]
-        }
-      ],
-      "source": {
-        "page": "6b3f650c493aa7b0acee484168bd559d5ea827f0c5f69770cfb4d2e313fcf810",
-        "config": "6ffc3213332236defd956da8c3bb25ac247712b98bdef09090f226a02cf49663",
-        "products": "1362e0b46e3be3184b76b3eeade3275c0ab3ad0ab432245e5d7de29f05c79e6d",
-        "framework": "bd9a0b42e80a5779409416a32232b7af4c7e09342dc49100b81d2c8a9e5d71ff",
-        "menu": "75b799cc2c669528310de42b369669024e87a68125ac1ed37ae45fcc9716dbbf",
-        "fetchedAt": "2026-10-05T22:14:13.980Z"
-      }
+      "amount": 2359.5264
     },
     {
       "service": "ecs",
       "region": "ap-southeast-1",
       "billingMode": "RI",
       "name": "quantity-two",
-      "amount": 4719.0528,
-      "payment": {
-        "upfront": 0,
-        "recurring": 48.04,
-        "installments": 36,
-        "period": "Month",
-        "extras": [
-          {
-            "mode": "ONDEMAND",
-            "recurring": 83.0448
-          }
-        ]
-      },
-      "inquiries": [
-        {
-          "regionId": "ap-southeast-1",
-          "chargingMode": 10,
-          "periodType": 3,
-          "periodNum": 3,
-          "subscriptionNum": 1,
-          "siteCode": "HWC",
-          "productInfos": [
-            {
-              "cloudServiceType": "hws.service.type.ec2",
-              "resourceType": "hws.resource.type.vm",
-              "resourceSpecCode": "ac8.large.2.linux",
-              "productNum": 2,
-              "skuCode": "bd130f516be24ef8bf25f44349e5fd14",
-              "productId": "e843f29dcdd141a791bdf333ddee1ce1"
-            }
-          ]
-        },
-        {
-          "regionId": "ap-southeast-1",
-          "chargingMode": 1,
-          "periodType": 3,
-          "periodNum": 3,
-          "subscriptionNum": 1,
-          "siteCode": "HWC",
-          "productInfos": [
-            {
-              "cloudServiceType": "hws.service.type.ebs",
-              "resourceType": "hws.resource.type.volume",
-              "resourceSpecCode": "GPSSD",
-              "productNum": 2,
-              "resourceSize": 40,
-              "resouceSizeMeasureId": 17,
-              "usageFactor": "Duration",
-              "usageMeasureId": 4,
-              "usageValue": 730
-            },
-            {
-              "cloudServiceType": "hws.service.type.vpc",
-              "resourceType": "hws.resource.type.bandwidth",
-              "resourceSpecCode": "19_bgp",
-              "productNum": 2,
-              "resourceSize": 5,
-              "resouceSizeMeasureId": 15,
-              "usageFactor": "Duration",
-              "usageMeasureId": 4,
-              "usageValue": 730
-            }
-          ]
-        }
-      ],
-      "source": {
-        "page": "6b3f650c493aa7b0acee484168bd559d5ea827f0c5f69770cfb4d2e313fcf810",
-        "config": "6ffc3213332236defd956da8c3bb25ac247712b98bdef09090f226a02cf49663",
-        "products": "1362e0b46e3be3184b76b3eeade3275c0ab3ad0ab432245e5d7de29f05c79e6d",
-        "framework": "bd9a0b42e80a5779409416a32232b7af4c7e09342dc49100b81d2c8a9e5d71ff",
-        "menu": "75b799cc2c669528310de42b369669024e87a68125ac1ed37ae45fcc9716dbbf",
-        "fetchedAt": "2026-10-05T22:14:13.980Z"
-      }
+      "amount": 4719.0528
     },
     {
       "service": "ecs",
@@ -1895,474 +337,42 @@
       "region": "sa-brazil-1",
       "billingMode": "RI",
       "name": "default",
-      "amount": 1821.0888,
-      "payment": {
-        "upfront": 0,
-        "recurring": 41.98,
-        "installments": 12,
-        "period": "Month",
-        "extras": [
-          {
-            "mode": "ONDEMAND",
-            "recurring": 109.7774
-          }
-        ]
-      },
-      "inquiries": [
-        {
-          "regionId": "sa-brazil-1",
-          "chargingMode": 1,
-          "periodType": 3,
-          "periodNum": 1,
-          "subscriptionNum": 1,
-          "siteCode": "HWC",
-          "productInfos": [
-            {
-              "cloudServiceType": "hws.service.type.ebs",
-              "resourceType": "hws.resource.type.volume",
-              "resourceSpecCode": "GPSSD",
-              "productNum": 1,
-              "resourceSize": 40,
-              "resouceSizeMeasureId": 17,
-              "usageFactor": "Duration",
-              "usageMeasureId": 4,
-              "usageValue": 730
-            },
-            {
-              "cloudServiceType": "hws.service.type.vpc",
-              "resourceType": "hws.resource.type.bandwidth",
-              "resourceSpecCode": "19_bgp",
-              "productNum": 1,
-              "resourceSize": 5,
-              "resouceSizeMeasureId": 15,
-              "usageFactor": "Duration",
-              "usageMeasureId": 4,
-              "usageValue": 730
-            }
-          ]
-        },
-        {
-          "regionId": "sa-brazil-1",
-          "chargingMode": 10,
-          "periodType": 3,
-          "periodNum": 1,
-          "subscriptionNum": 1,
-          "siteCode": "HWC",
-          "productInfos": [
-            {
-              "cloudServiceType": "hws.service.type.ec2",
-              "resourceType": "hws.resource.type.vm",
-              "resourceSpecCode": "ac8.large.2.linux",
-              "productNum": 1,
-              "skuCode": "c3647c6b414b468eaee3872a7361ff1f",
-              "productId": "e843f29dcdd141a791bdf333ddee1ce1"
-            }
-          ]
-        }
-      ],
-      "source": {
-        "page": "6b3f650c493aa7b0acee484168bd559d5ea827f0c5f69770cfb4d2e313fcf810",
-        "config": "6ffc3213332236defd956da8c3bb25ac247712b98bdef09090f226a02cf49663",
-        "products": "7996cd0bbbec32c654bb2dec72b15122cb552a292e6218551e854d4eb7f09e2c",
-        "framework": "bd9a0b42e80a5779409416a32232b7af4c7e09342dc49100b81d2c8a9e5d71ff",
-        "menu": "75b799cc2c669528310de42b369669024e87a68125ac1ed37ae45fcc9716dbbf",
-        "fetchedAt": "2026-10-05T22:15:14.045Z"
-      }
+      "amount": 1821.0888
     },
     {
       "service": "ecs",
       "region": "sa-brazil-1",
       "billingMode": "RI",
       "name": "aC8-no-image-selection",
-      "amount": 1821.0888,
-      "payment": {
-        "upfront": 0,
-        "recurring": 41.98,
-        "installments": 12,
-        "period": "Month",
-        "extras": [
-          {
-            "mode": "ONDEMAND",
-            "recurring": 109.7774
-          }
-        ]
-      },
-      "inquiries": [
-        {
-          "regionId": "sa-brazil-1",
-          "chargingMode": 1,
-          "periodType": 3,
-          "periodNum": 1,
-          "subscriptionNum": 1,
-          "siteCode": "HWC",
-          "productInfos": [
-            {
-              "cloudServiceType": "hws.service.type.ebs",
-              "resourceType": "hws.resource.type.volume",
-              "resourceSpecCode": "GPSSD",
-              "productNum": 1,
-              "resourceSize": 40,
-              "resouceSizeMeasureId": 17,
-              "usageFactor": "Duration",
-              "usageMeasureId": 4,
-              "usageValue": 730
-            },
-            {
-              "cloudServiceType": "hws.service.type.vpc",
-              "resourceType": "hws.resource.type.bandwidth",
-              "resourceSpecCode": "19_bgp",
-              "productNum": 1,
-              "resourceSize": 5,
-              "resouceSizeMeasureId": 15,
-              "usageFactor": "Duration",
-              "usageMeasureId": 4,
-              "usageValue": 730
-            }
-          ]
-        },
-        {
-          "regionId": "sa-brazil-1",
-          "chargingMode": 10,
-          "periodType": 3,
-          "periodNum": 1,
-          "subscriptionNum": 1,
-          "siteCode": "HWC",
-          "productInfos": [
-            {
-              "cloudServiceType": "hws.service.type.ec2",
-              "resourceType": "hws.resource.type.vm",
-              "resourceSpecCode": "ac8.large.2.linux",
-              "productNum": 1,
-              "skuCode": "c3647c6b414b468eaee3872a7361ff1f",
-              "productId": "e843f29dcdd141a791bdf333ddee1ce1"
-            }
-          ]
-        }
-      ],
-      "source": {
-        "page": "6b3f650c493aa7b0acee484168bd559d5ea827f0c5f69770cfb4d2e313fcf810",
-        "config": "6ffc3213332236defd956da8c3bb25ac247712b98bdef09090f226a02cf49663",
-        "products": "7996cd0bbbec32c654bb2dec72b15122cb552a292e6218551e854d4eb7f09e2c",
-        "framework": "bd9a0b42e80a5779409416a32232b7af4c7e09342dc49100b81d2c8a9e5d71ff",
-        "menu": "75b799cc2c669528310de42b369669024e87a68125ac1ed37ae45fcc9716dbbf",
-        "fetchedAt": "2026-10-05T22:15:14.045Z"
-      }
+      "amount": 1821.0888
     },
     {
       "service": "ecs",
       "region": "sa-brazil-1",
       "billingMode": "RI",
       "name": "generation-with-images",
-      "amount": 1989.2088,
-      "payment": {
-        "upfront": 0,
-        "recurring": 55.99,
-        "installments": 12,
-        "period": "Month",
-        "extras": [
-          {
-            "mode": "ONDEMAND",
-            "recurring": 109.7774
-          }
-        ]
-      },
-      "inquiries": [
-        {
-          "regionId": "sa-brazil-1",
-          "chargingMode": 10,
-          "periodType": 3,
-          "periodNum": 1,
-          "subscriptionNum": 1,
-          "siteCode": "HWC",
-          "productInfos": [
-            {
-              "cloudServiceType": "hws.service.type.ec2",
-              "resourceType": "hws.resource.type.vm",
-              "resourceSpecCode": "c7n.large.2.linux",
-              "productNum": 1,
-              "skuCode": "8c411c0e8f51481f93014f77b4d87503",
-              "productId": "4a5e49f7609d4731a34faed7664f1dd9"
-            }
-          ]
-        },
-        {
-          "regionId": "sa-brazil-1",
-          "chargingMode": 1,
-          "periodType": 3,
-          "periodNum": 1,
-          "subscriptionNum": 1,
-          "siteCode": "HWC",
-          "productInfos": [
-            {
-              "cloudServiceType": "hws.service.type.ebs",
-              "resourceType": "hws.resource.type.volume",
-              "resourceSpecCode": "GPSSD",
-              "productNum": 1,
-              "resourceSize": 40,
-              "resouceSizeMeasureId": 17,
-              "usageFactor": "Duration",
-              "usageMeasureId": 4,
-              "usageValue": 730
-            },
-            {
-              "cloudServiceType": "hws.service.type.vpc",
-              "resourceType": "hws.resource.type.bandwidth",
-              "resourceSpecCode": "19_bgp",
-              "productNum": 1,
-              "resourceSize": 5,
-              "resouceSizeMeasureId": 15,
-              "usageFactor": "Duration",
-              "usageMeasureId": 4,
-              "usageValue": 730
-            }
-          ]
-        }
-      ],
-      "source": {
-        "page": "6b3f650c493aa7b0acee484168bd559d5ea827f0c5f69770cfb4d2e313fcf810",
-        "config": "6ffc3213332236defd956da8c3bb25ac247712b98bdef09090f226a02cf49663",
-        "products": "7996cd0bbbec32c654bb2dec72b15122cb552a292e6218551e854d4eb7f09e2c",
-        "framework": "bd9a0b42e80a5779409416a32232b7af4c7e09342dc49100b81d2c8a9e5d71ff",
-        "menu": "75b799cc2c669528310de42b369669024e87a68125ac1ed37ae45fcc9716dbbf",
-        "fetchedAt": "2026-10-05T22:15:14.045Z"
-      }
+      "amount": 1989.2088
     },
     {
       "service": "ecs",
       "region": "sa-brazil-1",
       "billingMode": "RI",
       "name": "return-to-original-generation",
-      "amount": 1821.0888,
-      "payment": {
-        "upfront": 0,
-        "recurring": 41.98,
-        "installments": 12,
-        "period": "Month",
-        "extras": [
-          {
-            "mode": "ONDEMAND",
-            "recurring": 109.7774
-          }
-        ]
-      },
-      "inquiries": [
-        {
-          "regionId": "sa-brazil-1",
-          "chargingMode": 10,
-          "periodType": 3,
-          "periodNum": 1,
-          "subscriptionNum": 1,
-          "siteCode": "HWC",
-          "productInfos": [
-            {
-              "cloudServiceType": "hws.service.type.ec2",
-              "resourceType": "hws.resource.type.vm",
-              "resourceSpecCode": "ac8.large.2.linux",
-              "productNum": 1,
-              "skuCode": "c3647c6b414b468eaee3872a7361ff1f",
-              "productId": "e843f29dcdd141a791bdf333ddee1ce1"
-            }
-          ]
-        },
-        {
-          "regionId": "sa-brazil-1",
-          "chargingMode": 1,
-          "periodType": 3,
-          "periodNum": 1,
-          "subscriptionNum": 1,
-          "siteCode": "HWC",
-          "productInfos": [
-            {
-              "cloudServiceType": "hws.service.type.ebs",
-              "resourceType": "hws.resource.type.volume",
-              "resourceSpecCode": "GPSSD",
-              "productNum": 1,
-              "resourceSize": 40,
-              "resouceSizeMeasureId": 17,
-              "usageFactor": "Duration",
-              "usageMeasureId": 4,
-              "usageValue": 730
-            },
-            {
-              "cloudServiceType": "hws.service.type.vpc",
-              "resourceType": "hws.resource.type.bandwidth",
-              "resourceSpecCode": "19_bgp",
-              "productNum": 1,
-              "resourceSize": 5,
-              "resouceSizeMeasureId": 15,
-              "usageFactor": "Duration",
-              "usageMeasureId": 4,
-              "usageValue": 730
-            }
-          ]
-        }
-      ],
-      "source": {
-        "page": "6b3f650c493aa7b0acee484168bd559d5ea827f0c5f69770cfb4d2e313fcf810",
-        "config": "6ffc3213332236defd956da8c3bb25ac247712b98bdef09090f226a02cf49663",
-        "products": "7996cd0bbbec32c654bb2dec72b15122cb552a292e6218551e854d4eb7f09e2c",
-        "framework": "bd9a0b42e80a5779409416a32232b7af4c7e09342dc49100b81d2c8a9e5d71ff",
-        "menu": "75b799cc2c669528310de42b369669024e87a68125ac1ed37ae45fcc9716dbbf",
-        "fetchedAt": "2026-10-05T22:15:14.045Z"
-      }
+      "amount": 1821.0888
     },
     {
       "service": "ecs",
       "region": "sa-brazil-1",
       "billingMode": "RI",
       "name": "3 Years",
-      "amount": 4997.7864,
-      "payment": {
-        "upfront": 0,
-        "recurring": 29.05,
-        "installments": 36,
-        "period": "Month",
-        "extras": [
-          {
-            "mode": "ONDEMAND",
-            "recurring": 109.7774
-          }
-        ]
-      },
-      "inquiries": [
-        {
-          "regionId": "sa-brazil-1",
-          "chargingMode": 10,
-          "periodType": 3,
-          "periodNum": 3,
-          "subscriptionNum": 1,
-          "siteCode": "HWC",
-          "productInfos": [
-            {
-              "cloudServiceType": "hws.service.type.ec2",
-              "resourceType": "hws.resource.type.vm",
-              "resourceSpecCode": "ac8.large.2.linux",
-              "productNum": 1,
-              "skuCode": "c3647c6b414b468eaee3872a7361ff1f",
-              "productId": "e843f29dcdd141a791bdf333ddee1ce1"
-            }
-          ]
-        },
-        {
-          "regionId": "sa-brazil-1",
-          "chargingMode": 1,
-          "periodType": 3,
-          "periodNum": 3,
-          "subscriptionNum": 1,
-          "siteCode": "HWC",
-          "productInfos": [
-            {
-              "cloudServiceType": "hws.service.type.ebs",
-              "resourceType": "hws.resource.type.volume",
-              "resourceSpecCode": "GPSSD",
-              "productNum": 1,
-              "resourceSize": 40,
-              "resouceSizeMeasureId": 17,
-              "usageFactor": "Duration",
-              "usageMeasureId": 4,
-              "usageValue": 730
-            },
-            {
-              "cloudServiceType": "hws.service.type.vpc",
-              "resourceType": "hws.resource.type.bandwidth",
-              "resourceSpecCode": "19_bgp",
-              "productNum": 1,
-              "resourceSize": 5,
-              "resouceSizeMeasureId": 15,
-              "usageFactor": "Duration",
-              "usageMeasureId": 4,
-              "usageValue": 730
-            }
-          ]
-        }
-      ],
-      "source": {
-        "page": "6b3f650c493aa7b0acee484168bd559d5ea827f0c5f69770cfb4d2e313fcf810",
-        "config": "6ffc3213332236defd956da8c3bb25ac247712b98bdef09090f226a02cf49663",
-        "products": "7996cd0bbbec32c654bb2dec72b15122cb552a292e6218551e854d4eb7f09e2c",
-        "framework": "bd9a0b42e80a5779409416a32232b7af4c7e09342dc49100b81d2c8a9e5d71ff",
-        "menu": "75b799cc2c669528310de42b369669024e87a68125ac1ed37ae45fcc9716dbbf",
-        "fetchedAt": "2026-10-05T22:15:14.045Z"
-      }
+      "amount": 4997.7864
     },
     {
       "service": "ecs",
       "region": "sa-brazil-1",
       "billingMode": "RI",
       "name": "quantity-two",
-      "amount": 9995.5728,
-      "payment": {
-        "upfront": 0,
-        "recurring": 58.1,
-        "installments": 36,
-        "period": "Month",
-        "extras": [
-          {
-            "mode": "ONDEMAND",
-            "recurring": 219.5548
-          }
-        ]
-      },
-      "inquiries": [
-        {
-          "regionId": "sa-brazil-1",
-          "chargingMode": 1,
-          "periodType": 3,
-          "periodNum": 3,
-          "subscriptionNum": 1,
-          "siteCode": "HWC",
-          "productInfos": [
-            {
-              "cloudServiceType": "hws.service.type.ebs",
-              "resourceType": "hws.resource.type.volume",
-              "resourceSpecCode": "GPSSD",
-              "productNum": 2,
-              "resourceSize": 40,
-              "resouceSizeMeasureId": 17,
-              "usageFactor": "Duration",
-              "usageMeasureId": 4,
-              "usageValue": 730
-            },
-            {
-              "cloudServiceType": "hws.service.type.vpc",
-              "resourceType": "hws.resource.type.bandwidth",
-              "resourceSpecCode": "19_bgp",
-              "productNum": 2,
-              "resourceSize": 5,
-              "resouceSizeMeasureId": 15,
-              "usageFactor": "Duration",
-              "usageMeasureId": 4,
-              "usageValue": 730
-            }
-          ]
-        },
-        {
-          "regionId": "sa-brazil-1",
-          "chargingMode": 10,
-          "periodType": 3,
-          "periodNum": 3,
-          "subscriptionNum": 1,
-          "siteCode": "HWC",
-          "productInfos": [
-            {
-              "cloudServiceType": "hws.service.type.ec2",
-              "resourceType": "hws.resource.type.vm",
-              "resourceSpecCode": "ac8.large.2.linux",
-              "productNum": 2,
-              "skuCode": "c3647c6b414b468eaee3872a7361ff1f",
-              "productId": "e843f29dcdd141a791bdf333ddee1ce1"
-            }
-          ]
-        }
-      ],
-      "source": {
-        "page": "6b3f650c493aa7b0acee484168bd559d5ea827f0c5f69770cfb4d2e313fcf810",
-        "config": "6ffc3213332236defd956da8c3bb25ac247712b98bdef09090f226a02cf49663",
-        "products": "7996cd0bbbec32c654bb2dec72b15122cb552a292e6218551e854d4eb7f09e2c",
-        "framework": "bd9a0b42e80a5779409416a32232b7af4c7e09342dc49100b81d2c8a9e5d71ff",
-        "menu": "75b799cc2c669528310de42b369669024e87a68125ac1ed37ae45fcc9716dbbf",
-        "fetchedAt": "2026-10-05T22:15:14.045Z"
-      }
+      "amount": 9995.5728
     },
     {
       "service": "ecs",
@@ -2376,105 +386,21 @@
       "region": "ap-southeast-1",
       "billingMode": "ONETIME",
       "name": "default",
-      "amount": 518,
-      "inquiries": [
-        {
-          "regionId": "ap-southeast-1",
-          "chargingMode": 2,
-          "periodType": null,
-          "periodNum": null,
-          "subscriptionNum": 1,
-          "siteCode": "HWC",
-          "productInfos": [
-            {
-              "cloudServiceType": "hws.service.type.ccm",
-              "resourceType": "hws.resource.type.scm2.cert",
-              "resourceSpecCode": "digicert.ov.single.1",
-              "productNum": 1,
-              "resourceSize": 1,
-              "resouceSizeMeasureId": 14
-            }
-          ]
-        }
-      ],
-      "source": {
-        "page": "6b3f650c493aa7b0acee484168bd559d5ea827f0c5f69770cfb4d2e313fcf810",
-        "config": "326d368de5fd3cf894707a2568e5c49a685f0649344dc18834e9dc3ab9609481",
-        "products": "f0462127cb0d874568ac1d03c29e9c41722e485d3d0e8fa4a6782922f71ab3d6",
-        "framework": "bd9a0b42e80a5779409416a32232b7af4c7e09342dc49100b81d2c8a9e5d71ff",
-        "menu": "75b799cc2c669528310de42b369669024e87a68125ac1ed37ae45fcc9716dbbf",
-        "fetchedAt": "2026-10-05T22:16:16.230Z"
-      }
+      "amount": 518
     },
     {
       "service": "ccm",
       "region": "ap-southeast-1",
       "billingMode": "ONETIME",
       "name": "quantity-two",
-      "amount": 1036,
-      "inquiries": [
-        {
-          "regionId": "ap-southeast-1",
-          "chargingMode": 2,
-          "periodType": null,
-          "periodNum": null,
-          "subscriptionNum": 1,
-          "siteCode": "HWC",
-          "productInfos": [
-            {
-              "cloudServiceType": "hws.service.type.ccm",
-              "resourceType": "hws.resource.type.scm2.cert",
-              "resourceSpecCode": "digicert.ov.single.1",
-              "productNum": 2,
-              "resourceSize": 1,
-              "resouceSizeMeasureId": 14
-            }
-          ]
-        }
-      ],
-      "source": {
-        "page": "6b3f650c493aa7b0acee484168bd559d5ea827f0c5f69770cfb4d2e313fcf810",
-        "config": "326d368de5fd3cf894707a2568e5c49a685f0649344dc18834e9dc3ab9609481",
-        "products": "f0462127cb0d874568ac1d03c29e9c41722e485d3d0e8fa4a6782922f71ab3d6",
-        "framework": "bd9a0b42e80a5779409416a32232b7af4c7e09342dc49100b81d2c8a9e5d71ff",
-        "menu": "75b799cc2c669528310de42b369669024e87a68125ac1ed37ae45fcc9716dbbf",
-        "fetchedAt": "2026-10-05T22:16:16.230Z"
-      }
+      "amount": 1036
     },
     {
       "service": "ccm",
       "region": "ap-southeast-1",
       "billingMode": "ONETIME",
       "name": "validity-three-years",
-      "amount": 3288,
-      "inquiries": [
-        {
-          "regionId": "ap-southeast-1",
-          "chargingMode": 2,
-          "periodType": null,
-          "periodNum": null,
-          "subscriptionNum": 1,
-          "siteCode": "HWC",
-          "productInfos": [
-            {
-              "cloudServiceType": "hws.service.type.ccm",
-              "resourceType": "hws.resource.type.scm2.cert",
-              "resourceSpecCode": "digicert.ov.single.3",
-              "productNum": 2,
-              "resourceSize": 1,
-              "resouceSizeMeasureId": 14
-            }
-          ]
-        }
-      ],
-      "source": {
-        "page": "6b3f650c493aa7b0acee484168bd559d5ea827f0c5f69770cfb4d2e313fcf810",
-        "config": "326d368de5fd3cf894707a2568e5c49a685f0649344dc18834e9dc3ab9609481",
-        "products": "f0462127cb0d874568ac1d03c29e9c41722e485d3d0e8fa4a6782922f71ab3d6",
-        "framework": "bd9a0b42e80a5779409416a32232b7af4c7e09342dc49100b81d2c8a9e5d71ff",
-        "menu": "75b799cc2c669528310de42b369669024e87a68125ac1ed37ae45fcc9716dbbf",
-        "fetchedAt": "2026-10-05T22:16:16.230Z"
-      }
+      "amount": 3288
     },
     {
       "service": "ccm",
@@ -2488,33 +414,7 @@
       "region": "ap-southeast-1",
       "billingMode": "ONETIME",
       "name": "default",
-      "amount": 13000,
-      "inquiries": [
-        {
-          "regionId": "ap-southeast-1",
-          "chargingMode": 2,
-          "periodType": null,
-          "periodNum": null,
-          "subscriptionNum": 1,
-          "siteCode": "HWC",
-          "productInfos": [
-            {
-              "cloudServiceType": "hws.service.type.kms",
-              "resourceType": "hws.resource.type.hsm",
-              "resourceSpecCode": "solution.hsminstall.utimaco.se52",
-              "productNum": 1
-            }
-          ]
-        }
-      ],
-      "source": {
-        "page": "6b3f650c493aa7b0acee484168bd559d5ea827f0c5f69770cfb4d2e313fcf810",
-        "config": "57f66bf14ac764edf294248cfeea0b69e06715cc0eb304a6c3db85ed45e96dc0",
-        "products": "ed63f63ddf5d6a92dc7b266518265099358548c85aa0da99973ff96eb088c13c",
-        "framework": "bd9a0b42e80a5779409416a32232b7af4c7e09342dc49100b81d2c8a9e5d71ff",
-        "menu": "75b799cc2c669528310de42b369669024e87a68125ac1ed37ae45fcc9716dbbf",
-        "fetchedAt": "2026-10-05T22:16:40.485Z"
-      }
+      "amount": 13000
     },
     {
       "service": "dew",
@@ -2528,99 +428,21 @@
       "region": "ap-southeast-3",
       "billingMode": "PERIOD",
       "name": "default",
-      "amount": 0.9,
-      "inquiries": [
-        {
-          "regionId": "ap-southeast-3",
-          "chargingMode": 0,
-          "periodType": 2,
-          "periodNum": 1,
-          "subscriptionNum": 1,
-          "siteCode": "HWC",
-          "productInfos": [
-            {
-              "cloudServiceType": "hws.service.type.dcs",
-              "resourceType": "hws.resource.type.dcs3",
-              "resourceSpecCode": "redis.single.xu1.tiny.128",
-              "productNum": 1
-            }
-          ]
-        }
-      ],
-      "source": {
-        "page": "6b3f650c493aa7b0acee484168bd559d5ea827f0c5f69770cfb4d2e313fcf810",
-        "config": "977df3441cbe8f3c87931bd2d63cf1800cdfc2d4d21d560c74fd32506ed6e62c",
-        "products": "092a9c146b510fb2b20cdf9dc7560d1a1eea1709e902ce3e244f4e7b8531faa7",
-        "framework": "bd9a0b42e80a5779409416a32232b7af4c7e09342dc49100b81d2c8a9e5d71ff",
-        "menu": "75b799cc2c669528310de42b369669024e87a68125ac1ed37ae45fcc9716dbbf",
-        "fetchedAt": "2026-10-05T22:06:26.452Z"
-      }
+      "amount": 0.9
     },
     {
       "service": "redis",
       "region": "ap-southeast-3",
       "billingMode": "PERIOD",
       "name": "annual",
-      "amount": 9.09,
-      "inquiries": [
-        {
-          "regionId": "ap-southeast-3",
-          "chargingMode": 0,
-          "periodType": 3,
-          "periodNum": 1,
-          "subscriptionNum": 1,
-          "siteCode": "HWC",
-          "productInfos": [
-            {
-              "cloudServiceType": "hws.service.type.dcs",
-              "resourceType": "hws.resource.type.dcs3",
-              "resourceSpecCode": "redis.single.xu1.tiny.128",
-              "productNum": 1
-            }
-          ]
-        }
-      ],
-      "source": {
-        "page": "6b3f650c493aa7b0acee484168bd559d5ea827f0c5f69770cfb4d2e313fcf810",
-        "config": "977df3441cbe8f3c87931bd2d63cf1800cdfc2d4d21d560c74fd32506ed6e62c",
-        "products": "092a9c146b510fb2b20cdf9dc7560d1a1eea1709e902ce3e244f4e7b8531faa7",
-        "framework": "bd9a0b42e80a5779409416a32232b7af4c7e09342dc49100b81d2c8a9e5d71ff",
-        "menu": "75b799cc2c669528310de42b369669024e87a68125ac1ed37ae45fcc9716dbbf",
-        "fetchedAt": "2026-10-05T22:06:26.452Z"
-      }
+      "amount": 9.09
     },
     {
       "service": "redis",
       "region": "ap-southeast-3",
       "billingMode": "PERIOD",
       "name": "three-years",
-      "amount": 16.36,
-      "inquiries": [
-        {
-          "regionId": "ap-southeast-3",
-          "chargingMode": 0,
-          "periodType": 3,
-          "periodNum": 3,
-          "subscriptionNum": 1,
-          "siteCode": "HWC",
-          "productInfos": [
-            {
-              "cloudServiceType": "hws.service.type.dcs",
-              "resourceType": "hws.resource.type.dcs3",
-              "resourceSpecCode": "redis.single.xu1.tiny.128",
-              "productNum": 1
-            }
-          ]
-        }
-      ],
-      "source": {
-        "page": "6b3f650c493aa7b0acee484168bd559d5ea827f0c5f69770cfb4d2e313fcf810",
-        "config": "977df3441cbe8f3c87931bd2d63cf1800cdfc2d4d21d560c74fd32506ed6e62c",
-        "products": "092a9c146b510fb2b20cdf9dc7560d1a1eea1709e902ce3e244f4e7b8531faa7",
-        "framework": "bd9a0b42e80a5779409416a32232b7af4c7e09342dc49100b81d2c8a9e5d71ff",
-        "menu": "75b799cc2c669528310de42b369669024e87a68125ac1ed37ae45fcc9716dbbf",
-        "fetchedAt": "2026-10-05T22:06:26.452Z"
-      }
+      "amount": 16.36
     },
     {
       "service": "redis",
