@@ -7,10 +7,11 @@ import {
   selectionBillingMode,
 } from "./native-selection";
 import { nativeBillingDirectory, nativeBillingModes, isNativeBillingMode, type NativeBillingMode } from "./native-billing";
-import { instrumentNativePricing, readNativePricing, refreshNativePricing, buildNativeQuote, type NativeInquiryQuote } from "./native-pricing";
+import { readNativePricing, refreshNativePricing, buildNativeQuote, type NativeInquiryQuote } from "./native-pricing";
 import { canonical, hash } from "./store";
 import { randomUUID } from "node:crypto";
 import { chromium, type Browser, type BrowserContext, type Page } from "playwright";
+import { NativeAssets } from "./native-assets";
 import { HuaweiCollector, PAGE_URL } from "./collector";
 import { readNativeForm, setNativeValue, validateNativeValue } from "./native-dom";
 import { QuoteGateway } from "./quotes";
@@ -57,6 +58,7 @@ export class NativeCalculator {
   private sessions = new Map<string, Session>();
   private opening = 0;
   private gateway = new QuoteGateway();
+  private assets = new NativeAssets();
   constructor(
     private readonly collector: HuaweiCollector,
     private readonly capacity = 6,
@@ -100,6 +102,7 @@ export class NativeCalculator {
     for (const session of this.sessions.values())
       if (!session.busy && (now - session.touched > IDLE_MS || now - session.created > MAX_AGE_MS))
         await this.remove(session.id);
+    if (this.sessions.size === 0 && this.opening === 0) this.assets.clear();
   }
   async remove(id: string) {
     const session = this.sessions.get(id);
@@ -111,6 +114,7 @@ export class NativeCalculator {
     await Promise.all([...this.sessions.keys()].map((id) => this.remove(id)));
     await (await this.browser)?.close();
     this.browser = undefined;
+    this.assets.clear();
   }
   async open(service: string, region: string, requestedMode?: NativeBillingMode): Promise<NativeState> {
     await this.sweep();
@@ -132,7 +136,10 @@ export class NativeCalculator {
       ]);
       const pageSource = this.collector.store.latest(PAGE_URL);
       if (!pageSource) throw new Error("Huawei calculator page snapshot is missing");
-      const pricingFramework = instrumentNativePricing(framework.body);
+      const pricingFramework = this.assets.framework(framework);
+      const frameworkUrl = framework.url;
+      const pageBody = this.assets.body("page", pageSource);
+      const menuBody = this.assets.body("menu", menu);
       context = await (
         await this.getBrowser()
       ).newContext({ viewport: { width: 1440, height: 1200 }, serviceWorkers: "block", acceptDownloads: false });
@@ -155,7 +162,7 @@ export class NativeCalculator {
         )
           return route.abort();
         if (url.origin === new URL(PAGE_URL).origin && url.pathname === new URL(PAGE_URL).pathname)
-          return route.fulfill({ contentType: "text/html", body: pageSource.body });
+          return route.fulfill({ contentType: "text/html", body: pageBody });
         if (url.pathname.endsWith("/api/config")) {
           if (url.searchParams.get("urlPath") !== service) {
             sourceErrors.push("Huawei requested configuration outside this service snapshot");
@@ -171,9 +178,9 @@ export class NativeCalculator {
           return route.fulfill({ contentType: "application/json", body: products.body });
         }
         if (url.pathname.endsWith("/api/menuInfo"))
-          return route.fulfill({ contentType: "application/json", body: menu.body });
+          return route.fulfill({ contentType: "application/json", body: menuBody });
         if (url.pathname.endsWith("/framework.js")) {
-          if (request.url() !== framework.url) return route.abort();
+          if (request.url() !== frameworkUrl) return route.abort();
           return route.fulfill({ contentType: "application/javascript", body: pricingFramework });
         }
         if (url.pathname.endsWith("/inquiry/resource") && request.method() === "POST") {
@@ -355,7 +362,7 @@ export class NativeCalculator {
   async act(action: NativeAction): Promise<NativeState> {
     const s = this.sessions.get(action.session);
     if (!s || Date.now() - s.touched > IDLE_MS || Date.now() - s.created > MAX_AGE_MS) {
-      if (s) await this.remove(s.id);
+      if (s && !s.busy) await this.remove(s.id);
       throw new NativeError("This calculator session expired. Reopen it to load current Huawei data.", 410);
     }
     if (s.selection.steps.length >= 200)
@@ -396,8 +403,10 @@ export class NativeCalculator {
   }
   async refresh(id: string, revision: number): Promise<NativeState> {
     const s = this.sessions.get(id);
-    if (!s || Date.now() - s.touched > IDLE_MS || Date.now() - s.created > MAX_AGE_MS)
+    if (!s || Date.now() - s.touched > IDLE_MS || Date.now() - s.created > MAX_AGE_MS) {
+      if (s && !s.busy) await this.remove(s.id);
       throw new NativeError("This calculator session expired. Reopen it before saving.", 410);
+    }
     if (s.busy || s.revision !== revision)
       throw new NativeError("The configuration changed before saving. Try again.", 409);
     s.busy = true;

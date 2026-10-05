@@ -214,6 +214,11 @@ test("parseEipPricingCatalogResponse extracts dedicated and shared rate cards", 
   expect(catalog).toEqual({
     currency: "USD",
     regionId: "ap-southeast-1",
+    constraints: {
+      bandwidthMbit: { min: 1 },
+      quantity: { min: 1 },
+      trafficAmount: { min: 0 },
+    },
     dedicated: {
       eipRates: { ONDEMAND: 0.005, MONTHLY: 1.5, YEARLY: 15 },
       bandwidthRates: { ONDEMAND: 0.0281, MONTHLY: 9, YEARLY: 90 },

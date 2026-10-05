@@ -1,0 +1,84 @@
+{
+  "checkedAt": "2026-10-05T13:21:41.470923Z",
+  "scope": "Combined NeoCalculator architecture, official-renderer Huawei integration, all billing modes and conservative memory cleanup, ready to merge into main.",
+  "checks": {
+    "cleanUnitTests": {
+      "passed": 350,
+      "failed": 0
+    },
+    "typeCheck": "passed",
+    "productionBuild": "passed",
+    "changedFixtureLint": "passed",
+    "isolatedApplicationBrowserScenarios": 20,
+    "nativeDomFixtures": 5,
+    "productionBrowserScenarios": 4,
+    "nativeLifecycleChecks": [
+      "An active session survives sweeping and refreshes correctly",
+      "An empty pool releases contexts while keeping Chromium warm",
+      "Saved selections replay and price correctly after common assets are released",
+      "Expired save requests promptly release their browser context",
+      "Expiry checks and sweeping leave an in-flight edit intact",
+      "Finished expired work is cleaned up by the next save request",
+      "Rejected opens leak no contexts and do not prevent the next valid open",
+      "Explicit shutdown closes the shared browser"
+    ],
+    "independentOfficialPriceComparisons": 46,
+    "savedSelectionReplayAndFreshSaveChecks": 11,
+    "legacyReplayChecks": 3,
+    "regionalModeRejectionGuards": 3,
+    "billingAuditElapsedSeconds": 450.297
+  },
+  "fixtureRepairs": "NAT/EIP expected catalog objects now include the constraints already added to their schemas. Only assertions changed; production pricing code is unchanged.",
+  "liveApiTimings": {
+    "checkedAt": "2026-10-05T13:12:45.297Z",
+    "evidence": [
+      {
+        "service": "nat",
+        "region": "ap-southeast-1",
+        "billingMode": "ONDEMAND",
+        "openSeconds": 11.325710825,
+        "editSeconds": 1.7019230810000008,
+        "refreshSeconds": 1.342647919000001,
+        "amount": 4.876
+      },
+      {
+        "service": "elb",
+        "region": "ap-southeast-1",
+        "billingMode": "PERIOD",
+        "openSeconds": 7.130105576,
+        "refreshSeconds": 0.500604886000001,
+        "amount": 26.95
+      },
+      {
+        "service": "ecs",
+        "region": "sa-brazil-1",
+        "billingMode": "RI",
+        "openSeconds": 9.672866855,
+        "editSeconds": 1.7423275219999959,
+        "refreshSeconds": 0.4398942139999999,
+        "amount": 3642.1776
+      },
+      {
+        "service": "ccm",
+        "region": "ap-southeast-1",
+        "billingMode": "ONETIME",
+        "openSeconds": 7.268778502000001,
+        "editSeconds": 1.7914462820000043,
+        "refreshSeconds": 0.43437255300000105,
+        "amount": 1036
+      }
+    ]
+  },
+  "deployedNative": {
+    "image": "sha256:d4d263957f5016bf8ab7ab71a6084eeac6466b0d62c8e9e0d323afe755815243",
+    "healthy": true,
+    "restarts": 0,
+    "oomKilled": false
+  },
+  "limits": [
+    "Initial native calculator open took 7\u201311 seconds in this sample; edits took about 1.7\u20131.8 seconds. These are samples, not a latency guarantee.",
+    "The native pool admits at most six sessions.",
+    "Upstream Huawei availability and supported widget formats remain dependencies. Unknown formats block quoting rather than guessing.",
+    "Coverage does not establish exhaustive support for every service/flavor/region combination."
+  ]
+}

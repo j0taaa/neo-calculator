@@ -1,0 +1,259 @@
+{
+  "checkedAt": "2026-10-02T15:42:31.971Z",
+  "changes": [
+    "Share only immutable common page/menu/framework content by hash",
+    "Release shared assets only when no active or opening sessions remain",
+    "Release expired non-busy save/edit contexts",
+    "Keep contexts alive while edits/saves are running"
+  ],
+  "unchanged": [
+    "Chromium lifetime and flags",
+    "Six-session capacity",
+    "Ten-minute session idle timeout and thirty-minute maximum age",
+    "Source collection TTLs, regional scoping and RI product freshness",
+    "Official quote requests, formula aggregation and supported billing modes"
+  ],
+  "rejectedOptimization": {
+    "name": "Automatic empty-pool Chromium shutdown",
+    "reason": "Repeated same-process reopen audits stalled intermittently, including in the production runtime. Not enabled."
+  },
+  "runtimeImage": "sha256:d4d263957f5016bf8ab7ab71a6084eeac6466b0d62c8e9e0d323afe755815243",
+  "runtimeBaseImage": "sha256:b7815f0a4b99fd23160e2823b10d6bbdb8554134cb59c6b795f501641b77e159",
+  "artifactSourceSha256": {
+    "lib/huawei-sync/native-session.ts": "a5d0cbb0ca46696f7b73b27b5cc20150f51fe8377af140e251ad5c8bafbf9a86",
+    "lib/huawei-sync/native-assets.ts": "1afe8fa3af7642d055834e948edbcc8e9a32bd314a8ccaa1d13895fb4c46e42d",
+    "scripts/serve-native-calculator.ts": "0922d1ed8efe4e2a261f2bc309b73505ea4bb8a19aac03f1454ae1b60e6e6966"
+  },
+  "checks": {
+    "unitTests": {
+      "workingTree": {
+        "passed": 350,
+        "failed": 0
+      },
+      "isolatedCleanBranch": {
+        "passed": 348,
+        "failed": 2,
+        "preExistingFailures": [
+          "parseNatPricingCatalogResponse extracts public and private NAT tiers: stale expected usageHours constraints",
+          "parseEipPricingCatalogResponse extracts dedicated and shared rate cards: stale expected bandwidth/quantity/traffic constraints"
+        ],
+        "note": "The two unmodified fixtures fail in isolation too. Existing working-tree fixes were preserved and excluded from this change."
+      }
+    },
+    "typeCheck": "passed",
+    "changedSourceLint": "passed",
+    "nativeDomFixtures": 5,
+    "lifecycle": {
+      "passed": true,
+      "productionRuntime": true,
+      "evidence": [
+        "An active session survives sweeping and refreshes correctly",
+        "An empty pool releases contexts while keeping Chromium warm",
+        "Saved selections replay and price correctly after common assets are released",
+        "Expired save requests promptly release their browser context",
+        "Expiry checks and sweeping leave an in-flight edit intact",
+        "Finished expired work is cleaned up by the next save request",
+        "Rejected opens leak no contexts and do not prevent the next valid open",
+        "Explicit shutdown closes the shared browser"
+      ]
+    },
+    "billing": {
+      "passed": true,
+      "elapsedSeconds": 440.017,
+      "independentOfficialComparisons": 46,
+      "savedSelectionReplayAndFreshSaveChecks": 11,
+      "legacyReplayChecks": 3,
+      "regionalModeRejectionGuards": 3,
+      "scopes": [
+        [
+          "ccm",
+          "ap-southeast-1",
+          "ONETIME"
+        ],
+        [
+          "dew",
+          "ap-southeast-1",
+          "ONETIME"
+        ],
+        [
+          "ecs",
+          "ap-southeast-1",
+          "ONDEMAND"
+        ],
+        [
+          "ecs",
+          "ap-southeast-1",
+          "PERIOD"
+        ],
+        [
+          "ecs",
+          "ap-southeast-1",
+          "RI"
+        ],
+        [
+          "ecs",
+          "sa-brazil-1",
+          "ONDEMAND"
+        ],
+        [
+          "ecs",
+          "sa-brazil-1",
+          "RI"
+        ],
+        [
+          "elb",
+          "ap-southeast-1",
+          "PERIOD"
+        ],
+        [
+          "nat",
+          "ap-southeast-1",
+          "ONDEMAND"
+        ],
+        [
+          "nat",
+          "ap-southeast-1",
+          "PERIOD"
+        ],
+        [
+          "redis",
+          "ap-southeast-3",
+          "PERIOD"
+        ]
+      ]
+    },
+    "additionalPayPerUse": {
+      "independentOfficialComparisons": 27,
+      "services": [
+        "ecs",
+        "elb",
+        "redis",
+        "nat"
+      ],
+      "region": "ap-southeast-1",
+      "note": "Two earlier runs stopped because the independent official page emitted no quote. The corresponding flavor-switch and Redis quantity comparisons passed in subsequent runs."
+    },
+    "memory": {
+      "runtimeImage": "sha256:d4d263957f5016bf8ab7ab71a6084eeac6466b0d62c8e9e0d323afe755815243",
+      "sixCompleteQuotes": true,
+      "seventhSessionRejected": true,
+      "contextsAndBrowserClosed": true,
+      "oomKilled": false,
+      "containerLimitMiB": 3072,
+      "measurement": {
+        "checkedAt": "2026-10-02T15:45:58.521Z",
+        "method": "Isolated production-image container. Working memory = cgroup-v1 usage minus total inactive file cache (Docker stats method), sampled every 250 ms. RSS is cgroup total_rss, not a sum of per-process RSS. Six mixed services open sequentially in one shared Chromium browser.",
+        "results": [
+          {
+            "phase": "idle-before-browser",
+            "sessions": 0,
+            "workingMiB": 61.06640625,
+            "rssMiB": 59.296875,
+            "swappedMiB": 0,
+            "usageMiB": 61.06640625,
+            "peakWorkingMiB": 61.06640625
+          },
+          {
+            "phase": "nat/ap-southeast-1/ONDEMAND",
+            "sessions": 1,
+            "workingMiB": 307.37890625,
+            "rssMiB": 293.390625,
+            "swappedMiB": 0,
+            "usageMiB": 373.5078125,
+            "peakWorkingMiB": 308.49609375
+          },
+          {
+            "phase": "ecs/ap-southeast-1/ONDEMAND",
+            "sessions": 2,
+            "workingMiB": 593.8671875,
+            "rssMiB": 576.08203125,
+            "swappedMiB": 0,
+            "usageMiB": 685.1328125,
+            "peakWorkingMiB": 603.484375
+          },
+          {
+            "phase": "elb/ap-southeast-1/ONDEMAND",
+            "sessions": 3,
+            "workingMiB": 845.5546875,
+            "rssMiB": 824.35546875,
+            "swappedMiB": 0,
+            "usageMiB": 957.57421875,
+            "peakWorkingMiB": 848.234375
+          },
+          {
+            "phase": "redis/ap-southeast-3/ONDEMAND",
+            "sessions": 4,
+            "workingMiB": 1096.20703125,
+            "rssMiB": 1071.2109375,
+            "swappedMiB": 0,
+            "usageMiB": 1236.33984375,
+            "peakWorkingMiB": 1099.21484375
+          },
+          {
+            "phase": "ecs/sa-brazil-1/RI",
+            "sessions": 5,
+            "workingMiB": 1374.69140625,
+            "rssMiB": 1326.4453125,
+            "swappedMiB": 0,
+            "usageMiB": 1508.0546875,
+            "peakWorkingMiB": 1404.9609375
+          },
+          {
+            "phase": "nat/sa-brazil-1/ONDEMAND",
+            "sessions": 6,
+            "workingMiB": 1470.72265625,
+            "rssMiB": 1408.30078125,
+            "swappedMiB": 0,
+            "usageMiB": 1577.31640625,
+            "peakWorkingMiB": 1555.03515625
+          },
+          {
+            "phase": "all-tabs-closed-browser-retained",
+            "sessions": 0,
+            "workingMiB": 246.359375,
+            "rssMiB": 235.640625,
+            "swappedMiB": 0,
+            "usageMiB": 254.85546875,
+            "peakWorkingMiB": 1555.03515625
+          },
+          {
+            "phase": "browser-closed",
+            "sessions": 0,
+            "workingMiB": 191.8671875,
+            "rssMiB": 185.3671875,
+            "swappedMiB": 0,
+            "usageMiB": 197.26953125,
+            "peakWorkingMiB": 1555.03515625
+          }
+        ]
+      },
+      "limitation": "Single mixed workload with sequential opens. Does not establish a lower peak or exhaustive service coverage; browser pages, GC, swap and runtime load affect results."
+    },
+    "isolatedNativeUnitTests": {
+      "passed": 40,
+      "failed": 0
+    },
+    "isolatedTypeCheck": "passed"
+  },
+  "deployment": {
+    "checkedAt": "2026-10-02T15:54:42.904768Z",
+    "site": "https://calculator.hwctools.site/?tab=huawei-live",
+    "nativeContainer": "home-calculator-native-1",
+    "runtimeImage": "sha256:d4d263957f5016bf8ab7ab71a6084eeac6466b0d62c8e9e0d323afe755815243",
+    "health": "healthy",
+    "productionBrowserScenarios": 4,
+    "billingModes": [
+      "ONDEMAND",
+      "PERIOD",
+      "RI",
+      "ONETIME"
+    ],
+    "anonymousTestSessionsReleased": true,
+    "runtimeSourceHashesMatch": true,
+    "httpsStatus": 200,
+    "tlsVerification": 0,
+    "httpRedirectStatus": 301,
+    "mainApplicationContainerUnchanged": true,
+    "strategy": "Overlay clean library sources onto the existing production runtime/dependencies. Recreate only calculator-native, without rebuilding or restarting the main application."
+  }
+}

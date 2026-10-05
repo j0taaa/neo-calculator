@@ -137,3 +137,48 @@ in swap. It was one run with sequential openings, not a worst-case load test.
 Source data, selections, caching, swap and garbage collection affect the results.
 See [the raw measurements](huawei-native-memory-validation.json) for timestamps,
 the exact production image, per-phase values and verification details.
+
+The conservative memory cleanup shares identical page, menu and instrumented
+framework strings by content hash across active sessions. Only three current
+common assets are retained; existing sessions keep their captured versions.
+Source collection, regional product snapshots, RI freshness and pricing requests
+continue to use their existing rules. Unsupported framework changes still fail
+explicitly instead of reusing an older instrumented version.
+
+The common asset cache is released when a sweep finds no active or opening
+sessions, and at shutdown. Expired save requests now close their unused context
+promptly. Expiry checks never close a context while an edit or save is running;
+normal sweeping releases it once the operation finishes. Session timeouts,
+capacity, browser flags and upstream resource loading are unchanged.
+
+Automatic Chromium shutdown after five empty-pool minutes was tested and
+rejected: several same-process reopen audits stalled, including one in an
+isolated production runtime. That optimization is not enabled. Chromium stays
+warm, so these savings are modest. The workload measurements do not establish
+a lower overall peak; browser pages, GC, swap and workload variation dominate.
+
+Run the real-browser cleanup and busy-expiry audit with:
+
+```sh
+HWC_SOCKS5_PROXY=socks5h://172.17.0.1:40001 bun scripts/audit-native-lifecycle.ts
+```
+
+The audit ages controller session timestamps while keeping Playwright, HTTP,
+price-cache clocks and timers at real time. It verifies context release,
+warm-browser reuse, saved replay after clearing shared assets, protection of an
+in-flight edit at expiry, rejected opens and final shutdown. The unit fixtures
+cover immutable asset ownership, version replacement and unsupported framework
+updates. See [the cleanup validation](huawei-native-memory-cleanup-validation.json)
+for price comparisons and deployment evidence.
+
+The 2026-10-05 merge-readiness run passed a clean 350-test unit suite, production
+build and type checking, 20 isolated main-application browser scenarios, five
+DOM fixtures, eight real-browser lifecycle checks and four production browser
+scenarios. The two stale NAT/EIP catalog fixtures now assert their existing
+constraints. Fresh official comparisons covered 46 prices across all four
+billing modes, 11 saved replays/fresh saves, three legacy replays and three
+regional/mode rejection guards. Live API samples took 7–11 seconds to open,
+about 1.7–1.8 seconds to edit, and 0.4–1.3 seconds to refresh a saved quote.
+These are measured samples, not response-time guarantees; Huawei availability
+and the six-session pool limit still apply. See
+[the merge-readiness evidence](merge-readiness-validation.json).
