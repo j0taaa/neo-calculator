@@ -61,6 +61,7 @@ function getCustomBillingOptions(serviceCode: string): BillingOption[] {
 }
 
 type Options = {
+  enabled?: boolean;
   selectedService: string;
   selectedServiceCode: string;
   regionValue: HuaweiRegionKey;
@@ -70,6 +71,7 @@ type Options = {
 };
 
 export function useCustomCalculator({
+  enabled = true,
   selectedService,
   selectedServiceCode,
   regionValue,
@@ -115,7 +117,7 @@ export function useCustomCalculator({
         (usageHoursValue === 730 || usageHoursValue === 744)));
 
   const customEcsRuntime = useCustomEcsCalculator({
-    isEcsCalculator,
+    isEcsCalculator: enabled && isEcsCalculator,
     isFlexusLCalculator,
     canShowFlexusLInEcs,
     showFlexusLInEcs,

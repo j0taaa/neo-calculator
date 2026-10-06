@@ -1,3 +1,4 @@
+import { calculatorDirectory } from "@/lib/calculator/server-directory";
 import {
   findServiceCatalogEntry,
   getConfigurableServiceBundleByCode,
@@ -8,7 +9,7 @@ import {
 import { systemDiskOptions } from "@/lib/configurable-runtime-utils";
 import { flexusLPlans } from "@/lib/flexus-l-catalog";
 
-export const revalidate = 3600;
+export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
 type JsonSchema = Record<string, unknown>;
@@ -469,6 +470,22 @@ export async function GET(
   context: { params: Promise<{ serviceCode: string }> },
 ) {
   const { serviceCode: rawCode } = await context.params;
+  if (rawCode.startsWith("HUAWEI:")) {
+    const directory = await calculatorDirectory();
+    if (!directory) return Response.json({ error: "Huawei directory is temporarily unavailable" }, { status: 503 });
+    const id = rawCode.slice(7);
+    const service = directory.services.find(service => service.id === id);
+    if (!service) return Response.json({ error: "Unknown Huawei service" }, { status: 404 });
+    return Response.json({ serviceCode: rawCode, serviceName: service.name, productType: "huawei-native",
+      calculator: { runtime: "huawei-native", serviceId: id, sessionUrl: "/api/calculator/native",
+        billingModes: directory.billingModes[id] ?? {}, regions: directory.regions,
+        instructions: "Open a session for this service, region and billing mode. Apply the returned fields by revision; submit the resulting selection for fresh server verification." },
+      schema: { type: "object", required: ["serviceCode", "serviceName", "config"], properties: {
+        serviceCode: { const: rawCode }, serviceName: { type: "string" }, productType: { const: "huawei-native" }, title: { type: "string" },
+        config: { type: "object", required: ["selection"], properties: { selection: { type: "object", description: "Exact durable selection returned by the Huawei session, including initial fields, steps and final fields." } } },
+      } },
+    });
+  }
   const resolvedCode = resolveServiceCode(rawCode);
 
   if (!resolvedCode) {

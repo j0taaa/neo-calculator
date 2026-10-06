@@ -1,6 +1,6 @@
 import { ensureRegionCatalogAvailable, listStoredEcsFlavors, type StoredEcsFlavor } from "@/lib/ecs-flavor-catalog";
 import { flexusLPlans, type FlexusLPlan } from "@/lib/flexus-l-catalog";
-import { getCatalogRegionId, huaweiRegions, type HuaweiRegionKey } from "@/lib/huawei-regions";
+import { ecsCatalogScope } from "@/lib/calculator/server-directory";
 
 export const runtime = "nodejs";
 
@@ -24,9 +24,9 @@ function resolveSortField(value: string | null): SortField {
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
-  const requestedRegion = searchParams.get("region") as HuaweiRegionKey | null;
-  const regionKey = requestedRegion && requestedRegion in huaweiRegions ? requestedRegion : "la-sao-paulo1";
-  const catalogRegionId = getCatalogRegionId(regionKey);
+  const scope = await ecsCatalogScope(searchParams.get("region"));
+  if (scope.error) return Response.json({ error: scope.error }, { status: scope.status });
+  const { region: regionKey, catalogRegionId } = scope;
 
   if (!catalogRegionId) {
     return Response.json({ error: `Unknown region: ${regionKey}` }, { status: 400 });

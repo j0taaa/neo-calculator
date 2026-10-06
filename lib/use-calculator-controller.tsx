@@ -47,6 +47,7 @@ function normalizeUsageHours(
 }
 
 export function useCalculatorController({
+  enabled = true,
   selectedService,
   selectedServiceMeta,
   regionValue,
@@ -95,6 +96,7 @@ export function useCalculatorController({
     ? Math.max(1, Number(instanceCount))
     : 1;
   const configurableRuntime = useConfigurableServiceRuntime({
+    enabled,
     selectedServiceCode,
     selectedService,
     selectedServiceDefinition,
@@ -108,6 +110,7 @@ export function useCalculatorController({
   });
 
   const customRuntime = useCustomCalculator({
+    enabled,
     selectedService,
     selectedServiceCode,
     regionValue,
@@ -133,9 +136,9 @@ export function useCalculatorController({
   const calculatorBillingOptions =
     configurableRuntime.activeBillingOptions ?? customRuntime.billingOptions;
   useEffect(() => {
-    if (!calculatorBillingOptions.includes(billingMode))
+    if (enabled && !calculatorBillingOptions.includes(billingMode))
       setBillingMode(calculatorBillingOptions[0]);
-  }, [billingMode, calculatorBillingOptions, setBillingMode]);
+  }, [enabled, billingMode, calculatorBillingOptions, setBillingMode]);
 
   const updateInstanceCount = useCallback((nextValue: string) => {
     if (nextValue === "") {

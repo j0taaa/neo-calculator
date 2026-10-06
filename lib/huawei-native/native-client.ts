@@ -1,4 +1,4 @@
-export async function nativeRequest<T>(body?: unknown): Promise<T> {
+export async function nativeRequest<T>(body?: unknown, timeoutMs = 300000): Promise<T> {
   const base = process.env.HUAWEI_NATIVE_URL,
     token = process.env.HUAWEI_NATIVE_TOKEN;
   if (!base || !token) throw new Error("The Huawei live calculator is not enabled");
@@ -7,7 +7,7 @@ export async function nativeRequest<T>(body?: unknown): Promise<T> {
     headers: { authorization: `Bearer ${token}`, "content-type": "application/json" },
     body: body ? JSON.stringify(body) : undefined,
     cache: "no-store",
-    signal: AbortSignal.timeout(300000),
+    signal: AbortSignal.timeout(timeoutMs),
   });
   const data = await response.json();
   if (!response.ok) throw new Error(data.error || "Huawei could not complete this request");

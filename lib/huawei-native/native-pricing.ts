@@ -75,9 +75,13 @@ export function buildNativeQuote(
   if (selected.region !== scope.region || selected.serviceCode !== scope.service || selected.chargeMode !== scope.billingMode)
     throw new Error("Huawei returned a different service, region or billing mode");
   const tags = ["normal", "combine", "sameNamePackage", "support", "localImage", "listCalc"];
-  const products = selected.productAllInfos.filter(product => product.inquiryTag !== false);
-  if (!products.length || products.length > 100 || products.some(product => !tags.includes(product.inquiryTag as string)))
+  const selectedProducts = selected.productAllInfos.filter(product => product.inquiryTag !== false);
+  if (!selectedProducts.length || selectedProducts.length > 100 || selectedProducts.some(product => !tags.includes(product.inquiryTag as string)))
     throw new Error("Unsupported Huawei pricing components");
+  // Huawei's inquiry builder omits normal/package components with zero quantity.
+  // Other component types retain their vendor-specific aggregation behavior.
+  const products = selectedProducts.filter(product =>
+    !(product.productNum === 0 && ["normal", "combine", "sameNamePackage"].includes(product.inquiryTag as string)));
   const expected = new Map(products.map(product => [`${selected.timeTag}-${product.selectIndex}-${product.productId || "noId"}`, product]));
   if (expected.size !== products.length || result.productRatingResult?.length !== expected.size || !Number.isFinite(result.amount) || result.amount < 0)
     throw new Error("Incomplete Huawei aggregate price");
@@ -93,12 +97,13 @@ export function buildNativeQuote(
   const requests = captured.filter(({inquiry}) => inquiry.productInfos.every(product => product.id.startsWith(`${selected.timeTag}-`)));
   const rated = new Set<string>();
   for (const { inquiry, response } of requests) {
-    if (inquiry.regionId !== scope.region || inquiry.siteCode !== "HWC" || response.currency !== "USD") throw new Error("Unexpected Huawei pricing scope or currency");
+    if (inquiry.regionId !== scope.region || response.currency !== "USD") throw new Error("Unexpected Huawei pricing scope or currency");
     for (const item of response.productRatingResult) {
       const product = expected.get(item.id);
       const mode = product?._injectedMode ?? scope.billingMode;
       if (!product || rated.has(item.id) || !isNativeBillingMode(mode) || inquiry.chargingMode !== nativeBillingModes[mode].chargingMode)
         throw new Error("Unexpected Huawei billing component");
+      if (inquiry.siteCode !== (product.siteCode ?? "HWC")) throw new Error("Unexpected Huawei product billing site");
       rated.add(item.id);
       if (mode === "RI" && Number(product.perPrice ?? 0) > 0) {
         const effective = Number(product.perEffectivePrice);

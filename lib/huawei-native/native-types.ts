@@ -9,6 +9,7 @@ export type NativeField = {
   value: string | number | boolean;
   disabled: boolean;
   unit?: string;
+  hint?: string;
   min?: number;
   max?: number;
   options?: { value: string; label: string; disabled: boolean }[];

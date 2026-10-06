@@ -96,10 +96,14 @@ pricing, exercises both clone endpoints and API-key pricing, and checks sharing
 and export/import. Its calculator fixtures avoid dependence on changing prices;
 the catalog route and API-key scenarios still require Huawei network access.
 
-## Huawei live synchronization
+## Unified calculator and Huawei synchronization
 
-The Huawei live tab (`/?tab=huawei-live`) uses Huawei's official renderer in a private Chromium sidecar. Services, regions, dependent controls and billing modes are discovered from Huawei's sources; prices are fetched freshly after changes and again on save. Shared source collection and caching live in `lib/huawei-native`; no QuickJS publication worker is required.
+The unified Calculator tab uses Huawei's official renderer in a private Chromium sidecar. Services, regions, dependent controls and billing modes are discovered from Huawei's sources; prices are fetched freshly after changes and again on save. Shared source collection and caching live in `lib/huawei-native`; no QuickJS publication worker is required.
 
-The former `/synchronized` calculator has been retired. Old links redirect into the live workspace. Imported old estimates remain readable and preserve their original configuration; edit them in Huawei live and review the reselected options before saving a freshly verified replacement. Old calculator option IDs cannot safely be treated as live replay instructions.
+The former `/synchronized` calculator has been retired. Old links redirect into the live workspace. Imported old estimates remain readable and preserve their original configuration; edit them in the Calculator tab and review the reselected options before saving a freshly verified replacement. Old calculator option IDs cannot safely be treated as live replay instructions.
 
 See the [live calculator guide](docs/huawei-native-calculator.md) and [retirement and compatibility notes](docs/synced-calculator-retirement.md).
+
+The Calculator and Batch add tabs share one service selection. ECS flavor search applies real Huawei options and verifies the exact SKU. Queue configured items from any service, region or billing mode for a batch; the server checks fresh prices when saving. Existing saved estimates and text batches remain compatible without a second calculator tab. Old `tab=huawei-live` bookmarks normalize to `tab=calculator`.
+
+See [the consolidation design](docs/calculator-consolidation.md) for the module layout and compatibility paths.

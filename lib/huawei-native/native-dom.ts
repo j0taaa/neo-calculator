@@ -9,11 +9,12 @@ export async function readNativeForm(page: Page): Promise<NativeForm> {
     const dropdowns = bridge.__neoDropdowns ??= new WeakMap<Element, HTMLElement>();
     const visible = (el: Element) => !!el.getClientRects().length && getComputedStyle(el).visibility !== "hidden";
     const clean = (text: string | null | undefined) => (text ?? "").replace(/\s+/g, " ").trim();
-    const config = (window as unknown as { viewConfig?: { calc_view: { components: { id: string; type: string; optionKeys?: string[] }[] } } }).viewConfig;
+    type Component = { id: string; type: string; optionKeys?: string[]; subComponents?: Component[] };
+    const config = (window as unknown as { viewConfig?: { calc_view: { components: Component[] } } }).viewConfig;
     if (!config?.calc_view?.components) return { fields, notes, diagnostics: ["Huawei form metadata is unavailable"] };
     document.querySelectorAll("[data-neo-control]").forEach(el => el.removeAttribute("data-neo-control"));
     document.querySelectorAll("[data-neo-option]").forEach(el => el.removeAttribute("data-neo-option"));
-    const allowed = new Set(["CommonRadioGroup", "CommonSelect", "CommonStepper", "CommonRadioStepper", "CommonCheckboxGroup", "CommonAddible", "CommonSwitch", "CommonTip"]);
+    const allowed = new Set(["CommonRadioGroup", "CommonSelect", "CommonStepper", "CommonRadioStepper", "CommonCheckboxGroup", "CommonAddible", "CommonSwitch", "CommonTip", "CommonInput", "FuncCombine"]);
     const components = [...config.calc_view.components];
     const globals = ["global_ONDEMANDTIME", "global_QUANTITY", "global_PERIODTIME", "global_FEEINSTALLMODE"];
     for (const id of globals) if (!components.some(c => c.id === id)) components.push({ id, type: "CommonStepper" });
@@ -22,10 +23,19 @@ export async function readNativeForm(page: Page): Promise<NativeForm> {
       const root = document.getElementById(component.id) ?? document.querySelector<HTMLElement>(`[idheader="${component.id}"]`);
       if (!root || !visible(root)) continue;
       if (!allowed.has(component.type) && !component.id.startsWith("global_")) diagnostics.push(`Unsupported Huawei control: ${component.type}`);
+      if (component.type === "FuncCombine") {
+        const validateChildren = (children: Component[]) => {
+          for (const child of children) {
+            if (!allowed.has(child.type)) diagnostics.push(`Unsupported Huawei control: ${child.type}`);
+            if (child.subComponents) validateChildren(child.subComponents);
+          }
+        };
+        validateChildren(component.subComponents ?? []);
+      }
       if (component.type === "CommonTip") { const text = clean(root.innerText); if (text) notes.push(text); }
       const before = fields.length;
       const handled = new Set<Element>();
-      const controls = root.querySelectorAll<HTMLElement>(".base-radio-group, .base-select, .tiny-numeric__input-inner, .tiny-checkbox, .common-addible-addDisk, .common-addible-delete");
+      const controls = root.querySelectorAll<HTMLElement>(".base-radio-group, .base-select, .tiny-numeric__input-inner, .common-input input.tiny-input__inner, .tiny-checkbox, .common-addible-addDisk, .common-addible-delete");
       let index = 0;
       for (const el of controls) {
         if (!visible(el)) continue;
@@ -39,8 +49,10 @@ export async function readNativeForm(page: Page): Promise<NativeForm> {
           field.options = options.map((option, i) => ({ value: String(i), label: clean(option.innerText), disabled: option.matches(".disabled, .is-disabled") || !!option.querySelector("button:disabled") }));
           field.value = String(options.findIndex(option => option.classList.contains("active")));
           if (!label) {
-            const key = component.optionKeys?.[Number(el.id.split("_").at(-1))] || clean(el.getAttribute("optionkey"));
-            const labels: Record<string, string> = { cpu: "vCPUs", mem: "Memory", generation: "Generation" };
+            const indexes = el.id.slice(component.id.length + 1).split("_").map(Number);
+            const keys = component.type === "FuncCombine" ? component.subComponents?.[indexes[0]]?.optionKeys : component.optionKeys;
+            const key = keys?.[indexes.at(-1) ?? 0] || clean(el.getAttribute("optionkey"));
+            const labels: Record<string, string> = { cpu: "vCPUs", mem: "Memory", generation: "Generation", vm_spec: "Specification", image: "Image" };
             label = labels[key] || key?.replace(/([a-z])([A-Z])/g, "$1 $2") || "Specification";
           }
         } else if (el.matches(".base-select")) {
@@ -64,10 +76,15 @@ export async function readNativeForm(page: Page): Promise<NativeForm> {
           field.type = "checkbox"; field.value = !!input?.checked;
           field.disabled ||= !!input?.disabled;
           label = clean(el.querySelector(".tiny-checkbox__label")?.textContent) || label;
-        } else if (el.matches(".tiny-numeric__input-inner")) {
+        } else if (el.matches(".tiny-numeric__input-inner, .common-input input.tiny-input__inner")) {
           const input = el as HTMLInputElement;
           handled.add(input);
           field.type = "number"; field.value = Number(input.value); field.disabled ||= input.disabled || input.readOnly;
+          if (!input.value.trim() || !Number.isFinite(field.value)) diagnostics.push(`Unsupported nonnumeric input in ${component.id}`);
+          if (el.matches(".common-input input.tiny-input__inner")) {
+            field.hint = clean(input.getAttribute("errormessage"));
+            if (input.closest(".common-input-is-error")) diagnostics.push(field.hint || `Huawei rejected ${label || "this input"}`);
+          }
           if (input.hasAttribute("min")) field.min = Number(input.min);
           if (input.hasAttribute("max")) field.max = Number(input.max);
           if (field.min !== undefined && field.min === field.max) field.disabled = true;

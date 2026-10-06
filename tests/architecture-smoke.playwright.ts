@@ -8,6 +8,7 @@ import expected from "./fixtures/runtime/expected.json";
 const services = ["DCS", "NAT", "EVS", "DMS", "ELB", "VPN", "RDS", "EIP"];
 
 async function useCatalogFixtures(page: Page) {
+  await page.route("**/api/calculator/native", route => route.fulfill({ json: { services: [], regions: [], billingModes: {} } }));
   // Avoid starting the unrelated ECS catalog synchronizer during these UI scenarios.
   await page.route("**/api/catalog/ecs-flavors?*", (route) => route.fulfill({ json: { flavors: [], diskPricing: null } }));
   for (const code of services) {
@@ -59,7 +60,7 @@ for (const code of services) {
     const product = expected.find((fixture) => fixture.code === code && fixture.name === "default")?.product;
     const savedTotal = (Array.isArray(product) ? product[0] : product)?.pricing?.total;
     expect(savedTotal).toBeTruthy();
-    await expect(page.getByRole("tabpanel", { name: "Price Calculator" })).toContainText(savedTotal!.split("/")[0]);
+    await expect(page.getByRole("tabpanel", { name: "Calculator" })).toContainText(savedTotal!.split("/")[0]);
     await expect(page.getByText(/Failed to load|pricing is unavailable/).first()).toBeHidden();
     expect(errors).toEqual([]);
   });
@@ -103,6 +104,7 @@ test("saved estimates can be edited, batch-added, cloned, shared, exported and i
   expect(products[0].config).toEqual(original.config);
 
   await page.getByRole("tab", { name: "Batch add", exact: true }).click();
+  await page.getByText(/Import existing .* text batches/).click();
   await page.locator("textarea").fill(JSON.stringify([{ diskSizeGiB: 80, quantity: 2 }, { diskSizeGiB: 120, quantity: 1 }]));
   await page.getByRole("button", { name: "Add Batch", exact: true }).click();
   await expect.poll(async () => (await (await page.request.get(`/api/lists/${list.id}/products`)).json()).length).toBe(3);
@@ -188,7 +190,8 @@ for (const code of ["ECS", "Flexus L"]) {
     expect(edited.config).toEqual(original.config);
     expect(edited.pricing).toEqual(original.pricing);
     await page.getByRole("tab", { name: "Batch add", exact: true }).click();
-    await page.locator("textarea").fill(JSON.stringify([code === "ECS"
+    await page.getByText(/Import existing .* text batches/).click();
+  await page.locator("textarea").fill(JSON.stringify([code === "ECS"
       ? { vcpu: 2, ram: 8, quantity: 2 }
       : { vcpu: 2, ram: 2, quantity: 2 }]));
     await page.getByRole("button", { name: "Add Batch", exact: true }).click();
@@ -211,7 +214,7 @@ test("service shortcuts and dependent ECS disk controls survive the module split
   } }));
   await page.goto("/?service=ECS&region=cn-hong-kong&billing=Pay-per-use&hours=730");
   await expect(page.getByRole("button", { name: /c7.large.4/ }).first()).toBeVisible();
-  await expect(page.getByRole("tabpanel", { name: "Price Calculator" })).toContainText("730h");
+  await expect(page.getByRole("tabpanel", { name: "Calculator" })).toContainText("730h");
   await page.keyboard.press("Control+k");
   const search = page.getByPlaceholder("Search service name");
   await expect(search).toBeFocused();
@@ -219,7 +222,7 @@ test("service shortcuts and dependent ECS disk controls survive the module split
   await search.press("ArrowDown");
   await search.press("Enter");
   await expect(search).toBeHidden();
-  await expect(page.getByRole("tabpanel", { name: "Price Calculator" })).toContainText("Gateway");
+  await expect(page.getByRole("tabpanel", { name: "Calculator" })).toContainText("Gateway");
   await selectService(page, "ECS");
   await page.getByRole("combobox").filter({ hasText: "High I/O" }).click();
   await page.getByRole("option", { name: "General Purpose SSD V2", exact: true }).click();
@@ -305,10 +308,10 @@ test("Huawei live saves verified prices into the main cart and reopens durable s
   test.skip(process.env.NEO_NATIVE_TESTS!=='1','Requires the isolated native sidecar');
   test.setTimeout(300000);
   const errors: string[]=[];page.on('pageerror',error=>errors.push(error.message));
-  await useCatalogFixtures(page);
+  await page.route("**/api/catalog/ecs-flavors?*", route => route.fulfill({ json: { flavors: [], diskPricing: null } }));
   const {project,list}=await createTestCart(page,baseURL);
-  await page.goto(`/?project=${project.id}&list=${list.id}&tab=huawei-live`);
-  await page.getByLabel('Huawei service',{exact:true}).selectOption('nat');
+  await page.goto(`/?project=${project.id}&list=${list.id}&tab=huawei-live&region=cn-hong-kong`);
+  await page.getByLabel('Service',{exact:true}).selectOption('NAT');
   await page.getByRole('button',{name:'Open calculator',exact:true}).click();
   await expect(page.getByTestId('lab-price')).toBeVisible({timeout:110000});
   const duration=page.locator('[data-field-id="global_ONDEMANDTIME:0"]');
@@ -329,7 +332,7 @@ test("Huawei live saves verified prices into the main cart and reopens durable s
   await page.getByRole('button',{name:`Edit ${product.title}`,exact:true}).click();
   await expect(page.getByTestId('lab-price')).toBeVisible({timeout:110000});
   const saveEdit=page.waitForResponse(r=>r.url().endsWith(`/products/${product.id}`)&&r.request().method()==='PATCH');
-  await page.getByRole('tabpanel',{name:'Huawei live',exact:true}).getByRole('button',{name:'Save Changes',exact:true}).click();
+  await page.getByRole('tabpanel',{name:'Calculator',exact:true}).getByRole('button',{name:'Save Changes',exact:true}).click();
   const editedResponse=await saveEdit;expect(editedResponse.status()).toBe(200);
   const edited=await editedResponse.json();
   expect(edited.config.selection).toEqual(product.config.selection);
@@ -371,8 +374,8 @@ for (const [service,billingMode] of [["nat","PERIOD"],["ecs","RI"],["ccm","ONETI
     test.setTimeout(360000);
     const errors:string[]=[];page.on("pageerror",e=>errors.push(e.message));
     const {project,list}=await createTestCart(page,baseURL);
-    await page.goto(`/?project=${project.id}&list=${list.id}&tab=huawei-live`);
-    await page.getByLabel("Huawei service",{exact:true}).selectOption(service);
+    await page.goto(`/?project=${project.id}&list=${list.id}&tab=huawei-live&region=cn-hong-kong`);
+    await page.getByLabel("Service",{exact:true}).selectOption(({ nat: "NAT", ecs: "ECS", ccm: "CCM" } as const)[service]);
     await page.getByLabel("Huawei billing mode",{exact:true}).selectOption(billingMode);
     const opened=page.waitForResponse(r=>r.url().endsWith("/api/calculator/native") && r.request().postDataJSON()?.action==="open");
     await page.getByRole("button",{name:"Open calculator",exact:true}).click();
@@ -420,7 +423,7 @@ for (const [service,billingMode] of [["nat","PERIOD"],["ecs","RI"],["ccm","ONETI
       await expect(page.locator('select[data-field-id="calculator_ims_select:1"]')).toHaveValue("-1");
     }
     const edited=page.waitForResponse(r=>r.url().endsWith(`/products/${product.id}`) && r.request().method()==="PATCH");
-    await page.getByRole("tabpanel",{name:"Huawei live",exact:true}).getByRole("button",{name:"Save Changes",exact:true}).click();
+    await page.getByRole("tabpanel",{name:"Calculator",exact:true}).getByRole("button",{name:"Save Changes",exact:true}).click();
     const editResponse=await edited;expect(editResponse.status()).toBe(200);
     const next=await editResponse.json();
     expect(next.config.selection).toEqual(product.config.selection);
@@ -440,7 +443,7 @@ test("Huawei billing choices follow the service and region and switching an open
   await page.getByLabel("Huawei region",{exact:true}).selectOption("cn-north-4");
   await expect(mode.locator("option")).toHaveText(["Yearly/Monthly","Pay-per-use"]);
   await page.getByLabel("Huawei region",{exact:true}).selectOption("ap-southeast-1");
-  await page.getByLabel("Huawei service",{exact:true}).selectOption("nat");
+  await page.getByLabel("Service",{exact:true}).selectOption("NAT");
   await page.getByRole("button",{name:"Open calculator",exact:true}).click();
   await expect(page.getByTestId("lab-price")).toBeVisible({timeout:110000});
   const reopened=page.waitForResponse(r=>r.url().endsWith("/api/calculator/native") && r.request().postDataJSON()?.action==="open");
@@ -449,10 +452,10 @@ test("Huawei billing choices follow the service and region and switching an open
   const state=await response.json();
   expect(state.billingMode).toBe("PERIOD");expect(state.inquiry.chargingMode).toBe(0);
   await expect(page.locator('select[data-field-id="global_PERIODTIME:0"]')).toBeVisible();
-  await page.getByLabel("Huawei service",{exact:true}).selectOption("ccm");
+  await page.getByLabel("Service",{exact:true}).selectOption("CCM");
   await expect(mode.locator("option")).toHaveText(["One-time"]);
   await expect(mode).toHaveValue("ONETIME");
-  await expect(page.getByTestId("lab-price")).toBeHidden();
+  await expect(page.getByTestId("lab-price")).toBeVisible({ timeout: 110000 });
   const rejected=await page.request.post("/api/calculator/native",{data:{action:"open",service:"ccm",region:"ap-southeast-1",billingMode:"ONDEMAND"}});
   expect(rejected.status()).toBe(422);
   await page.goto("/projects");

@@ -1,308 +1,89 @@
 "use client";
-
 import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { NativeNumericField } from "./native-numeric-field";
+import { NativeFlavorBrowser } from "./native-flavor-browser";
 import type { AppProduct, ProductMutationBody } from "@/lib/calculator-types";
-import { parseNativeSelection, selectionBillingMode } from "@/lib/huawei-native/native-selection";
+import { useHuaweiDirectory } from "@/lib/calculator/use-huawei-directory";
+import { availableMode, type CalculatorScope } from "@/lib/calculator/service-directory";
 import { nativeBillingModes, type NativeBillingMode } from "@/lib/huawei-native/native-billing";
-import type { NativeDirectory, NativeField, NativeState } from "@/lib/huawei-native/native-types";
-import { isLegacyHuaweiProduct, legacyHuaweiConfiguration } from "@/lib/huawei-native/legacy-product";
+import type { NativeDirectory } from "@/lib/huawei-native/native-types";
+import { isLegacyHuaweiProduct } from "@/lib/huawei-native/legacy-product";
+import { useNativeSession } from "@/lib/huawei-native/use-native-session";
+import { nativeDraft } from "@/lib/huawei-native/native-draft";
 
 const selectClass = "mt-2 h-10 w-full min-w-0 rounded-md border border-zinc-200 bg-white px-3 text-sm";
-const names: Record<string, string> = {
-  ecs: "ECS · Elastic Cloud Server",
-  elb: "ELB · Elastic Load Balance",
-  redis: "DCS · Redis",
-  nat: "NAT Gateway",
-};
-async function api(body?: unknown) {
-  const response = await fetch(
-    "/api/calculator/native",
-    body ? { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) } : undefined,
-  );
-  const data = await response.json();
-  if (!response.ok) throw new Error(data.error || "Huawei is unavailable");
-  return data;
-}
-function close(session: string) {
-  void fetch("/api/calculator/native", {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify({ action: "close", session }),
-    keepalive: true,
-  }).catch(() => {});
-}
-function Numeric({
-  field,
-  change,
-  invalidate,
-}: {
-  field: NativeField;
-  change: (value: number) => void;
-  invalidate: () => void;
-}) {
-  const [draft, setDraft] = useState(String(field.value));
-  const [error, setError] = useState("");
-  const dirty = useRef(false);
-  const submit = () => {
-    if (!dirty.current) return;
-    const value = Number(draft);
-    if (
-      !draft.trim() ||
-      !Number.isFinite(value) ||
-      (field.min !== undefined && value < field.min) ||
-      (field.max !== undefined && value > field.max)
-    ) {
-      setError(`Enter a value from ${field.min ?? "the minimum"} to ${field.max ?? "the maximum"}.`);
-      return;
-    }
-    setError("");
-    change(value);
-  };
-  return (
-    <>
-      <Input
-        aria-invalid={!!error}
-        data-field-id={field.id}
-        aria-label={field.label}
-        type="number"
-        disabled={field.disabled}
-        min={field.min}
-        max={field.max}
-        step="any"
-        value={draft}
-        onChange={(event) => {
-          dirty.current = true;
-          setDraft(event.target.value);
-          invalidate();
-        }}
-        onBlur={submit}
-        onKeyDown={(event) => {
-          if (event.key === "Enter") event.currentTarget.blur();
-        }}
-      />
-      {error && (
-        <p role="alert" className="mt-1 text-xs text-red-700">
-          {error}
-        </p>
-      )}
-    </>
-  );
-}
-export function NativeCalculatorPanel({
-  editingProduct,
-  onSave,
-  onCancelEdit,
-}: {
+const names: Record<string, string> = { ecs: "ECS · Elastic Cloud Server", elb: "ELB · Elastic Load Balance", redis: "DCS · Redis", nat: "NAT Gateway" };
+export function NativeCalculatorPanel({ editingProduct, onSave, onCancelEdit, scope, onScopeChange,
+  directory: suppliedDirectory, embedded = false, canSave = true, onQueue }: {
   editingProduct?: AppProduct | null;
   onSave?: (product: ProductMutationBody) => Promise<void>;
   onCancelEdit?: () => void;
+  scope?: CalculatorScope;
+  onScopeChange?: (scope: CalculatorScope) => void;
+  directory?: NativeDirectory | null;
+  embedded?: boolean;
+  canSave?: boolean;
+  onQueue?: (product: ProductMutationBody) => void;
 }) {
-  const [directory, setDirectory] = useState<NativeDirectory | null>(null);
-  const [service, setService] = useState("ecs"),
-    [region, setRegion] = useState("ap-southeast-1");
-  const [billingMode, setBillingMode] = useState<NativeBillingMode>("ONDEMAND");
+  const ownDirectory = useHuaweiDirectory(!embedded);
+  const directory = embedded ? suppliedDirectory : ownDirectory.directory;
+  const [localScope, setLocalScope] = useState<CalculatorScope>({ service: "ecs", region: "ap-southeast-1", billingMode: "ONDEMAND" });
+  const activeScope = scope ?? localScope;
+  const updateScope = onScopeChange ?? setLocalScope;
+  const { service, region, billingMode } = activeScope;
   const modes = directory?.billingModes[service]?.[region] ?? [];
   useEffect(() => {
-    const available = directory?.billingModes[service]?.[region] ?? [];
-    if (available.length && !available.includes(billingMode)) setBillingMode(available.includes("ONDEMAND") ? "ONDEMAND" : available[0]);
-  }, [directory, service, region, billingMode]);
-  const [state, setState] = useState<NativeState | null>(null),
-    [busy, setBusy] = useState(false),
-    [error, setError] = useState("");
-  const current = useRef<NativeState | null>(null),
-    mounted = useRef(true),
-    operation = useRef(false);
-  useEffect(() => {
-    mounted.current = true;
-    api()
-      .then((data) => {
-        if (mounted.current) setDirectory(data);
-      })
-      .catch((error) => {
-        if (mounted.current) setError(error.message);
-      });
-    const leave = () => {
-      if (current.current) {
-        close(current.current.session);
-        current.current = null;
-      }
-    };
-    window.addEventListener("pagehide", leave);
-    return () => {
-      mounted.current = false;
-      leave();
-      window.removeEventListener("pagehide", leave);
-    };
-  }, []);
+    if (directory) {
+      const mode = availableMode(directory, activeScope);
+      if (mode !== billingMode) updateScope({ ...activeScope, billingMode: mode });
+    }
+  }, [directory, service, region, billingMode]); // eslint-disable-line react-hooks/exhaustive-deps
+  const { state, busy: loading, error: sessionError, open, change, chooseFlavor, invalidate } = useNativeSession(activeScope, editingProduct, updateScope, modes.includes(billingMode));
+  const [saving, setSaving] = useState(false);
+  const saveLock = useRef(false);
+  const currentScope = useRef(activeScope);
+  currentScope.current = activeScope;
+  const busy = loading || saving;
+  const error = sessionError || (!embedded ? ownDirectory.error : "");
   const [saveMessage, setSaveMessage] = useState("");
+  const [title, setTitle] = useState("");
   const legacy = !!editingProduct && isLegacyHuaweiProduct(editingProduct);
   const [legacyReviewed, setLegacyReviewed] = useState(false);
-  useEffect(() => {
-    setLegacyReviewed(false);
-    setSaveMessage("");
-    if (!editingProduct) {
-      setBusy(false);
-      return;
-    }
-    let cancelled = false;
-    if (current.current) close(current.current.session);
-    current.current = null;
-    setState(null);
-    setError("");
-    if (isLegacyHuaweiProduct(editingProduct)) {
-      setBusy(false);
-      try {
-        const saved = legacyHuaweiConfiguration(editingProduct);
-        setService(saved.service);
-        setRegion(saved.region);
-        setBillingMode("ONDEMAND");
-      } catch (error) {
-        setError(error instanceof Error ? error.message : "Invalid old Huawei configuration");
-      }
-      return;
-    }
-    let selection;
-    try {
-      selection = parseNativeSelection((editingProduct.config as { selection?: unknown } | null)?.selection);
-    } catch (error) {
-      setBusy(false);
-      setError(error instanceof Error ? error.message : "Invalid saved Huawei configuration");
-      return;
-    }
-    setBusy(true);
-    setService(selection.service);
-    setRegion(selection.region);
-    setBillingMode(selectionBillingMode(selection));
-    api({ action: "restore", selection })
-      .then((next: NativeState) => {
-        if (cancelled) {
-          close(next.session);
-          return;
-        }
-        current.current = next;
-        setState(next);
-      })
-      .catch((error) => {
-        if (!cancelled) setError(error.message);
-      })
-      .finally(() => {
-        if (!cancelled) setBusy(false);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [editingProduct]);
+  useEffect(() => { setLegacyReviewed(false); setSaveMessage(""); }, [editingProduct, service, region, billingMode]);
+  useEffect(() => { setTitle(editingProduct?.title ?? ""); }, [editingProduct, service]);
+  const serviceName = directory?.services.find(s => s.id === service)?.name ?? service;
   async function save() {
-    if (!state?.quote || busy || !onSave || (legacy && !legacyReviewed)) return;
-    setBusy(true);
-    setSaveMessage("");
+    if (!state?.quote || busy || saveLock.current || !onSave || !canSave || (legacy && !legacyReviewed)) return;
+    saveLock.current = true;
+    const savedScope = JSON.stringify(activeScope);
+    setSaving(true); setSaveMessage("");
     try {
-      await onSave({
-        serviceCode: `HUAWEI:${state.service}`,
-        serviceName: directory?.services.find((s) => s.id === state.service)?.name ?? state.service,
-        productType: "huawei-native",
-        title: editingProduct?.title ?? directory?.services.find((s) => s.id === state.service)?.name ?? state.service,
-        quantity: 1,
-        config: {
-          runtime: "huawei-native",
-          region: state.region,
-          billingMode: nativeBillingModes[state.billingMode].label,
-          selection: state.selection,
-          session: state.session,
-          revision: state.revision,
-        },
-        pricing: null,
-      });
-      setSaveMessage(
-        editingProduct ? "Product updated with a fresh Huawei price." : "Product added with a fresh Huawei price.",
-      );
+      await onSave(nativeDraft(state, serviceName, title || serviceName));
+      if (JSON.stringify(currentScope.current) === savedScope) setSaveMessage(editingProduct ? "Product updated with a fresh Huawei price." : "Product added with a fresh Huawei price.");
     } catch (error) {
-      setState((previous) => (previous ? { ...previous, quote: null } : null));
-      setSaveMessage(error instanceof Error ? error.message : "Unable to save product");
-    } finally {
-      setBusy(false);
-    }
-  }
-  function reset() {
-    if (current.current) close(current.current.session);
-    current.current = null;
-    setState(null);
-    setError("");
-    setLegacyReviewed(false);
-  }
-  async function open(mode = billingMode) {
-    if (operation.current) return;
-    operation.current = true;
-    reset();
-    setBusy(true);
-    try {
-      const next: NativeState = await api({ action: "open", service, region, billingMode: mode });
-      if (!mounted.current) {
-        close(next.session);
-        return;
-      }
-      current.current = next;
-      setState(next);
-    } catch (error) {
-      setError(error instanceof Error ? error.message : "Could not open Huawei calculator");
-    } finally {
-      operation.current = false;
-      setBusy(false);
-    }
-  }
-  async function change(field: NativeField, value: string | number | boolean) {
-    const previous = current.current;
-    if (!previous || operation.current) return;
-    operation.current = true;
-    setBusy(true);
-    setError("");
-    setState({
-      ...previous,
-      quote: null,
-      fields: previous.fields.map((item) => (item.id === field.id ? { ...item, value } : item)),
-    });
-    try {
-      const next: NativeState = await api({
-        action: "change",
-        session: previous.session,
-        revision: previous.revision,
-        field: field.id,
-        value,
-      });
-      if (!mounted.current) {
-        close(next.session);
-        return;
-      }
-      current.current = next;
-      setState(next);
-    } catch (error) {
-      reset();
-      setError(error instanceof Error ? error.message : "Could not apply the change");
-    } finally {
-      operation.current = false;
-      setBusy(false);
-    }
+      if (JSON.stringify(currentScope.current) === savedScope) { invalidate(); setSaveMessage(error instanceof Error ? error.message : "Unable to save product"); }
+    } finally { saveLock.current = false; setSaving(false); }
   }
   const services = directory?.services
     .slice()
     .sort((a, b) => Number(!!names[b.id]) - Number(!!names[a.id]) || a.name.localeCompare(b.name));
   return (
-    <section className="@container/native mx-auto min-w-0 max-w-5xl space-y-4 px-3 py-4 sm:px-4">
-      <div>
+    <section data-calculator-shortcut-root className="@container/native mx-auto min-w-0 max-w-5xl space-y-4 px-3 py-4 sm:px-4">
+      {!embedded && <div>
         <h1 className="text-xl font-semibold @min-[640px]/native:text-2xl">Huawei live calculator</h1>
         <p className="mt-3 max-w-3xl text-sm text-zinc-600">
           Configure services using Huawei’s current options and regional rules. Prices come directly from Huawei after
           each change. Billing modes, purchase terms and payment options follow the selected service and region.
         </p>
-      </div>
+      </div>}
       {legacy && editingProduct && (
         <Card>
           <CardHeader><CardTitle>Review the original estimate</CardTitle></CardHeader>
           <CardContent className="space-y-3">
-            <p className="text-sm">This estimate used the retired calculator. Open Huawei live below and reselect its options. Your saved estimate stays unchanged until you save.</p>
+            <p className="text-sm">This estimate used the retired calculator. Reselect its options. Your saved estimate stays unchanged until you save.</p>
             <p className="text-sm font-medium">{editingProduct.title}</p>
             <details>
               <summary className="cursor-pointer text-sm">Original saved configuration</summary>
@@ -315,15 +96,14 @@ export function NativeCalculatorPanel({
       <Card>
         <CardContent className="space-y-4 pt-5">
           <fieldset disabled={busy} className="grid gap-4 @min-[480px]/native:grid-cols-2">
-            <label className="text-sm font-medium">
+            {!embedded && <label className="text-sm font-medium">
               Service
               <select
                 aria-label="Huawei service"
                 className={selectClass}
                 value={service}
                 onChange={(e) => {
-                  reset();
-                  setService(e.target.value);
+                  updateScope({ ...activeScope, service: e.target.value });
                 }}
               >
                 {(services ?? [{ id: service, name: names[service] ?? service }]).map((s) => (
@@ -332,7 +112,7 @@ export function NativeCalculatorPanel({
                   </option>
                 ))}
               </select>
-            </label>
+            </label>}
             <label className="text-sm font-medium">
               Region
               <select
@@ -340,8 +120,7 @@ export function NativeCalculatorPanel({
                 className={selectClass}
                 value={region}
                 onChange={(e) => {
-                  reset();
-                  setRegion(e.target.value);
+                  updateScope({ ...activeScope, region: e.target.value });
                 }}
               >
                 {(directory?.regions ?? [{ id: region, name: "Hong Kong" }]).map((r) => (
@@ -357,8 +136,7 @@ export function NativeCalculatorPanel({
             <select aria-label="Huawei billing mode" className={selectClass} value={billingMode} disabled={busy || !modes.length}
               onChange={event => {
                 const mode = event.target.value as NativeBillingMode;
-                setBillingMode(mode);
-                if (state) void open(mode); else reset();
+                updateScope({ ...activeScope, billingMode: mode });
               }}>
               {modes.map(mode => <option key={mode} value={mode}>{nativeBillingModes[mode].label}</option>)}
             </select>
@@ -378,8 +156,7 @@ export function NativeCalculatorPanel({
             </a>
           </div>
           <p className="text-xs text-zinc-500">
-            Services and regions are discovered automatically. Availability depends on the selected service. Unsupported
-            controls or incomplete responses stop pricing.
+            Options and prices follow Huawei’s current calculator for the selected region and billing mode.
           </p>
         </CardContent>
       </Card>
@@ -393,20 +170,24 @@ export function NativeCalculatorPanel({
           {error}
         </p>
       )}
+      {onSave && <label className="block text-sm font-medium">Description (Optional)
+        <Input aria-label="Description" value={title} onChange={event => setTitle(event.target.value)} placeholder={serviceName} disabled={busy} />
+      </label>}
       {state && (
         <div className="grid items-start gap-4 @min-[760px]/native:grid-cols-[minmax(0,1fr)_280px]">
           <Card>
+            {service === "ecs" && <NativeFlavorBrowser region={region} billingMode={billingMode} disabled={busy} onSelect={chooseFlavor} />}
             <CardHeader>
               <CardTitle>{names[service] ?? services?.find((s) => s.id === service)?.name}</CardTitle>
             </CardHeader>
             <CardContent>
               <fieldset disabled={busy} className="space-y-5">
                 {state.fields.map((field) => (
-                  <div key={`${state.revision}:${field.id}`}>
+                  <div data-calculator-focus-group key={`${state.revision}:${field.id}`}>
                     {field.type === "action" ? (
                       <Button
                         variant="outline"
-                        data-field-id={field.id}
+                        data-calculator-focus-target data-field-id={field.id}
                         disabled={field.disabled}
                         onClick={() => change(field, true)}
                       >
@@ -415,7 +196,7 @@ export function NativeCalculatorPanel({
                     ) : field.type === "checkbox" ? (
                       <label className="flex items-center gap-3 text-sm">
                         <input
-                          data-field-id={field.id}
+                          data-calculator-focus-target data-field-id={field.id}
                           type="checkbox"
                           disabled={field.disabled}
                           checked={!!field.value}
@@ -429,7 +210,7 @@ export function NativeCalculatorPanel({
                         {field.unit && <span className="ml-1 font-normal text-zinc-500">({field.unit})</span>}
                         {field.type === "select" ? (
                           <select
-                            data-field-id={field.id}
+                            data-calculator-focus-target data-field-id={field.id}
                             aria-label={field.label}
                             disabled={field.disabled}
                             className={selectClass}
@@ -446,12 +227,13 @@ export function NativeCalculatorPanel({
                             ))}
                           </select>
                         ) : (
-                          <Numeric
+                          <NativeNumericField
                             field={field}
-                            invalidate={() => setState((previous) => (previous ? { ...previous, quote: null } : null))}
+                            invalidate={invalidate}
                             change={(value) => change(field, value)}
                           />
                         )}
+                        {field.hint && <span className="mt-2 block text-xs font-normal text-zinc-500">{field.hint}</span>}
                       </label>
                     )}
                   </div>
@@ -485,7 +267,7 @@ export function NativeCalculatorPanel({
                     {new Date(state.quote.quotedAt).toLocaleTimeString()}.
                   </p>
                   <p data-testid="scope-status" className="text-sm text-green-700">
-                    Complete Huawei pricing response
+                    Price checked with Huawei
                   </p>
                 </>
               ) : (
@@ -535,9 +317,14 @@ export function NativeCalculatorPanel({
                       onChange={event => setLegacyReviewed(event.target.checked)} />
                     I reviewed these selections against the original estimate.
                   </label>}
-                  <Button onClick={save} disabled={busy || !state.quote || (legacy && !legacyReviewed)}>
+                  <Button data-calculator-add-button onClick={save} disabled={busy || !canSave || !state.quote || (legacy && !legacyReviewed)}>
                     {editingProduct ? "Save Changes" : "Add to List"}
                   </Button>
+                  {!editingProduct && onQueue && <Button variant="outline" disabled={busy || !state.quote} onClick={() => {
+                    onQueue(nativeDraft(state, serviceName, title || serviceName, true));
+                    setSaveMessage("Configuration queued for batch.");
+                  }}>Queue for batch</Button>}
+                  {!canSave && <p className="text-sm text-zinc-500">Sign in and select a cart to save.</p>}
                   {editingProduct && (
                     <Button variant="outline" onClick={onCancelEdit} disabled={busy}>
                       Cancel
@@ -557,10 +344,6 @@ export function NativeCalculatorPanel({
           </Card>
         </div>
       )}
-      <p className="text-xs text-zinc-500">
-        Huawei supplies the available controls and pricing requests. ECS, ELB, DCS and NAT are the focus of comparison
-        tests; other discovered services may require additional control support.
-      </p>
     </section>
   );
 }

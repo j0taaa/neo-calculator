@@ -7,7 +7,9 @@ test("public navigation and old bookmarks reach the single live workspace", asyn
   expect(response.status()).toBe(307);
   expect(response.headers().location).toBe("/?tab=huawei-live&editProduct=old-item");
   await page.goto("/synchronized");
-  await expect(page.getByRole("heading", { name: "Huawei live calculator", exact: true })).toBeVisible();
+  await expect(page.getByRole("tab")).toHaveText(["Calculator", "Batch add"]);
+  await expect(page.getByLabel("Service", { exact: true })).toHaveCount(1);
+  await expect(page.getByRole("heading", { name: "Elastic Cloud Server", exact: true })).toBeVisible();
   await expect(page.getByRole("link", { name: "Synced calculator", exact: true })).toHaveCount(0);
   expect((await request.get("/api/huawei-sync")).status()).toBe(404);
   expect((await request.get("/api/sync-lab")).status()).toBe(404);
@@ -16,7 +18,7 @@ test("public navigation and old bookmarks reach the single live workspace", asyn
 for (const [service, billingMode] of [["nat", "ONDEMAND"], ["elb", "PERIOD"], ["ecs", "RI"], ["ccm", "ONETIME"]] as const) {
   test(`deployed ${service}/${billingMode} returns current options and a complete Huawei price`, async ({ page }) => {
     await page.goto("/?tab=huawei-live");
-    await page.getByLabel("Huawei service", { exact: true }).selectOption(service);
+    await page.getByLabel("Service", { exact: true }).selectOption(({ nat: "NAT", elb: "ELB", ecs: "ECS", ccm: "CCM" } as const)[service]);
     await page.getByLabel("Huawei region", { exact: true }).selectOption("ap-southeast-1");
     await page.getByLabel("Huawei billing mode", { exact: true }).selectOption(billingMode);
     const opened = page.waitForResponse(r => r.url().endsWith("/api/calculator/native") &&

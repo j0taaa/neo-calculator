@@ -66,6 +66,8 @@ export function useCalculatorShortcuts({
         return true;
       }
 
+      if (focusTarget instanceof HTMLSelectElement) return true;
+
       if (isCalculatorSelectTrigger(focusTarget)) {
         setIsAwaitingCalculatorSelectOptionShortcut(true);
         focusTarget.click();

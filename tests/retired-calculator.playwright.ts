@@ -32,21 +32,21 @@ async function importedCart(page: Page, baseURL?: string) {
 test("retired pages redirect and retired form/quote endpoints are gone", async ({ page, request }) => {
   await page.route("**/api/catalog/ecs-flavors?*", route => route.fulfill({ json: { flavors: [], diskPricing: null } }));
   await page.goto("/synchronized");
-  await expect(page.getByRole("heading", { name: "Huawei live calculator", exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Elastic Cloud Server", exact: true })).toBeVisible();
   expect(new URL(page.url()).pathname).toBe("/");
   await expect(page.getByRole("link", { name: "Synced calculator", exact: true })).toHaveCount(0);
   for (const path of ["/api/huawei-sync", "/api/huawei-sync/nat", "/api/sync-lab"])
     expect((await request.get(path)).status()).toBe(404);
   expect((await request.post("/api/huawei-sync/nat", { data: { action: "save" } })).status()).toBe(404);
   await page.goto("/sync-lab/audit");
-  await expect(page.getByRole("heading", { name: "Huawei live calculator", exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Elastic Cloud Server", exact: true })).toBeVisible();
 });
 
 test("old imports remain readable, cloneable and shareable; cancellation and rejected repricing preserve them", async ({ page, baseURL }) => {
   const { list, product } = await importedCart(page, baseURL);
   await page.goto(`/synchronized?service=nat&edit=${encodeURIComponent(product.id)}`);
   await expect(page.getByText("Review the original estimate", { exact: true })).toBeVisible();
-  await expect(page.getByLabel("Huawei service", { exact: true })).toHaveValue("nat");
+  await expect(page.getByLabel("Service", { exact: true })).toHaveValue("NAT");
   await expect(page.getByLabel("Huawei region", { exact: true })).toHaveValue("ap-southeast-1");
   await expect(page.getByTestId("lab-price")).toHaveCount(0);
   await page.getByText("Original saved configuration", { exact: true }).click();
@@ -79,7 +79,7 @@ test("reselecting an imported estimate replaces the same item only after review 
   await expect(page.getByText("Review the original estimate", { exact: true })).toBeVisible();
   await page.getByRole("button", { name: "Open calculator", exact: true }).click();
   await expect(page.getByTestId("lab-price")).toBeVisible({ timeout: 110000 });
-  const save = page.getByRole("tabpanel", { name: "Huawei live", exact: true }).getByRole("button", { name: "Save Changes", exact: true });
+  const save = page.getByRole("tabpanel", { name: "Calculator", exact: true }).getByRole("button", { name: "Save Changes", exact: true });
   await expect(save).toBeDisabled();
   const duration = page.locator('[data-field-id="global_ONDEMANDTIME:0"]');
   await duration.fill("3"); await duration.press("Tab");

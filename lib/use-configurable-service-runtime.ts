@@ -26,6 +26,7 @@ import type { TypedDeclarativeValue } from "@/lib/typed-declarative-runtime-type
 type ConfigurablePanelProps = ComponentProps<typeof ConfigurableServicePanel>;
 
 type UseConfigurableServiceRuntimeInput = {
+  enabled?: boolean;
   selectedServiceCode: string;
   selectedService: string;
   selectedServiceDefinition: ServiceDefinition | null;
@@ -240,6 +241,7 @@ function normalizeHydrationResult(value: unknown): EditHydrationResult {
 }
 
 export function useConfigurableServiceRuntime({
+  enabled = true,
   selectedServiceCode,
   selectedService,
   selectedServiceDefinition,
@@ -281,7 +283,7 @@ export function useConfigurableServiceRuntime({
   useEffect(() => {
     const catalogSource = typedRuntimeDefinition?.catalog as DeclarativeCatalogSource | undefined;
 
-    if (!isConfigurableService || !catalogSource) {
+    if (!enabled || !isConfigurableService || !catalogSource) {
       return;
     }
 
@@ -354,7 +356,7 @@ export function useConfigurableServiceRuntime({
     return () => {
       cancelled = true;
     };
-  }, [catalogKey, isConfigurableService, regionValue, selectedServiceCode, typedRuntimeDefinition?.catalog]);
+  }, [enabled, catalogKey, isConfigurableService, regionValue, selectedServiceCode, typedRuntimeDefinition?.catalog]);
 
   const activeValues = useMemo(
     () =>
@@ -485,10 +487,10 @@ export function useConfigurableServiceRuntime({
   }, [scope, selectedServiceDefinition, typedRuntimeDefinition?.activeBillingOptions]);
 
   useEffect(() => {
-    if (!activeBillingOptions?.includes(billingMode) && activeBillingOptions?.[0]) {
+    if (enabled && !activeBillingOptions?.includes(billingMode) && activeBillingOptions?.[0]) {
       setBillingMode(activeBillingOptions[0]);
     }
-  }, [activeBillingOptions, billingMode, setBillingMode]);
+  }, [enabled, activeBillingOptions, billingMode, setBillingMode]);
 
   const showSharedUsageHours = useMemo(() => {
     if (!selectedServiceDefinition) {

@@ -2,7 +2,7 @@
 
 The ECS, ELB and DCS audit exposed a limit of the QuickJS interpreter: service configuration is only part of Huawei's behavior. The shared renderer implements dependent defaults, image filtering, repeatable disks, checkbox constraints, unit conversion and derived LCU quantities. Enumerating every flavor and numeric combination is both expensive and insufficient to recover those rules.
 
-The isolated preview at `https://calculator-lab.hwctools.site/sync-lab` now uses a browser adapter. A short-lived anonymous Chromium context runs the official renderer; Neo renders its visible controls and sends validated interactions back to that context. The main workspace uses this same adapter. The older QuickJS calculator and captured audit UI have been retired; `/synchronized` and `/sync-lab/audit` redirect to Huawei live.
+The isolated preview at `https://calculator-lab.hwctools.site/sync-lab` now uses a browser adapter. A short-lived anonymous Chromium context runs the official renderer; Neo renders its visible controls and sends validated interactions back to that context. The main workspace uses this same adapter through its unified Calculator tab; its service, region and billing selection are shared with the dashboard. The older QuickJS calculator and captured audit UI have been retired; `/synchronized` and `/sync-lab/audit` redirect to the unified Calculator workspace.
 
 ## Data and price flow
 
