@@ -65,6 +65,32 @@ test("catalog-only components are supported while inquiry components still requi
   pricing.selectedProduct.productAllInfos.forEach(p => {p.inquiryTag = "listCalc";});
   expect(buildNativeQuote(pricing,[],{...scope,billingMode:"ONETIME"}).quote.source).toBe("huawei-catalog");
 });
+test("zero quantities omitted by Huawei do not conceal missing positive components", () => {
+  const { pricing, captured } = fixture("ONDEMAND");
+  pricing.selectedProduct.productAllInfos[0].productNum = 0;
+  pricing.result!.productRatingResult.shift();
+  pricing.result!.amount = 5;
+  const currentScope = { ...scope, billingMode: "ONDEMAND" as const };
+  expect(buildNativeQuote(pricing, captured.slice(1), currentScope).quote.amount).toBe(5);
+  expect(() => buildNativeQuote(pricing, [], currentScope)).toThrow(/fresh Huawei component/);
+  pricing.selectedProduct.productAllInfos[1].productNum = 0;
+  pricing.result!.productRatingResult = [];
+  pricing.result!.amount = 0;
+  expect(buildNativeQuote(pricing, [], currentScope).quote.amount).toBe(0);
+  pricing.result!.amount = 1;
+  expect(() => buildNativeQuote(pricing, [], currentScope)).toThrow(/does not match/);
+  pricing.selectedProduct.productAllInfos[0].inquiryTag = "unknown";
+  expect(() => buildNativeQuote(pricing, [], currentScope)).toThrow(/Unsupported/);
+});
+test("global products retain their official billing site and reject a different site", () => {
+  const { pricing, captured } = fixture("ONDEMAND");
+  pricing.selectedProduct.productAllInfos[1].siteCode = "ALLY_HWCEU";
+  captured[1].inquiry.siteCode = "ALLY_HWCEU";
+  const currentScope = { ...scope, billingMode: "ONDEMAND" as const };
+  expect(buildNativeQuote(pricing, captured, currentScope).quote.amount).toBe(15);
+  captured[1].inquiry.siteCode = "HWC";
+  expect(() => buildNativeQuote(pricing, captured, currentScope)).toThrow(/product billing site/);
+});
 test("instrumentation observes original pricing, ignores late results and reruns the same configuration", async () => {
   const source = `const queryPrice = (selectedInfo, queryOptions) => { return queryOptions(selectedInfo); };\nconst funcPriceboardSetup = () => {}; return queryPrice;`;
   const window = {} as {__neoNativePricing: {result: unknown; selectedProduct: {timeTag:number}; refresh:()=>Promise<unknown>; pending:boolean}};

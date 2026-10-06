@@ -35,18 +35,20 @@ test.beforeEach(async ({ page }) => {
   await page.route("**/api/catalog/dcs-pricing?*", (route) => route.fulfill({ json: {
     region: "la-sao-paulo1", catalogRegionId: "sa-brazil-1", catalog: dcsCatalog,
   } }));
+  let scope = { service: "ecs", region: "sa-brazil-1", billingMode: "ONDEMAND" };
   await page.route("**/api/calculator/native", async (route) => {
     if (route.request().method() === "GET") {
       await route.fulfill({ json: {
-        services: [{ id: "ecs", name: "Elastic Cloud Server" }],
-        regions: [{ id: "ap-southeast-1", name: "Hong Kong" }],
-        billingModes: { ecs: { "ap-southeast-1": ["ONDEMAND"] } },
+        services: [{ id: "ecs", name: "Elastic Cloud Server" }, { id: "redis", name: "DCS (for Redis)" }],
+        regions: [{ id: "ap-southeast-1", name: "Hong Kong" }, { id: "sa-brazil-1", name: "Sao Paulo" }],
+        billingModes: Object.fromEntries(["ecs", "redis"].map(service => [service, { "ap-southeast-1": ["ONDEMAND"], "sa-brazil-1": ["ONDEMAND"] }])),
       } });
       return;
     }
+    const body = route.request().postDataJSON();
+    if (body.action === "open") scope = { service: body.service, region: body.region, billingMode: body.billingMode };
     await route.fulfill({ json: {
-      session: "responsive-fixture", revision: 1, service: "ecs", region: "ap-southeast-1",
-      billingMode: "ONDEMAND", notes: [], diagnostics: [],
+      session: "responsive-fixture", revision: 1, ...scope, notes: [], diagnostics: [],
       fields: [
         { id: "flavor", label: "Flavor", type: "select", value: "large", disabled: false,
           options: [{ value: "large", label: "General Computing · c7.large.4 · 2 vCPUs · 8 GiB RAM", disabled: false }] },
@@ -63,29 +65,33 @@ for (const [width, height] of viewports) {
     const errors: string[] = [];
     page.on("pageerror", (error) => errors.push(error.message));
     await page.goto("/");
-    await expect(page.getByRole("button", { name: /c7.large.4/ })).toBeVisible();
+    await expect(page.getByRole("tab")).toHaveText(["Calculator", "Batch add"]);
+    await expect(page.getByTestId("lab-price")).toContainText("77.73");
     await expectControlsToFit(page);
-
-    const estimate = page.locator(".dashboard-calculator .sticky");
-    const initial = await estimate.boundingBox();
-    expect(initial!.y + initial!.height).toBeLessThanOrEqual(height);
-    await page.getByRole("textbox", { name: "Instance quantity", exact: true }).fill("3");
-    await expect(estimate).toContainText("3 Instances");
-    await expect(page.getByRole("button", { name: "Next", exact: true })).toBeDisabled();
-    await page.getByText("Selected specifications:", { exact: false }).scrollIntoViewIfNeeded();
+    await page.getByRole("combobox", { name: "Flavor", exact: true }).click();
+    const popup = page.getByRole("listbox");
+    await expect(popup).toBeVisible();
+    const bounds = await popup.boundingBox();
+    expect(bounds!.x).toBeGreaterThanOrEqual(0);
+    expect(bounds!.x + bounds!.width).toBeLessThanOrEqual(width + 1);
+    await page.keyboard.press("Escape");
+    await page.getByRole("spinbutton", { name: "Quantity", exact: true }).fill("3");
+    await page.getByRole("spinbutton", { name: "Quantity", exact: true }).press("Tab");
+    await expect(page.getByTestId("lab-price")).toBeVisible();
+    await expect(page.getByText("c7.large.4", { exact: true })).toBeVisible();
     await expectControlsToFit(page);
 
     await page.getByRole("button", { name: "Open service search" }).click();
     await page.getByRole("combobox", { name: "Search services" }).fill("DCS");
-    await page.getByRole("option").filter({ hasText: "Distributed Cache Service" }).click();
+    await page.getByRole("listbox").getByRole("option").filter({ hasText: "Distributed Cache Service" }).click();
     await expect(page.getByText("Loading DCS pricing...", { exact: true })).toBeHidden();
     await expectControlsToFit(page);
 
     await page.getByRole("tab", { name: "Batch add", exact: true }).click();
+    await page.getByText(/Import existing .* text batches/).click();
     await expect(page.locator("textarea")).toBeVisible();
     await expectControlsToFit(page);
-    await page.getByRole("tab", { name: "Huawei live", exact: true }).click();
-    await page.getByRole("button", { name: "Open calculator", exact: true }).click();
+    await page.getByRole("tab", { name: "Calculator", exact: true }).click();
     await expect(page.getByTestId("lab-price")).toContainText("77.73");
     await expectControlsToFit(page);
     await page.screenshot({ path: testInfo.outputPath(`live-${width}.png`), fullPage: true });

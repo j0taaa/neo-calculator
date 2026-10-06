@@ -2,7 +2,7 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   output: "standalone",
-  serverExternalPackages: ["quickjs-emscripten", "playwright"],
+  serverExternalPackages: ["playwright"],
   images: {
     remotePatterns: [
       {

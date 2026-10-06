@@ -8,7 +8,7 @@ import { SourceStore, canonical } from "../lib/huawei-native/store";
 import { semanticInquiry } from "../lib/huawei-native/inquiry";
 import type { Inquiry } from "../lib/huawei-native/types";
 import type { NativeState, NativeField } from "../lib/huawei-native/native-types";
-import type { NativeBillingMode } from "../lib/huawei-native/native-billing";
+import { isNativeBillingMode, type NativeBillingMode } from "../lib/huawei-native/native-billing";
 import type { InquiryResponse } from "../lib/huawei-native/quotes";
 
 const output = process.env.NATIVE_BILLING_AUDIT_DIR ?? "/tmp/neo-native-billing-audit";
@@ -18,13 +18,20 @@ const calculator = new NativeCalculator(new HuaweiCollector(store));
 const proxy = process.env.HWC_SOCKS5_PROXY?.replace("socks5h://","socks5://");
 const browser = await chromium.launch({headless:true,...(proxy ? {proxy:{server:proxy}} : {})});
 const evidence: unknown[] = [];
-const cases: [string,string,NativeBillingMode][] = [
+const defaultCases: [string,string,NativeBillingMode][] = [
   ["nat","ap-southeast-1","ONDEMAND"], ["nat","ap-southeast-1","PERIOD"],
   ["elb","ap-southeast-1","PERIOD"], ["redis","ap-southeast-3","PERIOD"],
   ["ecs","ap-southeast-1","ONDEMAND"], ["ecs","sa-brazil-1","ONDEMAND"],
   ["ecs","ap-southeast-1","PERIOD"], ["ecs","ap-southeast-1","RI"],
   ["ecs","sa-brazil-1","RI"], ["ccm","ap-southeast-1","ONETIME"], ["dew","ap-southeast-1","ONETIME"],
+  ["hcss","ap-southeast-1","PERIOD"], ["hcss","ap-southeast-3","PERIOD"],
 ];
+const cases: [string,string,NativeBillingMode][] = process.env.NATIVE_BILLING_AUDIT_CASES
+  ? process.env.NATIVE_BILLING_AUDIT_CASES.split(",").map(value => {
+    const [service, region, mode] = value.split("/");
+    if (!service || !region || !isNativeBillingMode(mode)) throw new Error("Invalid billing audit case");
+    return [service, region, mode];
+  }) : defaultCases;
 const started = Date.now();
 function amount(text: string) {
   const value = Number(text.replace(/[^\d.-]/g,""));
@@ -35,6 +42,7 @@ async function drive(page: Page, field: NativeField, value: string | number | bo
     const input = page.locator(`[data-neo-control="${field.id}"]`);
     await input.fill(String(value)); await input.press("Tab"); return;
   }
+  if (field.type === "checkbox") { if (field.value !== value) await page.locator(`[data-neo-control="${field.id}"]`).click(); return; }
   assert.equal(field.type,"select");
   const label = field.options!.find(o => o.value === value)!.label;
   const root = page.locator(`[id="${field.component}"], [idheader="${field.component}"]`).first();
@@ -78,7 +86,7 @@ try {
       });
       await page.goto(`${PAGE_URL}?region=${region}&inIframe=true#/${service}`,{waitUntil:"domcontentloaded",timeout:45000});
       await page.waitForFunction(() => typeof (window as unknown as {iframeSetValue?:unknown}).iframeSetValue === "function",undefined,{timeout:45000});
-      await page.locator('[id^="calculator_"]').first().waitFor({timeout:45000});
+      await page.locator('[id^="calculator_"]:visible').first().waitFor({timeout:45000});
       await page.evaluate(({region,billingMode}) => (window as unknown as {iframeSetValue:(v:unknown)=>void}).iframeSetValue({global_REGIONINFO:{region,chargeMode:billingMode,locationType:"commonAZ"}}),{region,billingMode});
       const guide = page.locator(".guide-dialog").getByRole("button",{name:"Close",exact:true});
       if (await guide.isVisible()) await guide.click();
@@ -128,6 +136,16 @@ try {
         await change(name,field,field.options!.find(o=>o.label===label)!.value);
       }
       await compare("default");
+      if (service === "sfsturbo") {
+        const capacity = state!.fields.find(field => field.type === "number" && field.hint)!;
+        assert(capacity, "Missing Huawei capacity input");
+        await change("capacity-4.8", capacity, 4.8);
+        await drive(page, capacity, 5);
+        state = await calculator.act({ session: state!.session, revision: state!.revision, field: capacity.id, value: 5 });
+        assert.equal(state.quote, null, "Invalid Huawei capacity must block pricing");
+        assert(state.diagnostics.includes(capacity.hint!), "Huawei's capacity rule must remain authoritative");
+        await change("correct-invalid-capacity", capacity, 6);
+      }
       if (service === "ecs") {
         const generation = state.fields.find(f=>f.options?.some(o=>o.label==="C7n"))!;
         const original = generation.options!.find(o=>o.value===generation.value)!.label;
@@ -138,6 +156,16 @@ try {
         await choose("C7n","generation-with-images");
         assert(state.fields.filter(f=>f.component==="calculator_ims_select").every(f=>!f.disabled && f.options!.length>0),"C7n image choices must return");
         await choose(original,"return-to-original-generation");
+      }
+      if (service === "hcss") {
+        const spec = state!.fields.find(field => field.label === "Specification")!;
+        const alternative = spec.options?.find(option => option.value !== spec.value && !option.disabled);
+        if (alternative) await change("different-package", spec, alternative.value);
+        for (const label of ["Data Disk(EVS)", "HSS", "CBR"]) {
+          const checkbox = state!.fields.find(field => field.type === "checkbox" && field.label === label)!;
+          assert(checkbox, `Missing combined package option ${label}`);
+          await change(`enable-${label}`, checkbox, true);
+        }
       }
       if (billingMode === "PERIOD") {
         // Huawei's default aC7 offers monthly terms only; C7n also offers annual terms.
@@ -160,7 +188,9 @@ try {
       const quantity = state!.fields.find(f=>f.component==="global_QUANTITY" && f.type==="number");
       if (quantity) await change("quantity-two",quantity,2);
       if (billingMode === "ONDEMAND") {
-        const duration = state!.fields.find(f=>f.component==="global_ONDEMANDTIME" && f.type==="number")!;
+        const duration = state!.fields.find(f=>f.component==="global_ONDEMANDTIME" && f.type==="number") ??
+          state!.fields.find(f=>f.label==="Required Duration" && f.type==="number");
+        assert(duration, "Missing required duration");
         await change("duration-two",duration,2);
       }
       if (service === "ccm") {

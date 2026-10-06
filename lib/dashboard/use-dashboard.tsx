@@ -1,5 +1,10 @@
 "use client";
 
+import { useHuaweiDirectory } from "@/lib/calculator/use-huawei-directory";
+import { useNativeBatch } from "@/lib/calculator/use-native-batch";
+import { calculatorServices, huaweiServiceId, nativeRegion, legacyRegion, nativeMode, type CalculatorScope } from "@/lib/calculator/service-directory";
+import { parseNativeSelection, selectionBillingMode } from "@/lib/huawei-native/native-selection";
+import { nativeBillingModes } from "@/lib/huawei-native/native-billing";
 import { isHuaweiCalculatorProduct } from "@/lib/huawei-native/legacy-product";
 
 import { applyProductMutation, saveCalculatorProducts } from "@/lib/calculator-cart";
@@ -23,7 +28,6 @@ import { getConfigurableServiceBundleByCode, serviceCatalog } from "@/lib/servic
 import { useCalculatorController } from "@/lib/use-calculator-controller";
 import { useCallback, useEffect, useId, useMemo, useRef, useState, useSyncExternalStore } from "react";
 
-const services = serviceCatalog;
 const subscribeToHydration = () => () => {};
 const clientSnapshot = () => true;
 const serverSnapshot = () => false;
@@ -101,6 +105,17 @@ export function useDashboard() {
 
   const listboxId = `${useId()}-services`;
 
+  const [nativeEditingProduct, setNativeEditingProduct] = useState<AppProduct | null>(null);
+  const { directory, error: directoryError, retry: retryDirectory } = useHuaweiDirectory();
+  const services = useMemo(() => {
+    const result = calculatorServices(serviceCatalog, directory);
+    if (selectedService.startsWith("HUAWEI:") && !result.some(service => service.code === selectedService))
+      result.push({ name: selectedService, code: selectedService, icon: "/globe.svg", huaweiId: huaweiServiceId(selectedService) });
+    if (nativeEditingProduct && !result.some(service => service.name === nativeEditingProduct.serviceName || service.huaweiId === huaweiServiceId(nativeEditingProduct.serviceCode))) {
+      result.push({ name: nativeEditingProduct.serviceName, code: nativeEditingProduct.serviceCode, icon: "/globe.svg", huaweiId: huaweiServiceId(nativeEditingProduct.serviceCode) });
+    }
+    return result;
+  }, [directory, nativeEditingProduct, selectedService]);
   const normalizedQuery = query.trim().toLowerCase();
 
   const suggestions = normalizedQuery
@@ -111,11 +126,11 @@ export function useDashboard() {
             service.code.toLowerCase().includes(normalizedQuery),
         )
         .slice(0, 8)
-    : [];
+    : services.filter(service => ["ECS", "EVS", "OBS", "ELB", "DCS", "NAT", "Flexus L", "VPC"].includes(service.code)).slice(0, 8);
 
   const selectedServiceMeta = useMemo(
     () => services.find((service) => service.name === selectedService) ?? services[0],
-    [selectedService],
+    [selectedService, services],
   );
 
   const selectedServiceCode = selectedServiceMeta.code;
@@ -157,13 +172,27 @@ export function useDashboard() {
     [],
   );
 
+  const legacyEditing = !!editingProductId && !nativeEditingProduct;
+  const useNative = !legacyEditing && (!!selectedServiceMeta.huaweiId || !!nativeEditingProduct);
+  const nativeScope: CalculatorScope = {
+    service: selectedServiceMeta.huaweiId ?? huaweiServiceId(selectedServiceMeta.code),
+    region: nativeRegion(regionValue), billingMode: nativeMode(billingMode),
+  };
+  const setNativeScope = (scope: CalculatorScope) => {
+    const meta = services.find(service => service.huaweiId === scope.service);
+    if (meta) { setSelectedService(meta.name); setQuery(meta.name); }
+    setRegionValue((legacyRegion(scope.region) ?? scope.region) as HuaweiRegionKey);
+    setBillingMode(nativeBillingModes[scope.billingMode].label);
+  };
+  const compatibilityBilling = useCallback((value: BillingOption) => { if (!useNative) setBillingMode(value); }, [useNative]);
   const legacyController = useCalculatorController({
+    enabled: legacyEditing || (!!directory && (!useNative || (activeTab === "batch-add" && !!legacyRegion(regionValue)))),
     selectedService,
     selectedServiceMeta,
-    regionValue,
+    regionValue: (legacyRegion(regionValue) ?? "la-sao-paulo1") as HuaweiRegionKey,
     setRegionValue,
     billingMode,
-    setBillingMode,
+    setBillingMode: compatibilityBilling,
     usageHours,
     setUsageHours,
     selectedListId: projectStore.selectedListId,
@@ -182,7 +211,6 @@ export function useDashboard() {
     mutateListProduct,
   });
 
-  const [nativeEditingProduct, setNativeEditingProduct] = useState<AppProduct | null>(null);
   const calculatorController = {
     ...legacyController,
     handleEditProduct: (product: AppProduct, listId = projectStore.selectedListId) => {
@@ -191,18 +219,28 @@ export function useDashboard() {
         legacyController.handleEditProduct(product, listId);
         return;
       }
+      const serviceId = product.serviceCode.startsWith("HWC:") ? product.serviceCode.slice(4) :
+        product.serviceCode.startsWith("HUAWEI:") ? product.serviceCode.slice(7) : huaweiServiceId(product.serviceCode);
+      const meta = services.find(service => (service.huaweiId ?? huaweiServiceId(service.code)) === serviceId);
+      setSelectedService(meta?.name ?? product.serviceName);
+      setQuery(meta?.name ?? product.serviceName);
+      try {
+        const selection = parseNativeSelection((product.config as { selection?: unknown } | null)?.selection);
+        setRegionValue((legacyRegion(selection.region) ?? selection.region) as HuaweiRegionKey);
+        setBillingMode(nativeBillingModes[selectionBillingMode(selection)].label);
+      } catch { /* The native panel presents preserved legacy or invalid selections for recovery. */ }
       setNativeEditingProduct(product);
       setEditingProductId(product.id);
       setEditingProductListId(listId);
       projectStore.setSelectedListId(listId);
-      setActiveTab("huawei-live");
+      setActiveTab("calculator");
     },
     handleCancelEdit: () => {
       setNativeEditingProduct(null);
       legacyController.handleCancelEdit();
     },
   };
-  const saveNativeProduct = async (product: ProductMutationBody) => {
+  const saveNativeProduct = async (product: ProductMutationBody, editing = true) => {
     if (!isSignedIn) throw new Error("Sign in to save carts and projects.");
     if (!projectStore.selectedListId) throw new Error("Create or select a cart first.");
     await saveCalculatorProducts(
@@ -210,7 +248,7 @@ export function useDashboard() {
       {
         listId: projectStore.selectedListId,
         editing:
-          nativeEditingProduct && editingProductId && editingProductListId
+          editing && nativeEditingProduct && editingProductId && editingProductListId
             ? { productId: editingProductId, listId: editingProductListId }
             : undefined,
       },
@@ -221,11 +259,9 @@ export function useDashboard() {
     );
   };
 
-  useCalculatorShortcuts({
-    activeTab,
-    calculatorBillingOptions: calculatorController.calculatorBillingOptions,
-    setBillingMode,
-  });
+  const nativeBatch = useNativeBatch(product => saveNativeProduct(product, false));
+
+  useCalculatorShortcuts({ activeTab });
 
   const projectActions = useProjectActions({
     session,
@@ -258,6 +294,8 @@ export function useDashboard() {
   });
 
   const locationState = useDashboardUrl({
+    services,
+    directoryReady: !!directory || !!directoryError,
     setUsageHours,
     setSelectedService,
     setQuery,
@@ -347,6 +385,8 @@ export function useDashboard() {
     setActiveModal(null);
 
   const handleSelectService = (service: string) => {
+    calculatorController.handleCancelEdit();
+    setActiveTab("calculator");
     setSelectedService(service);
     setQuery(service);
     setIsSearchOpen(false);
@@ -360,7 +400,7 @@ export function useDashboard() {
   useEffect(() => {
     setConfig({
       searchQuery: query,
-      onSearchClick: () => setIsSearchOpen(true),
+      onSearchClick: () => { setQuery(""); setActiveSuggestionIndex(0); setIsSearchOpen(true); },
       cookieValue: huawei.cookieValue,
       cookieValueSaved: huawei.cookieValue,
       onCookieChange: huawei.setCookieDraft,
@@ -438,6 +478,8 @@ export function useDashboard() {
       setOpenProjectMenuId,
     },
     calculator: {
+      services, directory, directoryError, retryDirectory, nativeScope, setNativeScope, useNative, nativeBatch,
+      openServiceSearch: () => { setQuery(""); setActiveSuggestionIndex(0); setIsSearchOpen(true); },
       nativeEditingProduct,
       saveNativeProduct,
       calculatorController,

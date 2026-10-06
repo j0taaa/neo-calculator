@@ -66,7 +66,7 @@ export function parseDashboardUrlState(search: string): DashboardUrlState {
     region: (params.get("region") as HuaweiRegionKey | null) ?? undefined,
     billingMode: (params.get("billing") as BillingOption | null) ?? undefined,
     usageHours: params.get("hours") || undefined,
-    tab: isDashboardTab(params.get("tab")) ? (params.get("tab") as DashboardTab) : undefined,
+    tab: params.get("tab") === "huawei-live" ? "calculator" : isDashboardTab(params.get("tab")) ? (params.get("tab") as DashboardTab) : undefined,
     projectId: params.get("project") || undefined,
     listId: params.get("list") || undefined,
     editProductId: params.get("editProduct") || undefined,

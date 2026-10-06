@@ -1,4 +1,8 @@
+import { trackNativeSessions, waitForNativePrice } from "./calculator-controls";
 import { expect, test, type Page } from "@playwright/test";
+const cleanups = new WeakMap<import("@playwright/test").Page, () => Promise<void>>();
+test.beforeEach(({ page }) => { cleanups.set(page, trackNativeSessions(page)); });
+test.afterEach(async ({ page }) => { await cleanups.get(page)?.(); });
 
 const original = {
   serviceCode: "HWC:nat", serviceName: "NAT Gateway", productType: "huawei-synchronized",
@@ -32,22 +36,22 @@ async function importedCart(page: Page, baseURL?: string) {
 test("retired pages redirect and retired form/quote endpoints are gone", async ({ page, request }) => {
   await page.route("**/api/catalog/ecs-flavors?*", route => route.fulfill({ json: { flavors: [], diskPricing: null } }));
   await page.goto("/synchronized");
-  await expect(page.getByRole("heading", { name: "Huawei live calculator", exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Elastic Cloud Server", exact: true })).toBeVisible();
   expect(new URL(page.url()).pathname).toBe("/");
   await expect(page.getByRole("link", { name: "Synced calculator", exact: true })).toHaveCount(0);
   for (const path of ["/api/huawei-sync", "/api/huawei-sync/nat", "/api/sync-lab"])
     expect((await request.get(path)).status()).toBe(404);
   expect((await request.post("/api/huawei-sync/nat", { data: { action: "save" } })).status()).toBe(404);
   await page.goto("/sync-lab/audit");
-  await expect(page.getByRole("heading", { name: "Huawei live calculator", exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Elastic Cloud Server", exact: true })).toBeVisible();
 });
 
 test("old imports remain readable, cloneable and shareable; cancellation and rejected repricing preserve them", async ({ page, baseURL }) => {
   const { list, product } = await importedCart(page, baseURL);
   await page.goto(`/synchronized?service=nat&edit=${encodeURIComponent(product.id)}`);
   await expect(page.getByText("Review the original estimate", { exact: true })).toBeVisible();
-  await expect(page.getByLabel("Huawei service", { exact: true })).toHaveValue("nat");
-  await expect(page.getByLabel("Huawei region", { exact: true })).toHaveValue("ap-southeast-1");
+  await expect(page.getByLabel("Service", { exact: true })).toHaveAttribute("data-value", "NAT");
+  await expect(page.getByLabel("Huawei region", { exact: true })).toHaveAttribute("data-value", "ap-southeast-1");
   await expect(page.getByTestId("lab-price")).toHaveCount(0);
   await page.getByText("Original saved configuration", { exact: true }).click();
   await expect(page.locator("pre").filter({ hasText: "archived-value" })).toBeVisible();
@@ -74,12 +78,12 @@ test("old imports remain readable, cloneable and shareable; cancellation and rej
 
 test("reselecting an imported estimate replaces the same item only after review and a verified fresh save", async ({ page, baseURL }) => {
   const { project, list, product } = await importedCart(page, baseURL);
-  await page.goto(`/?project=${project.id}&list=${list.id}`);
+  await page.goto(`/?project=${project.id}&list=${list.id}&service=NAT&region=cn-hong-kong`);
+  await waitForNativePrice(page, 110000);
   await page.getByRole("button", { name: `Edit ${product.title}`, exact: true }).click();
   await expect(page.getByText("Review the original estimate", { exact: true })).toBeVisible();
-  await page.getByRole("button", { name: "Open calculator", exact: true }).click();
-  await expect(page.getByTestId("lab-price")).toBeVisible({ timeout: 110000 });
-  const save = page.getByRole("tabpanel", { name: "Huawei live", exact: true }).getByRole("button", { name: "Save Changes", exact: true });
+  await waitForNativePrice(page, 110000);
+  const save = page.getByRole("tabpanel", { name: "Calculator", exact: true }).getByRole("button", { name: "Save Changes", exact: true });
   await expect(save).toBeDisabled();
   const duration = page.locator('[data-field-id="global_ONDEMANDTIME:0"]');
   await duration.fill("3"); await duration.press("Tab");
@@ -99,7 +103,7 @@ test("reselecting an imported estimate replaces the same item only after review 
   expect(converted.pricing.amount).toBe(price);
   expect(converted.config.session).toBeUndefined();
   await page.goto(`/synchronized?edit=${product.id}`);
-  await expect(page.getByTestId("lab-price")).toBeVisible({ timeout: 110000 });
+  await waitForNativePrice(page, 110000);
   await expect(page.getByText("Review the original estimate", { exact: true })).toHaveCount(0);
   await expect(duration).toHaveValue("3");
   await page.goto("/projects");

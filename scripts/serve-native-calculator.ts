@@ -1,3 +1,4 @@
+import { NativeOperations, isNativeOperationId } from "../lib/huawei-native/native-operations";
 import { createServer } from "node:http";
 import { timingSafeEqual } from "node:crypto";
 import { NativeCalculator, NativeError } from "../lib/huawei-native/native-session";
@@ -9,6 +10,7 @@ const token = process.env.HUAWEI_NATIVE_TOKEN;
 if (!token || token.length < 32) throw new Error("Set a private HUAWEI_NATIVE_TOKEN (32+ characters)");
 const store = new SourceStore(process.env.HUAWEI_SOURCE_DB ?? "/app/data/native.sqlite");
 const calculator = new NativeCalculator(new HuaweiCollector(store), 6);
+const operations = new NativeOperations(session => calculator.remove(session));
 const server = createServer(async (request, response) => {
   response.setHeader("content-type", "application/json");
   response.setHeader("cache-control", "no-store");
@@ -37,9 +39,10 @@ const server = createServer(async (request, response) => {
       if (raw.length > 120000) throw new NativeError("Request too large", 413);
     }
     const body = JSON.parse(raw);
+    if (body.operationId !== undefined && !isNativeOperationId(body.operationId)) throw new NativeError("Invalid initialization id");
     let result;
     if (body.action === "open" && typeof body.service === "string" && typeof body.region === "string" && (body.billingMode === undefined || isNativeBillingMode(body.billingMode)))
-      result = await calculator.open(body.service, body.region, body.billingMode);
+      result = await operations.run(body.operationId, () => calculator.open(body.service, body.region, body.billingMode));
     else if (
       body.action === "change" &&
       typeof body.session === "string" &&
@@ -47,9 +50,13 @@ const server = createServer(async (request, response) => {
       typeof body.field === "string"
     )
       result = await calculator.act(body);
-    else if (body.action === "restore") result = await calculator.restore(body.selection);
+    else if (body.action === "restore") result = await operations.run(body.operationId, () => calculator.restore(body.selection));
     else if (body.action === "refresh" && typeof body.session === "string" && Number.isSafeInteger(body.revision))
       result = await calculator.refresh(body.session, body.revision);
+    else if (body.action === "cancel" && isNativeOperationId(body.operationId)) {
+      await operations.cancel(body.operationId);
+      result = { ok: true };
+    }
     else if (body.action === "close" && typeof body.session === "string") {
       await calculator.remove(body.session);
       result = { ok: true };
@@ -72,7 +79,7 @@ const server = createServer(async (request, response) => {
 });
 server.requestTimeout = 120000;
 server.listen(Number(process.env.PORT ?? 3001), process.env.HOST ?? "0.0.0.0");
-const sweep = setInterval(() => void calculator.sweep().catch(console.error), 30000);
+const sweep = setInterval(() => { operations.sweep(); void calculator.sweep().catch(console.error); }, 30000);
 async function stop() {
   clearInterval(sweep);
   server.close();

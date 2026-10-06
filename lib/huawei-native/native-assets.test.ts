@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { NativeAssets } from "./native-assets";
+import { NativeAssets, preloadNativeScripts } from "./native-assets";
 import { instrumentNativePricing } from "./native-pricing";
 
 const framework = (value: number) => `const queryPrice = (selectedInfo, queryOptions) => { return Promise.resolve(${value}); };\nconst funcPriceboardSetup = () => {};`;
@@ -30,4 +30,15 @@ test("common page/menu bodies are independent and older session strings remain p
   expect(assets.body("page", {hash: "two", body: "new page"})).toBe("new page");
   expect(pinned).toBe("old page"); assets.clear();
   expect(assets.body("page", {hash: "three", body: "latest page"})).toBe("latest page");
+});
+
+
+test("preloading preserves script execution and matching CORS settings without fetching non-Huawei sources", () => {
+  const body = `<html><head></head><body><script src="https://portal.hc-cdn.com/pkg/1.2.3/a.js" crossorigin="anonymous"></script><script type="module" src="https://portal.hc-cdn.com/pkg/1.2.3/b.js"></script><script src="https://untrusted.test/tracker.js"></script><script>window.value = 1;</script></body></html>`;
+  const prepared = preloadNativeScripts(body);
+  expect(prepared.slice(prepared.indexOf("</head>"))).toBe(body.slice(body.indexOf("</head>")));
+  expect(prepared).toContain('rel="preload" as="script" href="https://portal.hc-cdn.com/pkg/1.2.3/a.js" crossorigin="anonymous"');
+  expect(prepared).toContain('rel="modulepreload" href="https://portal.hc-cdn.com/pkg/1.2.3/b.js"');
+  expect(prepared.match(/<link/g)?.length).toBe(2);
+  expect(preloadNativeScripts("unexpected source format")).toBe("unexpected source format");
 });

@@ -12,6 +12,7 @@ import { canonical, hash } from "./store";
 import { randomUUID } from "node:crypto";
 import { chromium, type Browser, type BrowserContext, type Page } from "playwright";
 import { NativeAssets } from "./native-assets";
+import { NativeStaticCache } from "./native-static-cache";
 import { HuaweiCollector, PAGE_URL } from "./collector";
 import { readNativeForm, setNativeValue, validateNativeValue } from "./native-dom";
 import { QuoteGateway } from "./quotes";
@@ -59,6 +60,7 @@ export class NativeCalculator {
   private opening = 0;
   private gateway = new QuoteGateway();
   private assets = new NativeAssets();
+  private staticCache = new NativeStaticCache();
   constructor(
     private readonly collector: HuaweiCollector,
     private readonly capacity = 6,
@@ -98,6 +100,7 @@ export class NativeCalculator {
     return this.browser;
   }
   async sweep() {
+    this.staticCache.sweep();
     const now = Date.now();
     for (const session of this.sessions.values())
       if (!session.busy && (now - session.touched > IDLE_MS || now - session.created > MAX_AGE_MS))
@@ -115,11 +118,12 @@ export class NativeCalculator {
     await (await this.browser)?.close();
     this.browser = undefined;
     this.assets.clear();
+    this.staticCache.clear();
   }
   async open(service: string, region: string, requestedMode?: NativeBillingMode): Promise<NativeState> {
     await this.sweep();
     if (this.sessions.size + this.opening >= this.capacity)
-      throw new NativeError("The preview is busy. Close another preview or try again shortly.", 503);
+      throw new NativeError("The calculator is busy. Close another calculator session or try again shortly.", 503);
     this.opening++;
     let context: BrowserContext | undefined, session: Session | undefined;
     try {
@@ -136,6 +140,10 @@ export class NativeCalculator {
       ]);
       const pageSource = this.collector.store.latest(PAGE_URL);
       if (!pageSource) throw new Error("Huawei calculator page snapshot is missing");
+      const siteCodes = new Set<string>(["HWC"]);
+      const productData = JSON.parse(products.body).product as Record<string, { planList?: { siteCode?: string }[] }[]>;
+      for (const rows of Object.values(productData)) for (const product of rows)
+        for (const plan of product.planList ?? []) if (plan.siteCode && /^[A-Z][A-Z0-9_]{1,40}$/.test(plan.siteCode)) siteCodes.add(plan.siteCode);
       const pricingFramework = this.assets.framework(framework);
       const frameworkUrl = framework.url;
       const pageBody = this.assets.body("page", pageSource);
@@ -186,7 +194,7 @@ export class NativeCalculator {
         if (url.pathname.endsWith("/inquiry/resource") && request.method() === "POST") {
           try {
             const inquiry = request.postDataJSON() as Inquiry;
-            if (!session || inquiry.regionId !== region || inquiry.siteCode !== "HWC" || ![0, 1, 2, 10].includes(inquiry.chargingMode)) throw new Error("Unexpected Huawei pricing scope");
+            if (!session || inquiry.regionId !== region || !siteCodes.has(inquiry.siteCode) || ![0, 1, 2, 10].includes(inquiry.chargingMode)) throw new Error("Unexpected Huawei pricing scope");
             const response = await this.gateway.inquire(inquiry);
             session.prices.set(hash(canonical(inquiry)), { inquiry, response });
             return route.fulfill({ contentType: "application/json", body: JSON.stringify(response) });
@@ -195,6 +203,8 @@ export class NativeCalculator {
             return route.abort();
           }
         }
+        try { if (await this.staticCache.serve(route)) return; }
+        catch { return route.continue(); }
         return route.continue();
       });
       const page = await context.newPage();
@@ -242,7 +252,7 @@ export class NativeCalculator {
         current.priceError = undefined;
         try {
           const inquiry = request.postDataJSON() as Inquiry;
-          if (inquiry.regionId !== region || ![0, 1, 2, 10].includes(inquiry.chargingMode) || inquiry.siteCode !== "HWC")
+          if (inquiry.regionId !== region || ![0, 1, 2, 10].includes(inquiry.chargingMode) || !siteCodes.has(inquiry.siteCode))
             throw new Error("Huawei returned a different region or billing mode");
           current.inquiry = inquiry;
         } catch (error) {
@@ -250,7 +260,9 @@ export class NativeCalculator {
         }
       });
       await page.goto(`${PAGE_URL}?region=${region}&inIframe=true#/${service}`, {
-        waitUntil: "domcontentloaded",
+        // The bridge, visible controls and settled quote below are the readiness checks.
+        // Marketing/header scripts must not delay calculator readiness.
+        waitUntil: "commit",
         timeout: 45000,
       });
       await page.waitForFunction(
@@ -258,7 +270,8 @@ export class NativeCalculator {
         undefined,
         { timeout: 45000 },
       );
-      await page.locator('[id^="calculator_"]').first().waitFor({ timeout: 45000 });
+      // Global services can hide the region component while exposing their form.
+      await page.locator('[id^="calculator_"]:visible').first().waitFor({ timeout: 45000 });
       await page.evaluate(
         ({region, billingMode}) =>
           (window as unknown as { iframeSetValue: (value: unknown) => void }).iframeSetValue({

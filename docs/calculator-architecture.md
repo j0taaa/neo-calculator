@@ -1,6 +1,6 @@
 # Calculator architecture and Huawei integration seam
 
-The main workspace offers the existing Price Calculator and a Huawei live tab. Both save to the same projects and carts. Existing saved products keep their original runtime; native products use a versioned replayable configuration.
+The main workspace has one Calculator tab and a Batch add tab. Product search, the workspace header and Huawei controls share the same selection. New interactive estimates use Huawei's renderer wherever Huawei publishes a calculator. Original saved estimates and text-import formats retain internal compatibility adapters. All paths use the same projects, carts and cart writer. Native products use a versioned replayable configuration. See [calculator-consolidation.md](calculator-consolidation.md).
 
 ## Responsibilities
 
@@ -39,13 +39,13 @@ Pricing is opaque to the cart workflow. It never recomputes, rounds or multiplie
 
 ## Huawei live integration
 
-`NativeCalculatorPanel` is shared by the main workspace and the preview. It discovers services and regions through `/api/calculator/native`; `/api/sync-lab/live` remains a compatibility alias. The main dashboard supplies the existing cart writer and uses `saveCalculatorProducts` for save/edit operations. Opening a native cart item selects the Huawei live tab and replays its saved configuration. Switching to a different runtime cancels the current edit.
+`NativeCalculatorPanel` is shared by the main workspace and the preview. It discovers services and regions through `/api/calculator/native`; `/api/sync-lab/live` remains a compatibility alias. The main dashboard supplies the existing cart writer and uses `saveCalculatorProducts` for save/edit operations. Opening a native cart item selects Calculator, restores the product in the shared header and replays its saved configuration. Original saved items open their compatibility form in the same workspace. Selecting a different service or entering Batch add cancels the current edit. The preview uses this same panel with its standalone selection controls.
 
 Native products have `productType: huawei-native`, `serviceCode: HUAWEI:<Huawei ID>`, and a versioned `config.selection`. The selection records initial controls, validated interactions (including repeated disk actions), and final control values/option labels. It contains no persistent browser session dependency. Replaying checks initial defaults, each control identity/option label and the complete final selection. Changed upstream defaults or unavailable options require reconfiguration; they cannot silently quote another product.
 
 Authenticated product POST/PATCH endpoints ignore client-supplied native prices. `verifyNativeProduct` asks the private renderer for a fresh quote of the exact session revision, or replays a durable selection if no session is supplied. Only the resulting server selection, source hashes, quantity and price are persisted; transient session IDs are stripped. Private API repricing uses the same verifier. Import/export and cloning retain saved snapshots; they do not imply a new live quote or automatic conversion to another region/billing mode.
 
-The Huawei runtime currently supports pay-per-use. The existing runtime remains available for monthly/yearly, RI and legacy batch inputs. The live directory discovers new services automatically; unknown controls or incomplete inquiries block pricing. Source refresh, expiry, capacity and unavailable-upstream behavior remain in the native sidecar.
+The Huawei runtime supports pay-per-use, yearly/monthly, RI and one-time billing wherever Huawei offers them for the selected service and region. The original runtime remains an internal adapter for original saved items, text imports and services without an official calculator. The live directory discovers new services automatically; unknown controls or incomplete inquiries block pricing. Source refresh, expiry, capacity and unavailable-upstream behavior remain in the native sidecar.
 
 ## Shared core
 

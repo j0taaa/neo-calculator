@@ -1,0 +1,999 @@
+{
+  "date": "2026-10-06",
+  "scope": "Restore the original ECS flavor picker, replace the full-workspace service dropdown with searchable selection, and reduce initialization waits without weakening pricing guards",
+  "changes": [
+    "Shared original ECS flavor cards, CPU/RAM filters, sorting and pagination; cards and filters load alongside the official renderer",
+    "One searchable service dialog with eight initial suggestions and keyboard selection; all discovered services remain searchable",
+    "Region and billing can cancel pending initialization immediately",
+    "Parallel configuration/product loads, coalesced source requests, script preload hints and a bounded versioned public script/style cache",
+    "Compute-only ECS catalog requests omit unnecessary disk-price fetching"
+  ],
+  "checks": {
+    "unit": {
+      "passed": 363,
+      "failed": 0
+    },
+    "typescript": "passed",
+    "lint": {
+      "errors": 0,
+      "preexistingWarnings": 3
+    },
+    "productionBuild": "passed with build-time BUN_JSC_useJIT=false; runtime settings unchanged",
+    "browser": {
+      "consolidatedCalculator": 27,
+      "architectureAndCartWorkflows": 20,
+      "responsive": 13,
+      "nativeDom": 7,
+      "legacyImportRecovery": 3,
+      "localPassed": 70,
+      "productionMain": 5,
+      "productionPreview": 5,
+      "totalPassed": 80
+    },
+    "diffCheck": "passed"
+  },
+  "nativeCoverage": {
+    "elapsedSeconds": 269.819,
+    "evidence": [
+      {
+        "service": "cci",
+        "region": "sa-brazil-1",
+        "billingMode": "ONDEMAND",
+        "result": "pass",
+        "amount": 0.06948,
+        "diagnostics": [],
+        "fields": 5
+      },
+      {
+        "service": "cce",
+        "region": "sa-brazil-1",
+        "billingMode": "ONDEMAND",
+        "result": "pass",
+        "amount": 0.56,
+        "diagnostics": [],
+        "fields": 5
+      },
+      {
+        "service": "ecs",
+        "region": "sa-brazil-1",
+        "billingMode": "ONDEMAND",
+        "result": "pass",
+        "amount": 0.23888,
+        "diagnostics": [],
+        "fields": 17
+      },
+      {
+        "service": "hcss",
+        "region": "sa-brazil-1",
+        "billingMode": "PERIOD",
+        "result": "pass",
+        "amount": 3.5,
+        "diagnostics": [],
+        "fields": 12
+      },
+      {
+        "service": "mrs",
+        "region": "sa-brazil-1",
+        "billingMode": "ONDEMAND",
+        "result": "pass",
+        "amount": 2.421,
+        "diagnostics": [],
+        "fields": 5
+      },
+      {
+        "service": "dis",
+        "region": "ap-southeast-1",
+        "billingMode": "ONDEMAND",
+        "result": "pass",
+        "amount": 0.0117,
+        "diagnostics": [],
+        "fields": 5
+      },
+      {
+        "service": "dli",
+        "region": "sa-brazil-1",
+        "billingMode": "ONDEMAND",
+        "result": "pass",
+        "amount": 1.2,
+        "diagnostics": [],
+        "fields": 4
+      },
+      {
+        "service": "dws",
+        "region": "sa-brazil-1",
+        "billingMode": "ONDEMAND",
+        "result": "pass",
+        "amount": 2.799,
+        "diagnostics": [],
+        "fields": 7
+      },
+      {
+        "service": "redis",
+        "region": "sa-brazil-1",
+        "billingMode": "ONDEMAND",
+        "result": "pass",
+        "amount": 0.00233,
+        "diagnostics": [],
+        "fields": 9
+      },
+      {
+        "service": "drs",
+        "region": "sa-brazil-1",
+        "billingMode": "ONDEMAND",
+        "result": "pass",
+        "amount": 0.14,
+        "diagnostics": [],
+        "fields": 4
+      },
+      {
+        "service": "ges",
+        "region": "sa-brazil-1",
+        "billingMode": "ONDEMAND",
+        "result": "pass",
+        "amount": 0.2,
+        "diagnostics": [],
+        "fields": 3
+      },
+      {
+        "service": "cse",
+        "region": "sa-brazil-1",
+        "billingMode": "ONDEMAND",
+        "result": "pass",
+        "amount": 1.83,
+        "diagnostics": [],
+        "fields": 4
+      },
+      {
+        "service": "dds",
+        "region": "sa-brazil-1",
+        "billingMode": "ONDEMAND",
+        "result": "pass",
+        "amount": 1.1238,
+        "diagnostics": [],
+        "fields": 13
+      },
+      {
+        "service": "rds",
+        "region": "sa-brazil-1",
+        "billingMode": "ONDEMAND",
+        "result": "pass",
+        "amount": 0.2928,
+        "diagnostics": [],
+        "fields": 10
+      },
+      {
+        "service": "gaussdb",
+        "region": "sa-brazil-1",
+        "billingMode": "ONDEMAND",
+        "result": "pass",
+        "amount": 0.756,
+        "diagnostics": [],
+        "fields": 10
+      },
+      {
+        "service": "hrds",
+        "region": "sa-brazil-1",
+        "billingMode": "PERIOD",
+        "result": "pass",
+        "amount": 115,
+        "diagnostics": [],
+        "fields": 9
+      },
+      {
+        "service": "modelarts",
+        "region": "sa-brazil-1",
+        "billingMode": "ONDEMAND",
+        "result": "pass",
+        "amount": 0.697,
+        "diagnostics": [],
+        "fields": 5
+      },
+      {
+        "service": "apig",
+        "region": "sa-brazil-1",
+        "billingMode": "ONDEMAND",
+        "result": "pass",
+        "amount": 0.9005,
+        "diagnostics": [],
+        "fields": 4
+      },
+      {
+        "service": "elb",
+        "region": "sa-brazil-1",
+        "billingMode": "ONDEMAND",
+        "result": "pass",
+        "amount": 0.03333,
+        "diagnostics": [],
+        "fields": 15
+      },
+      {
+        "service": "lts",
+        "region": "sa-brazil-1",
+        "billingMode": "ONDEMAND",
+        "result": "pass",
+        "amount": 72.642576,
+        "diagnostics": [],
+        "fields": 11
+      },
+      {
+        "service": "smn",
+        "result": "compatibility",
+        "reason": "No official calculator"
+      },
+      {
+        "service": "dline",
+        "region": "sa-brazil-1",
+        "billingMode": "PERIOD",
+        "result": "pass",
+        "amount": 138,
+        "diagnostics": [],
+        "fields": 3
+      },
+      {
+        "service": "nat",
+        "region": "sa-brazil-1",
+        "billingMode": "ONDEMAND",
+        "result": "pass",
+        "amount": 2.438,
+        "diagnostics": [],
+        "fields": 3
+      },
+      {
+        "service": "er",
+        "region": "sa-brazil-1",
+        "billingMode": "ONDEMAND",
+        "result": "pass",
+        "amount": 0.02,
+        "diagnostics": [],
+        "fields": 3
+      },
+      {
+        "service": "ga",
+        "region": "global-cbc-1",
+        "billingMode": "ONDEMAND",
+        "result": "pass",
+        "amount": 1.4540000000000002,
+        "diagnostics": [],
+        "fields": 5
+      },
+      {
+        "service": "vpcep",
+        "region": "sa-brazil-1",
+        "billingMode": "ONDEMAND",
+        "result": "pass",
+        "amount": 0.014,
+        "diagnostics": [],
+        "fields": 2
+      },
+      {
+        "service": "eip",
+        "region": "sa-brazil-1",
+        "billingMode": "ONDEMAND",
+        "result": "pass",
+        "amount": 0.0331,
+        "diagnostics": [],
+        "fields": 6
+      },
+      {
+        "service": "vpn",
+        "region": "sa-brazil-1",
+        "billingMode": "ONDEMAND",
+        "result": "pass",
+        "amount": 0.6862,
+        "diagnostics": [],
+        "fields": 11
+      },
+      {
+        "service": "hss",
+        "region": "sa-brazil-1",
+        "billingMode": "ONDEMAND",
+        "result": "pass",
+        "amount": 0.01,
+        "diagnostics": [],
+        "fields": 2
+      },
+      {
+        "service": "ccm",
+        "region": "ap-southeast-1",
+        "billingMode": "ONETIME",
+        "result": "pass",
+        "amount": 518,
+        "diagnostics": [],
+        "fields": 7
+      },
+      {
+        "service": "dew",
+        "region": "sa-brazil-1",
+        "billingMode": "ONDEMAND",
+        "result": "pass",
+        "amount": 0.001388,
+        "diagnostics": [],
+        "fields": 5
+      },
+      {
+        "service": "cfw",
+        "region": "sa-brazil-1",
+        "billingMode": "ONDEMAND",
+        "result": "pass",
+        "amount": 0.42,
+        "diagnostics": [],
+        "fields": 3
+      },
+      {
+        "service": "cbh",
+        "region": "sa-brazil-1",
+        "billingMode": "PERIOD",
+        "result": "pass",
+        "amount": 400,
+        "diagnostics": [],
+        "fields": 3
+      },
+      {
+        "service": "cbr",
+        "region": "sa-brazil-1",
+        "billingMode": "ONDEMAND",
+        "result": "pass",
+        "amount": 0.09,
+        "diagnostics": [],
+        "fields": 3
+      },
+      {
+        "service": "evs",
+        "region": "sa-brazil-1",
+        "billingMode": "ONDEMAND",
+        "result": "pass",
+        "amount": 0.00247,
+        "diagnostics": [],
+        "fields": 4
+      },
+      {
+        "service": "sfs",
+        "region": "sa-brazil-1",
+        "billingMode": "ONDEMAND",
+        "result": "pass",
+        "amount": 0.000176,
+        "diagnostics": [],
+        "fields": 5
+      },
+      {
+        "service": "sfsturbo",
+        "region": "sa-brazil-1",
+        "billingMode": "ONDEMAND",
+        "result": "pass",
+        "amount": 0.35017,
+        "diagnostics": [],
+        "fields": 5
+      },
+      {
+        "service": "obs",
+        "region": "sa-brazil-1",
+        "billingMode": "ONDEMAND",
+        "result": "pass",
+        "amount": 0,
+        "diagnostics": [],
+        "fields": 14
+      },
+      {
+        "service": "cdm",
+        "region": "sa-brazil-1",
+        "billingMode": "ONDEMAND",
+        "result": "pass",
+        "amount": 0.56,
+        "diagnostics": [],
+        "fields": 3
+      },
+      {
+        "service": "workspace",
+        "region": "sa-brazil-1",
+        "billingMode": "ONDEMAND",
+        "result": "pass",
+        "amount": 0.1308,
+        "diagnostics": [],
+        "fields": 10
+      },
+      {
+        "service": "kafka",
+        "region": "sa-brazil-1",
+        "billingMode": "ONDEMAND",
+        "result": "pass",
+        "amount": 0.281,
+        "diagnostics": [],
+        "fields": 7
+      },
+      {
+        "service": "function",
+        "region": "sa-brazil-1",
+        "billingMode": "ONDEMAND",
+        "result": "pass",
+        "amount": 0,
+        "diagnostics": [],
+        "fields": 5
+      },
+      {
+        "service": "waf",
+        "region": "sa-brazil-1",
+        "billingMode": "ONDEMAND",
+        "result": "pass",
+        "amount": 0.8514,
+        "diagnostics": [],
+        "fields": 5
+      }
+    ]
+  },
+  "independentPricingComparisons": {
+    "passed": 27,
+    "elapsedSeconds": 100.897,
+    "cases": [
+      {
+        "service": "ecs",
+        "region": "ap-southeast-1",
+        "name": "default",
+        "source": {
+          "page": "6b3f650c493aa7b0acee484168bd559d5ea827f0c5f69770cfb4d2e313fcf810",
+          "config": "6ffc3213332236defd956da8c3bb25ac247712b98bdef09090f226a02cf49663",
+          "products": "1362e0b46e3be3184b76b3eeade3275c0ab3ad0ab432245e5d7de29f05c79e6d",
+          "framework": "bd9a0b42e80a5779409416a32232b7af4c7e09342dc49100b81d2c8a9e5d71ff",
+          "menu": "75b799cc2c669528310de42b369669024e87a68125ac1ed37ae45fcc9716dbbf",
+          "fetchedAt": "2026-10-06T01:50:54.603Z"
+        },
+        "amount": 0.14968,
+        "checkedAt": "2026-10-06T01:51:04.779Z"
+      },
+      {
+        "service": "ecs",
+        "region": "ap-southeast-1",
+        "name": "image-os",
+        "source": {
+          "page": "6b3f650c493aa7b0acee484168bd559d5ea827f0c5f69770cfb4d2e313fcf810",
+          "config": "6ffc3213332236defd956da8c3bb25ac247712b98bdef09090f226a02cf49663",
+          "products": "1362e0b46e3be3184b76b3eeade3275c0ab3ad0ab432245e5d7de29f05c79e6d",
+          "framework": "bd9a0b42e80a5779409416a32232b7af4c7e09342dc49100b81d2c8a9e5d71ff",
+          "menu": "75b799cc2c669528310de42b369669024e87a68125ac1ed37ae45fcc9716dbbf",
+          "fetchedAt": "2026-10-06T01:50:54.603Z"
+        },
+        "amount": 0.14968,
+        "checkedAt": "2026-10-06T01:51:07.523Z"
+      },
+      {
+        "service": "ecs",
+        "region": "ap-southeast-1",
+        "name": "disk-type",
+        "source": {
+          "page": "6b3f650c493aa7b0acee484168bd559d5ea827f0c5f69770cfb4d2e313fcf810",
+          "config": "6ffc3213332236defd956da8c3bb25ac247712b98bdef09090f226a02cf49663",
+          "products": "1362e0b46e3be3184b76b3eeade3275c0ab3ad0ab432245e5d7de29f05c79e6d",
+          "framework": "bd9a0b42e80a5779409416a32232b7af4c7e09342dc49100b81d2c8a9e5d71ff",
+          "menu": "75b799cc2c669528310de42b369669024e87a68125ac1ed37ae45fcc9716dbbf",
+          "fetchedAt": "2026-10-06T01:50:54.603Z"
+        },
+        "amount": 0.15456,
+        "checkedAt": "2026-10-06T01:51:10.329Z"
+      },
+      {
+        "service": "ecs",
+        "region": "ap-southeast-1",
+        "name": "kunpeng",
+        "source": {
+          "page": "6b3f650c493aa7b0acee484168bd559d5ea827f0c5f69770cfb4d2e313fcf810",
+          "config": "6ffc3213332236defd956da8c3bb25ac247712b98bdef09090f226a02cf49663",
+          "products": "1362e0b46e3be3184b76b3eeade3275c0ab3ad0ab432245e5d7de29f05c79e6d",
+          "framework": "bd9a0b42e80a5779409416a32232b7af4c7e09342dc49100b81d2c8a9e5d71ff",
+          "menu": "75b799cc2c669528310de42b369669024e87a68125ac1ed37ae45fcc9716dbbf",
+          "fetchedAt": "2026-10-06T01:50:54.603Z"
+        },
+        "amount": 0.12176,
+        "checkedAt": "2026-10-06T01:51:12.610Z"
+      },
+      {
+        "service": "ecs",
+        "region": "ap-southeast-1",
+        "name": "data-disk",
+        "source": {
+          "page": "6b3f650c493aa7b0acee484168bd559d5ea827f0c5f69770cfb4d2e313fcf810",
+          "config": "6ffc3213332236defd956da8c3bb25ac247712b98bdef09090f226a02cf49663",
+          "products": "1362e0b46e3be3184b76b3eeade3275c0ab3ad0ab432245e5d7de29f05c79e6d",
+          "framework": "bd9a0b42e80a5779409416a32232b7af4c7e09342dc49100b81d2c8a9e5d71ff",
+          "menu": "75b799cc2c669528310de42b369669024e87a68125ac1ed37ae45fcc9716dbbf",
+          "fetchedAt": "2026-10-06T01:50:54.603Z"
+        },
+        "amount": 0.13896,
+        "checkedAt": "2026-10-06T01:51:14.864Z"
+      },
+      {
+        "service": "ecs",
+        "region": "ap-southeast-1",
+        "name": "disk-size",
+        "source": {
+          "page": "6b3f650c493aa7b0acee484168bd559d5ea827f0c5f69770cfb4d2e313fcf810",
+          "config": "6ffc3213332236defd956da8c3bb25ac247712b98bdef09090f226a02cf49663",
+          "products": "1362e0b46e3be3184b76b3eeade3275c0ab3ad0ab432245e5d7de29f05c79e6d",
+          "framework": "bd9a0b42e80a5779409416a32232b7af4c7e09342dc49100b81d2c8a9e5d71ff",
+          "menu": "75b799cc2c669528310de42b369669024e87a68125ac1ed37ae45fcc9716dbbf",
+          "fetchedAt": "2026-10-06T01:50:54.603Z"
+        },
+        "amount": 0.15616,
+        "checkedAt": "2026-10-06T01:51:17.486Z"
+      },
+      {
+        "service": "ecs",
+        "region": "ap-southeast-1",
+        "name": "quantity-two",
+        "source": {
+          "page": "6b3f650c493aa7b0acee484168bd559d5ea827f0c5f69770cfb4d2e313fcf810",
+          "config": "6ffc3213332236defd956da8c3bb25ac247712b98bdef09090f226a02cf49663",
+          "products": "1362e0b46e3be3184b76b3eeade3275c0ab3ad0ab432245e5d7de29f05c79e6d",
+          "framework": "bd9a0b42e80a5779409416a32232b7af4c7e09342dc49100b81d2c8a9e5d71ff",
+          "menu": "75b799cc2c669528310de42b369669024e87a68125ac1ed37ae45fcc9716dbbf",
+          "fetchedAt": "2026-10-06T01:50:54.603Z"
+        },
+        "amount": 0.31232,
+        "checkedAt": "2026-10-06T01:51:19.675Z"
+      },
+      {
+        "service": "ecs",
+        "region": "ap-southeast-1",
+        "name": "no-eip",
+        "source": {
+          "page": "6b3f650c493aa7b0acee484168bd559d5ea827f0c5f69770cfb4d2e313fcf810",
+          "config": "6ffc3213332236defd956da8c3bb25ac247712b98bdef09090f226a02cf49663",
+          "products": "1362e0b46e3be3184b76b3eeade3275c0ab3ad0ab432245e5d7de29f05c79e6d",
+          "framework": "bd9a0b42e80a5779409416a32232b7af4c7e09342dc49100b81d2c8a9e5d71ff",
+          "menu": "75b799cc2c669528310de42b369669024e87a68125ac1ed37ae45fcc9716dbbf",
+          "fetchedAt": "2026-10-06T01:50:54.603Z"
+        },
+        "amount": 0.21232,
+        "checkedAt": "2026-10-06T01:51:21.917Z"
+      },
+      {
+        "service": "ecs",
+        "region": "ap-southeast-1",
+        "name": "remove-disk",
+        "source": {
+          "page": "6b3f650c493aa7b0acee484168bd559d5ea827f0c5f69770cfb4d2e313fcf810",
+          "config": "6ffc3213332236defd956da8c3bb25ac247712b98bdef09090f226a02cf49663",
+          "products": "1362e0b46e3be3184b76b3eeade3275c0ab3ad0ab432245e5d7de29f05c79e6d",
+          "framework": "bd9a0b42e80a5779409416a32232b7af4c7e09342dc49100b81d2c8a9e5d71ff",
+          "menu": "75b799cc2c669528310de42b369669024e87a68125ac1ed37ae45fcc9716dbbf",
+          "fetchedAt": "2026-10-06T01:50:54.603Z"
+        },
+        "amount": 0.14352,
+        "checkedAt": "2026-10-06T01:51:24.136Z"
+      },
+      {
+        "service": "ecs",
+        "region": "ap-southeast-1",
+        "name": "duration-two",
+        "source": {
+          "page": "6b3f650c493aa7b0acee484168bd559d5ea827f0c5f69770cfb4d2e313fcf810",
+          "config": "6ffc3213332236defd956da8c3bb25ac247712b98bdef09090f226a02cf49663",
+          "products": "1362e0b46e3be3184b76b3eeade3275c0ab3ad0ab432245e5d7de29f05c79e6d",
+          "framework": "bd9a0b42e80a5779409416a32232b7af4c7e09342dc49100b81d2c8a9e5d71ff",
+          "menu": "75b799cc2c669528310de42b369669024e87a68125ac1ed37ae45fcc9716dbbf",
+          "fetchedAt": "2026-10-06T01:50:54.603Z"
+        },
+        "amount": 0.28704,
+        "checkedAt": "2026-10-06T01:51:26.259Z"
+      },
+      {
+        "service": "elb",
+        "region": "ap-southeast-1",
+        "name": "default",
+        "source": {
+          "page": "6b3f650c493aa7b0acee484168bd559d5ea827f0c5f69770cfb4d2e313fcf810",
+          "config": "e60e69b064d30766f6a3f0eeee992b45f2c653719bd94f9d488deb21ee33837b",
+          "products": "13f12001ef66f03aba5a0e255901a8292b1a80c3bedb5f12244bd8e303faf172",
+          "framework": "bd9a0b42e80a5779409416a32232b7af4c7e09342dc49100b81d2c8a9e5d71ff",
+          "menu": "75b799cc2c669528310de42b369669024e87a68125ac1ed37ae45fcc9716dbbf",
+          "fetchedAt": "2026-10-06T01:51:27.467Z"
+        },
+        "amount": 0.03333,
+        "checkedAt": "2026-10-06T01:51:36.945Z"
+      },
+      {
+        "service": "elb",
+        "region": "ap-southeast-1",
+        "name": "tcp-lcu",
+        "source": {
+          "page": "6b3f650c493aa7b0acee484168bd559d5ea827f0c5f69770cfb4d2e313fcf810",
+          "config": "e60e69b064d30766f6a3f0eeee992b45f2c653719bd94f9d488deb21ee33837b",
+          "products": "13f12001ef66f03aba5a0e255901a8292b1a80c3bedb5f12244bd8e303faf172",
+          "framework": "bd9a0b42e80a5779409416a32232b7af4c7e09342dc49100b81d2c8a9e5d71ff",
+          "menu": "75b799cc2c669528310de42b369669024e87a68125ac1ed37ae45fcc9716dbbf",
+          "fetchedAt": "2026-10-06T01:51:27.467Z"
+        },
+        "amount": 0.13329,
+        "checkedAt": "2026-10-06T01:51:39.221Z"
+      },
+      {
+        "service": "elb",
+        "region": "ap-southeast-1",
+        "name": "tcp-bytes",
+        "source": {
+          "page": "6b3f650c493aa7b0acee484168bd559d5ea827f0c5f69770cfb4d2e313fcf810",
+          "config": "e60e69b064d30766f6a3f0eeee992b45f2c653719bd94f9d488deb21ee33837b",
+          "products": "13f12001ef66f03aba5a0e255901a8292b1a80c3bedb5f12244bd8e303faf172",
+          "framework": "bd9a0b42e80a5779409416a32232b7af4c7e09342dc49100b81d2c8a9e5d71ff",
+          "menu": "75b799cc2c669528310de42b369669024e87a68125ac1ed37ae45fcc9716dbbf",
+          "fetchedAt": "2026-10-06T01:51:27.467Z"
+        },
+        "amount": 0.858,
+        "checkedAt": "2026-10-06T01:51:41.604Z"
+      },
+      {
+        "service": "elb",
+        "region": "ap-southeast-1",
+        "name": "tcp-unit",
+        "source": {
+          "page": "6b3f650c493aa7b0acee484168bd559d5ea827f0c5f69770cfb4d2e313fcf810",
+          "config": "e60e69b064d30766f6a3f0eeee992b45f2c653719bd94f9d488deb21ee33837b",
+          "products": "13f12001ef66f03aba5a0e255901a8292b1a80c3bedb5f12244bd8e303faf172",
+          "framework": "bd9a0b42e80a5779409416a32232b7af4c7e09342dc49100b81d2c8a9e5d71ff",
+          "menu": "75b799cc2c669528310de42b369669024e87a68125ac1ed37ae45fcc9716dbbf",
+          "fetchedAt": "2026-10-06T01:51:27.467Z"
+        },
+        "amount": 0.13329,
+        "checkedAt": "2026-10-06T01:51:44.520Z"
+      },
+      {
+        "service": "elb",
+        "region": "ap-southeast-1",
+        "name": "http-enabled",
+        "source": {
+          "page": "6b3f650c493aa7b0acee484168bd559d5ea827f0c5f69770cfb4d2e313fcf810",
+          "config": "e60e69b064d30766f6a3f0eeee992b45f2c653719bd94f9d488deb21ee33837b",
+          "products": "13f12001ef66f03aba5a0e255901a8292b1a80c3bedb5f12244bd8e303faf172",
+          "framework": "bd9a0b42e80a5779409416a32232b7af4c7e09342dc49100b81d2c8a9e5d71ff",
+          "menu": "75b799cc2c669528310de42b369669024e87a68125ac1ed37ae45fcc9716dbbf",
+          "fetchedAt": "2026-10-06T01:51:27.467Z"
+        },
+        "amount": 0.14162,
+        "checkedAt": "2026-10-06T01:51:46.850Z"
+      },
+      {
+        "service": "elb",
+        "region": "ap-southeast-1",
+        "name": "fixed",
+        "source": {
+          "page": "6b3f650c493aa7b0acee484168bd559d5ea827f0c5f69770cfb4d2e313fcf810",
+          "config": "e60e69b064d30766f6a3f0eeee992b45f2c653719bd94f9d488deb21ee33837b",
+          "products": "13f12001ef66f03aba5a0e255901a8292b1a80c3bedb5f12244bd8e303faf172",
+          "framework": "bd9a0b42e80a5779409416a32232b7af4c7e09342dc49100b81d2c8a9e5d71ff",
+          "menu": "75b799cc2c669528310de42b369669024e87a68125ac1ed37ae45fcc9716dbbf",
+          "fetchedAt": "2026-10-06T01:51:27.467Z"
+        },
+        "amount": 0.0695,
+        "checkedAt": "2026-10-06T01:51:49.244Z"
+      },
+      {
+        "service": "elb",
+        "region": "ap-southeast-1",
+        "name": "shared",
+        "source": {
+          "page": "6b3f650c493aa7b0acee484168bd559d5ea827f0c5f69770cfb4d2e313fcf810",
+          "config": "e60e69b064d30766f6a3f0eeee992b45f2c653719bd94f9d488deb21ee33837b",
+          "products": "13f12001ef66f03aba5a0e255901a8292b1a80c3bedb5f12244bd8e303faf172",
+          "framework": "bd9a0b42e80a5779409416a32232b7af4c7e09342dc49100b81d2c8a9e5d71ff",
+          "menu": "75b799cc2c669528310de42b369669024e87a68125ac1ed37ae45fcc9716dbbf",
+          "fetchedAt": "2026-10-06T01:51:27.467Z"
+        },
+        "amount": 0.053,
+        "checkedAt": "2026-10-06T01:51:51.559Z"
+      },
+      {
+        "service": "elb",
+        "region": "ap-southeast-1",
+        "name": "duration-two",
+        "source": {
+          "page": "6b3f650c493aa7b0acee484168bd559d5ea827f0c5f69770cfb4d2e313fcf810",
+          "config": "e60e69b064d30766f6a3f0eeee992b45f2c653719bd94f9d488deb21ee33837b",
+          "products": "13f12001ef66f03aba5a0e255901a8292b1a80c3bedb5f12244bd8e303faf172",
+          "framework": "bd9a0b42e80a5779409416a32232b7af4c7e09342dc49100b81d2c8a9e5d71ff",
+          "menu": "75b799cc2c669528310de42b369669024e87a68125ac1ed37ae45fcc9716dbbf",
+          "fetchedAt": "2026-10-06T01:51:27.467Z"
+        },
+        "amount": 0.106,
+        "checkedAt": "2026-10-06T01:51:53.660Z"
+      },
+      {
+        "service": "redis",
+        "region": "ap-southeast-1",
+        "name": "default",
+        "source": {
+          "page": "6b3f650c493aa7b0acee484168bd559d5ea827f0c5f69770cfb4d2e313fcf810",
+          "config": "977df3441cbe8f3c87931bd2d63cf1800cdfc2d4d21d560c74fd32506ed6e62c",
+          "products": "68cc3e4c87d8c8411916d4412d030edada3369ffc23988555a78d97696d64c3f",
+          "framework": "bd9a0b42e80a5779409416a32232b7af4c7e09342dc49100b81d2c8a9e5d71ff",
+          "menu": "75b799cc2c669528310de42b369669024e87a68125ac1ed37ae45fcc9716dbbf",
+          "fetchedAt": "2026-10-06T01:51:56.891Z"
+        },
+        "amount": 0.00233,
+        "checkedAt": "2026-10-06T01:52:05.193Z"
+      },
+      {
+        "service": "redis",
+        "region": "ap-southeast-1",
+        "name": "version",
+        "source": {
+          "page": "6b3f650c493aa7b0acee484168bd559d5ea827f0c5f69770cfb4d2e313fcf810",
+          "config": "977df3441cbe8f3c87931bd2d63cf1800cdfc2d4d21d560c74fd32506ed6e62c",
+          "products": "68cc3e4c87d8c8411916d4412d030edada3369ffc23988555a78d97696d64c3f",
+          "framework": "bd9a0b42e80a5779409416a32232b7af4c7e09342dc49100b81d2c8a9e5d71ff",
+          "menu": "75b799cc2c669528310de42b369669024e87a68125ac1ed37ae45fcc9716dbbf",
+          "fetchedAt": "2026-10-06T01:51:56.891Z"
+        },
+        "amount": 0.00233,
+        "checkedAt": "2026-10-06T01:52:07.385Z"
+      },
+      {
+        "service": "redis",
+        "region": "ap-southeast-1",
+        "name": "master-standby",
+        "source": {
+          "page": "6b3f650c493aa7b0acee484168bd559d5ea827f0c5f69770cfb4d2e313fcf810",
+          "config": "977df3441cbe8f3c87931bd2d63cf1800cdfc2d4d21d560c74fd32506ed6e62c",
+          "products": "68cc3e4c87d8c8411916d4412d030edada3369ffc23988555a78d97696d64c3f",
+          "framework": "bd9a0b42e80a5779409416a32232b7af4c7e09342dc49100b81d2c8a9e5d71ff",
+          "menu": "75b799cc2c669528310de42b369669024e87a68125ac1ed37ae45fcc9716dbbf",
+          "fetchedAt": "2026-10-06T01:51:56.891Z"
+        },
+        "amount": 0.00433,
+        "checkedAt": "2026-10-06T01:52:09.637Z"
+      },
+      {
+        "service": "redis",
+        "region": "ap-southeast-1",
+        "name": "quantity-three",
+        "source": {
+          "page": "6b3f650c493aa7b0acee484168bd559d5ea827f0c5f69770cfb4d2e313fcf810",
+          "config": "977df3441cbe8f3c87931bd2d63cf1800cdfc2d4d21d560c74fd32506ed6e62c",
+          "products": "68cc3e4c87d8c8411916d4412d030edada3369ffc23988555a78d97696d64c3f",
+          "framework": "bd9a0b42e80a5779409416a32232b7af4c7e09342dc49100b81d2c8a9e5d71ff",
+          "menu": "75b799cc2c669528310de42b369669024e87a68125ac1ed37ae45fcc9716dbbf",
+          "fetchedAt": "2026-10-06T01:51:56.891Z"
+        },
+        "amount": 0.01233,
+        "checkedAt": "2026-10-06T01:52:11.977Z"
+      },
+      {
+        "service": "redis",
+        "region": "ap-southeast-1",
+        "name": "duration-two",
+        "source": {
+          "page": "6b3f650c493aa7b0acee484168bd559d5ea827f0c5f69770cfb4d2e313fcf810",
+          "config": "977df3441cbe8f3c87931bd2d63cf1800cdfc2d4d21d560c74fd32506ed6e62c",
+          "products": "68cc3e4c87d8c8411916d4412d030edada3369ffc23988555a78d97696d64c3f",
+          "framework": "bd9a0b42e80a5779409416a32232b7af4c7e09342dc49100b81d2c8a9e5d71ff",
+          "menu": "75b799cc2c669528310de42b369669024e87a68125ac1ed37ae45fcc9716dbbf",
+          "fetchedAt": "2026-10-06T01:51:56.891Z"
+        },
+        "amount": 0.02466,
+        "checkedAt": "2026-10-06T01:52:14.094Z"
+      },
+      {
+        "service": "nat",
+        "region": "ap-southeast-1",
+        "name": "default",
+        "source": {
+          "page": "6b3f650c493aa7b0acee484168bd559d5ea827f0c5f69770cfb4d2e313fcf810",
+          "config": "cdeeb27fa03ba83eeeb94e051c0de135dadd898a53de2a32b39127d561d624ef",
+          "products": "9e367e2987fcf31fed62b4838f1ca8b86bff32d56fd80cc7a88724e2575fe0b1",
+          "framework": "bd9a0b42e80a5779409416a32232b7af4c7e09342dc49100b81d2c8a9e5d71ff",
+          "menu": "75b799cc2c669528310de42b369669024e87a68125ac1ed37ae45fcc9716dbbf",
+          "fetchedAt": "2026-10-06T01:52:14.582Z"
+        },
+        "amount": 2.438,
+        "checkedAt": "2026-10-06T01:52:22.890Z"
+      },
+      {
+        "service": "nat",
+        "region": "ap-southeast-1",
+        "name": "private",
+        "source": {
+          "page": "6b3f650c493aa7b0acee484168bd559d5ea827f0c5f69770cfb4d2e313fcf810",
+          "config": "cdeeb27fa03ba83eeeb94e051c0de135dadd898a53de2a32b39127d561d624ef",
+          "products": "9e367e2987fcf31fed62b4838f1ca8b86bff32d56fd80cc7a88724e2575fe0b1",
+          "framework": "bd9a0b42e80a5779409416a32232b7af4c7e09342dc49100b81d2c8a9e5d71ff",
+          "menu": "75b799cc2c669528310de42b369669024e87a68125ac1ed37ae45fcc9716dbbf",
+          "fetchedAt": "2026-10-06T01:52:14.582Z"
+        },
+        "amount": 0.102,
+        "checkedAt": "2026-10-06T01:52:25.052Z"
+      },
+      {
+        "service": "nat",
+        "region": "ap-southeast-1",
+        "name": "large",
+        "source": {
+          "page": "6b3f650c493aa7b0acee484168bd559d5ea827f0c5f69770cfb4d2e313fcf810",
+          "config": "cdeeb27fa03ba83eeeb94e051c0de135dadd898a53de2a32b39127d561d624ef",
+          "products": "9e367e2987fcf31fed62b4838f1ca8b86bff32d56fd80cc7a88724e2575fe0b1",
+          "framework": "bd9a0b42e80a5779409416a32232b7af4c7e09342dc49100b81d2c8a9e5d71ff",
+          "menu": "75b799cc2c669528310de42b369669024e87a68125ac1ed37ae45fcc9716dbbf",
+          "fetchedAt": "2026-10-06T01:52:14.582Z"
+        },
+        "amount": 0.375,
+        "checkedAt": "2026-10-06T01:52:27.885Z"
+      },
+      {
+        "service": "nat",
+        "region": "ap-southeast-1",
+        "name": "duration-two",
+        "source": {
+          "page": "6b3f650c493aa7b0acee484168bd559d5ea827f0c5f69770cfb4d2e313fcf810",
+          "config": "cdeeb27fa03ba83eeeb94e051c0de135dadd898a53de2a32b39127d561d624ef",
+          "products": "9e367e2987fcf31fed62b4838f1ca8b86bff32d56fd80cc7a88724e2575fe0b1",
+          "framework": "bd9a0b42e80a5779409416a32232b7af4c7e09342dc49100b81d2c8a9e5d71ff",
+          "menu": "75b799cc2c669528310de42b369669024e87a68125ac1ed37ae45fcc9716dbbf",
+          "fetchedAt": "2026-10-06T01:52:14.582Z"
+        },
+        "amount": 0.75,
+        "checkedAt": "2026-10-06T01:52:29.977Z"
+      }
+    ]
+  },
+  "pricingGuards": [
+    "Prices are still requested from Huawei; no quote caching introduced",
+    "Existing configuration/product freshness, exact SKU verification, billing validation and 1.5-second quote stability window retained",
+    "Reference flavor prices never authorize saving"
+  ],
+  "limitations": [
+    "Coverage is representative rather than every upstream region, mode and option combination",
+    "Initial quote latency still depends on Huawei and the existing outbound proxy",
+    "Earlier test attempts overlapped a deliberate six-slot capacity test with another live suite; timed-out direct test opens left an untracked session. Test operations now have explicit IDs and cleanup. Clean worker verification is recorded separately."
+  ],
+  "preservation": "No stored-data migration. Unrelated workbook and SEO workspace changes preserved and excluded from this commit.",
+  "timing": {
+    "localSamples": [
+      {
+        "service": "ecs",
+        "region": "ap-southeast-1",
+        "billingMode": "ONDEMAND",
+        "cardsMs": 423,
+        "quoteMs": 4630,
+        "amount": 0.14968,
+        "status": 200,
+        "errors": []
+      },
+      {
+        "service": "ecs",
+        "region": "ap-southeast-1",
+        "billingMode": "ONDEMAND",
+        "cardsMs": 352,
+        "quoteMs": 4680,
+        "amount": 0.14968,
+        "status": 200,
+        "errors": []
+      },
+      {
+        "action": "ecs",
+        "ms": 4132,
+        "status": 200,
+        "quote": true,
+        "fields": 17
+      },
+      {
+        "action": "nat",
+        "ms": 3459,
+        "status": 200,
+        "quote": true,
+        "fields": 3
+      },
+      {
+        "action": "elb",
+        "ms": 4075,
+        "status": 200,
+        "quote": true,
+        "fields": 15
+      },
+      {
+        "action": "ecs",
+        "ms": 4055,
+        "status": 200,
+        "quote": true,
+        "fields": 17
+      }
+    ],
+    "previousProductionSamples": [
+      {
+        "action": "directory",
+        "ms": 115,
+        "status": 200
+      },
+      {
+        "action": "ecs",
+        "ms": 7943,
+        "status": 200,
+        "quote": true,
+        "fields": 17
+      },
+      {
+        "action": "nat",
+        "ms": 5274,
+        "status": 200,
+        "quote": true,
+        "fields": 3
+      },
+      {
+        "action": "elb",
+        "ms": 6550,
+        "status": 200,
+        "quote": true,
+        "fields": 15
+      },
+      {
+        "action": "ecs",
+        "ms": 4418,
+        "status": 200,
+        "quote": true,
+        "fields": 17
+      }
+    ],
+    "interpretation": "Illustrative timings, not a controlled benchmark or latency guarantee; source cache state, network and CPU load differ. ECS catalog cards can appear before the authoritative quote and remain unselectable until the session is ready.",
+    "publicSamples": [
+      {
+        "service": "ecs",
+        "region": "ap-southeast-1",
+        "billingMode": "ONDEMAND",
+        "cardsMs": 544,
+        "quoteMs": 5022,
+        "amount": 0.14968,
+        "status": 200,
+        "errors": []
+      },
+      {
+        "service": "ecs",
+        "region": "ap-southeast-1",
+        "billingMode": "ONDEMAND",
+        "cardsMs": 567,
+        "quoteMs": 5185,
+        "amount": 0.14968,
+        "status": 200,
+        "errors": []
+      },
+      {
+        "action": "ecs",
+        "ms": 4350,
+        "status": 200,
+        "quote": true,
+        "fields": 17
+      },
+      {
+        "action": "nat",
+        "ms": 3487,
+        "status": 200,
+        "quote": true,
+        "fields": 3
+      },
+      {
+        "action": "elb",
+        "ms": 4389,
+        "status": 200,
+        "quote": true,
+        "fields": 15
+      },
+      {
+        "action": "ecs",
+        "ms": 4258,
+        "status": 200,
+        "quote": true,
+        "fields": 17
+      }
+    ]
+  },
+  "production": {
+    "urls": [
+      "https://calculator.hwctools.site",
+      "https://calculator-lab.hwctools.site"
+    ],
+    "applicationImage": "sha256:f2e50bfcbeefe2656e6effc358814482b02d410b2fd729f8703969d8cc379314",
+    "nativeImage": "sha256:fe81ff42e31ba1c7ecaf1b9ab33a77a79e19e55deacf1264d6f409db26f32a0d",
+    "https": "Both roots returned 200 with valid TLS; HTTP redirected to HTTPS with 308",
+    "health": "Both app containers running; both native containers healthy; no OOM events",
+    "checks": "Anonymous read-only navigation and NAT/ONDEMAND, ELB/PERIOD, ECS/RI and CCM/ONETIME checks; all owned sessions explicitly closed",
+    "visualInspection": "ECS cards, official controls and verified price plus searchable service dialog inspected at desktop and mobile widths, including the deployed ECS page",
+    "rollbackImages": [
+      "neo-calculator:pre-ux-fix-20261006",
+      "neo-calculator-native:pre-ux-fix-20261006"
+    ]
+  }
+}

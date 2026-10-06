@@ -3,7 +3,7 @@ import {
   parseDashboardUrlState,
   type DashboardUrlState,
 } from "@/lib/dashboard-url-state";
-import { huaweiRegions, type HuaweiRegionKey } from "@/lib/huawei-regions";
+import { type HuaweiRegionKey } from "@/lib/huawei-regions";
 import {
   getServiceMeta,
   isBillingOption,
@@ -14,6 +14,8 @@ import type { Dispatch, SetStateAction } from "react";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 type Options = {
+  services: import("@/lib/calculator/service-directory").CalculatorService[];
+  directoryReady: boolean;
   setUsageHours: Dispatch<SetStateAction<string>>;
   setSelectedService: Dispatch<SetStateAction<string>>;
   setQuery: Dispatch<SetStateAction<string>>;
@@ -49,6 +51,7 @@ type Options = {
 };
 
 export function useDashboardUrl({
+  services, directoryReady,
   setUsageHours,
   setSelectedService,
   setQuery,
@@ -76,6 +79,7 @@ export function useDashboardUrl({
   editingProductListId,
   activeModal,
 }: Options) {
+  const [initialized, setInitialized] = useState(false);
   const pendingUrlStateRef = useRef<DashboardUrlState | null>(null);
 
   const hasInitializedUrlStateRef = useRef(false);
@@ -89,6 +93,7 @@ export function useDashboardUrl({
       return;
     }
 
+    setInitialized(false);
     pendingUrlStateRef.current = parseDashboardUrlState(window.location.search);
     setUrlStateVersion((current) => current + 1);
   }, []);
@@ -133,18 +138,19 @@ export function useDashboardUrl({
     isApplyingUrlStateRef.current = true;
 
     try {
+      if (pendingUrlState.serviceCode?.startsWith("HUAWEI:") && !directoryReady && !services.some(service => service.code === pendingUrlState.serviceCode)) return;
       if (pendingUrlState.serviceCode) {
-        const serviceMeta = getServiceMeta(
-          pendingUrlState.serviceCode,
-          pendingUrlState.serviceCode,
-        );
+        const serviceMeta = services.find(service => service.code === pendingUrlState.serviceCode) ?? getServiceMeta(pendingUrlState.serviceCode, pendingUrlState.serviceCode);
         if (serviceMeta) {
           setSelectedService(serviceMeta.name);
           setQuery(serviceMeta.name);
+        } else if (pendingUrlState.serviceCode.startsWith("HUAWEI:")) {
+          setSelectedService(pendingUrlState.serviceCode);
+          setQuery(pendingUrlState.serviceCode);
         }
       }
 
-      if (pendingUrlState.region && pendingUrlState.region in huaweiRegions) {
+      if (pendingUrlState.region && /^[a-z0-9-]{1,80}$/.test(pendingUrlState.region)) {
         setRegionValue(pendingUrlState.region);
       }
 
@@ -243,10 +249,12 @@ export function useDashboardUrl({
 
       pendingUrlStateRef.current = null;
       hasInitializedUrlStateRef.current = true;
+      setInitialized(true);
     } finally {
       isApplyingUrlStateRef.current = false;
     }
   }, [
+    services, directoryReady,
     applyServiceUrlState,
     handleCancelEdit,
     handleEditProduct,
@@ -324,5 +332,5 @@ export function useDashboardUrl({
     usageHours,
     writeServiceUrlState,
   ]);
-  return { updateUsageHours };
+  return { updateUsageHours, initialized };
 }

@@ -1,0 +1,74 @@
+{
+  "source": "Huawei Hong Kong ECS catalog captured 2026-10-06; reference prices only",
+  "catalogRegionId": "ap-southeast-1",
+  "flavors": [
+    {
+      "regionId": "ap-southeast-1",
+      "resourceSpecCode": "ac8.large.4.linux",
+      "family": "General Computing-plus",
+      "architecture": "x86",
+      "series": "aC8",
+      "description": "Memory:8192MB;vCPUs:2CORE;CPU Architecture:x86;Type:General Computing-plus;System Disk:40GB;Series:aC8;Image:Linux;Spot Duartion:On Demand, Period, Dynamic Price Spot;Local Disk:No Local-Disk;Remark:normal;accelerator card:No Accelerator Card",
+      "cpu": 2,
+      "ramGiB": 8,
+      "prices": {
+        "MONTHLY": 48.14,
+        "ONDEMAND": 0.0916,
+        "RI": 521.28,
+        "YEARLY": 481.4
+      },
+      "priceSources": {
+        "MONTHLY": "catalog_plan",
+        "ONDEMAND": "catalog_plan",
+        "RI": "catalog_plan",
+        "YEARLY": "catalog_plan"
+      },
+      "currency": "USD",
+      "updatedAt": "2026-10-05T10:31:50.888Z"
+    },
+    {
+      "regionId": "ap-southeast-1",
+      "resourceSpecCode": "c6.xlarge.4.linux",
+      "family": "General Computing-plus",
+      "architecture": "x86",
+      "series": "C6",
+      "description": "Memory:16384MB;vCPUs:4CORE;CPU Architecture:x86;Type:General Computing-plus;System Disk:40GB;Series:C6;Image:Linux;Spot Duartion:On Demand, Period, Dynamic Price Spot;Local Disk:No Local-Disk;Remark:normal;accelerator card:No Accelerator Card",
+      "cpu": 4,
+      "ramGiB": 16,
+      "prices": {
+        "MONTHLY": 114.4,
+        "ONDEMAND": 0.228,
+        "RI": 1226.4,
+        "YEARLY": 1144
+      },
+      "priceSources": {
+        "MONTHLY": "catalog_plan",
+        "ONDEMAND": "catalog_plan",
+        "RI": "catalog_plan",
+        "YEARLY": "catalog_plan"
+      },
+      "currency": "USD",
+      "updatedAt": "2026-10-05T10:31:50.888Z"
+    },
+    {
+      "regionId": "ap-southeast-1",
+      "resourceSpecCode": "c9.large.2.linux",
+      "family": "General Computing-plus",
+      "architecture": "x86",
+      "series": "C9",
+      "description": "Memory:4096MB;vCPUs:2CORE;CPU Architecture:x86;Type:General Computing-plus;System Disk:40GB;Series:C9;Image:Linux;Spot Duartion:On Demand, Period, Dynamic Price Spot;Local Disk:No Local-Disk;Remark:normal;accelerator card:No Accelerator Card",
+      "cpu": 2,
+      "ramGiB": 4,
+      "prices": {
+        "MONTHLY": 48.78,
+        "ONDEMAND": 0.0928
+      },
+      "priceSources": {
+        "MONTHLY": "catalog_plan",
+        "ONDEMAND": "catalog_plan"
+      },
+      "currency": "USD",
+      "updatedAt": "2026-10-05T10:31:50.888Z"
+    }
+  ]
+}

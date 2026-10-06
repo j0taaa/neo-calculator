@@ -1,4 +1,8 @@
+import { trackNativeSessions } from "./calculator-controls";
 import { expect, test } from "@playwright/test";
+const cleanups = new WeakMap<import("@playwright/test").Page, () => Promise<void>>();
+test.beforeEach(({ page }) => { cleanups.set(page, trackNativeSessions(page)); });
+test.afterEach(async ({ page }) => { await cleanups.get(page)?.(); });
 import type { NativeState } from "../lib/huawei-native/native-types";
 
 // Read-only production checks: anonymous renderer sessions, no accounts or cart mutations.
@@ -7,7 +11,14 @@ test("public navigation and old bookmarks reach the single live workspace", asyn
   expect(response.status()).toBe(307);
   expect(response.headers().location).toBe("/?tab=huawei-live&editProduct=old-item");
   await page.goto("/synchronized");
-  await expect(page.getByRole("heading", { name: "Huawei live calculator", exact: true })).toBeVisible();
+  await expect(page.getByRole("tab")).toHaveText(["Calculator", "Batch add"]);
+  await expect(page.getByRole("button", { name: "Service", exact: true })).toHaveCount(1);
+  await page.getByRole("button", { name: "Service", exact: true }).click();
+  const chooser = page.getByRole("dialog", { name: "Choose service" });
+  await expect(chooser).toBeVisible();
+  expect(await chooser.getByRole("option").count()).toBeLessThanOrEqual(8);
+  await chooser.getByRole("button", { name: "Close service search" }).click();
+  await expect(page.getByRole("heading", { name: "Elastic Cloud Server", exact: true })).toBeVisible();
   await expect(page.getByRole("link", { name: "Synced calculator", exact: true })).toHaveCount(0);
   expect((await request.get("/api/huawei-sync")).status()).toBe(404);
   expect((await request.get("/api/sync-lab")).status()).toBe(404);
@@ -15,13 +26,12 @@ test("public navigation and old bookmarks reach the single live workspace", asyn
 
 for (const [service, billingMode] of [["nat", "ONDEMAND"], ["elb", "PERIOD"], ["ecs", "RI"], ["ccm", "ONETIME"]] as const) {
   test(`deployed ${service}/${billingMode} returns current options and a complete Huawei price`, async ({ page }) => {
-    await page.goto("/?tab=huawei-live");
-    await page.getByLabel("Huawei service", { exact: true }).selectOption(service);
-    await page.getByLabel("Huawei region", { exact: true }).selectOption("ap-southeast-1");
-    await page.getByLabel("Huawei billing mode", { exact: true }).selectOption(billingMode);
     const opened = page.waitForResponse(r => r.url().endsWith("/api/calculator/native") &&
-      r.request().method() === "POST" && r.request().postDataJSON()?.action === "open");
-    await page.getByRole("button", { name: "Open calculator", exact: true }).click();
+      r.request().method() === "POST" && r.request().postDataJSON()?.action === "open" && r.request().postDataJSON()?.service === service);
+    const code = ({ nat: "NAT", elb: "ELB", ecs: "ECS", ccm: "CCM" } as const)[service];
+    const mode = ({ ONDEMAND: "Pay-per-use", PERIOD: "Yearly/Monthly", RI: "RI", ONETIME: "One-time" } as const)[billingMode];
+    await page.goto(`/?service=${code}&region=cn-hong-kong&billing=${encodeURIComponent(mode)}`);
+    await expect(page.getByRole("button", { name: "Open calculator", exact: true })).toHaveCount(0);
     const response = await opened;
     expect(response.status()).toBe(200);
     const state: NativeState = await response.json();
@@ -34,6 +44,11 @@ for (const [service, billingMode] of [["nat", "ONDEMAND"], ["elb", "PERIOD"], ["
       await expect(page.getByTestId("lab-price")).toBeVisible();
       expect(Number((await page.getByTestId("lab-price").innerText()).replace(/USD|,/g, "").trim()))
         .toBe(state.quote!.amount);
+      if (service === "ecs") {
+        await expect(page.getByLabel("ECS flavor browser")).toBeVisible();
+        await expect(page.getByLabel("Search flavors")).toBeVisible();
+        await expect(page.getByText("Advanced ECS specification", { exact: true })).toBeVisible();
+      }
       await page.setViewportSize({ width: 390, height: 844 });
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
     } finally {

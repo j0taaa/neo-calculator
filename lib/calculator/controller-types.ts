@@ -14,6 +14,7 @@ import { type HuaweiRegionKey } from "@/lib/huawei-regions";
 import { type ServiceCatalogEntry } from "@/lib/service-config";
 
 export type CalculatorControllerInput = {
+  enabled?: boolean;
   selectedService: string;
   selectedServiceMeta: ServiceCatalogEntry;
   regionValue: HuaweiRegionKey;

@@ -2,7 +2,7 @@
 
 The ECS, ELB and DCS audit exposed a limit of the QuickJS interpreter: service configuration is only part of Huawei's behavior. The shared renderer implements dependent defaults, image filtering, repeatable disks, checkbox constraints, unit conversion and derived LCU quantities. Enumerating every flavor and numeric combination is both expensive and insufficient to recover those rules.
 
-The isolated preview at `https://calculator-lab.hwctools.site/sync-lab` now uses a browser adapter. A short-lived anonymous Chromium context runs the official renderer; Neo renders its visible controls and sends validated interactions back to that context. The main workspace uses this same adapter. The older QuickJS calculator and captured audit UI have been retired; `/synchronized` and `/sync-lab/audit` redirect to Huawei live.
+The isolated preview at `https://calculator-lab.hwctools.site/sync-lab` now uses a browser adapter. A short-lived anonymous Chromium context runs the official renderer; Neo renders its visible controls and sends validated interactions back to that context. The main workspace uses this same adapter through its unified Calculator tab; its service, region and billing selection are shared with the dashboard. The older QuickJS calculator and captured audit UI have been retired; `/synchronized` and `/sync-lab/audit` redirect to the unified Calculator workspace.
 
 ## Data and price flow
 
@@ -149,7 +149,11 @@ The common asset cache is released when a sweep finds no active or opening
 sessions, and at shutdown. Expired save requests now close their unused context
 promptly. Expiry checks never close a context while an edit or save is running;
 normal sweeping releases it once the operation finishes. Session timeouts,
-capacity, browser flags and upstream resource loading are unchanged.
+capacity and browser flags remain unchanged. A later loading improvement adds
+script preload hints and a separate cache for versioned public CDN scripts/styles,
+bounded to 16 MiB, 64 entries and fifteen minutes. It leaves source freshness,
+pricing inquiries and the settled-quote checks intact; see
+[the consolidated workspace](calculator-consolidation.md).
 
 Automatic Chromium shutdown after five empty-pool minutes was tested and
 rejected: several same-process reopen audits stalled, including one in an

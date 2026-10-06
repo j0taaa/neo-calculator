@@ -78,3 +78,34 @@ test("purchase terms and installment choices are exposed even when Huawei uses i
   await setNativeValue(page,form.fields[0],"2");
   await setNativeValue(page,form.fields[1],"1");
 });
+
+test("combined packages expose their controls and still reject unknown nested widgets", async ({ page }) => {
+  await page.setContent(`<div id="calculator_bundle"><div class="base-radio-group" id="calculator_bundle_0_1"><li class="active"><button>2 vCPUs | 4 GB</button></li><li><button>4 vCPUs | 8 GB</button></li></div>
+    <label class="tiny-checkbox"><input type="checkbox"><span class="tiny-checkbox__label">Data Disk(EVS)</span></label>
+    <input class="tiny-numeric__input-inner" value="40" min="40" max="1024"></div>`);
+  await page.evaluate(() => Object.assign(window, { viewConfig: { calc_view: { components: [{ id: "calculator_bundle", type: "FuncCombine", subComponents: [{ type: "CommonRadioGroup", optionKeys: ["vmType", "vm_spec"] }, { type: "CommonStepper" }] }] } } }));
+  const form = await readNativeForm(page);
+  expect(form.diagnostics).toEqual([]);
+  expect(form.fields.map(field => field.type)).toEqual(["select", "checkbox", "number"]);
+  expect(form.fields[0].label).toBe("Specification");
+  await setNativeValue(page, form.fields[1], true);
+  expect((await readNativeForm(page)).fields[1].value).toBe(true);
+  await page.evaluate(() => (window as unknown as { viewConfig: { calc_view: { components: { subComponents: { type: string }[] }[] } } }).viewConfig.calc_view.components[0].subComponents.push({ type: "UnknownNestedWidget" }));
+  expect((await readNativeForm(page)).diagnostics).toContain("Unsupported Huawei control: UnknownNestedWidget");
+  await page.locator("#calculator_bundle").evaluate(element => element.insertAdjacentHTML("beforeend", '<input value="unmapped">'));
+  expect((await readNativeForm(page)).diagnostics).toContain("Unmapped input in calculator_bundle");
+});
+
+test("numeric CommonInput controls preserve vendor rules and block rejected or nonnumeric values", async ({ page }) => {
+  await page.setContent(`<div id="calculator_capacity" class="common-input"><div class="tiny-form-item"><label class="tiny-form-item__label">Capacity (TB)</label><div class="tiny-input"><input class="tiny-input__inner" value="3.6" errormessage="Use multiples of 1.2 between 3.6 and 1023.6."></div></div></div>`);
+  await page.evaluate(() => Object.assign(window, { viewConfig: { calc_view: { components: [{ id: "calculator_capacity", type: "CommonInput" }] } } }));
+  const form = await readNativeForm(page);
+  expect(form.diagnostics).toEqual([]);
+  expect(form.fields[0]).toMatchObject({ type: "number", value: 3.6, hint: "Use multiples of 1.2 between 3.6 and 1023.6." });
+  await setNativeValue(page, form.fields[0], 4.8);
+  expect((await readNativeForm(page)).fields[0].value).toBe(4.8);
+  await page.locator(".tiny-input").evaluate(el => el.classList.add("common-input-is-error"));
+  expect((await readNativeForm(page)).diagnostics).toContain(form.fields[0].hint);
+  await page.locator("input").fill("not a number");
+  expect((await readNativeForm(page)).diagnostics).toContain("Unsupported nonnumeric input in calculator_capacity");
+});
