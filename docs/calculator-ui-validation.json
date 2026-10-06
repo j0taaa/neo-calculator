@@ -1,0 +1,49 @@
+{
+  "date": "2026-10-06",
+  "scope": "Restore the styled calculator interface and automatically initialize the selected service without an Open calculator button",
+  "checks": {
+    "unit": { "passed": 356, "failed": 0 },
+    "typescript": "passed",
+    "lint": { "errors": 0, "preexistingWarnings": 3 },
+    "productionBuild": "passed with build-time BUN_JSC_useJIT=false; runtime JIT unchanged",
+    "browser": {
+      "consolidatedCalculator": 24,
+      "architectureAndCartWorkflows": 20,
+      "responsive": 13,
+      "nativeDom": 7,
+      "legacyImportRecovery": 3,
+      "productionMain": 5,
+      "productionPreview": 5,
+      "totalPassed": 77
+    },
+    "diffCheck": "passed"
+  },
+  "coverage": [
+    "Automatic opening after directory, URL and billing metadata are ready",
+    "No initialization while initially viewing Batch add",
+    "Debounced scope changes, exact saved edits and explicit failure recovery",
+    "Styled dropdowns, real radio groups, disabled options and keyboard shortcuts",
+    "Responsive controls and dropdown menus from 320 to 1920 pixels",
+    "ECS exact flavor selection and Flexus L save/edit behavior",
+    "Pay-per-use, yearly/monthly, reserved instances and one-time pricing",
+    "Existing cart, batch, import, clone and share workflows",
+    "Cleanup before, during and after abandoned initialization, including a live six-session capacity check",
+    "Same-session price retry preserves current choices"
+  ],
+  "production": {
+    "urls": ["https://calculator.hwctools.site", "https://calculator-lab.hwctools.site"],
+    "applicationImage": "sha256:305ebcbfcdde9d7cfe402586b64796e7f11b88588fdc11254cfed64b90d1a871",
+    "nativeImage": "sha256:c1108260ade7d6669fe378dcfb7505aee1e9850bf51c095a3f51168dd0b2c2c2",
+    "https": "Both roots returned 200 with valid TLS; HTTP redirected to HTTPS",
+    "health": "Both application containers running and both native containers healthy; no OOM events",
+    "checks": "Anonymous, read-only checks of navigation and NAT/ONDEMAND, ELB/PERIOD, ECS/RI, CCM/ONETIME in Hong Kong; sessions explicitly closed",
+    "visualInspection": "Deployed ECS pay-per-use form with a verified quote, plus mobile and desktop responsive screenshots"
+  },
+  "limitations": [
+    "These are representative configurations, not every Huawei region and option combination",
+    "An initial public test run had two 502 failures caused by the existing SOCKS proxy failing to reach Huawei; after the connection recovered, all five main and all five preview checks passed",
+    "The isolated live suites permit one explicit UI retry for delayed Huawei initialization or quotes; successful pricing is still required",
+    "Unknown upstream controls and unavailable pricing continue to block saving"
+  ],
+  "preservation": "Unrelated workbook and SEO workspace changes remain separate from this commit; no stored-data migration"
+}

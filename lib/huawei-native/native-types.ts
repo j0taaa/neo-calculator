@@ -6,6 +6,7 @@ export type NativeField = {
   component: string;
   label: string;
   type: "select" | "number" | "checkbox" | "action";
+  presentation?: "options";
   value: string | number | boolean;
   disabled: boolean;
   unit?: string;

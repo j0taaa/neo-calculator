@@ -261,11 +261,7 @@ export function useDashboard() {
 
   const nativeBatch = useNativeBatch(product => saveNativeProduct(product, false));
 
-  useCalculatorShortcuts({
-    activeTab,
-    calculatorBillingOptions: useNative ? (directory?.billingModes[nativeScope.service]?.[nativeScope.region] ?? []).map(mode => nativeBillingModes[mode].label) : calculatorController.calculatorBillingOptions,
-    setBillingMode,
-  });
+  useCalculatorShortcuts({ activeTab });
 
   const projectActions = useProjectActions({
     session,

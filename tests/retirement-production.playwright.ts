@@ -1,4 +1,8 @@
+import { trackNativeSessions } from "./calculator-controls";
 import { expect, test } from "@playwright/test";
+const cleanups = new WeakMap<import("@playwright/test").Page, () => Promise<void>>();
+test.beforeEach(({ page }) => { cleanups.set(page, trackNativeSessions(page)); });
+test.afterEach(async ({ page }) => { await cleanups.get(page)?.(); });
 import type { NativeState } from "../lib/huawei-native/native-types";
 
 // Read-only production checks: anonymous renderer sessions, no accounts or cart mutations.
@@ -17,13 +21,12 @@ test("public navigation and old bookmarks reach the single live workspace", asyn
 
 for (const [service, billingMode] of [["nat", "ONDEMAND"], ["elb", "PERIOD"], ["ecs", "RI"], ["ccm", "ONETIME"]] as const) {
   test(`deployed ${service}/${billingMode} returns current options and a complete Huawei price`, async ({ page }) => {
-    await page.goto("/?tab=huawei-live");
-    await page.getByLabel("Service", { exact: true }).selectOption(({ nat: "NAT", elb: "ELB", ecs: "ECS", ccm: "CCM" } as const)[service]);
-    await page.getByLabel("Huawei region", { exact: true }).selectOption("ap-southeast-1");
-    await page.getByLabel("Huawei billing mode", { exact: true }).selectOption(billingMode);
     const opened = page.waitForResponse(r => r.url().endsWith("/api/calculator/native") &&
-      r.request().method() === "POST" && r.request().postDataJSON()?.action === "open");
-    await page.getByRole("button", { name: "Open calculator", exact: true }).click();
+      r.request().method() === "POST" && r.request().postDataJSON()?.action === "open" && r.request().postDataJSON()?.service === service);
+    const code = ({ nat: "NAT", elb: "ELB", ecs: "ECS", ccm: "CCM" } as const)[service];
+    const mode = ({ ONDEMAND: "Pay-per-use", PERIOD: "Yearly/Monthly", RI: "RI", ONETIME: "One-time" } as const)[billingMode];
+    await page.goto(`/?service=${code}&region=cn-hong-kong&billing=${encodeURIComponent(mode)}`);
+    await expect(page.getByRole("button", { name: "Open calculator", exact: true })).toHaveCount(0);
     const response = await opened;
     expect(response.status()).toBe(200);
     const state: NativeState = await response.json();

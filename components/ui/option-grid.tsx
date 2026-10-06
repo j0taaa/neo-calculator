@@ -46,6 +46,7 @@ const HUE_MAP: Record<number, { bg: string; bgHover: string; bgSelected: string;
 type OptionGridItem = {
   value: string;
   label: string;
+  disabled?: boolean;
 };
 
 type OptionGridProps = {
@@ -55,9 +56,10 @@ type OptionGridProps = {
   disabled?: boolean;
   cols?: 2 | 3 | 4;
   name: string;
+  ariaLabel?: string;
 };
 
-export function OptionGrid({ items, value, onChange, disabled, cols, name }: OptionGridProps) {
+export function OptionGrid({ items, value, onChange, disabled, cols, name, ariaLabel = name }: OptionGridProps) {
   const color = useMemo(() => HUE_MAP[getAccentHue(name)], [name]);
 
   const minWClass = cols === 4
@@ -67,18 +69,20 @@ export function OptionGrid({ items, value, onChange, disabled, cols, name }: Opt
       : "min-w-28";
 
   return (
-    <div data-option-grid className={`flex flex-wrap gap-2`}>
-      {items.map((item) => {
+    <div data-option-grid role="group" aria-label={ariaLabel} data-value={value} className={`flex flex-wrap gap-2`}>
+      {items.map((item, index) => {
         const isSelected = item.value === value;
         return (
           <button
             key={item.value}
             type="button"
-            disabled={disabled}
+            disabled={disabled || item.disabled}
+            data-option-grid-button={index + 1}
+            data-value={item.value}
             data-calculator-focus-target={isSelected ? "" : undefined}
             aria-pressed={isSelected}
             onClick={() => onChange(item.value)}
-            className={`h-11 cursor-pointer rounded-md border px-3 text-sm font-medium transition-all duration-150 ${minWClass} ${
+            className={`min-h-11 max-w-full break-words cursor-pointer rounded-md border px-3 text-sm font-medium transition-all duration-150 disabled:cursor-not-allowed disabled:opacity-50 ${minWClass} ${
               isSelected
                 ? `${color.bgSelected} ${color.textSelected} border-transparent shadow-sm`
                 : `${color.bg} border-zinc-200 ${color.bgHover} text-zinc-700`

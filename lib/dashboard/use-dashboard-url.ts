@@ -79,6 +79,7 @@ export function useDashboardUrl({
   editingProductListId,
   activeModal,
 }: Options) {
+  const [initialized, setInitialized] = useState(false);
   const pendingUrlStateRef = useRef<DashboardUrlState | null>(null);
 
   const hasInitializedUrlStateRef = useRef(false);
@@ -92,6 +93,7 @@ export function useDashboardUrl({
       return;
     }
 
+    setInitialized(false);
     pendingUrlStateRef.current = parseDashboardUrlState(window.location.search);
     setUrlStateVersion((current) => current + 1);
   }, []);
@@ -247,6 +249,7 @@ export function useDashboardUrl({
 
       pendingUrlStateRef.current = null;
       hasInitializedUrlStateRef.current = true;
+      setInitialized(true);
     } finally {
       isApplyingUrlStateRef.current = false;
     }
@@ -329,5 +332,5 @@ export function useDashboardUrl({
     usageHours,
     writeServiceUrlState,
   ]);
-  return { updateUsageHours };
+  return { updateUsageHours, initialized };
 }

@@ -6,21 +6,15 @@ import {
   getVisibleOpenCalculatorSelectItems,
   isCalculatorSelectTrigger,
   isVisibleCalculatorElement,
-  type BillingOption,
 } from "@/lib/page-utils";
-import type { Dispatch, SetStateAction } from "react";
 import { useCallback, useEffect, useState } from "react";
 
 type Options = {
   activeTab: string;
-  calculatorBillingOptions: BillingOption[];
-  setBillingMode: Dispatch<SetStateAction<BillingOption>>;
 };
 
 export function useCalculatorShortcuts({
   activeTab,
-  calculatorBillingOptions,
-  setBillingMode,
 }: Options) {
   const [isAltShortcutGuideVisible, setIsAltShortcutGuideVisible] =
     useState(false);
@@ -129,17 +123,12 @@ export function useCalculatorShortcuts({
         if (optionGrid) {
           const digit = getShortcutDigit(event);
           if (digit != null && digit >= 1) {
-            const nextBillingMode = calculatorBillingOptions[digit - 1];
-            if (nextBillingMode) {
+            const button = optionGrid.querySelector<HTMLButtonElement>(`[data-option-grid-button="${digit}"]`);
+            if (button && !button.matches(":disabled")) {
               event.preventDefault();
               event.stopPropagation();
-              setBillingMode(nextBillingMode);
-              window.requestAnimationFrame(() => {
-                const targetButton = optionGrid.querySelector<HTMLElement>(
-                  `[data-option-grid-button="${digit}"]`,
-                );
-                targetButton?.focus();
-              });
+              button.click();
+              button.focus();
               return;
             }
           }
@@ -180,10 +169,8 @@ export function useCalculatorShortcuts({
     return () =>
       document.removeEventListener("keydown", handleAltDigitShortcut, true);
   }, [
-    calculatorBillingOptions,
     focusCalculatorInputByIndex,
     isAwaitingCalculatorSelectOptionShortcut,
-    setBillingMode,
     triggerCalculatorAddShortcut,
   ]);
 

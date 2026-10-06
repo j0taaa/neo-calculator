@@ -66,9 +66,15 @@ for (const [width, height] of viewports) {
     page.on("pageerror", (error) => errors.push(error.message));
     await page.goto("/");
     await expect(page.getByRole("tab")).toHaveText(["Calculator", "Batch add"]);
-    await page.getByRole("button", { name: "Open calculator", exact: true }).click();
     await expect(page.getByTestId("lab-price")).toContainText("77.73");
     await expectControlsToFit(page);
+    await page.getByRole("combobox", { name: "Flavor", exact: true }).click();
+    const popup = page.getByRole("listbox");
+    await expect(popup).toBeVisible();
+    const bounds = await popup.boundingBox();
+    expect(bounds!.x).toBeGreaterThanOrEqual(0);
+    expect(bounds!.x + bounds!.width).toBeLessThanOrEqual(width + 1);
+    await page.keyboard.press("Escape");
     await page.getByRole("spinbutton", { name: "Quantity", exact: true }).fill("3");
     await page.getByRole("spinbutton", { name: "Quantity", exact: true }).press("Tab");
     await expect(page.getByTestId("lab-price")).toBeVisible();
@@ -111,7 +117,6 @@ test("signed-in navigation, projects, carts and settings fit with long names", a
   for (const width of [390, 1024, 1280, 1512, 1920]) {
     await page.setViewportSize({ width, height: 900 });
     await page.goto(`/?project=${project.id}&list=${list.id}`);
-    await page.getByRole("button", { name: "Open calculator", exact: true }).click();
     await expect(page.getByRole("button", { name: "Add to List", exact: true })).toBeEnabled();
     await expectControlsToFit(page);
     await page.getByRole("button", { name: "Open settings", exact: true }).click();

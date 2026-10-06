@@ -1,4 +1,6 @@
 "use client";
+import { NativeChoiceField } from "@/components/calculators/native-choice-field";
+import { Separator } from "@/components/ui/separator";
 import Image from "next/image";
 import { NativeCalculatorPanel } from "@/components/calculators/native-calculator-panel";
 import { CompatibilityCalculator } from "@/components/calculators/compatibility-calculator";
@@ -13,7 +15,7 @@ import type { DashboardModel } from "@/lib/dashboard/use-dashboard";
 export function CalculatorWorkspace(model: DashboardModel["calculator"]) {
   const { activeTab, setActiveTab, selectedServiceMeta, services, selectService, directory,
     directoryError, retryDirectory, nativeScope, setNativeScope, useNative, nativeEditingProduct,
-    saveNativeProduct, calculatorController, nativeBatch, editingProductId, isSignedIn, projectStore } = model;
+    saveNativeProduct, calculatorController, nativeBatch, editingProductId, isSignedIn, projectStore, locationState } = model;
   return <Card className="@container/workspace min-w-0 overflow-visible shadow-sm">
     <Tabs value={activeTab} onValueChange={tab => {
       if (editingProductId && tab === "batch-add") calculatorController.handleCancelEdit();
@@ -25,7 +27,10 @@ export function CalculatorWorkspace(model: DashboardModel["calculator"]) {
             <Image src={selectedServiceMeta.icon} alt="" width={40} height={40} className="size-10 shrink-0 rounded-lg object-contain" />
             <div className="min-w-0">
               <CardTitle className="text-xl @min-[640px]/workspace:text-2xl"><h1>{selectedServiceMeta.name}</h1></CardTitle>
-              <p className="mt-1 text-sm text-zinc-500">{selectedServiceMeta.code}</p>
+              <div className="mt-1 w-24">
+                <NativeChoiceField compact selectedLabel={selectedServiceMeta.code} label="Service" value={selectedServiceMeta.code} onChange={selectService}
+                  options={services.map(service => ({ value: service.code, label: `${service.code} · ${service.name}` }))} />
+              </div>
             </div>
           </div>
           <TabsList className="grid w-full grid-cols-2 @min-[480px]/workspace:w-fit">
@@ -33,19 +38,15 @@ export function CalculatorWorkspace(model: DashboardModel["calculator"]) {
             <TabsTrigger value="batch-add">Batch add{nativeBatch.items.length ? ` (${nativeBatch.items.length})` : ""}</TabsTrigger>
           </TabsList>
         </div>
-        <label className="text-sm font-medium">Service
-          <select aria-label="Service" className="mt-2 h-10 w-full rounded-md border bg-white px-3 text-sm"
-            value={selectedServiceMeta.code} onChange={event => selectService(event.target.value)}>
-            {services.map(service => <option key={service.code} value={service.code}>{service.code} · {service.name}</option>)}
-          </select>
-        </label>
+
       </CardHeader>
+      <Separator />
     {directoryError && <div role="alert" className="space-y-2 px-4 pb-4 text-sm text-red-700">
       <p>{directoryError}</p><Button variant="outline" onClick={retryDirectory}>Retry Huawei services</Button>
     </div>}
     <TabsContent value="calculator" keepMounted>
       {useNative ? <NativeCalculatorPanel directory={directory} scope={nativeScope} onScopeChange={setNativeScope}
-        embedded editingProduct={nativeEditingProduct} onSave={saveNativeProduct}
+        embedded autoOpen={activeTab === "calculator" && locationState.initialized} editingProduct={nativeEditingProduct} onSave={saveNativeProduct}
         canSave={isSignedIn && !!projectStore.selectedListId} onQueue={nativeBatch.busy ? undefined : nativeBatch.enqueue}
         onCancelEdit={calculatorController.handleCancelEdit} /> :
         directory || editingProductId ? <>

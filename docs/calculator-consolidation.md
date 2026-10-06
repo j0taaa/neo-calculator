@@ -1,6 +1,6 @@
 # One calculator workspace
 
-The dashboard exposes **Calculator** and **Batch add**. The previous Huawei live / Price Calculator engine tabs are removed. Service search, the service selector, product heading, URL and official form use one selection. Native region and billing changes reopen an already loaded form; ordinary input changes update the same session. Opening the first form remains explicit so anonymous visitors do not consume a Chromium session just by loading the dashboard.
+The dashboard exposes **Calculator** and **Batch add**. The previous Huawei live / Price Calculator engine tabs are removed. Service search, the service selector, product heading, URL and official form use one selection. The selected service opens automatically once directory metadata and bookmarked settings are ready. Service, region and billing changes load the new scope; ordinary input changes update the same session. A short debounce coalesces scope changes, and an initially hidden Calculator tab does not allocate a Chromium session. Failed initializations require an explicit retry. An incomplete quote can be refreshed with Retry price using the same session and selections. Retrying an original native edit restores its saved configuration.
 
 Huawei supplies the available inputs, regional billing modes, conditional behavior and current prices for new interactive configurations. New services appear through directory discovery. Original metadata supplies names, icons and identity aliases; aliases do not encode pricing or visibility rules. Removed-service bookmarks preserve their identity and report unavailability instead of becoming ECS.
 
@@ -12,6 +12,8 @@ Huawei supplies the available inputs, regional billing modes, conditional behavi
 | `calculator/use-huawei-directory` | One directory load and retry for the dashboard; standalone preview can load its own |
 | `dashboard/calculator-workspace` | One product heading, service selector and workflow tabs |
 | `huawei-native/use-native-session` | Serialized interactions, scoped session lifecycle, saved selection restore and stale-response disposal |
+| `huawei-native/native-operations` | Bounded initialization history and explicit cleanup before, during or after an abandoned open/restore |
+| `calculators/native-choice-field` | Shared shadcn dropdowns; Huawei radio groups retain the colored option controls |
 | `huawei-native/native-draft` | A product configuration for the shared cart writer; no client price is authoritative |
 | `calculators/native-calculator-panel` | Official controls, estimate and save/queue actions |
 | `calculators/native-flavor-browser` / `huawei-native/native-flavor` | Catalog comparison and exact-SKU selection through actual official controls |
@@ -19,7 +21,7 @@ Huawei supplies the available inputs, regional billing modes, conditional behavi
 | `calculators/compatibility-calculator` | Original saved-item forms and services lacking an official calculator |
 | `calculator/server-directory` | Public discovery and shared ECS regional scope validation |
 
-The native session hook invalidates the displayed quote before requests. Numeric drafts invalidate it before submission. Scope changes discard old sessions; late open/restore responses are closed and cannot overwrite the current form. A saved selection is restored once, with its complete replay guards. Loading directory metadata later cannot reset that restored selection to defaults.
+The native session hook invalidates the displayed quote before requests. Numeric drafts invalidate it before submission. Scope changes discard old sessions and cancel pending requests. Open/restore operations carry opaque IDs so cleanup can reach the worker even when the HTTP disconnect is not forwarded. Cancellation before, during and just after initialization releases the corresponding renderer; late responses cannot overwrite the current form. The worker retains at most 2,000 initialization records and expires completed history after ten minutes. A saved selection is restored once, with its complete replay guards. Subsequent deliberate scope changes while editing initialize that new scope instead of leaving an empty form. Loading directory metadata later cannot reset that restored selection to defaults.
 
 ## Existing functionality
 
@@ -57,3 +59,5 @@ Run all write scenarios against an isolated application database and sidecar:
 This establishes the unified workflows and representative pricing parity. Unknown future Huawei controls and unavailable upstream pricing continue to fail closed.
 
 The [release validation record](./calculator-consolidation-validation.json) records the service scopes, independent pricing cases, browser checks and deployed image identities from 2026-10-06.
+
+The workspace uses the existing styled dropdowns, colored option buttons and flat form layout. The optional `NativeField.presentation` hint comes from Huawei’s actual radio-group markup and is excluded from saved selection guards; it changes rendering without changing availability, values or pricing. Disabled fields and individual options remain disabled. The [interface regression validation record](./calculator-ui-validation.json) covers automatic initialization, these controls and the deployed update.

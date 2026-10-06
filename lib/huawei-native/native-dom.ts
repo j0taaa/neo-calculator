@@ -45,6 +45,7 @@ export async function readNativeForm(page: Page): Promise<NativeForm> {
         let label = itemLabel || clean(el.querySelector("[title]")?.getAttribute("title")) || "";
         const field: NativeField = { id, component: component.id, label, type: "select", value: "", disabled: el.matches(".is-disabled, [disabled]") };
         if (el.matches(".base-radio-group")) {
+          field.presentation = "options";
           const options = [...el.querySelectorAll<HTMLElement>("li")].filter(visible);
           field.options = options.map((option, i) => ({ value: String(i), label: clean(option.innerText), disabled: option.matches(".disabled, .is-disabled") || !!option.querySelector("button:disabled") }));
           field.value = String(options.findIndex(option => option.classList.contains("active")));
