@@ -2,7 +2,9 @@
 
 import { Input } from "@/components/ui/input";
 import type { DashboardModel } from "@/lib/dashboard/use-dashboard";
-import { Search } from "lucide-react";
+import { Search, X } from "lucide-react";
+import { Dialog } from "@base-ui/react/dialog";
+import { Button } from "@/components/ui/button";
 import Image from "next/image";
 
 export function ServiceSearch({
@@ -22,10 +24,12 @@ export function ServiceSearch({
   normalizedQuery,
 }: DashboardModel["serviceSearch"]) {
   return (
-    <>
-      {isSearchOpen ? (
-        <div className="fixed inset-0 z-[60] bg-zinc-950/10 px-4 py-6 backdrop-blur-sm lg:px-6">
-          <div className="mx-auto flex w-full max-w-[1680px] justify-center">
+    <Dialog.Root open={isSearchOpen} onOpenChange={setIsSearchOpen}>
+      <Dialog.Portal>
+        <Dialog.Backdrop className="fixed inset-0 z-[60] bg-zinc-950/10 backdrop-blur-sm" />
+        <Dialog.Popup aria-label="Choose service" initialFocus={searchInputRef}
+          finalFocus={() => document.querySelector<HTMLElement>('[aria-label="Service"]')}
+          className="fixed top-6 left-1/2 z-[61] w-[calc(100%-2rem)] max-w-3xl -translate-x-1/2 outline-none">
             <div ref={searchAreaRef} className="relative z-40 w-full max-w-3xl">
               <label htmlFor="service-search" className="sr-only">
                 Search services
@@ -86,22 +90,20 @@ export function ServiceSearch({
                 aria-controls={listboxId}
                 aria-expanded={hasSuggestions}
                 aria-activedescendant={activeDescendant}
-                className="h-16 rounded-full border-zinc-200 bg-white pr-26 pl-14 text-base shadow-[0_20px_50px_-30px_rgba(15,23,42,0.35)]"
-                placeholder="Search service name"
+                className="h-14 rounded-full border-zinc-200 bg-white pr-12 pl-14 text-base shadow-[0_20px_50px_-30px_rgba(15,23,42,0.35)]"
+                placeholder="Search by service name or code"
               />
-              <div className="pointer-events-none absolute top-1/2 right-3 -translate-y-1/2 rounded-full border border-zinc-200 bg-zinc-50 px-3 py-1 text-xs font-medium text-zinc-500">
-                Ctrl K
-              </div>
+              <Button variant="ghost" size="icon" aria-label="Close service search" onClick={() => setIsSearchOpen(false)}
+                className="absolute top-2 right-2 rounded-full"><X className="size-4" /></Button>
 
-              {normalizedQuery ? (
-                suggestions.length > 0 ? (
+              {suggestions.length > 0 ? (
                   <div
                     id={listboxId}
                     role="listbox"
                     className="absolute top-full right-0 left-0 z-50 mt-3 max-h-[calc(100dvh-8rem)] overflow-y-auto rounded-[28px] border border-zinc-200 bg-white shadow-[0_28px_80px_-40px_rgba(15,23,42,0.45)]"
                   >
                     <div className="border-b border-zinc-100 px-5 py-3 text-xs font-medium tracking-[0.18em] text-zinc-500 uppercase">
-                      Suggested services
+                      {normalizedQuery ? "Matching services" : "Popular services"}
                     </div>
                     <div className="p-2">
                       {suggestions.map((service, index) => (
@@ -110,6 +112,7 @@ export function ServiceSearch({
                           id={`${listboxId}-${index}`}
                           type="button"
                           role="option"
+                          data-value={service.code}
                           aria-selected={index === activeSuggestionIndex}
                           className={`flex w-full items-center justify-between gap-2 rounded-2xl px-4 py-3 text-left transition ${
                             index === activeSuggestionIndex
@@ -168,12 +171,10 @@ export function ServiceSearch({
                   <div className="absolute top-full right-0 left-0 z-50 mt-3 rounded-[28px] border border-zinc-200 bg-white px-5 py-4 text-sm text-zinc-500 shadow-[0_28px_80px_-40px_rgba(15,23,42,0.45)]">
                     No services matched your search.
                   </div>
-                )
-              ) : null}
+                )}
             </div>
-          </div>
-        </div>
-      ) : null}
-    </>
+        </Dialog.Popup>
+      </Dialog.Portal>
+    </Dialog.Root>
   );
 }

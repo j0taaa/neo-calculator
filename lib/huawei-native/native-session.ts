@@ -12,6 +12,7 @@ import { canonical, hash } from "./store";
 import { randomUUID } from "node:crypto";
 import { chromium, type Browser, type BrowserContext, type Page } from "playwright";
 import { NativeAssets } from "./native-assets";
+import { NativeStaticCache } from "./native-static-cache";
 import { HuaweiCollector, PAGE_URL } from "./collector";
 import { readNativeForm, setNativeValue, validateNativeValue } from "./native-dom";
 import { QuoteGateway } from "./quotes";
@@ -59,6 +60,7 @@ export class NativeCalculator {
   private opening = 0;
   private gateway = new QuoteGateway();
   private assets = new NativeAssets();
+  private staticCache = new NativeStaticCache();
   constructor(
     private readonly collector: HuaweiCollector,
     private readonly capacity = 6,
@@ -98,6 +100,7 @@ export class NativeCalculator {
     return this.browser;
   }
   async sweep() {
+    this.staticCache.sweep();
     const now = Date.now();
     for (const session of this.sessions.values())
       if (!session.busy && (now - session.touched > IDLE_MS || now - session.created > MAX_AGE_MS))
@@ -115,6 +118,7 @@ export class NativeCalculator {
     await (await this.browser)?.close();
     this.browser = undefined;
     this.assets.clear();
+    this.staticCache.clear();
   }
   async open(service: string, region: string, requestedMode?: NativeBillingMode): Promise<NativeState> {
     await this.sweep();
@@ -199,6 +203,8 @@ export class NativeCalculator {
             return route.abort();
           }
         }
+        try { if (await this.staticCache.serve(route)) return; }
+        catch { return route.continue(); }
         return route.continue();
       });
       const page = await context.newPage();
@@ -254,7 +260,9 @@ export class NativeCalculator {
         }
       });
       await page.goto(`${PAGE_URL}?region=${region}&inIframe=true#/${service}`, {
-        waitUntil: "domcontentloaded",
+        // The bridge, visible controls and settled quote below are the readiness checks.
+        // Marketing/header scripts must not delay calculator readiness.
+        waitUntil: "commit",
         timeout: 45000,
       });
       await page.waitForFunction(

@@ -1,5 +1,5 @@
 "use client";
-import { NativeChoiceField } from "@/components/calculators/native-choice-field";
+import { Search } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import Image from "next/image";
 import { NativeCalculatorPanel } from "@/components/calculators/native-calculator-panel";
@@ -13,7 +13,7 @@ import { legacyRegion } from "@/lib/calculator/service-directory";
 import type { DashboardModel } from "@/lib/dashboard/use-dashboard";
 
 export function CalculatorWorkspace(model: DashboardModel["calculator"]) {
-  const { activeTab, setActiveTab, selectedServiceMeta, services, selectService, directory,
+  const { activeTab, setActiveTab, selectedServiceMeta, openServiceSearch, directory,
     directoryError, retryDirectory, nativeScope, setNativeScope, useNative, nativeEditingProduct,
     saveNativeProduct, calculatorController, nativeBatch, editingProductId, isSignedIn, projectStore, locationState } = model;
   return <Card className="@container/workspace min-w-0 overflow-visible shadow-sm">
@@ -27,10 +27,10 @@ export function CalculatorWorkspace(model: DashboardModel["calculator"]) {
             <Image src={selectedServiceMeta.icon} alt="" width={40} height={40} className="size-10 shrink-0 rounded-lg object-contain" />
             <div className="min-w-0">
               <CardTitle className="text-xl @min-[640px]/workspace:text-2xl"><h1>{selectedServiceMeta.name}</h1></CardTitle>
-              <div className="mt-1 w-24">
-                <NativeChoiceField compact selectedLabel={selectedServiceMeta.code} label="Service" value={selectedServiceMeta.code} onChange={selectService}
-                  options={services.map(service => ({ value: service.code, label: `${service.code} · ${service.name}` }))} />
-              </div>
+              <Button variant="ghost" size="sm" aria-label="Service" data-value={selectedServiceMeta.code}
+                className="mt-1 h-7 gap-2 px-0 text-xs text-zinc-500" onClick={openServiceSearch}>
+                {selectedServiceMeta.code}<Search className="size-3" /><span>Change service</span>
+              </Button>
             </div>
           </div>
           <TabsList className="grid w-full grid-cols-2 @min-[480px]/workspace:w-fit">

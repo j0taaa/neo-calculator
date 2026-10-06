@@ -41,7 +41,7 @@ async function createTestCart(page: Page, baseURL: string | undefined) {
 
 async function selectService(page: Page, code: string) {
   await page.getByRole("button", { name: "Open service search" }).click();
-  const search = page.getByPlaceholder("Search service name");
+  const search = page.getByRole("combobox", { name: "Search services" });
   await search.fill(code);
   await page.getByRole("option").filter({ hasText: serviceCatalog.find((service) => service.code === code)!.name }).first().click();
 }
@@ -220,7 +220,7 @@ test("service shortcuts and dependent ECS disk controls survive the module split
   await expect(page.getByRole("button", { name: /c7.large.4/ }).first()).toBeVisible();
   await expect(page.getByRole("tabpanel", { name: "Calculator" })).toContainText("730h");
   await page.keyboard.press("Control+k");
-  const search = page.getByPlaceholder("Search service name");
+  const search = page.getByRole("combobox", { name: "Search services" });
   await expect(search).toBeFocused();
   await search.fill("NAT");
   await search.press("ArrowDown");
@@ -383,6 +383,7 @@ for (const [service,billingMode] of [["nat","PERIOD"],["ecs","RI"],["ccm","ONETI
     expect((await opened).status()).toBe(200);
     if (billingMode==="RI") {
       await waitForNativePrice(page, 110000);
+      await page.getByText("Advanced ECS specification", { exact: true }).click();
       await chooseControl(page, page.locator('[data-field-id="calculator_ecs_radio:2"]'), {label:"aC8"});
       await waitForNativePrice(page, 110000);
       const images=page.locator('[data-field-id^="calculator_ims_select:"]');
@@ -419,6 +420,7 @@ for (const [service,billingMode] of [["nat","PERIOD"],["ecs","RI"],["ccm","ONETI
     await waitForNativePrice(page, 110000);
     await expect(page.getByLabel("Huawei billing mode",{exact:true})).toHaveAttribute("data-value", billingMode);
     if (billingMode==="RI") {
+      await page.getByText("Advanced ECS specification", { exact: true }).click();
       await expect(page.locator('[data-field-id="calculator_ecs_radio:2"]').getByRole("button", { name: "aC8", exact: true })).toHaveAttribute("aria-pressed", "true");
       await expect(page.locator('[data-field-id="calculator_ims_select:0"]')).toBeDisabled();
       await expect(page.locator('[data-field-id="calculator_ims_select:1"]')).toHaveAttribute("data-value", "-1");

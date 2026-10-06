@@ -22,3 +22,34 @@ test("RI callers can refresh recurring catalog rates while retaining the cached 
     expect(products).toBe(2); expect(configs).toBe(1);
   } finally {store.close();}
 });
+
+test("independent configuration and regional products start together", async () => {
+  const store = new SourceStore(":memory:");
+  const started: string[] = [];
+  let release!: () => void;
+  const gate = new Promise<void>(resolve => { release = resolve; });
+  const collector = new HuaweiCollector(store, async url => {
+    const path = new URL(url).pathname.split("/").at(-1)!;
+    started.push(path); await gate;
+    return { ok: true, status: 200, bodyText: path === "productInfo" ? JSON.stringify({ product: {}, region: "ap-southeast-1", urlPath: "ecs" }) : "config" };
+  });
+  try {
+    const request = collector.service("ecs", "ap-southeast-1");
+    expect(started).toEqual(["config", "productInfo"]);
+    release(); await request;
+  } finally { store.close(); }
+});
+test("concurrent source fetches share work; a later forced refresh still reaches Huawei", async () => {
+  const store = new SourceStore(":memory:");
+  let requests = 0;
+  const collector = new HuaweiCollector(store, async () => {
+    requests++; await new Promise(resolve => setTimeout(resolve, 10));
+    return { ok: true, status: 200, bodyText: "valid" };
+  });
+  try {
+    const [first, second] = await Promise.all([collector.fetch("https://example.test/source"), collector.fetch("https://example.test/source")]);
+    expect(first.hash).toBe(second.hash); expect(requests).toBe(1);
+    await collector.fetch("https://example.test/source", 0); expect(requests).toBe(2);
+    await expect(collector.fetch("https://example.test/source", 60000, () => { throw new Error("Invalid cached source"); })).rejects.toThrow("Invalid cached source");
+  } finally { store.close(); }
+});

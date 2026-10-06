@@ -25,10 +25,18 @@ export function parseDirectory(body: string): HuaweiService[] {
 }
 
 export class HuaweiCollector {
+  private pending = new Map<string, Promise<Snapshot>>();
   constructor(readonly store: SourceStore, private readonly request: Transport = transport) {}
   async fetch(url: string, ttlMs = 0, validate?: (body: string) => void): Promise<Snapshot> {
     const cached = this.store.latest(url);
     if (cached && Date.now() - Date.parse(cached.fetchedAt) < ttlMs) { validate?.(cached.body); return cached; }
+    const existing = this.pending.get(url);
+    if (existing) { const result = await existing; validate?.(result.body); return result; }
+    const request = this.fetchSource(url, validate);
+    this.pending.set(url, request);
+    try { return await request; } finally { this.pending.delete(url); }
+  }
+  private async fetchSource(url: string, validate?: (body: string) => void): Promise<Snapshot> {
     let error: unknown;
     for (let attempt = 0; attempt < 3; attempt++) {
       try {
@@ -58,11 +66,13 @@ export class HuaweiCollector {
   async service(service: string, region: string, freshProducts = false) {
     if (!/^[a-zA-Z0-9_-]{1,80}$/.test(service) || !/^[a-z0-9-]{1,80}$/.test(region)) throw new Error("Invalid source scope");
     const params = `urlPath=${service}&tag=general.online.portal&tab=calc&sign=common&language=en-us`;
-    const config = await this.fetch(`${CALCULATOR_BASE}/config?${params}`, 6 * 60 * 60_000);
-    const products = await this.fetch(`${CALCULATOR_BASE}/productInfo?${params}&region=${region}`, freshProducts ? 0 : 15 * 60_000, body => {
+    const [config, products] = await Promise.all([
+      this.fetch(`${CALCULATOR_BASE}/config?${params}`, 6 * 60 * 60_000),
+      this.fetch(`${CALCULATOR_BASE}/productInfo?${params}&region=${region}`, freshProducts ? 0 : 15 * 60_000, body => {
       const parsed = JSON.parse(body);
       if (!parsed.product || parsed.region !== region || parsed.urlPath !== service) throw new Error("Huawei product response does not match requested scope");
-    });
+      }),
+    ]);
     return { config, products };
   }
 }

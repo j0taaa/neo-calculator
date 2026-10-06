@@ -78,7 +78,6 @@ for (const [width, height] of viewports) {
     await page.getByRole("spinbutton", { name: "Quantity", exact: true }).fill("3");
     await page.getByRole("spinbutton", { name: "Quantity", exact: true }).press("Tab");
     await expect(page.getByTestId("lab-price")).toBeVisible();
-    await page.getByText("Search and compare ECS flavors").click();
     await expect(page.getByText("c7.large.4", { exact: true })).toBeVisible();
     await expectControlsToFit(page);
 

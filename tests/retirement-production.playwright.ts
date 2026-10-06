@@ -12,7 +12,12 @@ test("public navigation and old bookmarks reach the single live workspace", asyn
   expect(response.headers().location).toBe("/?tab=huawei-live&editProduct=old-item");
   await page.goto("/synchronized");
   await expect(page.getByRole("tab")).toHaveText(["Calculator", "Batch add"]);
-  await expect(page.getByLabel("Service", { exact: true })).toHaveCount(1);
+  await expect(page.getByRole("button", { name: "Service", exact: true })).toHaveCount(1);
+  await page.getByRole("button", { name: "Service", exact: true }).click();
+  const chooser = page.getByRole("dialog", { name: "Choose service" });
+  await expect(chooser).toBeVisible();
+  expect(await chooser.getByRole("option").count()).toBeLessThanOrEqual(8);
+  await chooser.getByRole("button", { name: "Close service search" }).click();
   await expect(page.getByRole("heading", { name: "Elastic Cloud Server", exact: true })).toBeVisible();
   await expect(page.getByRole("link", { name: "Synced calculator", exact: true })).toHaveCount(0);
   expect((await request.get("/api/huawei-sync")).status()).toBe(404);
@@ -39,6 +44,11 @@ for (const [service, billingMode] of [["nat", "ONDEMAND"], ["elb", "PERIOD"], ["
       await expect(page.getByTestId("lab-price")).toBeVisible();
       expect(Number((await page.getByTestId("lab-price").innerText()).replace(/USD|,/g, "").trim()))
         .toBe(state.quote!.amount);
+      if (service === "ecs") {
+        await expect(page.getByLabel("ECS flavor browser")).toBeVisible();
+        await expect(page.getByLabel("Search flavors")).toBeVisible();
+        await expect(page.getByText("Advanced ECS specification", { exact: true })).toBeVisible();
+      }
       await page.setViewportSize({ width: 390, height: 844 });
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
     } finally {

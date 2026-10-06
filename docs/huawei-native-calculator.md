@@ -149,7 +149,11 @@ The common asset cache is released when a sweep finds no active or opening
 sessions, and at shutdown. Expired save requests now close their unused context
 promptly. Expiry checks never close a context while an edit or save is running;
 normal sweeping releases it once the operation finishes. Session timeouts,
-capacity, browser flags and upstream resource loading are unchanged.
+capacity and browser flags remain unchanged. A later loading improvement adds
+script preload hints and a separate cache for versioned public CDN scripts/styles,
+bounded to 16 MiB, 64 entries and fifteen minutes. It leaves source freshness,
+pricing inquiries and the settled-quote checks intact; see
+[the consolidated workspace](calculator-consolidation.md).
 
 Automatic Chromium shutdown after five empty-pool minutes was tested and
 rejected: several same-process reopen audits stalled, including one in an

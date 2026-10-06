@@ -14,6 +14,9 @@ export async function chooseControl(page: Page, control: Locator, option: string
     return;
   }
   await control.click();
+  if (await control.getAttribute("aria-label") === "Service") {
+    await page.getByRole("combobox", { name: "Search services" }).fill(label ?? value!);
+  }
   if (label) await page.getByRole("option", { name: label, exact: true }).click();
   else await page.locator(`[role="option"][data-value="${value}"]`).click();
 }

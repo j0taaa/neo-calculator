@@ -126,7 +126,7 @@ export function useDashboard() {
             service.code.toLowerCase().includes(normalizedQuery),
         )
         .slice(0, 8)
-    : [];
+    : services.filter(service => ["ECS", "EVS", "OBS", "ELB", "DCS", "NAT", "Flexus L", "VPC"].includes(service.code)).slice(0, 8);
 
   const selectedServiceMeta = useMemo(
     () => services.find((service) => service.name === selectedService) ?? services[0],
@@ -400,7 +400,7 @@ export function useDashboard() {
   useEffect(() => {
     setConfig({
       searchQuery: query,
-      onSearchClick: () => setIsSearchOpen(true),
+      onSearchClick: () => { setQuery(""); setActiveSuggestionIndex(0); setIsSearchOpen(true); },
       cookieValue: huawei.cookieValue,
       cookieValueSaved: huawei.cookieValue,
       onCookieChange: huawei.setCookieDraft,
@@ -479,10 +479,7 @@ export function useDashboard() {
     },
     calculator: {
       services, directory, directoryError, retryDirectory, nativeScope, setNativeScope, useNative, nativeBatch,
-      selectService: (code: string) => {
-        const service = services.find(service => service.code === code);
-        if (service) handleSelectService(service.name);
-      },
+      openServiceSearch: () => { setQuery(""); setActiveSuggestionIndex(0); setIsSearchOpen(true); },
       nativeEditingProduct,
       saveNativeProduct,
       calculatorController,

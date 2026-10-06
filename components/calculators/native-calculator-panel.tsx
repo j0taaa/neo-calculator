@@ -11,7 +11,7 @@ import type { AppProduct, ProductMutationBody } from "@/lib/calculator-types";
 import { useHuaweiDirectory } from "@/lib/calculator/use-huawei-directory";
 import { availableMode, type CalculatorScope } from "@/lib/calculator/service-directory";
 import { nativeBillingModes, type NativeBillingMode } from "@/lib/huawei-native/native-billing";
-import type { NativeDirectory } from "@/lib/huawei-native/native-types";
+import type { NativeDirectory, NativeField } from "@/lib/huawei-native/native-types";
 import { isLegacyHuaweiProduct } from "@/lib/huawei-native/legacy-product";
 import { useNativeSession } from "@/lib/huawei-native/use-native-session";
 import { nativeDraft } from "@/lib/huawei-native/native-draft";
@@ -72,65 +72,8 @@ export function NativeCalculatorPanel({ editingProduct, onSave, onCancelEdit, sc
   const services = directory?.services
     .slice()
     .sort((a, b) => Number(!!names[b.id]) - Number(!!names[a.id]) || a.name.localeCompare(b.name));
-  return (
-    <section data-calculator-shortcut-root className="@container/native mx-auto min-w-0 space-y-5 px-4 py-4 pb-6">
-      {!embedded && <div>
-        <h1 className="text-xl font-semibold @min-[640px]/native:text-2xl">Huawei live calculator</h1>
-        <p className="mt-3 max-w-3xl text-sm text-zinc-600">
-          Configure services using Huawei’s current options and regional rules. Prices come directly from Huawei after
-          each change. Billing modes, purchase terms and payment options follow the selected service and region.
-        </p>
-      </div>}
-      {legacy && editingProduct && (
-        <Card>
-          <CardHeader><CardTitle>Review the original estimate</CardTitle></CardHeader>
-          <CardContent className="space-y-3">
-            <p className="text-sm">This estimate used the retired calculator. Reselect its options. Your saved estimate stays unchanged until you save.</p>
-            <p className="text-sm font-medium">{editingProduct.title}</p>
-            <details>
-              <summary className="cursor-pointer text-sm">Original saved configuration</summary>
-              <pre className="mt-3 max-h-64 overflow-auto whitespace-pre-wrap break-all rounded-md bg-zinc-50 p-3 text-xs">{JSON.stringify(editingProduct.config, null, 2)}</pre>
-            </details>
-            <Button variant="outline" onClick={onCancelEdit} disabled={busy}>Cancel editing</Button>
-          </CardContent>
-        </Card>
-      )}
-      <div className="space-y-5">
-        <fieldset disabled={busy} className="grid min-w-0 gap-4 @min-[480px]/native:grid-cols-2">
-          {onSave && <label className="space-y-2 text-sm font-medium">Description (Optional)
-            <Input aria-label="Description" value={title} onChange={event => setTitle(event.target.value)} placeholder={serviceName} disabled={busy} />
-          </label>}
-          {!embedded && <label className="space-y-2 text-sm font-medium">Service
-            <NativeChoiceField label="Huawei service" value={service} disabled={busy}
-              onChange={service => updateScope({ ...activeScope, service })}
-              options={(services ?? [{ id: service, name: names[service] ?? service }]).map(s => ({ value: s.id, label: names[s.id] ?? s.name }))} />
-          </label>}
-          <label className="space-y-2 text-sm font-medium">Region
-            <NativeChoiceField label="Huawei region" value={region} disabled={busy}
-              onChange={region => updateScope({ ...activeScope, region })}
-              options={(directory?.regions ?? [{ id: region, name: region }]).map(r => ({ value: r.id, label: r.name }))} />
-          </label>
-        </fieldset>
-        <div className="space-y-2 text-sm font-medium">
-          <p>Billing Mode</p>
-          <OptionGrid name="Billing Mode" ariaLabel="Huawei billing mode" value={billingMode} disabled={busy || !modes.length}
-            onChange={mode => updateScope({ ...activeScope, billingMode: mode as NativeBillingMode })}
-            items={modes.map(mode => ({ value: mode, label: nativeBillingModes[mode].label }))} />
-        </div>
-        {directory && !modes.length && <p role="status" className="text-sm text-zinc-600">Huawei has no calculator billing modes for this service in the selected region.</p>}
-      </div>
-      {busy && <p role="status" className="text-sm text-zinc-500">{state ? "Updating options and checking the Huawei price…" : "Loading the official calculator…"}</p>}
-      {error && <div role="alert" className="rounded-lg bg-red-50 p-4 text-sm text-red-700">
-        <p>{error}</p>
-        <Button variant="outline" className="mt-3" disabled={busy || !directory || !modes.length} onClick={() => void open()}>Retry calculator</Button>
-      </div>}
-      {state && (
-        <div className="space-y-5">
-          <div>
-            {service === "ecs" && <NativeFlavorBrowser region={region} billingMode={billingMode} disabled={busy} onSelect={chooseFlavor} />}
-              <fieldset disabled={busy} className="min-w-0 space-y-5">
-                {state.fields.map((field) => (
-                  <div data-calculator-focus-group key={`${state.revision}:${field.id}`}>
+  const renderField = (field: NativeField) => (
+                  <div data-calculator-focus-group key={`${state?.revision}:${field.id}`}>
                     {field.type === "action" ? (
                       <Button
                         variant="outline"
@@ -174,7 +117,72 @@ export function NativeCalculatorPanel({ editingProduct, onSave, onCancelEdit, sc
                       </div>
                     )}
                   </div>
-                ))}
+  );
+  return (
+    <section data-calculator-shortcut-root className="@container/native mx-auto min-w-0 space-y-5 px-4 py-4 pb-6">
+      {!embedded && <div>
+        <h1 className="text-xl font-semibold @min-[640px]/native:text-2xl">Huawei live calculator</h1>
+        <p className="mt-3 max-w-3xl text-sm text-zinc-600">
+          Configure services using Huawei’s current options and regional rules. Prices come directly from Huawei after
+          each change. Billing modes, purchase terms and payment options follow the selected service and region.
+        </p>
+      </div>}
+      {legacy && editingProduct && (
+        <Card>
+          <CardHeader><CardTitle>Review the original estimate</CardTitle></CardHeader>
+          <CardContent className="space-y-3">
+            <p className="text-sm">This estimate used the retired calculator. Reselect its options. Your saved estimate stays unchanged until you save.</p>
+            <p className="text-sm font-medium">{editingProduct.title}</p>
+            <details>
+              <summary className="cursor-pointer text-sm">Original saved configuration</summary>
+              <pre className="mt-3 max-h-64 overflow-auto whitespace-pre-wrap break-all rounded-md bg-zinc-50 p-3 text-xs">{JSON.stringify(editingProduct.config, null, 2)}</pre>
+            </details>
+            <Button variant="outline" onClick={onCancelEdit} disabled={busy}>Cancel editing</Button>
+          </CardContent>
+        </Card>
+      )}
+      <div className="space-y-5">
+        <fieldset disabled={saving} className="grid min-w-0 gap-4 @min-[480px]/native:grid-cols-2">
+          {onSave && <label className="space-y-2 text-sm font-medium">Description (Optional)
+            <Input aria-label="Description" value={title} onChange={event => setTitle(event.target.value)} placeholder={serviceName} disabled={saving} />
+          </label>}
+          {!embedded && <label className="space-y-2 text-sm font-medium">Service
+            <NativeChoiceField label="Huawei service" value={service} disabled={saving}
+              onChange={service => updateScope({ ...activeScope, service })}
+              options={(services ?? [{ id: service, name: names[service] ?? service }]).map(s => ({ value: s.id, label: names[s.id] ?? s.name }))} />
+          </label>}
+          <label className="space-y-2 text-sm font-medium">Region
+            <NativeChoiceField label="Huawei region" value={region} disabled={saving}
+              onChange={region => updateScope({ ...activeScope, region })}
+              options={(directory?.regions ?? [{ id: region, name: region }]).map(r => ({ value: r.id, label: r.name }))} />
+          </label>
+        </fieldset>
+        <div className="space-y-2 text-sm font-medium">
+          <p>Billing Mode</p>
+          <OptionGrid name="Billing Mode" ariaLabel="Huawei billing mode" value={billingMode} disabled={saving || !modes.length}
+            onChange={mode => updateScope({ ...activeScope, billingMode: mode as NativeBillingMode })}
+            items={modes.map(mode => ({ value: mode, label: nativeBillingModes[mode].label }))} />
+        </div>
+        {directory && !modes.length && <p role="status" className="text-sm text-zinc-600">Huawei has no calculator billing modes for this service in the selected region.</p>}
+      </div>
+      {busy && <p role="status" className="text-sm text-zinc-500">{state ? "Updating options and checking the Huawei price…" : "Loading the official calculator…"}</p>}
+      {error && <div role="alert" className="rounded-lg bg-red-50 p-4 text-sm text-red-700">
+        <p>{error}</p>
+        <Button variant="outline" className="mt-3" disabled={busy || !directory || !modes.length} onClick={() => void open()}>Retry calculator</Button>
+      </div>}
+      {service === "ecs" && <NativeFlavorBrowser key={region} enabled={autoOpen} region={region} billingMode={billingMode}
+        disabled={busy || !state} selectedFlavor={state?.inquiries?.flatMap(inquiry => inquiry.productInfos).find(product => product.resourceType === "hws.resource.type.vm")?.resourceSpecCode}
+        onSelect={chooseFlavor} />}
+      {state && (
+        <div className="space-y-5">
+          <div>
+
+              <fieldset disabled={busy} className="min-w-0 space-y-5">
+                {service === "ecs" && <details className="rounded-lg border p-3">
+                  <summary className="cursor-pointer text-sm font-medium">Advanced ECS specification</summary>
+                  <div className="mt-4 space-y-5">{state.fields.filter(field => ["CPU Architecture", "Type", "Generation", "vCPUs", "Memory"].includes(field.label)).map(renderField)}</div>
+                </details>}
+                {state.fields.filter(field => service !== "ecs" || !["CPU Architecture", "Type", "Generation", "vCPUs", "Memory"].includes(field.label)).map(renderField)}
               </fieldset>
               {state.notes.length > 0 && (
                 <details className="mt-6 text-sm">

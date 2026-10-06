@@ -23,7 +23,7 @@ export async function GET(request: Request) {
   }
 
   await ensureRegionCatalogAvailable(catalogRegionId);
-  const diskPricing = await fetchRegionSystemDiskPricing(catalogRegionId);
+  const diskPricing = searchParams.get("computeOnly") === "1" ? null : await fetchRegionSystemDiskPricing(catalogRegionId);
 
   return Response.json({
     region: regionKey,

@@ -101,19 +101,17 @@ test("compatibility calculators preserve unsupported regional identity until a s
   expect(errors).toEqual([]);
 });
 
-test("ECS reference catalogs load only when the flavor browser is expanded", async ({ page }) => {
+test("ECS flavor cards load immediately and are reused while filtering", async ({ page }) => {
   await mocked(page);
   let catalogs = 0;
   await page.route("**/api/catalog/ecs-flavors?*", route => { catalogs++; return route.fallback(); });
   await page.goto("/?region=cn-hong-kong");
   await expect(page.getByTestId("lab-price")).toBeVisible();
-  expect(catalogs).toBe(0);
-  await page.getByText("Search and compare ECS flavors").click();
-  await expect(page.getByText("0 matching flavors", { exact: true })).toBeVisible();
+  await expect(page.getByText(/0 matching flavors/)).toBeVisible();
   expect(catalogs).toBe(1);
-  await page.getByText("Search and compare ECS flavors").click();
-  await page.getByText("Search and compare ECS flavors").click();
-  await expect(page.getByText("0 matching flavors", { exact: true })).toBeVisible();
+  await page.getByLabel("Search flavors").fill("missing");
+  await page.getByLabel("Search flavors").fill("");
+  await expect(page.getByText(/0 matching flavors/)).toBeVisible();
   expect(catalogs).toBe(1);
 });
 
@@ -223,7 +221,6 @@ test("real ECS flavor search selects the exact catalog SKU and saves its officia
   await page.route("**/api/catalog/ecs-flavors?*", route => route.fulfill({ json: flavorsFixture }));
   await page.goto(`/?project=${project.id}&list=${list.id}&region=cn-hong-kong`);
   await waitForNativePrice(page, 150000);
-  await page.getByText("Search and compare ECS flavors").click();
   await page.getByLabel("Minimum vCPUs").fill("4");
   await page.getByLabel("Minimum RAM").fill("16");
   await page.getByLabel("Search flavors").fill("c6.xlarge.4.linux");
@@ -374,13 +371,15 @@ test("leaving during a real automatic open releases the abandoned renderer slot"
   await page.getByRole("link", { name: "Projects", exact: true }).click();
   await cancelled;
   const sessions: string[] = [];
+  const operations: string[] = [];
   try {
     // Hold all six allowed slots. A leaked abandoned open would make the last request fail.
     for (let index = 0; index < 6; index++) {
       // The abandoned operation can still be finishing; its slot must release well before the idle TTL.
       await expect.poll(async () => {
+        const operationId = crypto.randomUUID(); operations.push(operationId);
         const response = await request.post("/api/calculator/native", { headers: { "x-forwarded-for": `cancel-check-${index}-${crypto.randomUUID()}` },
-          data: { action: "open", service: "nat", region: "ap-southeast-1", billingMode: "ONDEMAND" } });
+          data: { action: "open", service: "nat", region: "ap-southeast-1", billingMode: "ONDEMAND", operationId } });
         if (response.status() === 200) {
           const state = await response.json(); sessions.push(state.session);
           expect(state.quote).not.toBeNull();
@@ -389,7 +388,10 @@ test("leaving during a real automatic open releases the abandoned renderer slot"
       }, { timeout: 60000, intervals: [4000] }).toBe(200);
     }
   } finally {
-    await Promise.all(sessions.map(session => request.post("/api/calculator/native", { data: { action: "close", session } })));
+    await Promise.all([
+      ...sessions.map(session => request.post("/api/calculator/native", { data: { action: "close", session } })),
+      ...operations.map(operationId => request.post("/api/calculator/native", { data: { action: "cancel", operationId } })),
+    ]);
   }
 });
 
@@ -437,4 +439,81 @@ test("an incomplete price can be retried without losing options or opening anoth
   expect(calls.find(call => call.action === "refresh")).toMatchObject({ session: "nat-ap-southeast-1-1", revision: 1 });
   await expect(page.getByLabel("Type", { exact: true })).toHaveAttribute("data-value", "basic");
   await expect(page.getByRole("button", { name: "Queue for batch", exact: true })).toBeEnabled();
+});
+
+test("service selection uses a bounded searchable dialog with keyboard selection and focus return", async ({ page }) => {
+  const calls = await mocked(page);
+  await page.route("**/api/calculator/native", route => route.request().method() === "GET" ? route.fulfill({ json: {
+    ...directory, services: [...directory.services, ...Array.from({ length: 200 }, (_, index) => ({ id: `discovered-${index}`, name: `Discovered service ${index}`, category: "Test", available: true }))],
+  } }) : route.fallback());
+  await page.goto("/?service=NAT&region=cn-hong-kong");
+  await expect(page.getByTestId("lab-price")).toBeVisible();
+  await page.getByRole("button", { name: "Service", exact: true }).click();
+  const dialog = page.getByRole("dialog", { name: "Choose service" });
+  await expect(dialog).toBeVisible();
+  await expect(dialog.getByText("Popular services")).toBeVisible();
+  expect(await dialog.getByRole("option").count()).toBeLessThanOrEqual(8);
+  const input = dialog.getByRole("combobox", { name: "Search services" });
+  await expect(input).toBeFocused();
+  await input.fill("no-such-service");
+  await expect(dialog.getByText("No services matched your search.")).toBeVisible();
+  await input.fill("Future Huawei");
+  await expect(dialog.getByRole("option")).toHaveCount(1);
+  await input.press("Enter");
+  await expect(dialog).toHaveCount(0);
+  await expect(page.getByRole("heading", { name: "Future Huawei Service", exact: true })).toBeVisible();
+  await expect.poll(() => calls.filter(call => call.action === "open").at(-1)?.service).toBe("future-service");
+  await page.getByRole("button", { name: "Service", exact: true }).click();
+  await page.getByRole("combobox", { name: "Search services" }).press("Escape");
+  await expect(page.getByRole("button", { name: "Service", exact: true })).toBeFocused();
+});
+
+test("ECS exposes the original flavor cards before Huawei finishes and never saves a reference price", async ({ page }) => {
+  await mocked(page);
+  await page.route("**/api/catalog/ecs-flavors?*", route => route.fulfill({ json: flavorsFixture }));
+  let release!: () => void;
+  const gate = new Promise<void>(resolve => { release = resolve; });
+  await page.route("**/api/calculator/native", async route => {
+    const body = route.request().method() === "POST" ? route.request().postDataJSON() : null;
+    if (body?.action !== "open") return route.fallback();
+    await gate; return route.fallback();
+  });
+  await page.goto("/?service=ECS&region=cn-hong-kong");
+  const cards = page.getByLabel("ECS flavor browser").getByRole("button", { name: /^Select / });
+  await expect(cards).toHaveCount(3);
+  await expect(cards.first()).toBeDisabled();
+  await expect(page.getByLabel("Search flavors")).toBeEnabled();
+  await expect(page.getByTestId("lab-price")).toHaveCount(0);
+  await page.getByLabel("Search flavors").fill("c6.xlarge");
+  await expect(cards).toHaveCount(1);
+  release();
+  await expect(page.getByTestId("lab-price")).toBeVisible();
+  await expect(cards.first()).toBeEnabled();
+  await page.getByText("Advanced ECS specification", { exact: true }).click();
+  await expect(page.getByLabel("Type", { exact: true })).toBeVisible();
+});
+
+test("region and billing changes cancel slow initial loads instead of waiting for unwanted defaults", async ({ page }) => {
+  const calls = await mocked(page);
+  let release!: () => void;
+  let started!: () => void;
+  const pending = new Promise<void>(resolve => { started = resolve; });
+  const gate = new Promise<void>(resolve => { release = resolve; });
+  const cancelled: string[] = [];
+  page.on("requestfailed", request => { if (request.url().endsWith("/api/calculator/native") && request.method() === "POST") cancelled.push(request.url()); });
+  await page.route("**/api/calculator/native", async route => {
+    const body = route.request().method() === "POST" ? route.request().postDataJSON() : null;
+    if (body?.action !== "open" || body.region !== "ap-southeast-1") return route.fallback();
+    started(); await gate; return route.fulfill({ json: fixture(body) });
+  });
+  await page.goto("/?service=NAT&region=cn-hong-kong");
+  await pending;
+  await expect(page.getByLabel("Huawei region")).toBeEnabled();
+  await expect(page.getByLabel("Huawei billing mode").getByRole("button", { name: "Yearly/Monthly", exact: true })).toBeEnabled();
+  await chooseControl(page, page.getByLabel("Huawei region"), "me-new-1");
+  await expect(page.getByTestId("lab-price")).toBeVisible();
+  await expect.poll(() => cancelled.length).toBe(1);
+  expect(calls.filter(call => call.action === "open").at(-1)).toMatchObject({ service: "nat", region: "me-new-1", billingMode: "PERIOD" });
+  release();
+  await expect(page.getByLabel("Huawei region")).toHaveAttribute("data-value", "me-new-1");
 });
