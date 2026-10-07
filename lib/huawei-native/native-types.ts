@@ -29,6 +29,7 @@ export type NativeState = NativeForm & {
   inquiries: Inquiry[];
   quote: Quote | null;
   priceError?: string;
+  local?: { release: string; pricing: import("./native-pricing").NativePricing; inquiries: Inquiry[] };
 };
 export type NativeAction = { session: string; revision: number; field: string; value: string | number | boolean };
 export type NativeDirectory = { services: HuaweiService[]; regions: { id: string; name: string }[]; billingModes: Record<string, Record<string, NativeBillingMode[]>> };

@@ -64,7 +64,7 @@ export function NativeFlavorBrowser({ region, billingMode, disabled, selectedFla
       currentFlavorPage={currentPage} totalFlavorPages={pages} onPreviousFlavorPage={() => setPage(currentPage - 1)} onNextFlavorPage={() => setPage(currentPage + 1)}
       showFlexusLToggleVisible={false} showFlexusLChecked={false} onShowFlexusLChange={() => {}} />
     {selectedFlavor && <p className="text-sm">Selected flavor: <strong>{selectedFlavor}</strong></p>}
-    <p className="text-xs text-zinc-500"><span>{flavors.length} matching flavors</span>. Reference prices cover compute only; your complete estimate is checked with Huawei.</p>
+    <p className="text-xs text-zinc-500"><span>{flavors.length} matching flavors</span>. Reference prices cover compute only; your complete estimate uses synchronized Huawei rates.</p>
     {error && <Button variant="outline" size="sm" onClick={() => { setFailure({ region, message: "" }); setAttempt(value => value + 1); }}>Retry flavors</Button>}
   </section>;
 }

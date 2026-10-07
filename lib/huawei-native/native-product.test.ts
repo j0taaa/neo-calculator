@@ -1,135 +1,188 @@
 import { expect, test } from "bun:test";
-import { verifyNativeProduct } from "./native-product";
-import { selectionFields, parseNativeSelection } from "./native-selection";
-import type { NativeState } from "./native-types";
+import { mkdtemp, rm } from "node:fs/promises";
+import { join } from "node:path";
+import { tmpdir } from "node:os";
+import { verifySnapshotProduct } from "../huawei-snapshot/product";
+import { verifyNativeProduct, isNativeProduct } from "./native-product";
+import { SnapshotStore } from "../huawei-snapshot/store";
 import type { ProductMutationBody } from "../calculator-types";
+import type { ScopeSnapshot, SnapshotRelease } from "../huawei-snapshot/types";
 
-const fields: NativeState["fields"] = [
-  {
-    id: "global_QUANTITY:0",
-    component: "global_QUANTITY",
-    label: "Quantity",
-    type: "number",
-    value: 2,
-    disabled: false,
-  },
-];
-const selection = {
-  version: 1 as const,
-  service: "ecs",
-  region: "ap-southeast-1",
-  initial: selectionFields({ fields, notes: [], diagnostics: [] }),
-  steps: [],
-  fields: selectionFields({ fields, notes: [], diagnostics: [] }),
-};
-const state: NativeState = {
-  session: "server-session",
-  revision: 3,
-  service: "ecs",
-  region: selection.region,
-  billingMode: "ONDEMAND",
-  inquiries: [],
-  expiresAt: "2099-01-01",
-  fields,
-  notes: [],
-  diagnostics: [],
-  selection,
-  source: {
-    page: "page",
-    config: "config",
-    products: "products",
-    framework: "framework",
-    menu: "menu",
-    fetchedAt: "2026-09-29",
-  },
-  inquiry: {
-    regionId: selection.region,
-    chargingMode: 1,
-    periodType: 4,
-    periodNum: 1,
-    subscriptionNum: 2,
-    siteCode: "HWC",
-    productInfos: [],
-  },
-  quote: {
-    amount: 42.125,
-    currency: "USD",
-    quotedAt: "2026-09-29",
-    releaseId: "snapshot",
-    requestHash: "verified",
-    source: "huawei-inquiry",
-    breakdown: [],
-  },
-};
-function body(config: object = {}): ProductMutationBody {
-  return {
-    serviceCode: "HUAWEI:ecs",
-    serviceName: "ECS",
-    title: "Example",
-    productType: "huawei-native",
-    quantity: 999,
-    pricing: { total: "USD 0" },
-    config: { selection, ...config },
-  };
-}
-function requester(result = state) {
-  const calls: { action: string; session?: string; revision?: number }[] = [];
-  return {
-    calls,
-    request: async <T>(input?: unknown): Promise<T> => {
-      calls.push(input as (typeof calls)[number]);
-      return result as T;
-    },
-  };
-}
-test("native saves replace forged prices and quantities with a fresh server quote and strip session IDs", async () => {
-  const { calls, request } = requester();
-  const product = await verifyNativeProduct(body({ session: "server-session", revision: 3 }), request);
-  expect(calls).toEqual([{ action: "refresh", session: "server-session", revision: 3 }]);
-  expect(product.quantity).toBe(2);
-  expect(product.pricing).toMatchObject({ amount: 42.125, total: "USD 42.125000", source: "huawei-inquiry" });
-  expect(product.config).not.toHaveProperty("session");
-  expect(product.config).toHaveProperty("selection", selection);
-});
-test("durable configurations replay without a session and release their temporary renderer", async () => {
-  const { calls, request } = requester();
-  await verifyNativeProduct(body(), request);
-  expect(calls.map((c) => c.action)).toEqual(["restore", "close"]);
-});
-test("native saves reject changed sessions, missing quotes, diagnostics and mismatched scopes", async () => {
-  for (const change of [
-    { quote: null },
-    { diagnostics: ["unknown widget"] },
-    { billingMode: "RI" as const },
-    { selection: { ...selection, region: "different" } },
-  ]) {
-    const { request } = requester({ ...state, ...change });
-    await expect(verifyNativeProduct(body({ session: "server-session", revision: 3 }), request)).rejects.toThrow();
-  }
-  for (const config of [
-    { region: "different" },
-    { billingMode: "RI" },
-    { selection: { ...selection, service: "elb" } },
-  ]) {
-    await expect(verifyNativeProduct(body(config), requester().request)).rejects.toThrow();
-  }
-  const { calls, request } = requester({ ...state, quote: null });
-  await expect(verifyNativeProduct(body(), request)).rejects.toThrow();
-  expect(calls.map((c) => c.action)).toEqual(["restore", "close"]);
-});
-test("saved selection rejects unknown versions and oversized action histories", () => {
-  expect(() => parseNativeSelection({ ...selection, version: 2 })).toThrow();
-  expect(() => parseNativeSelection({ ...selection, steps: Array(201).fill({}) })).toThrow();
-});
-
-test("all billing modes are verified and persisted with their server-calculated payment details", async () => {
-  for (const [billingMode,label] of [["PERIOD","Yearly/Monthly"],["RI","RI"],["ONETIME","One-time"]] as const) {
-    const saved = {...selection,version:2 as const,billingMode};
-    const payment = {upfront:10,recurring:2,installments:12,period:"Month" as const,extras:[{mode:"ONDEMAND",recurring:3}]};
-    const current = {...state,selection:saved,billingMode,quote:{...state.quote!,amount:70,payment}};
-    const product = await verifyNativeProduct(body({selection:saved,billingMode:label,session:"server-session",revision:3}),requester(current).request);
-    expect(product.config).toMatchObject({billingMode:label,selection:saved});
-    expect(product.pricing).toMatchObject({amount:70,payment});
-    await expect(verifyNativeProduct(body({selection:saved,billingMode:"Pay-per-use"}),requester(current).request)).rejects.toThrow(/billing mode/);
+test("saved quotations use local rates, preserve quantity, and reject changed identities", async () => {
+  const root = await mkdtemp(join(tmpdir(), "local-product-")),
+    store = new SnapshotStore(root);
+  try {
+    const source = {
+      page: "",
+      config: "",
+      products: "",
+      framework: "",
+      menu: "",
+      fetchedAt: "2026-10-08T00:00:00Z",
+    };
+    const scope: ScopeSnapshot = {
+      service: "ecs",
+      region: "ap-southeast-1",
+      modes: ["ONDEMAND"],
+      config: "",
+      source,
+      verifiedAt: source.fetchedAt,
+      checks: 1,
+      products: {
+        region: "ap-southeast-1",
+        urlPath: "ecs",
+        product: {
+          rows: [
+            {
+              resourceSpecCode: "sku",
+              resourceType: "resource",
+              cloudServiceType: "service",
+              planList: [
+                {
+                  billingMode: "ONDEMAND",
+                  amount: 2,
+                  measureUnit: 4,
+                  productId: "product",
+                },
+              ],
+            },
+          ],
+        },
+      },
+    };
+    const hash = await store.blob(JSON.stringify(scope), ".json");
+    const release: SnapshotRelease = {
+      version: 1,
+      id: "",
+      createdAt: source.fetchedAt,
+      directory: { services: [], regions: [], billingModes: {} },
+      menu: "{}",
+      frameworkUrl: "",
+      assets: {},
+      scopes: { "ecs/ap-southeast-1": hash },
+      diagnostics: [],
+    };
+    const id = await store.publish(release);
+    const fields = [
+      {
+        id: "quantity",
+        component: "global_QUANTITY",
+        label: "Quantity",
+        type: "number",
+        value: 2,
+      },
+    ];
+    const selection = {
+      version: 2,
+      service: "ecs",
+      region: scope.region,
+      billingMode: "ONDEMAND",
+      initial: fields,
+      steps: [],
+      fields,
+    };
+    const inquiry = {
+      regionId: scope.region,
+      chargingMode: 1,
+      periodNum: 1,
+      periodType: 4,
+      subscriptionNum: 1,
+      siteCode: "HWC",
+      productInfos: [
+        {
+          id: "1-0-product",
+          cloudServiceType: "service",
+          resourceType: "resource",
+          resourceSpecCode: "sku",
+          productNum: 2,
+          usageFactor: "Duration",
+          usageMeasureId: 4,
+          usageValue: 720,
+        },
+      ],
+    };
+    const pricing = {
+      epoch: 1,
+      pending: false,
+      selectedProduct: {
+        region: scope.region,
+        serviceCode: "ecs",
+        chargeMode: "ONDEMAND",
+        timeTag: 1,
+        periodType: 4,
+        periodNum: 1,
+        subscriptionNum: 1,
+        productAllInfos: [
+          {
+            selectIndex: 0,
+            resourceSpecCode: "sku",
+            productNum: 2,
+            inquiryTag: "normal",
+            productId: "product",
+          },
+        ],
+      },
+      result: { amount: 0, timeTag: 1, productRatingResult: [] },
+    };
+    const product = {
+      serviceCode: "HUAWEI:ecs",
+      serviceName: "ECS",
+      title: "Example",
+      productType: "huawei-native",
+      quantity: 999,
+      pricing: { amount: 0 },
+      config: {
+        selection,
+        region: scope.region,
+        billingMode: "Pay-per-use",
+        local: { release: id, pricing, inquiries: [inquiry] },
+      },
+    } as ProductMutationBody;
+    const saved = await verifyNativeProduct(product, store);
+    expect(saved.quantity).toBe(2);
+    expect(saved.pricing).toMatchObject({
+      amount: 2880,
+      source: "huawei-catalog",
+      quotedAt: source.fetchedAt,
+    });
+    await expect(
+      verifyNativeProduct({ ...product, serviceCode: "HUAWEI:nat" }, store),
+    ).rejects.toThrow("scope");
+    await expect(
+      verifyNativeProduct(
+        { ...product, config: { ...product.config, local: undefined } },
+        store,
+      ),
+    ).rejects.toThrow("Open this configuration");
+    const freshScope = structuredClone(scope);
+    freshScope.source.products = "updated-prices";
+    freshScope.source.fetchedAt = "2026-10-09T00:00:00Z";
+    freshScope.products.product.rows[0].planList![0].amount = 3;
+    const freshHash = await store.blob(JSON.stringify(freshScope), ".json");
+    const currentId = await store.publish({
+      ...release,
+      scopes: { "ecs/ap-southeast-1": freshHash },
+    });
+    const repriced = await verifySnapshotProduct(product, store, true);
+    expect(repriced.pricing).toMatchObject({ amount: 4320 });
+    expect(
+      (repriced.config as { local: { release: string } }).local.release,
+    ).toBe(currentId);
+    expect((await verifyNativeProduct(product, store)).pricing).toMatchObject({
+      amount: 2880,
+    });
+    freshScope.source.config = "changed-conditional-rules";
+    const changedHash = await store.blob(JSON.stringify(freshScope), ".json");
+    await store.publish({
+      ...release,
+      scopes: { "ecs/ap-southeast-1": changedHash },
+    });
+    await expect(verifySnapshotProduct(product, store, true)).rejects.toThrow(
+      "conditional calculator rules changed",
+    );
+    expect(isNativeProduct(product)).toBeTruthy();
+    expect(isNativeProduct({ serviceCode: "ECS" })).toBeFalsy();
+  } finally {
+    await rm(root, { recursive: true, force: true });
   }
 });

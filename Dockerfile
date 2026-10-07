@@ -16,7 +16,7 @@ ARG BETTER_AUTH_SECRET
 ENV BETTER_AUTH_SECRET=${BETTER_AUTH_SECRET}
 
 COPY . .
-RUN bunx --bun next build
+RUN bun run scripts/build-snapshot-bridge.ts && BUN_JSC_useJIT=false bunx --bun next build
 RUN mkdir -p /app/data
 
 EXPOSE 3000

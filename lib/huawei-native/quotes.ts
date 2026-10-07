@@ -12,7 +12,7 @@ export const requestInquiry: QuoteTransport = async request => {
     headers: { "content-type": "application/json; charset=UTF-8", origin: "https://www.huaweicloud.com", referer: "https://www.huaweicloud.com/intl/en-us/pricing/calculator.html" },
     body: JSON.stringify(request) }).catch(() => { throw new TransientQuoteError("Network error contacting Huawei pricing"); });
   if (response.status === 429 || response.status >= 500 || response.status === 0) throw new TransientQuoteError(`Huawei quote temporarily unavailable (${response.status})`);
-  if (!response.ok) throw new Error(`Huawei quote unavailable (${response.status})`);
+  if (!response.ok) throw new Error(`Huawei quote unavailable (${response.status}): ${response.bodyText.slice(0,250)}`);
   return JSON.parse(response.bodyText);
 };
 

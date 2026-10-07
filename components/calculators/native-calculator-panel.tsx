@@ -64,7 +64,7 @@ export function NativeCalculatorPanel({ editingProduct, onSave, onCancelEdit, sc
     setSaving(true); setSaveMessage("");
     try {
       await onSave(nativeDraft(state, serviceName, title || serviceName));
-      if (JSON.stringify(currentScope.current) === savedScope) setSaveMessage(editingProduct ? "Product updated with a fresh Huawei price." : "Product added with a fresh Huawei price.");
+      if (JSON.stringify(currentScope.current) === savedScope) setSaveMessage(editingProduct ? "Product updated using synchronized rates." : "Product added using synchronized rates.");
     } catch (error) {
       if (JSON.stringify(currentScope.current) === savedScope) { invalidate(); setSaveMessage(error instanceof Error ? error.message : "Unable to save product"); }
     } finally { saveLock.current = false; setSaving(false); }
@@ -121,10 +121,9 @@ export function NativeCalculatorPanel({ editingProduct, onSave, onCancelEdit, sc
   return (
     <section data-calculator-shortcut-root className="@container/native mx-auto min-w-0 space-y-5 px-4 py-4 pb-6">
       {!embedded && <div>
-        <h1 className="text-xl font-semibold @min-[640px]/native:text-2xl">Huawei live calculator</h1>
+        <h1 className="text-xl font-semibold @min-[640px]/native:text-2xl">Cloud calculator</h1>
         <p className="mt-3 max-w-3xl text-sm text-zinc-600">
-          Configure services using Huawei’s current options and regional rules. Prices come directly from Huawei after
-          each change. Billing modes, purchase terms and payment options follow the selected service and region.
+          Configure services using synchronized Huawei options and regional rules. Prices are calculated locally from the daily catalog. Billing modes, purchase terms and payment options follow the selected service and region.
         </p>
       </div>}
       {legacy && editingProduct && (
@@ -165,7 +164,7 @@ export function NativeCalculatorPanel({ editingProduct, onSave, onCancelEdit, sc
         </div>
         {directory && !modes.length && <p role="status" className="text-sm text-zinc-600">Huawei has no calculator billing modes for this service in the selected region.</p>}
       </div>
-      {busy && <p role="status" className="text-sm text-zinc-500">{state ? "Updating options and checking the Huawei price…" : "Loading the official calculator…"}</p>}
+      {busy && <p role="status" className="text-sm text-zinc-500">{state ? "Calculating…" : "Loading the synchronized calculator…"}</p>}
       {error && <div role="alert" className="rounded-lg bg-red-50 p-4 text-sm text-red-700">
         <p>{error}</p>
         <Button variant="outline" className="mt-3" disabled={busy || !directory || !modes.length} onClick={() => void open()}>Retry calculator</Button>
@@ -207,11 +206,11 @@ export function NativeCalculatorPanel({ editingProduct, onSave, onCancelEdit, sc
                     {state.quote.amount.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 6 })}
                   </p>
                   <p className="text-xs text-zinc-500">
-                    For the selected duration, usage and quantity. Checked{" "}
-                    {new Date(state.quote.quotedAt).toLocaleTimeString()}.
+                    For the selected duration, usage and quantity. Rates synchronized{" "}
+                    {new Date(state.quote.quotedAt).toLocaleString()}.
                   </p>
                   <p data-testid="scope-status" className="text-sm text-green-700">
-                    Price checked with Huawei
+                    Calculated from synchronized rates
                   </p>
                 </>
               ) : (

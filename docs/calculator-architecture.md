@@ -1,3 +1,5 @@
+> The daily standalone implementation supersedes the interactive Chromium transport described below. See [standalone calculator architecture](standalone-calculator.md) for the current implementation and rollout status. Historical validation in this document applies to the earlier transport.
+
 # Calculator architecture and Huawei integration seam
 
 The main workspace has one Calculator tab and a Batch add tab. Product search, the workspace header and Huawei controls share the same selection. New interactive estimates use Huawei's renderer wherever Huawei publishes a calculator. Original saved estimates and text-import formats retain internal compatibility adapters. All paths use the same projects, carts and cart writer. Native products use a versioned replayable configuration. See [calculator-consolidation.md](calculator-consolidation.md).

@@ -1,0 +1,47 @@
+services:
+  app:
+    image: neo-calculator:standalone-test
+    environment:
+      BETTER_AUTH_SECRET: ${NEO_OFFLINE_AUTH_SECRET:?Set a separate preview secret}
+      BETTER_AUTH_URL: https://calculator-offline.hwctools.site
+      BETTER_AUTH_ALLOWED_HOSTS: calculator-offline.hwctools.site
+      HUAWEI_SNAPSHOT_DIR: /app/snapshots
+      HUAWEI_SOURCE_ACCESS: offline
+      CATALOG_DB_PATH: /app/data/catalog.db
+    volumes:
+      - app_data:/app/data
+      - snapshots:/app/snapshots:ro
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=home_web
+      - traefik.http.routers.neo-offline.rule=Host(`calculator-offline.hwctools.site`)
+      - traefik.http.routers.neo-offline.entrypoints=websecure
+      - traefik.http.routers.neo-offline.tls.certresolver=le
+      - traefik.http.services.neo-offline.loadbalancer.server.port=3000
+      - traefik.http.routers.neo-offline.middlewares=neo-offline-headers
+      - traefik.http.middlewares.neo-offline-headers.headers.customresponseheaders.X-Robots-Tag=noindex, nofollow
+    restart: unless-stopped
+    networks: [web]
+  sync:
+    image: neo-calculator-sync:standalone-test
+    environment:
+      HWC_SOCKS5_PROXY: socks5h://host.docker.internal:40001
+      HUAWEI_SYNC_CONCURRENCY: '1'
+    extra_hosts: [host.docker.internal:host-gateway]
+    volumes:
+      - snapshots:/app/snapshots
+    init: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    shm_size: 256mb
+    mem_limit: 2g
+    pids_limit: 256
+    restart: unless-stopped
+    networks: [web]
+volumes:
+  app_data:
+  snapshots:
+networks:
+  web:
+    external: true
+    name: home_web

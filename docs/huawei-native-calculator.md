@@ -1,3 +1,5 @@
+> The daily standalone implementation supersedes the interactive Chromium transport described below. See [standalone calculator architecture](standalone-calculator.md) for the current implementation and rollout status. Historical validation in this document applies to the earlier transport.
+
 # Reliable complex forms: use Huawei's renderer
 
 The ECS, ELB and DCS audit exposed a limit of the QuickJS interpreter: service configuration is only part of Huawei's behavior. The shared renderer implements dependent defaults, image filtering, repeatable disks, checkbox constraints, unit conversion and derived LCU quantities. Enumerating every flavor and numeric combination is both expensive and insufficient to recover those rules.

@@ -2,7 +2,8 @@ import { getCatalogFetchFn } from "@/lib/catalog-fetch-registry";
 import { getCatalogRegionId, huaweiRegions, type HuaweiRegionKey } from "@/lib/huawei-regions";
 import { serviceCatalog } from "@/lib/service-config";
 import { flexusLPlans } from "@/lib/flexus-l-catalog";
-import { ensureRegionCatalogAvailable, getEcsCatalogLastCompletedAt, isEcsCatalogSyncRunning, listStoredEcsFlavors } from "@/lib/ecs-flavor-catalog";
+import {SnapshotStore} from "@/lib/huawei-snapshot/store";
+import {snapshotFlavors} from "@/lib/huawei-snapshot/flavors";
 import { fetchRegionSystemDiskPricing } from "@/lib/evs-disk-pricing";
 
 export const revalidate = 3600;
@@ -38,13 +39,13 @@ async function fetchServiceCatalogDirect(
     if (!catalogRegionId) return null;
 
     try {
-      await ensureRegionCatalogAvailable(catalogRegionId);
+      const store=new SnapshotStore(),release=await store.active(),scope=await store.scope(release,"ecs",catalogRegionId,false);
       const diskPricing = await fetchRegionSystemDiskPricing(catalogRegionId);
       return {
-        flavors: listStoredEcsFlavors(catalogRegionId),
+        flavors: snapshotFlavors(scope),
         diskPricing,
-        lastCompletedAt: getEcsCatalogLastCompletedAt(),
-        syncing: isEcsCatalogSyncRunning(),
+        lastCompletedAt: scope.verifiedAt,
+        syncing: false,
       };
     } catch {
       return null;

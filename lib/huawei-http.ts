@@ -170,6 +170,12 @@ async function sendFetchRequest(input: HttpRequestInput): Promise<HttpResponseSn
 }
 
 export async function sendHttpRequest(input: HttpRequestInput): Promise<HttpResponseSnapshot> {
+  const sourceUrl=new URL(input.url);
+  const explicitCartRequest=sourceUrl.hostname==="portal-intl.huaweicloud.com"&&/^\/api\/calculator\/rest\/cbc\/portalcalculatornodeservice\/v4\/api\/share\/(?:list|add|detail|update)$/.test(sourceUrl.pathname);
+  if (process.env.HUAWEI_SOURCE_ACCESS !== "sync" && sourceUrl.hostname.endsWith("huaweicloud.com")&&!explicitCartRequest) {
+    const { snapshotResponse } = await import("./huawei-snapshot/http");
+    return snapshotResponse(input.url, input.method, input.body);
+  }
   if (process.env.HWC_FORCE_FETCH === "1") {
     return sendFetchRequest(input);
   }

@@ -1,0 +1,146 @@
+{
+  "recordedAt": "2026-10-07T22:08:37.707Z",
+  "status": "isolated-preview-production-cutover-blocked",
+  "previewUrl": "https://calculator-offline.hwctools.site",
+  "release": "d5bf5b338295555b0984e4a085a3a9db8affa8c4fd726aec1563b823c7d8f901",
+  "discovery": {
+    "availableServices": 97,
+    "eligibleRegions": [
+      "ap-southeast-1",
+      "ap-southeast-2",
+      "ap-southeast-3",
+      "ap-southeast-4",
+      "ap-southeast-5",
+      "af-south-1",
+      "af-north-1",
+      "tr-west-1",
+      "me-east-1",
+      "la-south-2",
+      "na-mexico-1",
+      "la-north-2",
+      "sa-peru-1",
+      "sa-brazil-1",
+      "sa-argentina-1",
+      "cn-north-4",
+      "cn-north-9",
+      "cn-north-12",
+      "cn-east-3",
+      "cn-east-5",
+      "cn-east-4",
+      "cn-south-1",
+      "cn-southwest-2",
+      "global-cbc-1"
+    ]
+  },
+  "audit": {
+    "regions": [
+      {
+        "id": "ap-southeast-1",
+        "name": "CN-Hong Kong"
+      },
+      {
+        "id": "sa-brazil-1",
+        "name": "LA-Sao Paulo1"
+      }
+    ],
+    "requestedServiceRegionScopes": 80,
+    "validatedServiceRegionScopes": 76,
+    "validatedServices": 40,
+    "recordedOfficialPricingComponentComparisons": 23151,
+    "recordedComparisonFailures": 0,
+    "toleranceUsd": 1e-7,
+    "exhaustiveConfigurationCoverage": false,
+    "allEligibleRegionsValidated": false,
+    "unknownCatalogRequestFamiliesSkipped": true,
+    "pending": [
+      {
+        "service": "obs",
+        "region": "ap-southeast-1",
+        "reason": "Observed small and high-precision official inquiries disagree with a single verified linear scale/rounding rule."
+      },
+      {
+        "service": "sfsturbo",
+        "region": "sa-brazil-1",
+        "reason": "Official rounding results for independent quantities/capacities cannot be matched by the verified local rule."
+      },
+      {
+        "service": "dli",
+        "region": "ap-southeast-1",
+        "reason": "Unselected-SKU contracts require capacity measure metadata not established by the validated template."
+      },
+      {
+        "service": "dli",
+        "region": "sa-brazil-1",
+        "reason": "Unselected-SKU contracts require capacity measure metadata not established by the validated template."
+      }
+    ]
+  },
+  "checks": {
+    "unit": {
+      "passed": 378,
+      "failed": 0,
+      "files": 84,
+      "command": "bun run test"
+    },
+    "typescript": {
+      "errors": 0
+    },
+    "eslint": {
+      "errors": 0,
+      "preexistingWarnings": 3
+    },
+    "browser": {
+      "passed": 12,
+      "failed": 0,
+      "durationSeconds": 56.4,
+      "serverNetwork": "internal Docker network without internet access",
+      "huaweiNetworkProbe": "fetch failed with TypeError",
+      "externalRequestsInEcsTest": 0,
+      "nativePostRequests": 0,
+      "ecsDurationChangeMilliseconds": 390,
+      "coverage": [
+        "all four billing families",
+        "ECS flavor cards",
+        "Flexus L",
+        "ELB",
+        "NAT",
+        "DCS",
+        "OBS São Paulo",
+        "CCM one-time",
+        "save/reopen/edit",
+        "client-total and quantity tampering",
+        "batch saving",
+        "cart export/import",
+        "regional billing availability",
+        "iframe cleanup",
+        "mobile overflow"
+      ]
+    },
+    "unchangedDailyJob": {
+      "ecsHongKongFreshApiChecks": 639,
+      "ecsSaoPauloFreshApiChecks": 705,
+      "chromiumLaunched": false
+    },
+    "publicHttps": {
+      "verified": true,
+      "httpRedirectStatus": 308,
+      "ecsInitialPrice": 0.14968,
+      "initialOpenMilliseconds": 2771,
+      "durationChangeMilliseconds": 224,
+      "mobileWidth": 390,
+      "externalRequests": [],
+      "pageErrors": [],
+      "coldStartTimeoutsObserved": 1
+    }
+  },
+  "rollout": {
+    "productionChanged": false,
+    "dailyWorkerEnabledOnPreview": true,
+    "automaticUnknownRuleAcceptance": false,
+    "remaining": [
+      "Resolve four pending scopes",
+      "Validate all eligible services and regions",
+      "Investigate cold startup latency before production cutover"
+    ]
+  }
+}

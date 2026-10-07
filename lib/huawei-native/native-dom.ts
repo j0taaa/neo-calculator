@@ -3,7 +3,10 @@ import type { NativeField, NativeForm } from "./native-types";
 
 /** Runs inside the upstream page. Only the normalized data leaves the browser. */
 export async function readNativeForm(page: Page): Promise<NativeForm> {
-  return page.evaluate(() => {
+  return page.evaluate(readFormInDocument);
+}
+
+export function readFormInDocument(): NativeForm {
     const fields: NativeField[] = [], notes: string[] = [], diagnostics: string[] = [];
     const bridge = window as unknown as { __neoDropdowns?: WeakMap<Element, HTMLElement> };
     const dropdowns = bridge.__neoDropdowns ??= new WeakMap<Element, HTMLElement>();
@@ -116,7 +119,6 @@ export async function readNativeForm(page: Page): Promise<NativeForm> {
     }
     if (!fields.length) diagnostics.push("Huawei returned no controls");
     return { fields, notes, diagnostics: [...new Set(diagnostics)] };
-  });
 }
 
 export function validateNativeValue(field: NativeField, value: unknown) {
