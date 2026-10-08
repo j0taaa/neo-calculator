@@ -1,6 +1,6 @@
 {
-  "recordedAt": "2026-10-08T11:56:40.401879Z",
-  "status": "all-regions-corrected-full-audit-running",
+  "recordedAt": "2026-10-08T15:23:52.089Z",
+  "status": "full-coverage-standalone-preview-verified",
   "discovery": {
     "availableServices": 97,
     "eligibleRegions": [
@@ -127,34 +127,140 @@
   },
   "audit": {
     "startedAt": "2026-10-08T11:42:57.302Z",
-    "completedServiceRegionScopes": 76,
-    "validatedServiceRegionScopes": 76,
-    "validatedServices": 76,
+    "completedServiceRegionScopes": 1369,
+    "validatedServiceRegionScopes": 1369,
+    "validatedServices": 97,
     "failures": [],
-    "allEligibleRegionsValidated": false,
+    "allEligibleRegionsValidated": true,
     "exhaustiveConfigurationCoverage": false,
     "unknownCatalogRequestFamiliesSkipped": true,
     "publicationRequiresEveryAdvertisedScope": true,
     "validationFingerprint": "9dfe85fe610a14ca081ca4c16cec91e26ab7b71d6cef6ae024756af5f7eaa8ea",
     "bridgeHash": "8ad430a4ef37abced65625c52cc19f036fbfa9c5bf7f4db247e45247254668d1",
-    "measuredAt": "2026-10-08T11:56:33.666Z"
+    "measuredAt": "2026-10-08T15:16:50.858Z",
+    "finishedAt": "2026-10-08T15:16:50.858Z",
+    "durationSeconds": 12833.556
   },
   "isolatedPreview": {
     "url": "https://calculator-offline.hwctools.site",
-    "release": "d5bf5b338295555b0984e4a085a3a9db8affa8c4fd726aec1563b823c7d8f901",
-    "validatedServices": 40,
-    "validatedServiceRegionScopes": 76,
+    "release": "bf0858f4f399241e573de9b13beec21bf563559f7d53d7d834cf99e13326a202",
+    "validatedServices": 97,
+    "validatedServiceRegionScopes": 1369,
     "regions": [
       {
         "id": "ap-southeast-1",
         "name": "CN-Hong Kong"
       },
       {
+        "id": "ap-southeast-2",
+        "name": "AP-Bangkok"
+      },
+      {
+        "id": "ap-southeast-3",
+        "name": "AP-Singapore"
+      },
+      {
+        "id": "ap-southeast-4",
+        "name": "AP-Jakarta"
+      },
+      {
+        "id": "ap-southeast-5",
+        "name": "AP-Manila"
+      },
+      {
+        "id": "af-south-1",
+        "name": "AF-Johannesburg"
+      },
+      {
+        "id": "af-north-1",
+        "name": "AF-Cairo"
+      },
+      {
+        "id": "tr-west-1",
+        "name": "TR-Istanbul"
+      },
+      {
+        "id": "me-east-1",
+        "name": "ME-Riyadh"
+      },
+      {
+        "id": "la-south-2",
+        "name": "LA-Santiago"
+      },
+      {
+        "id": "na-mexico-1",
+        "name": "LA-Mexico City1"
+      },
+      {
+        "id": "la-north-2",
+        "name": "LA-Mexico City2"
+      },
+      {
+        "id": "sa-peru-1",
+        "name": "LA-Lima1"
+      },
+      {
+        "id": "eu-west-0",
+        "name": "EU-Paris"
+      },
+      {
+        "id": "my-kualalumpur-1",
+        "name": "AP-Kuala Lumpur-OP6"
+      },
+      {
         "id": "sa-brazil-1",
         "name": "LA-Sao Paulo1"
+      },
+      {
+        "id": "sa-argentina-1",
+        "name": "LA-Buenos Aires1"
+      },
+      {
+        "id": "cn-north-4",
+        "name": "CN North-Beijing4"
+      },
+      {
+        "id": "cn-north-9",
+        "name": "CN North-Ulanqab1"
+      },
+      {
+        "id": "cn-north-12",
+        "name": "CN North3"
+      },
+      {
+        "id": "cn-east-3",
+        "name": "CN East-Shanghai1"
+      },
+      {
+        "id": "cn-east-5",
+        "name": "CN East-Qingdao"
+      },
+      {
+        "id": "cn-east-4",
+        "name": "CN East2"
+      },
+      {
+        "id": "cn-south-1",
+        "name": "CN South-Guangzhou"
+      },
+      {
+        "id": "cn-southwest-2",
+        "name": "CN Southwest-Guiyang1"
+      },
+      {
+        "id": "eu-west-101",
+        "name": "EU-Dublin"
+      },
+      {
+        "id": "global-cbc-1",
+        "name": "Global"
+      },
+      {
+        "id": "tr-central-201",
+        "name": "TR-Ankara-PUR"
       }
     ],
-    "fullCoverage": false
+    "fullCoverage": true
   },
   "checks": {
     "unit": {
@@ -175,7 +281,7 @@
       "serverNetwork": "internal Docker network without internet access",
       "externalRequestsInEcsTest": 0,
       "nativePostRequests": 0,
-      "ecsDurationChangeMilliseconds": 578,
+      "ecsDurationChangeMilliseconds": 574,
       "coverage": [
         "all four billing families",
         "ECS flavor cards",
@@ -209,7 +315,7 @@
         "all 12 previously failing regional scopes through the actual Neo interface",
         "API Gateway duration tariff boundary at five hours"
       ],
-      "execution": "25 passed in the full offline suite; two new regional regressions passed separately. The latest artifact also passed the focused ECS and empty-selector checks."
+      "execution": "All 27 tests passed together against the complete candidate in 6.1 minutes; the application ran on an internal Docker network without internet access."
     },
     "historicalReleaseReplay": {
       "scopes": 76,
@@ -363,16 +469,29 @@
       "obsHongKongZeroUsageFormAndCatalogChecks": 132,
       "zeroUsageDoesNotConstrainRateInference": true,
       "neoInterfaceScopesChecked": 13
+    },
+    "completeCandidateReplay": {
+      "release": "bf0858f4f399241e573de9b13beec21bf563559f7d53d7d834cf99e13326a202",
+      "scopes": 1369,
+      "comparisons": 266989,
+      "failures": 0
+    },
+    "publicPreviewSmoke": {
+      "services": 97,
+      "regions": 28,
+      "externalRequests": 0,
+      "nativePostRequests": 0,
+      "httpStatus": 200,
+      "tlsVerified": true,
+      "snapshotAndApplicationBridgeMatch": true
     }
   },
   "rollout": {
     "productionChanged": false,
-    "publicPreviewUpdated": false,
+    "publicPreviewUpdated": true,
     "automaticUnknownRuleAcceptance": false,
     "remaining": [
-      "Rerun all 1369 scopes with the corrected frozen validator; focused rechecks passed for all 12 previous failures",
-      "Replay the complete candidate and repeat offline browser checks against it",
-      "Publish the full catalog and deploy matching app/worker images"
+      "Switch main production to the verified standalone snapshot and matching images after checking the existing-account/cart migration"
     ],
     "automaticFollowThrough": {
       "service": "neo-calculator-full-coverage-v17.service",
@@ -386,7 +505,9 @@
         "notify ntfy.sh/codex"
       ],
       "previewRollbackOnFailure": true,
-      "productionChanged": false
+      "productionChanged": false,
+      "completedAt": "2026-10-08T15:23:52.089Z",
+      "result": "Complete candidate replay, all offline browser tests, preview deployment and public HTTPS smoke passed."
     }
   },
   "previousCompleteAudit": {
