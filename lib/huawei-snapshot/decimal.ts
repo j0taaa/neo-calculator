@@ -20,12 +20,14 @@ export class Decimal {
     return new Decimal(BigInt(numerator), BigInt(denominator));
   }
   rounded(places: number) {
+    return this.quantized(places).number();
+  }
+  quantized(places: number) {
     const scale = BigInt(10) ** BigInt(places);
-    return (
-      Number(
-        (this.numerator * scale * BigInt(2) + this.denominator) /
-          (this.denominator * BigInt(2)),
-      ) / Number(scale)
+    return new Decimal(
+      (this.numerator * scale * BigInt(2) + this.denominator) /
+        (this.denominator * BigInt(2)),
+      scale,
     );
   }
   add(other: Decimal) {
@@ -58,9 +60,25 @@ export class Decimal {
   }
   truncated(places: number) {
     const scale = BigInt(10) ** BigInt(places);
-    return Number((this.numerator * scale) / this.denominator) / Number(scale);
+    return new Decimal(
+      (this.numerator * scale) / this.denominator,
+      scale,
+    ).number();
   }
   number() {
-    return Number(this.numerator) / Number(this.denominator);
+    if (this.numerator === BigInt(0)) return 0;
+    // Convert the exact rational once. Dividing two large JS numbers loses low currency digits.
+    const numerator =
+      this.numerator < BigInt(0) ? -this.numerator : this.numerator;
+    const exponent =
+      numerator.toString().length - this.denominator.toString().length;
+    const places = 40 - exponent;
+    const digits =
+      places >= 0
+        ? (numerator * BigInt(10) ** BigInt(places)) / this.denominator
+        : numerator / (this.denominator * BigInt(10) ** BigInt(-places));
+    return Number(
+      `${this.numerator < BigInt(0) ? "-" : ""}${digits}e${-places}`,
+    );
   }
 }

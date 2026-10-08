@@ -7,6 +7,7 @@ export async function readNativeForm(page: Page): Promise<NativeForm> {
 }
 
 export function readFormInDocument(): NativeForm {
+    let emptyControls = 0;
     const fields: NativeField[] = [], notes: string[] = [], diagnostics: string[] = [];
     const bridge = window as unknown as { __neoDropdowns?: WeakMap<Element, HTMLElement> };
     const dropdowns = bridge.__neoDropdowns ??= new WeakMap<Element, HTMLElement>();
@@ -19,11 +20,13 @@ export function readFormInDocument(): NativeForm {
     document.querySelectorAll("[data-neo-option]").forEach(el => el.removeAttribute("data-neo-option"));
     const allowed = new Set(["CommonRadioGroup", "CommonSelect", "CommonStepper", "CommonRadioStepper", "CommonCheckboxGroup", "CommonAddible", "CommonSwitch", "CommonTip", "CommonInput", "FuncCombine"]);
     const components = [...config.calc_view.components];
-    const globals = ["global_ONDEMANDTIME", "global_QUANTITY", "global_PERIODTIME", "global_FEEINSTALLMODE"];
+    components.unshift({ id: "global_LOCATIONTYPE", type: "CommonStepper" }, { id: "global_LOCATIONCODE", type: "CommonStepper" });
+    const globals = ["global_ONDEMANDTIME", "global_QUANTITY", "global_PERIODTIME", "global_FEEINSTALLMODE", "global_LOCATIONTYPE", "global_LOCATIONCODE"];
     for (const id of globals) if (!components.some(c => c.id === id)) components.push({ id, type: "CommonStepper" });
     for (const component of components) {
       if (component.id.startsWith("global_") && !globals.includes(component.id)) continue;
-      const root = document.getElementById(component.id) ?? document.querySelector<HTMLElement>(`[idheader="${component.id}"]`);
+      const locationControl = component.id === "global_LOCATIONTYPE" ? document.getElementById("calculator_locationType") : component.id === "global_LOCATIONCODE" ? document.getElementById("calculator_locationCode") : null;
+      const root = locationControl?.closest<HTMLElement>(".tiny-form-item") ?? document.getElementById(component.id) ?? document.querySelector<HTMLElement>(`[idheader="${component.id}"]`);
       if (!root || !visible(root)) continue;
       if (!allowed.has(component.type) && !component.id.startsWith("global_")) diagnostics.push(`Unsupported Huawei control: ${component.type}`);
       if (component.type === "FuncCombine") {
@@ -41,6 +44,7 @@ export function readFormInDocument(): NativeForm {
       const controls = root.querySelectorAll<HTMLElement>(".base-radio-group, .base-select, .tiny-numeric__input-inner, .common-input input.tiny-input__inner, .tiny-checkbox, .common-addible-addDisk, .common-addible-delete");
       let index = 0;
       for (const el of controls) {
+        if (locationControl && el !== locationControl) continue;
         if (!visible(el)) continue;
         const id = `${component.id}:${index++}`;
         const item = el.closest(".tiny-form-item");
@@ -50,8 +54,17 @@ export function readFormInDocument(): NativeForm {
         if (el.matches(".base-radio-group")) {
           field.presentation = "options";
           const options = [...el.querySelectorAll<HTMLElement>("li")].filter(visible);
-          field.options = options.map((option, i) => ({ value: String(i), label: clean(option.innerText), disabled: option.matches(".disabled, .is-disabled") || !!option.querySelector("button:disabled") }));
+          if (component.id === "global_LOCATIONTYPE" && options.length <= 1) continue;
+          options.forEach((option, i) => option.setAttribute("data-neo-option", `${id}:${i}`));
+          field.options = options.map((option, i) => ({ value: String(i), label: clean(option.innerText), disabled: option.matches(".disabled, .is-disabled") || !!option.querySelector("button:disabled, button.disabled, button.is-disabled, button[aria-disabled=true]") }));
           field.value = String(options.findIndex(option => option.classList.contains("active")));
+          if (component.id === "global_LOCATIONTYPE") {
+            const payload = (window as unknown as { __neoSnapshot?: { billingMode: string; snapshot: { commonModes?: string[]; locationModes?: Record<string, string[]> } } }).__neoSnapshot;
+            if (payload && options.length === 2) {
+              if (!Object.values(payload.snapshot.locationModes ?? {}).some(modes => modes.includes(payload.billingMode))) field.options[1].disabled = true;
+              if (payload.snapshot.commonModes && !payload.snapshot.commonModes.includes(payload.billingMode)) field.options[0].disabled = true;
+            }
+          }
           if (!label) {
             const indexes = el.id.slice(component.id.length + 1).split("_").map(Number);
             const keys = component.type === "FuncCombine" ? component.subComponents?.[indexes[0]]?.optionKeys : component.optionKeys;
@@ -60,6 +73,7 @@ export function readFormInDocument(): NativeForm {
             label = labels[key] || key?.replace(/([a-z])([A-Z])/g, "$1 $2") || "Specification";
           }
         } else if (el.matches(".base-select")) {
+          if (el.closest(".base-stepper")) field.unitSelector = true;
           const input = el.querySelector<HTMLInputElement>("input");
           if (input) handled.add(input);
           const localDropdown = el.querySelector<HTMLElement>(".tiny-select-dropdown");
@@ -100,7 +114,7 @@ export function readFormInDocument(): NativeForm {
           label = el.matches(".common-addible-addDisk") ? "Add data disk" : "Remove data disk";
           field.disabled ||= !!el.closest(".is-disabled, .disabled");
         }
-        field.label = label;
+        field.label = component.id === "global_LOCATIONCODE" ? "Availability zone" : label;
         // Huawei intentionally leaves some controls unavailable (for example aC8 images).
         // A disabled empty control requires no selection; populated or enabled controls still do.
         const unavailable = field.disabled && field.options?.length === 0;
@@ -108,7 +122,10 @@ export function readFormInDocument(): NativeForm {
         el.setAttribute("data-neo-control", id);
         fields.push(field);
       }
-      if (component.type !== "CommonTip" && fields.length === before && root.getBoundingClientRect().height > 0) diagnostics.push(`Unrecognized control markup in ${component.id}`);
+      if (component.type !== "CommonTip" && component.id !== "global_LOCATIONTYPE" && fields.length === before && root.getBoundingClientRect().height > 0) {
+        if (root.querySelector(".base-checkbox-group, .base-radio-group") && !root.querySelector("input, button, [role=checkbox]")) emptyControls++;
+        else diagnostics.push(`Unrecognized control markup in ${component.id}`);
+      }
       for (const widget of root.querySelectorAll("[role=switch], [role=slider], [role=checkbox]")) {
         if (visible(widget) && !widget.closest("[data-neo-control]")) diagnostics.push(`Unmapped interactive control in ${component.id}`);
       }
@@ -117,8 +134,11 @@ export function readFormInDocument(): NativeForm {
         if (visible(input) && !handled.has(input) && !input.closest(".tiny-select-dropdown")) diagnostics.push(`Unmapped input in ${component.id}`);
       }
     }
-    if (!fields.length) diagnostics.push("Huawei returned no controls");
-    return { fields, notes, diagnostics: [...new Set(diagnostics)] };
+    const emptySelection = (window as unknown as { __neoNativeEmptySelection?: boolean }).__neoNativeEmptySelection;
+    const informational = ((emptySelection && !diagnostics.length) || (!fields.some(field => !field.component.startsWith("global_")) && (notes.length > 0 || emptyControls > 0))) && !diagnostics.length;
+    if (!fields.length && !informational) diagnostics.push("Huawei returned no controls");
+    if (informational && (emptyControls || !notes.length)) notes.unshift("Huawei has no purchasable options for this region and billing mode.");
+    return { fields, notes, diagnostics: [...new Set(diagnostics)], ...(informational ? { availability: emptyControls || !notes.length || fields.some(field => !field.component.startsWith("global_")) ? "unavailable" as const : "information" as const } : {}) };
 }
 
 export function validateNativeValue(field: NativeField, value: unknown) {
@@ -133,7 +153,7 @@ export async function setNativeValue(page: Page, field: NativeField, value: stri
   // IDs are generated by our reader; never accept a client-supplied selector.
   const control = page.locator(`[data-neo-control=${JSON.stringify(field.id)}]`);
   if (field.type === "select") {
-    if (await control.evaluate(el => el.matches(".base-radio-group"))) await control.locator("li").nth(Number(value)).click();
+    if (await control.evaluate(el => el.matches(".base-radio-group"))) await page.locator(`[data-neo-option=${JSON.stringify(`${field.id}:${value}`)}]`).click();
     else { await control.locator("input").click(); await page.locator(`[data-neo-option=${JSON.stringify(`${field.id}:${value}`)}]`).click(); }
   } else if (field.type === "number") {
     await control.fill(String(value)); await control.press("Tab");

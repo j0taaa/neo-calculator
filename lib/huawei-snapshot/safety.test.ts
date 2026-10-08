@@ -82,3 +82,71 @@ test("a lease rejects concurrent syncs and recovers a terminated worker", async 
     await rm(root, { recursive: true, force: true });
   }
 });
+
+test("beta rules narrow only beta availability", () => {
+  expect(
+    configuredBillingModes(
+      ["ONDEMAND", "RI"],
+      "region",
+      [{ tag: "general.online.beta", hideChargeModeList: ["RI"] }],
+      "general.online.beta",
+    ),
+  ).toEqual(["ONDEMAND"]);
+});
+
+test("common calculator billing discovery includes beta-only services and merges online/beta regional modes", async () => {
+  const { nativeBillingDirectory } =
+    await import("../huawei-native/native-billing");
+  const directory = nativeBillingDirectory({
+    menuInfos: [
+      {
+        subCategoryLists: [
+          {
+            urlPath: "beta",
+            regionBeta: {
+              regionList: ["hong-kong"],
+              "hong-kong": { common: ["ONDEMAND", "invalid"] },
+            },
+          },
+          {
+            urlPath: "mixed",
+            regionOnline: { partner: { common: ["PERIOD"] } },
+            regionBeta: { partner: { common: ["ONDEMAND", "PERIOD"] } },
+          },
+        ],
+      },
+    ],
+  });
+  expect(directory.beta).toEqual({ "hong-kong": ["ONDEMAND"] });
+  expect(directory.mixed.partner).toEqual(["PERIOD", "ONDEMAND"]);
+});
+test("billing discovery includes location-only regional offers without fabricating modes for AZ codes", async () => {
+  const { nativeBillingDirectory } =
+    await import("../huawei-native/native-billing");
+  expect(
+    nativeBillingDirectory({
+      menuInfos: [
+        {
+          subCategoryLists: [
+            {
+              urlPath: "service",
+              regionOnline: {
+                "south-africa": {
+                  common: ["RI"],
+                  homeZoneAZCodes: ["lagos"],
+                  lagos: ["PERIOD", "ONDEMAND"],
+                },
+                "zone-only": { homeZoneAZCodes: ["edge"], edge: ["ONETIME"] },
+              },
+            },
+          ],
+        },
+      ],
+    }),
+  ).toEqual({
+    service: {
+      "south-africa": ["RI", "PERIOD", "ONDEMAND"],
+      "zone-only": ["ONETIME"],
+    },
+  });
+});

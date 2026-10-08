@@ -89,15 +89,23 @@ test("runtime scope reads skip audit bodies while audit reads still check integr
   const root = await mkdtemp(join(tmpdir(), "snapshot-runtime-")),
     store = new SnapshotStore(root);
   try {
-    const hash = await store.writeScope({ ...scope, proof: [] });
+    const hash = await store.writeScope({
+      ...scope,
+      proof: [],
+      customProof: [{ product: {}, months: 1, amount: 0 }],
+    });
     const release = { scopes: { "ecs/region-1": hash } } as SnapshotRelease;
     const record = JSON.parse(await store.read(hash, ".json"));
     await unlink(join(root, "blobs", record.proofBlob));
+    await unlink(join(root, "blobs", record.customProofBlob));
     expect(
       (await store.scope(release, "ecs", "region-1", false)).products,
     ).toEqual(scope.products);
     expect(
       (await store.scope(release, "ecs", "region-1", false)).proof,
+    ).toBeUndefined();
+    expect(
+      (await store.scope(release, "ecs", "region-1", false)).customProof,
     ).toBeUndefined();
     await expect(store.scope(release, "ecs", "region-1")).rejects.toThrow();
   } finally {

@@ -169,7 +169,8 @@ export function NativeCalculatorPanel({ editingProduct, onSave, onCancelEdit, sc
         <p>{error}</p>
         <Button variant="outline" className="mt-3" disabled={busy || !directory || !modes.length} onClick={() => void open()}>Retry calculator</Button>
       </div>}
-      {service === "ecs" && <NativeFlavorBrowser key={region} enabled={autoOpen} region={region} billingMode={billingMode}
+      {service === "ecs" && <NativeFlavorBrowser key={region} enabled={autoOpen && !!state} region={region} billingMode={billingMode}
+        releaseId={state?.local?.release} locationCode={state?.local?.pricing.selectedProduct.locationCode}
         disabled={busy || !state} selectedFlavor={state?.inquiries?.flatMap(inquiry => inquiry.productInfos).find(product => product.resourceType === "hws.resource.type.vm")?.resourceSpecCode}
         onSelect={chooseFlavor} />}
       {state && (
@@ -184,7 +185,7 @@ export function NativeCalculatorPanel({ editingProduct, onSave, onCancelEdit, sc
                 {state.fields.filter(field => service !== "ecs" || !["CPU Architecture", "Type", "Generation", "vCPUs", "Memory"].includes(field.label)).map(renderField)}
               </fieldset>
               {state.notes.length > 0 && (
-                <details className="mt-6 text-sm">
+                <details className="mt-6 text-sm" open={!!state.availability}>
                   <summary className="cursor-pointer">Huawei configuration notes</summary>
                   <div className="mt-3 space-y-3 text-zinc-600">
                     {state.notes.map((note, i) => (
@@ -215,7 +216,7 @@ export function NativeCalculatorPanel({ editingProduct, onSave, onCancelEdit, sc
                 </>
               ) : (
                 <p data-testid="scope-status" className="text-sm text-amber-800">
-                  {busy ? "Waiting for the updated configuration" : "Price unavailable"}
+                  {busy ? "Waiting for the updated configuration" : state.availability === "information" ? "Huawei provides billing information for this mode, without a quotation form." : state.availability === "unavailable" ? "Huawei has no purchasable options for this configuration." : "Price unavailable"}
                 </p>
               )}
                 </div>

@@ -1,38 +1,148 @@
 {
-  "recordedAt": "2026-10-07T22:08:37.707Z",
-  "status": "isolated-preview-production-cutover-blocked",
-  "previewUrl": "https://calculator-offline.hwctools.site",
-  "release": "d5bf5b338295555b0984e4a085a3a9db8affa8c4fd726aec1563b823c7d8f901",
+  "recordedAt": "2026-10-08T00:37:59.883Z",
+  "status": "all-regions-bootstrap-in-progress-production-cutover-blocked",
   "discovery": {
     "availableServices": 97,
     "eligibleRegions": [
-      "ap-southeast-1",
-      "ap-southeast-2",
-      "ap-southeast-3",
-      "ap-southeast-4",
-      "ap-southeast-5",
-      "af-south-1",
-      "af-north-1",
-      "tr-west-1",
-      "me-east-1",
-      "la-south-2",
-      "na-mexico-1",
-      "la-north-2",
-      "sa-peru-1",
-      "sa-brazil-1",
-      "sa-argentina-1",
-      "cn-north-4",
-      "cn-north-9",
-      "cn-north-12",
-      "cn-east-3",
-      "cn-east-5",
-      "cn-east-4",
-      "cn-south-1",
-      "cn-southwest-2",
-      "global-cbc-1"
-    ]
+      {
+        "id": "ap-southeast-1",
+        "name": "CN-Hong Kong"
+      },
+      {
+        "id": "ap-southeast-2",
+        "name": "AP-Bangkok"
+      },
+      {
+        "id": "ap-southeast-3",
+        "name": "AP-Singapore"
+      },
+      {
+        "id": "ap-southeast-4",
+        "name": "AP-Jakarta"
+      },
+      {
+        "id": "ap-southeast-5",
+        "name": "AP-Manila"
+      },
+      {
+        "id": "af-south-1",
+        "name": "AF-Johannesburg"
+      },
+      {
+        "id": "af-north-1",
+        "name": "AF-Cairo"
+      },
+      {
+        "id": "tr-west-1",
+        "name": "TR-Istanbul"
+      },
+      {
+        "id": "me-east-1",
+        "name": "ME-Riyadh"
+      },
+      {
+        "id": "la-south-2",
+        "name": "LA-Santiago"
+      },
+      {
+        "id": "na-mexico-1",
+        "name": "LA-Mexico City1"
+      },
+      {
+        "id": "la-north-2",
+        "name": "LA-Mexico City2"
+      },
+      {
+        "id": "sa-peru-1",
+        "name": "LA-Lima1"
+      },
+      {
+        "id": "eu-west-0",
+        "name": "EU-Paris"
+      },
+      {
+        "id": "my-kualalumpur-1",
+        "name": "AP-Kuala Lumpur-OP6"
+      },
+      {
+        "id": "sa-brazil-1",
+        "name": "LA-Sao Paulo1"
+      },
+      {
+        "id": "sa-argentina-1",
+        "name": "LA-Buenos Aires1"
+      },
+      {
+        "id": "cn-north-4",
+        "name": "CN North-Beijing4"
+      },
+      {
+        "id": "cn-north-9",
+        "name": "CN North-Ulanqab1"
+      },
+      {
+        "id": "cn-north-12",
+        "name": "CN North3"
+      },
+      {
+        "id": "cn-east-3",
+        "name": "CN East-Shanghai1"
+      },
+      {
+        "id": "cn-east-5",
+        "name": "CN East-Qingdao"
+      },
+      {
+        "id": "cn-east-4",
+        "name": "CN East2"
+      },
+      {
+        "id": "cn-south-1",
+        "name": "CN South-Guangzhou"
+      },
+      {
+        "id": "cn-southwest-2",
+        "name": "CN Southwest-Guiyang1"
+      },
+      {
+        "id": "eu-west-101",
+        "name": "EU-Dublin"
+      },
+      {
+        "id": "global-cbc-1",
+        "name": "Global"
+      },
+      {
+        "id": "tr-central-201",
+        "name": "TR-Ankara-PUR"
+      }
+    ],
+    "advertisedServiceRegionScopes": 1369,
+    "homeZoneServiceRegionScopes": 10,
+    "homeZoneIds": [
+      "af-south-1-los1a"
+    ],
+    "includesPartnerBillingSites": true,
+    "includesBetaServices": true
   },
   "audit": {
+    "startedAt": "2026-10-08T00:16:52.747Z",
+    "completedServiceRegionScopes": 132,
+    "validatedServiceRegionScopes": 132,
+    "validatedServices": 97,
+    "failures": [],
+    "allEligibleRegionsValidated": false,
+    "exhaustiveConfigurationCoverage": false,
+    "unknownCatalogRequestFamiliesSkipped": true,
+    "publicationRequiresEveryAdvertisedScope": true,
+    "validationFingerprint": "ad0b7d0566c75956b0a89f8926747097d5e3af68a65c13f612bd1f3e961e80c3",
+    "bridgeHash": "373e00f89514f9c16241230230c053acc2834b30d9e02735df248ab1d9d0badc"
+  },
+  "isolatedPreview": {
+    "url": "https://calculator-offline.hwctools.site",
+    "release": "d5bf5b338295555b0984e4a085a3a9db8affa8c4fd726aec1563b823c7d8f901",
+    "validatedServices": 40,
+    "validatedServiceRegionScopes": 76,
     "regions": [
       {
         "id": "ap-southeast-1",
@@ -43,44 +153,13 @@
         "name": "LA-Sao Paulo1"
       }
     ],
-    "requestedServiceRegionScopes": 80,
-    "validatedServiceRegionScopes": 76,
-    "validatedServices": 40,
-    "recordedOfficialPricingComponentComparisons": 23151,
-    "recordedComparisonFailures": 0,
-    "toleranceUsd": 1e-7,
-    "exhaustiveConfigurationCoverage": false,
-    "allEligibleRegionsValidated": false,
-    "unknownCatalogRequestFamiliesSkipped": true,
-    "pending": [
-      {
-        "service": "obs",
-        "region": "ap-southeast-1",
-        "reason": "Observed small and high-precision official inquiries disagree with a single verified linear scale/rounding rule."
-      },
-      {
-        "service": "sfsturbo",
-        "region": "sa-brazil-1",
-        "reason": "Official rounding results for independent quantities/capacities cannot be matched by the verified local rule."
-      },
-      {
-        "service": "dli",
-        "region": "ap-southeast-1",
-        "reason": "Unselected-SKU contracts require capacity measure metadata not established by the validated template."
-      },
-      {
-        "service": "dli",
-        "region": "sa-brazil-1",
-        "reason": "Unselected-SKU contracts require capacity measure metadata not established by the validated template."
-      }
-    ]
+    "fullCoverage": false
   },
   "checks": {
     "unit": {
-      "passed": 378,
+      "passed": 405,
       "failed": 0,
-      "files": 84,
-      "command": "bun run test"
+      "files": 90
     },
     "typescript": {
       "errors": 0
@@ -90,14 +169,12 @@
       "preexistingWarnings": 3
     },
     "browser": {
-      "passed": 12,
+      "passed": 19,
       "failed": 0,
-      "durationSeconds": 56.4,
       "serverNetwork": "internal Docker network without internet access",
-      "huaweiNetworkProbe": "fetch failed with TypeError",
       "externalRequestsInEcsTest": 0,
       "nativePostRequests": 0,
-      "ecsDurationChangeMilliseconds": 390,
+      "ecsDurationChangeMilliseconds": 588,
       "coverage": [
         "all four billing families",
         "ECS flavor cards",
@@ -113,34 +190,48 @@
         "cart export/import",
         "regional billing availability",
         "iframe cleanup",
-        "mobile overflow"
+        "mobile overflow",
+        "CDN GB/TB/PB units",
+        "ECS HomeZone selection and zone-specific flavor cards",
+        "Paris partner billing site",
+        "MaaS beta token pricing",
+        "Support Plans custom fees, duration and tamper-resistant saving",
+        "informational official modes",
+        "hidden and CSS-disabled radio choices",
+        "numeric unit-selector discovery"
       ]
     },
-    "unchangedDailyJob": {
-      "ecsHongKongFreshApiChecks": 639,
-      "ecsSaoPauloFreshApiChecks": 705,
-      "chromiumLaunched": false
+    "historicalReleaseReplay": {
+      "scopes": 76,
+      "comparisons": 23151,
+      "failures": 0
     },
-    "publicHttps": {
-      "verified": true,
-      "httpRedirectStatus": 308,
-      "ecsInitialPrice": 0.14968,
-      "initialOpenMilliseconds": 2771,
-      "durationChangeMilliseconds": 224,
-      "mobileWidth": 390,
-      "externalRequests": [],
-      "pageErrors": [],
-      "coldStartTimeoutsObserved": 1
+    "expandedIsolatedFixtureReplay": {
+      "scopes": 117,
+      "comparisons": 31171,
+      "failures": 0
+    },
+    "unchangedDailyJob": {
+      "freshApiComparisons": 1491,
+      "chromiumLaunched": false,
+      "scopes": [
+        "ecs/af-south-1",
+        "obs/af-south-1",
+        "cdn/global-cbc-1",
+        "vod/ap-southeast-2",
+        "dli/eu-west-0",
+        "sfsturbo/sa-brazil-1"
+      ]
     }
   },
   "rollout": {
     "productionChanged": false,
-    "dailyWorkerEnabledOnPreview": true,
+    "publicPreviewUpdated": false,
     "automaticUnknownRuleAcceptance": false,
     "remaining": [
-      "Resolve four pending scopes",
-      "Validate all eligible services and regions",
-      "Investigate cold startup latency before production cutover"
+      "Complete all 1369 advertised service/region audits, including every eligible HomeZone mode",
+      "Replay the complete candidate and repeat offline browser checks against it",
+      "Publish the full catalog and deploy matching app/worker images"
     ]
   }
 }

@@ -7,7 +7,7 @@ export type InquiryProduct = {
 };
 export type Inquiry = {
   regionId: string; chargingMode: number; periodType: number; periodNum: number;
-  subscriptionNum: number; siteCode: string; productInfos: InquiryProduct[];
+  subscriptionNum: number; siteCode: string; availableZoneId?: string; productInfos: InquiryProduct[];
 };
 export type Quote = {
   amount: number; currency: string; quotedAt: string; releaseId: string; requestHash: string;

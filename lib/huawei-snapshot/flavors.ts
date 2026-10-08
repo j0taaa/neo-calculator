@@ -1,10 +1,14 @@
 import type { CatalogFlavor, FlavorBillingMode } from "../calculator-types";
 import type { ScopeSnapshot } from "./types";
-export function snapshotFlavors(scope: ScopeSnapshot): CatalogFlavor[] {
+export function snapshotFlavors(
+  scope: ScopeSnapshot,
+  locationCode = "",
+): CatalogFlavor[] {
   const flavors = new Map<string, CatalogFlavor>();
   for (const row of Object.values(scope.products.product).flat()) {
     if (
       row.resourceType !== "hws.resource.type.vm" ||
+      (row.locationCode ?? "") !== locationCode ||
       row.RITime ||
       !row.planList?.length
     )

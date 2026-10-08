@@ -7,9 +7,18 @@ import { SnapshotStore, snapshotDirectory } from "../lib/huawei-snapshot/store";
 import { collectRelease, collectScope } from "../lib/huawei-snapshot/collect";
 import { SyncRenderer } from "../lib/huawei-snapshot/sync-renderer";
 import { validateCatalogContracts } from "../lib/huawei-snapshot/contracts";
-import { revalidateUnchangedScope } from "../lib/huawei-snapshot/revalidate";
+import { verifyRecordedQuotes } from "../lib/huawei-snapshot/audit";
+import {
+  PricingChanged,
+  revalidateUnchangedScope,
+} from "../lib/huawei-snapshot/revalidate";
 import { acquireSyncLease } from "../lib/huawei-snapshot/lease";
 import { scopeKey } from "../lib/huawei-snapshot/types";
+import {
+  CoverageAudit,
+  discoveryScopes,
+  assertFullCoverage,
+} from "../lib/huawei-snapshot/coverage";
 
 const root = snapshotDirectory();
 await mkdir(root, { recursive: true });
@@ -17,6 +26,7 @@ const lock = join(root, "sync.lock");
 const handle = await acquireSyncLease(lock);
 let renderer: SyncRenderer | undefined;
 let rendererPromise: Promise<SyncRenderer> | undefined;
+let audit: CoverageAudit | undefined;
 try {
   const store = new SnapshotStore(root),
     collector = new HuaweiCollector(new SourceStore());
@@ -25,17 +35,15 @@ try {
 
   const services = process.env.HUAWEI_SYNC_SERVICES?.split(",").filter(Boolean);
   const regions = process.env.HUAWEI_SYNC_REGIONS?.split(",").filter(Boolean);
-  const scopes = release.directory.services
-    .filter((service) => !services || services.includes(service.id))
-    .flatMap((service) =>
-      release.directory.regions
-        .filter(
-          (region) =>
-            (!regions || regions.includes(region.id)) &&
-            release.directory.billingModes[service.id]?.[region.id]?.length,
-        )
-        .map((region) => ({ service: service.id, region: region.id })),
-    );
+  const scopes = discoveryScopes(release, services, regions);
+  audit = await CoverageAudit.create(store, release, scopes.length);
+  console.log(
+    JSON.stringify({
+      discoveredServices: release.directory.services.length,
+      discoveredRegions: release.directory.regions.length,
+      scopes: scopes.length,
+    }),
+  );
   let next = 0;
   const concurrency = Math.min(
     2,
@@ -47,44 +55,77 @@ try {
         const { service, region } = scopes[next++],
           key = scopeKey(service, region);
         try {
-          const scope = await collectScope(collector, release, service, region);
+          let scope = await collectScope(collector, release, service, region);
+          const resumed = await audit!.resume(scope);
           const old = previous?.scopes[key]
             ? await store.scope(previous, service, region)
             : null;
           const unchanged =
+            !scope.customPricing &&
             previous?.bridgeHash === release.bridgeHash &&
+            previous?.auditHash === release.auditHash &&
             old &&
+            old.proof?.length &&
             ["config", "products", "framework", "menu"].every(
               (k) =>
                 old.source[k as keyof typeof old.source] ===
                 scope.source[k as keyof typeof scope.source],
             );
-          if (unchanged) {
-            scope.modes = old!.modes;
-            scope.checks = await revalidateUnchangedScope(scope, old!);
-          } else {
+          const validateChanged = async () => {
             rendererPromise ??= SyncRenderer.create(store);
             renderer = await rendererPromise;
             scope.checks = await renderer.validate(
               { ...release, id: previous?.id ?? "candidate" },
               scope,
             );
+            for (const locationCode of Object.keys(scope.locationModes ?? {})) {
+              const locationChecks = await renderer.validate(
+                { ...release, id: previous?.id ?? "candidate" },
+                scope,
+                false,
+                locationCode,
+              );
+              if (!locationChecks || !scope.locationModes![locationCode].length)
+                throw new Error(`No verified offer for availability zone ${locationCode}`);
+              scope.checks += locationChecks;
+            }
             scope.checks += await validateCatalogContracts(scope);
-          }
-          scope.verifiedAt = new Date().toISOString();
+            verifyRecordedQuotes(scope);
+          };
+          if (resumed) {
+            scope = resumed;
+            verifyRecordedQuotes(scope);
+          } else if (unchanged) {
+            scope.modes = old!.modes;
+            try {
+              scope.checks = await revalidateUnchangedScope(scope, old!);
+            } catch (error) {
+              if (!(error instanceof PricingChanged)) throw error;
+              scope = await collectScope(collector, release, service, region);
+              await validateChanged();
+            }
+          } else await validateChanged();
+          if (!resumed) scope.verifiedAt = new Date().toISOString();
+          if (!scope.checks || !scope.modes.length)
+            throw new Error(
+              "No valid offer was verified for this advertised service/region",
+            );
           release.directory.billingModes[service][region] = scope.modes;
           release.scopes[key] = await store.writeScope(scope);
+          await audit!.checked(service, region, release.scopes[key]);
           console.log(
             JSON.stringify({
               scope: key,
               checks: scope.checks,
               unchanged: !!unchanged,
+              resumed: !!resumed,
             }),
           );
         } catch (error) {
           const message =
             error instanceof Error ? error.message : String(error);
           release.diagnostics.push({ service, region, error: message });
+          await audit!.checked(service, region, undefined, message);
           console.error(JSON.stringify({ scope: key, error: message }));
         }
       }
@@ -94,23 +135,11 @@ try {
     join(root, "last-audit.json"),
     JSON.stringify(release, null, 2),
   );
-  if (!previous && !services && !regions && release.diagnostics.length)
+  if (!services && !regions) assertFullCoverage(release, scopes);
+  if (previous && (services || regions))
     throw new Error(
-      "The initial full synchronization is incomplete. No partial catalog was published. See last-sync.json for failed scopes.",
+      "A limited test synchronization cannot replace an existing release",
     );
-  if (previous)
-    for (const [key, hash] of Object.entries(previous.scopes)) {
-      if (!release.scopes[key]) {
-        if (services || regions)
-          throw new Error(
-            "A limited test synchronization cannot replace an existing release",
-          );
-        throw new Error(
-          `Synchronization could not validate ${key}. The previous release remains active.`,
-        );
-      }
-      void hash;
-    }
   // Publish only services/regions with validated modes. Discovered unsupported scopes stay pending.
   release.directory.services = release.directory.services.filter((service) =>
     Object.keys(release.scopes).some((key) => key.startsWith(service.id + "/")),
@@ -122,6 +151,7 @@ try {
       if (!release.scopes[scopeKey(service, region)])
         delete regionModes[region];
   const id = await store.publish(release);
+  await audit.finish("complete");
   console.log(
     JSON.stringify({
       published: id,
@@ -143,6 +173,7 @@ try {
     ),
   );
 } catch (error) {
+  await audit?.finish("failed");
   await writeFile(
     join(root, "last-sync.json"),
     JSON.stringify(

@@ -34,6 +34,12 @@ const units: Record<number, [string, number]> = {
   101: ["bytes", 1024 ** 2],
   102: ["bytes", 1024 ** 3],
   103: ["bytes", 1024 ** 4],
+  97: ["tokens", 1000],
+  108: ["tokens", 1],
+  109: ["tokens", 1000],
+  110: ["tokens", 10000],
+  111: ["tokens", 1000000],
+  112: ["tokens", 1000000000],
   14: ["count", 1],
   30: ["count", 1],
   31: ["count", 1000],
@@ -52,6 +58,9 @@ const units: Record<number, [string, number]> = {
   36: ["bandwidth", 1e6],
   37: ["bandwidth", 1e9],
   38: ["bandwidth", 1e12],
+  51: ["bandwidth", 1e6],
+  52: ["bandwidth", 1e9],
+  53: ["bandwidth", 1e12],
   39: ["gbtime", 1],
   70: ["gbtime", 1],
   71: ["gbtime", 60],
@@ -72,8 +81,7 @@ const finite = (value: number, label: string) => {
   if (!Number.isFinite(value) || value < 0) throw new Error(`Invalid ${label}`);
   return value;
 };
-export const rounded = (value: number) =>
-  Math.round((value + Number.EPSILON) * 1e8) / 1e8;
+export const rounded = (value: number) => Decimal.of(value).rounded(8);
 export function convert(
   value: number,
   from: number | string | undefined,
@@ -87,9 +95,22 @@ export function convert(
     throw new Error(`Unsupported unit conversion ${from} to ${to}`);
   return (value * a[1]) / b[1];
 }
-function tierAmount(plan: Plan, size: number) {
+function tierAmount(plan: Plan, size: number, normalize: boolean) {
   if (size === 0) return Decimal.of(0);
-  const tiers = plan.divisionList!;
+  const rangeUnit = plan.divisionList![0].division.beginUnit;
+  const tiers = plan.divisionList!.map((tier) => ({
+    ...tier,
+    division: {
+      ...tier.division,
+      beginValue: normalize
+        ? convert(tier.division.beginValue, tier.division.beginUnit, rangeUnit)
+        : tier.division.beginValue,
+      endValue:
+        normalize && tier.division.endValue !== -1
+          ? convert(tier.division.endValue, tier.division.endUnit, rangeUnit)
+          : tier.division.endValue,
+    },
+  }));
   if (!["DIVISION_STEP", "DIVISION_TIER"].includes(plan.divisionType ?? ""))
     throw new Error("Unsupported pricing tiers");
   const picked = tiers.find(
@@ -99,7 +120,9 @@ function tierAmount(plan: Plan, size: number) {
   );
   if (!picked) throw new Error("No price for this quantity");
   if (plan.divisionType === "DIVISION_TIER")
-    return Decimal.of(size).mul(finite(picked.amount, "tier rate"));
+    return Decimal.of(size)
+      .mul(finite(picked.amount, "tier rate"))
+      .div(normalize ? picked.division.measureUnitStep || 1 : 1);
   return tiers.reduce((sum, tier) => {
     const end =
       tier.division.endValue === -1 ? Infinity : tier.division.endValue;
@@ -107,11 +130,19 @@ function tierAmount(plan: Plan, size: number) {
       Decimal.of(tier.division.beginValue),
     );
     return width.numerator > BigInt(0)
-      ? sum.add(width.mul(finite(tier.amount, "tier rate")))
+      ? sum.add(
+          width
+            .mul(finite(tier.amount, "tier rate"))
+            .div(normalize ? tier.division.measureUnitStep || 1 : 1),
+        )
       : sum;
   }, Decimal.of(0));
 }
 const catalogCache = new WeakMap<ScopeSnapshot, CatalogProduct[]>();
+const productIndexes = new WeakMap<
+  CatalogProduct[],
+  Map<string, CatalogProduct[]>
+>();
 export function catalogRows(snapshot: ScopeSnapshot) {
   const cached = catalogCache.get(snapshot);
   if (cached) return cached;
@@ -149,17 +180,39 @@ export function matchingPlans(
     } as Record<number, string>
   )[request.chargingMode];
   if (!billingMode) throw new Error("Unsupported billing mode");
-  const matching = rows.filter(
-    (row) =>
-      row.cloudServiceType === product.cloudServiceType &&
-      row.resourceType === product.resourceType &&
-      row.resourceSpecCode === product.resourceSpecCode,
-  );
+  let index = productIndexes.get(rows);
+  if (!index) {
+    index = new Map();
+    for (const row of rows) {
+      const key = JSON.stringify([
+        row.cloudServiceType,
+        row.resourceType,
+        row.resourceSpecCode,
+      ]);
+      const group = index.get(key) ?? [];
+      group.push(row);
+      index.set(key, group);
+    }
+    productIndexes.set(rows, index);
+  }
+  const matching =
+    index
+      .get(
+        JSON.stringify([
+          product.cloudServiceType,
+          product.resourceType,
+          product.resourceSpecCode,
+        ]),
+      )
+      ?.filter(
+        (row) => (row.locationCode ?? "") === (request.availableZoneId ?? ""),
+      ) ?? [];
   let plans = matching.flatMap((row) =>
     (row.planList ?? [])
       .filter(
         (plan) =>
           plan.billingMode === billingMode &&
+          (!plan.siteCode || plan.siteCode === request.siteCode) &&
           (!product.skuCode || plan.skuCode === product.skuCode) &&
           (!product.productId || plan.productId === product.productId),
       )
@@ -176,6 +229,7 @@ export function matchingPlans(
         .filter(
           (plan) =>
             plan.billingMode === "MONTHLY" &&
+            (!plan.siteCode || plan.siteCode === request.siteCode) &&
             (!product.skuCode || plan.skuCode === product.skuCode) &&
             (!product.productId || plan.productId === product.productId),
         )
@@ -217,12 +271,13 @@ export function ratingRuleKey(
   plans.sort((a, b) => (b.plan.periodNum ?? 1) - (a.plan.periodNum ?? 1));
   const plan = plans[0]?.plan;
   if (!plan) throw new Error("Missing rate plan");
-  return planRuleKey(request, product, plan);
+  return planRuleKey(request, product, plan, snapshot.ratingRuleVersion ?? 1);
 }
 export function planRuleKey(
   request: Inquiry,
   product: InquiryProduct,
   plan: Plan,
+  version: 1 | 2 = 1,
 ) {
   return JSON.stringify([
     product.cloudServiceType,
@@ -233,6 +288,20 @@ export function planRuleKey(
     plan.productId || "",
     plan.skuCode || "",
     plan.usageFactor || "",
+    ...(version === 2 ? [request.siteCode] : []),
+    ...(version === 2 && request.availableZoneId
+      ? [request.availableZoneId]
+      : []),
+    ...(version === 2 && request.chargingMode === 1
+      ? [
+          product.usageMeasureId == null
+            ? null
+            : Number(product.usageMeasureId),
+          product.resouceSizeMeasureId == null
+            ? null
+            : Number(product.resouceSizeMeasureId),
+        ]
+      : []),
     ...(request.chargingMode === 10
       ? [request.periodNum, request.periodType]
       : []),
@@ -272,7 +341,10 @@ export function rateInquiry(
     if (!product.id || ids.has(product.id))
       throw new Error("Invalid resource identifiers");
     ids.add(product.id);
-    const quantity = finite(product.productNum, "quantity");
+    // Huawei defaults an explicitly null/missing quantity to one (observed in CDN traffic requests).
+    const quantity = finite(product.productNum ?? 1, "quantity");
+    if (quantity > 10000)
+      throw new Error("Quantity exceeds Huawei’s calculation limit (10000)");
     const rule =
       snapshot.ratingRules?.[ratingRuleKey(snapshot, request, product)];
     const candidates = matchingPlans(rows, request, product);
@@ -331,7 +403,7 @@ export function rateInquiry(
               tierUnit,
             )
           : convert(product.usageValue ?? 0, product.usageMeasureId, tierUnit);
-        base = tierAmount(plan, tierSize);
+        base = tierAmount(plan, tierSize, snapshot.ratingRuleVersion === 2);
         if (request.chargingMode === 1 && duration)
           base = base.mul(
             Decimal.of(product.usageValue ?? 1)
@@ -387,7 +459,9 @@ export function rateInquiry(
     const ratedAmount = truncate
       ? request.chargingMode === 1 && rule?.rounding === "round"
         ? amount.rounded(6)
-        : amount.truncated(request.chargingMode === 1 ? 6 : 2)
+        : request.chargingMode === 1 && rule?.rounding === "round7-floor6"
+          ? amount.quantized(7).truncated(6)
+          : amount.truncated(request.chargingMode === 1 ? 6 : 2)
       : amount.number();
     finite(ratedAmount, "price");
     return {

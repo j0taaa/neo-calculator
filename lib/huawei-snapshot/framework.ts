@@ -24,9 +24,9 @@ export function offlineFramework(source: string) {
     throw new Error(
       "Huawei's storage adapter changed; the previous snapshot will remain active",
     );
-  return instrumentNativePricing(
+  source =
     source.slice(0, start) +
-      `class IdbStorage {
+    `class IdbStorage {
     static values = new Map();
     static async set(key, value) {this.values.set(key,value);}
     static async get(key) {return this.values.get(key) ?? null;}
@@ -34,6 +34,22 @@ export function offlineFramework(source: string) {
     static async clearAll() {this.values.clear();}
     static async getAllKeys() {return [...this.values.keys()];}
   }\n` +
-      source.slice(end),
+    source.slice(end);
+  const emptyGuard =
+    "if (!selectedProduct || selectedProduct.productAllInfos.length === 0) {\n        return;\n      }";
+  if (source.split(emptyGuard).length !== 2)
+    throw new Error("Huawei's empty-selection observer changed");
+  source = source.replace(
+    emptyGuard,
+    `window.__neoNativeEmptySelection = !selectedProduct || selectedProduct.productAllInfos.length === 0;
+      if (window.__neoNativeEmptySelection) {
+        const bridge = window.__neoNativePricing ||= { epoch: 0 };
+        bridge.epoch++;
+        bridge.pending = false;
+        bridge.result = null;
+        bridge.selectedProduct = selectedProduct;
+        return;
+      }`,
   );
+  return instrumentNativePricing(source);
 }

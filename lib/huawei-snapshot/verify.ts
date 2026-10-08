@@ -1,6 +1,7 @@
 import type { NativePricing } from "../huawei-native/native-pricing";
 import type { Inquiry } from "../huawei-native/types";
 import { validateAggregatedQuote } from "../huawei-native/native-quote";
+import { supportPrice } from "./custom-pricing";
 import { catalogRows, rateInquiry, rounded } from "./rating";
 import type { ScopeSnapshot } from "./types";
 
@@ -124,6 +125,11 @@ export function calculateQuote(
             amount + Number(quote.item.perAmount ?? 0) * installNum,
           );
         }
+      } else if (
+        product.inquiryTag === "support" &&
+        selected.chargeMode === "PERIOD"
+      ) {
+        amount = supportPrice(snapshot, product, months);
       } else if (product.inquiryTag === "localImage") {
         // Local images are free only when present as unpriced images in this release.
         const images = Object.values(snapshot.products.product)

@@ -75,6 +75,9 @@ export function applyRecurringOverrides(scope: ScopeSnapshot) {
           const request = {
             regionId: scope.region,
             siteCode: upfront.siteCode ?? "HWC",
+            ...(typeof row.locationCode === "string" && row.locationCode
+              ? { availableZoneId: row.locationCode }
+              : {}),
             chargingMode: 10,
             periodNum,
             periodType,
@@ -93,7 +96,12 @@ export function applyRecurringOverrides(scope: ScopeSnapshot) {
           };
           const override =
             scope.ratingRules?.[
-              planRuleKey(request, request.productInfos[0], upfront)
+              planRuleKey(
+                request,
+                request.productInfos[0],
+                upfront,
+                scope.ratingRuleVersion ?? 1,
+              )
             ]?.recurring;
           if (!override) continue;
           for (const plan of row.planList ?? [])

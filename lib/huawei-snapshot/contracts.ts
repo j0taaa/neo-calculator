@@ -1,10 +1,27 @@
-import type { ScopeSnapshot } from "./types";
+import type { ScopeSnapshot, CatalogProduct } from "./types";
+import { QuoteGateway } from "../huawei-native/quotes";
 import { catalogRows, ratingRuleKey, matchingPlans } from "./rating";
 import { compareInquiry } from "./audit";
 import type { Inquiry } from "../huawei-native/types";
 
 /** Check unselected SKUs using validated component request shapes, including every RI payment/term. */
-export async function validateCatalogContracts(scope: ScopeSnapshot) {
+export function declaredCapacityMeasure(row: CatalogProduct) {
+  const units = new Set(
+    Object.values(row).flatMap((value) => {
+      const match =
+        typeof value === "string"
+          ? value.match(/^nullBSSUNIT\.(?:unit|pluralUnit)\.(\d+)$/)
+          : null;
+      return match ? [Number(match[1])] : [];
+    }),
+  );
+  return units.size === 1 ? [...units][0] : undefined;
+}
+
+export async function validateCatalogContracts(
+  scope: ScopeSnapshot,
+  gateway = new QuoteGateway(),
+) {
   const seen = new Set<string>();
   let checks = 0;
   const templates = (scope.proof ?? []).map((proof) => proof.inquiry),
@@ -36,6 +53,7 @@ export async function validateCatalogContracts(scope: ScopeSnapshot) {
       const template = templates.find(
         (request) =>
           request.chargingMode === mode &&
+          (request.availableZoneId ?? "") === (row.locationCode ?? "") &&
           request.productInfos.some(
             (product) =>
               product.resourceType === row.resourceType &&
@@ -56,6 +74,7 @@ export async function validateCatalogContracts(scope: ScopeSnapshot) {
         .replace("nodeData.", "")
         .split("_")
         .map(Number);
+      const capacityMeasure = declaredCapacityMeasure(row);
       const inquiry: Inquiry = {
         ...template,
         periodType:
@@ -74,6 +93,9 @@ export async function validateCatalogContracts(scope: ScopeSnapshot) {
         productInfos: [
           {
             ...sample,
+            ...(capacityMeasure === undefined
+              ? {}
+              : { resourceSize: 1, resouceSizeMeasureId: capacityMeasure }),
             id: "contract",
             cloudServiceType: row.cloudServiceType,
             resourceType: row.resourceType,
@@ -97,6 +119,7 @@ export async function validateCatalogContracts(scope: ScopeSnapshot) {
       request.periodType,
       request.periodNum,
       request.siteCode,
+      request.availableZoneId ?? "",
     ]);
     const group = groups.get(key) ?? [];
     group.push(request);
@@ -104,7 +127,7 @@ export async function validateCatalogContracts(scope: ScopeSnapshot) {
   }
   async function check(request: Inquiry): Promise<number> {
     try {
-      return (await compareInquiry(scope, request)).checks;
+      return (await compareInquiry(scope, request, gateway)).checks;
     } catch (error) {
       if (!(error instanceof Error)) throw error;
       const fixedPackage =
@@ -125,10 +148,14 @@ export async function validateCatalogContracts(scope: ScopeSnapshot) {
       if (missingSize) {
         if (request.productInfos[0].resourceSize !== undefined) throw error;
         return (
-          await compareInquiry(scope, {
-            ...request,
-            productInfos: [{ ...request.productInfos[0], resourceSize: 1 }],
-          })
+          await compareInquiry(
+            scope,
+            {
+              ...request,
+              productInfos: [{ ...request.productInfos[0], resourceSize: 1 }],
+            },
+            gateway,
+          )
         ).checks;
       }
       const { resourceSize, resouceSizeMeasureId, ...product } =
@@ -136,7 +163,11 @@ export async function validateCatalogContracts(scope: ScopeSnapshot) {
       if (resourceSize === undefined && resouceSizeMeasureId === undefined)
         throw error;
       return (
-        await compareInquiry(scope, { ...request, productInfos: [product] })
+        await compareInquiry(
+          scope,
+          { ...request, productInfos: [product] },
+          gateway,
+        )
       ).checks;
     }
   }

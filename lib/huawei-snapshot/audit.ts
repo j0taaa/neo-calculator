@@ -1,3 +1,5 @@
+import { scaleFromRoundedQuotes } from "./rounding-scale";
+import { supportPrice } from "./custom-pricing";
 import { Decimal } from "./decimal";
 import type { Inquiry } from "../huawei-native/types";
 import { QuoteGateway, type InquiryResponse } from "../huawei-native/quotes";
@@ -5,6 +7,32 @@ import type { ScopeSnapshot } from "./types";
 import { calibrateRecurring } from "./recurring";
 import { rateInquiry, ratingRuleKey } from "./rating";
 const equal = (a: number, b: number) => Math.abs(a - b) < 0.0000001;
+export function verifyRecordedQuotes(scope: ScopeSnapshot) {
+  for (const proof of scope.customProof ?? [])
+    if (!equal(supportPrice(scope, proof.product, proof.months), proof.amount))
+      throw new Error(
+        "The synchronized custom pricing rule disagrees with the official calculator",
+      );
+  for (const { inquiry, response } of scope.proof ?? []) {
+    const actual = rateInquiry(scope, inquiry);
+    if (
+      !equal(actual.amount, response.amount) ||
+      response.productRatingResult.some((component) => {
+        const item = actual.productRatingResult.find(
+          (item) => item.id === component.id,
+        );
+        return (
+          !item ||
+          !equal(item.amount, component.amount) ||
+          !equal(Number(item.perAmount ?? 0), Number(component.perAmount ?? 0))
+        );
+      })
+    )
+      throw new Error(
+        `A learned pricing rule conflicts with another official response recorded in this audit: ${JSON.stringify({ inquiry, local: actual, official: response })}`,
+      );
+  }
+}
 function remember(
   scope: ScopeSnapshot,
   inquiry: Inquiry,
@@ -21,13 +49,21 @@ async function calibrate(
   gateway: QuoteGateway,
 ) {
   const product = inquiry.productInfos[index];
+  const quantity = product.productNum ?? 1;
   if (inquiry.chargingMode === 10)
     throw new Error("An RI rate disagrees with Huawei");
   const key = ratingRuleKey(scope, inquiry, product),
     rules = (scope.ratingRules ??= {});
   const probes = [
     { ...product, id: "probe-1" },
-    { ...product, id: "probe-2", productNum: product.productNum * 3 },
+    {
+      ...product,
+      id: "probe-2",
+      productNum:
+        quantity * 3 <= 10000
+          ? quantity * 3
+          : Math.max(1, Math.floor(quantity / 3)),
+    },
     {
       ...product,
       id: "probe-3",
@@ -54,7 +90,10 @@ async function calibrate(
       {
         ...product,
         id: "holdout",
-        productNum: product.productNum * 2,
+        productNum:
+          quantity * 2 <= 10000
+            ? quantity * 2
+            : Math.max(1, Math.floor(quantity / 2)),
         resourceSize: Number(product.resourceSize ?? 1) * 7,
         ...(product.usageValue !== undefined
           ? { usageValue: product.usageValue * 3 }
@@ -119,7 +158,7 @@ async function calibrate(
     );
   for (const size of ["multiply", "ignore"] as const)
     for (const multiplier of multipliers)
-      for (const rounding of ["floor", "round"] as const) {
+      for (const rounding of ["floor", "round", "round7-floor6"] as const) {
         rules[key] = { size, multiplier, rounding };
         if (
           matchesHoldout() &&
@@ -131,7 +170,7 @@ async function calibrate(
       }
   for (const size of ["multiply", "ignore"] as const)
     for (const scale of scales)
-      for (const rounding of ["floor", "round"] as const) {
+      for (const rounding of ["floor", "round", "round7-floor6"] as const) {
         rules[key] = { size, multiplier: 1, scale, rounding };
         if (
           matchesHoldout() &&
@@ -141,6 +180,24 @@ async function calibrate(
         )
           return;
       }
+  for (const size of ["multiply", "ignore"] as const)
+    for (const rounding of ["floor", "round", "round7-floor6"] as const) {
+      rules[key] = { size, multiplier: 1, rounding };
+      const scale = scaleFromRoundedQuotes(
+        scope,
+        [...cases, { request: holdoutRequest, response: holdoutResponse }],
+        rounding,
+      );
+      if (!scale) continue;
+      rules[key] = { size, multiplier: 1, scale, rounding };
+      if (
+        matchesHoldout() &&
+        cases.every(({ request, response }) =>
+          equal(rateInquiry(scope, request).amount, response.amount),
+        )
+      )
+        return;
+    }
   delete rules[key];
   throw new Error(
     `No validated local pricing rule for ${product.resourceSpecCode}; ${JSON.stringify(cases.map((c) => ({ request: c.request, amount: c.response.amount })))}`,

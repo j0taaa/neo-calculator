@@ -10,6 +10,7 @@ export type NativePricing = {
   pending: boolean;
   selectedProduct: {
     region: string; serviceCode: string; chargeMode: NativeBillingMode; timeTag: number;
+    locationType?: string; locationCode?: string;
     periodType: number; periodNum: number; subscriptionNum: number;
     productAllInfos: { productId?: string; selectIndex: number; resourceSpecCode: string; productNum: number; _injectedMode?: string; inquiryTag: string | false; [key: string]: unknown }[];
   };

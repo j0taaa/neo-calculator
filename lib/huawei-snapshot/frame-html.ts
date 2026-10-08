@@ -29,18 +29,20 @@ export function frameHtml(
   billingMode: NativeBillingMode,
   origin: string,
   token: string,
+  locationCode?: string,
 ) {
   if (!snapshot.modes.includes(billingMode))
     throw new Error("Billing mode is not present in this snapshot");
   const payload = JSON.stringify({
     release: release.id,
-    snapshot: { ...snapshot, proof: undefined },
+    snapshot: { ...snapshot, proof: undefined, customProof: undefined },
     menu: release.menu.replace(
       /https:\/\/[^"\s]+\.(?:svg|png)(?:\?[^"\s]*)?/g,
       "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'/%3E",
     ),
     billingMode,
     token,
+    ...(locationCode ? { locationCode } : {}),
   }).replace(/</g, "\\u003c");
   const framework = origin + assetPath(release, release.frameworkUrl);
   const version = new URL(release.frameworkUrl).pathname.split("/").at(-2);

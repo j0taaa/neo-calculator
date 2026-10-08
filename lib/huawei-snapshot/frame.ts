@@ -84,6 +84,7 @@ type Payload = {
   menu: string;
   billingMode: NativeState["billingMode"];
   token: string;
+  locationCode?: string;
 };
 const win = window as unknown as {
   __neoSnapshot: Payload;
@@ -283,10 +284,15 @@ async function settle(afterEpoch = -1) {
     }
     // Some official defaults have no purchasable SKU. Keep their controls available for correction.
     if (
-      Date.now() - started > 1000 &&
+      Date.now() - started > 3000 &&
       Date.now() - stableSince > 500 &&
-      form.fields.length &&
-      !pricing?.pending
+      (form.fields.length || form.availability) &&
+      !pricing?.pending &&
+      (!pricing?.result ||
+        pricing.selectedProduct?.chargeMode !== payload.billingMode ||
+        pricing.result.wrongTag ||
+        priceError ||
+        form.availability)
     ) {
       return (state = localState(
         form,
@@ -298,7 +304,10 @@ async function settle(afterEpoch = -1) {
         undefined,
         null,
         [],
-        priceError || "Choose available specifications to calculate a price",
+        form.availability
+          ? undefined
+          : priceError ||
+              "Choose available specifications to calculate a price",
       ));
     }
     previous = signature;
@@ -308,20 +317,19 @@ async function settle(afterEpoch = -1) {
 }
 async function change(field: NativeField, value: string | number | boolean) {
   validateNativeValue(field, value);
+  if (field.value === value) return state!;
   const priorEpoch = win.__neoNativePricing?.epoch ?? -1;
   const control = document.querySelector<HTMLElement>(
     `[data-neo-control=${JSON.stringify(field.id)}]`,
   );
   if (!control) throw new Error("This control changed");
   if (field.type === "select") {
-    if (control.matches(".base-radio-group"))
-      (
-        control
-          .querySelectorAll<HTMLElement>("li")
-          [Number(value)].querySelector<HTMLElement>("button") ??
-        control.querySelectorAll<HTMLElement>("li")[Number(value)]
-      ).click();
-    else {
+    if (control.matches(".base-radio-group")) {
+      const option = document.querySelector<HTMLElement>(
+        `[data-neo-option=${JSON.stringify(`${field.id}:${value}`)}]`,
+      )!;
+      (option.querySelector<HTMLElement>("button") ?? option).click();
+    } else {
       control.querySelector<HTMLInputElement>("input")!.click();
       await pause();
       document
@@ -357,11 +365,20 @@ async function initialize() {
   while (Date.now() < deadline && !win.iframeSetValue) await pause(10);
   if (!win.iframeSetValue)
     throw new Error("Synchronized component rules did not initialize");
+  const locationCode =
+    payload.locationCode ??
+    (scope.commonModes && !scope.commonModes.includes(payload.billingMode)
+      ? Object.entries(scope.locationModes ?? {}).find(([, modes]) =>
+          modes.includes(payload.billingMode),
+        )?.[0]
+      : undefined);
   win.iframeSetValue({
     global_REGIONINFO: {
       region: scope.region,
       chargeMode: payload.billingMode,
       locationType: "commonAZ",
+      ...(locationCode ? { locationType: "homeZoneAZ", locationCode } : {}),
+      tag: scope.tag ?? "general.online.portal",
     },
   });
   const guide = document.querySelector<HTMLElement>(".guide-dialog button");

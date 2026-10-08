@@ -10,12 +10,13 @@ export type NativeField = {
   value: string | number | boolean;
   disabled: boolean;
   unit?: string;
+  unitSelector?: boolean;
   hint?: string;
   min?: number;
   max?: number;
   options?: { value: string; label: string; disabled: boolean }[];
 };
-export type NativeForm = { fields: NativeField[]; notes: string[]; diagnostics: string[] };
+export type NativeForm = { availability?: "information" | "unavailable"; fields: NativeField[]; notes: string[]; diagnostics: string[] };
 export type NativeState = NativeForm & {
   selection: import("./native-selection").NativeSelection;
   session: string;

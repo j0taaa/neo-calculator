@@ -1,3 +1,4 @@
+import { verifyRecordedQuotes } from "../lib/huawei-snapshot/audit";
 import { SnapshotStore } from "../lib/huawei-snapshot/store";
 import { rateInquiry } from "../lib/huawei-snapshot/rating";
 const store = new SnapshotStore(),
@@ -7,6 +8,8 @@ const failures: string[] = [];
 for (const key of Object.keys(release.scopes)) {
   const [service, region] = key.split("/"),
     scope = await store.scope(release, service, region);
+  verifyRecordedQuotes(scope);
+  comparisons += scope.customProof?.length ?? 0;
   for (const { inquiry, response } of scope.proof ?? []) {
     const local = rateInquiry(scope, inquiry);
     for (const actual of response.productRatingResult) {

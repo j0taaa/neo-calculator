@@ -5,7 +5,11 @@ import {
   MENU_URL,
   parseDirectory,
 } from "../huawei-native/collector";
-import { nativeBillingDirectory } from "../huawei-native/native-billing";
+import {
+  nativeBillingDirectory,
+  isNativeBillingMode,
+} from "../huawei-native/native-billing";
+import { compileSupportPricing } from "./compile-pricing";
 import { assetImports } from "./imports";
 import { offlineFramework } from "./framework";
 import { SnapshotStore } from "./store";
@@ -56,18 +60,42 @@ export async function collectRelease(
     type: "application/javascript",
     imports: [],
   };
+  const auditHash = await store.blob(
+    (
+      await Promise.all(
+        [
+          "collect",
+          "sync-renderer",
+          "contracts",
+          "audit",
+          "compile-pricing",
+          "coverage",
+          "revalidate",
+          "rounding-scale",
+          "recurring",
+          "frame-html",
+          "framework",
+          "imports",
+          "store",
+          "../huawei-native/collector",
+          "../huawei-native/native-billing",
+          "../huawei-native/quotes",
+        ].map((name) => readFile(`lib/huawei-snapshot/${name}.ts`, "utf8")),
+      )
+    ).join("\n") +
+      (await readFile("scripts/sync-calculator-snapshot.ts", "utf8")),
+  );
   const data = JSON.parse(menu.body);
   const regions = Object.keys(data.regionRules)
     .filter(
-      (id) =>
-        data.regionsOfSite.HWC.includes(id) &&
-        (data.regionRules[id] === "ALL" || data.regionRules[id]?.calc === true),
+      (id) => data.regionRules[id] === "ALL" || !!data.regionRules[id]?.calc,
     )
     .map((id) => ({ id, name: data.global[id] || id }));
   return {
     version: 1,
     id: "",
     bridgeHash,
+    auditHash,
     createdAt: new Date().toISOString(),
     menu: menu.body,
     frameworkUrl,
@@ -89,13 +117,57 @@ export async function collectScope(
   service: string,
   region: string,
 ): Promise<ScopeSnapshot> {
-  const { config, products } = await collector.service(service, region, true);
+  const menu = JSON.parse(release.menu);
+  const entry = menu.menuInfos
+    .flatMap(
+      (group: {
+        subCategoryLists: {
+          urlPath: string;
+          regionOnline?: Record<string, { common?: unknown[] }>;
+        }[];
+      }) => group.subCategoryLists,
+    )
+    .find((item: { urlPath: string }) => item.urlPath === service);
+  const online = entry?.regionOnline?.[region];
+  const tag =
+    online?.common?.some(isNativeBillingMode) ||
+    online?.homeZoneAZCodes?.some((code: string) =>
+      online[code]?.some(isNativeBillingMode),
+    )
+      ? "general.online.portal"
+      : "general.online.beta";
+  const { config, products } = await collector.service(
+    service,
+    region,
+    true,
+    tag,
+    true,
+  );
   const page = collector.store.latest(PAGE_URL)!;
+  const support = compileSupportPricing(config.body);
+  const offers =
+    entry?.[tag === "general.online.portal" ? "regionOnline" : "regionBeta"]?.[
+      region
+    ];
+  const locationModes = Object.fromEntries(
+    (offers?.homeZoneAZCodes ?? []).map((code: string) => [
+      code,
+      (offers[code] ?? []).filter(isNativeBillingMode),
+    ]),
+  );
   return {
     service,
     region,
     modes: release.directory.billingModes[service]?.[region] ?? [],
+    ...(Object.keys(locationModes).length
+      ? {
+          locationModes,
+          commonModes: (offers.common ?? []).filter(isNativeBillingMode),
+        }
+      : {}),
+    tag,
     config: config.body,
+    ...(support ? { customPricing: { support } } : {}),
     products: JSON.parse(products.body),
     source: {
       page: page.hash,
@@ -105,6 +177,7 @@ export async function collectScope(
       menu: collector.store.latest(MENU_URL)!.hash,
       fetchedAt: products.fetchedAt,
     },
+    ratingRuleVersion: 2,
     verifiedAt: "",
     checks: 0,
   };

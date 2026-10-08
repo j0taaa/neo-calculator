@@ -154,3 +154,90 @@ test("RI recurring corrections are validated and isolated by reservation term", 
   applyRecurringOverrides(fresh);
   expect(rateInquiry(fresh, q).perAmount).toBe(3.823);
 });
+
+test("learning a later rule cannot silently invalidate another recorded official response", async () => {
+  const { verifyRecordedQuotes } = await import("./audit");
+  const s = scope();
+  s.proof = [
+    {
+      inquiry,
+      response: {
+        amount: 100,
+        currency: "USD",
+        productRatingResult: [{ id: "price", amount: 100 }],
+      },
+    },
+  ];
+  expect(() => verifyRecordedQuotes(s)).not.toThrow();
+  s.ratingRules = {
+    [ratingRuleKey(s, inquiry, inquiry.productInfos[0])]: {
+      size: "multiply",
+      multiplier: 2,
+    },
+  };
+  expect(() => verifyRecordedQuotes(s)).toThrow("conflicts");
+});
+
+test("rounded Huawei VOD conversion rates are inferred from intervals and retain micro-units at large totals", async () => {
+  const { Decimal } = await import("./decimal");
+  const s = scope();
+  s.products.product.rows[0].planList = [
+    {
+      billingMode: "ONDEMAND",
+      measureUnit: 17,
+      amount: 0.022,
+      usageFactor: "vod_volume",
+    },
+  ];
+  const q = {
+    ...inquiry,
+    productInfos: [
+      {
+        ...inquiry.productInfos[0],
+        resourceSize: undefined,
+        productNum: 720,
+        usageValue: 1,
+        usageMeasureId: 48,
+        usageFactor: "vod_volume",
+      },
+    ],
+  };
+  const gateway = new QuoteGateway(async (request) => {
+    const product = request.productInfos[0];
+    expect(product.productNum).toBeLessThanOrEqual(10000);
+    const amount = Decimal.of("0.0000305556")
+      .mul(product.productNum)
+      .mul(product.usageValue!)
+      .mul(1024 ** 2)
+      .truncated(6);
+    return {
+      amount,
+      currency: "USD",
+      productRatingResult: [{ id: product.id, amount }],
+    };
+  });
+  await compareInquiry(s, q, gateway);
+  expect(rateInquiry(s, q).amount).toBe(23068.705554);
+  expect(
+    rateInquiry(s, {
+      ...q,
+      productInfos: [
+        { ...q.productInfos[0], productNum: 9999, usageValue: 9999 },
+      ],
+    }).amount,
+  ).toBe(3203346117.223356);
+  const { verifyRecordedQuotes } = await import("./audit");
+  expect(() => verifyRecordedQuotes(s)).not.toThrow();
+  await compareInquiry(
+    scopeWithPlan(),
+    { ...q, productInfos: [{ ...q.productInfos[0], productNum: 9999 }] },
+    gateway,
+  );
+  function scopeWithPlan() {
+    const copy = scope();
+    copy.products.product.rows[0].planList = structuredClone(
+      s.products.product.rows[0].planList,
+    );
+    return copy;
+  }
+});

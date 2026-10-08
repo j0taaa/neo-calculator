@@ -37,12 +37,17 @@ export class SnapshotStore {
     const proofBlob = scope.proof
       ? await this.blob(JSON.stringify(scope.proof))
       : undefined;
+    const customProofBlob = scope.customProof
+      ? await this.blob(JSON.stringify(scope.customProof))
+      : undefined;
     return this.blob(
       JSON.stringify({
         ...scope,
         config: undefined,
         products: undefined,
         proof: undefined,
+        customProof: undefined,
+        customProofBlob,
         configBlob,
         productsBlob,
         proofBlob,
@@ -82,12 +87,22 @@ export class SnapshotStore {
           ...record,
           config: await this.read(record.configBlob),
           products: JSON.parse(await this.read(record.productsBlob)),
+          ...(includeProof && record.customProofBlob
+            ? {
+                customProof: JSON.parse(
+                  await this.read(record.customProofBlob),
+                ),
+              }
+            : {}),
           ...(includeProof && record.proofBlob
             ? { proof: JSON.parse(await this.read(record.proofBlob)) }
             : {}),
         }
       : record;
-    if (!includeProof) delete scope.proof;
+    if (!includeProof) {
+      delete scope.proof;
+      delete scope.customProof;
+    }
     if (
       scope.service !== service ||
       scope.region !== region ||

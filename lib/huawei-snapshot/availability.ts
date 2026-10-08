@@ -9,11 +9,12 @@ export function configuredBillingModes(
   modes: NativeBillingMode[],
   region: string,
   rules: RegionRule[],
+  tag = "general.online.portal",
 ) {
   return modes.filter(
     (mode) =>
       !rules
-        .filter((rule) => !rule.tag || rule.tag === "general.online.portal")
+        .filter((rule) => !rule.tag || rule.tag === tag)
         .some(
           (rule) =>
             rule.hideChargeModeList?.includes(mode) ||

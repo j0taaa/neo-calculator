@@ -30,6 +30,7 @@ export class SyncRenderer {
     release: SnapshotRelease,
     scope: ScopeSnapshot,
     unchanged = false,
+    locationCode?: string,
   ) {
     const context = await this.browser.newContext({
       viewport: { width: 1500, height: 1300 },
@@ -49,7 +50,7 @@ export class SyncRenderer {
       if (url.pathname === "/frame")
         return route.fulfill({
           contentType: "text/html",
-          body: frameHtml(release, scope, mode, origin, token),
+          body: frameHtml(release, scope, mode, origin, token, locationCode),
         });
       if (url.pathname.endsWith("/bridge"))
         return route.fulfill({
@@ -102,6 +103,18 @@ export class SyncRenderer {
         throw new Error(`${data.error}; action ${JSON.stringify(body)}`);
       return data.result;
     }
+    function assertLocalPricing(state: NativeState) {
+      if (state.quote || state.availability) return;
+      const recoverable =
+        !state.priceError ||
+        state.priceError ===
+          "Choose available specifications to calculate a price" ||
+        state.priceError.includes(
+          "Quantity exceeds Huawei’s calculation limit",
+        );
+      if (state.diagnostics.length || !recoverable)
+        throw new Error(`${state.priceError}; ${JSON.stringify(state.fields)}`);
+    }
     async function verify(state: NativeState) {
       if (!state.quote || state.diagnostics.length)
         throw new Error(
@@ -120,6 +133,11 @@ export class SyncRenderer {
         );
         state = await action({ action: "restore", selection: state.selection });
       }
+      if (!state.quote || !state.local)
+        throw new Error(
+          state.priceError ||
+            "The corrected local configuration could not be restored",
+        );
       const rebuilt = calculateQuote(
         scope,
         release.id,
@@ -131,17 +149,53 @@ export class SyncRenderer {
         Math.abs(rebuilt.amount - state.quote.amount) > 0.0000001
       )
         throw new Error("The local form and server calculation disagree");
+      const pricing = state.local.pricing;
+      for (const product of pricing.selectedProduct.productAllInfos.filter(
+        (product) => product.inquiryTag === "support",
+      )) {
+        const id = `${pricing.selectedProduct.timeTag}-${product.selectIndex}-${product.productId || "noId"}`;
+        const amount = pricing.result!.productRatingResult.find(
+          (item) => item.id === id,
+        )?.amount;
+        if (amount === undefined)
+          throw new Error("Missing official custom pricing result");
+        (scope.customProof ??= []).push({
+          product,
+          months:
+            pricing.selectedProduct.periodNum *
+            (pricing.selectedProduct.periodType === 3 ? 12 : 1),
+          amount,
+        });
+        checks++;
+      }
       return state;
     }
     try {
-      for (mode of scope.modes) {
+      for (mode of locationCode
+        ? scope.locationModes![locationCode]
+        : scope.modes) {
+        if (
+          !(
+            locationCode ? scope.locationModes![locationCode] : scope.modes
+          ).includes(mode)
+        )
+          continue;
         await page.goto(origin, { waitUntil: "load" });
         await page.waitForFunction(
           () => (window as unknown as { ready: boolean }).ready,
           { timeout: 15000 },
         );
-        const rules = await page.frames()[1].evaluate(() =>
-          (
+        await page
+          .frames()[1]
+          .waitForFunction(
+            () =>
+              !!(window as unknown as { viewConfig?: { calc_view?: unknown } })
+                .viewConfig?.calc_view,
+            undefined,
+            { timeout: 15000 },
+          );
+        const rules = await page.frames()[1].evaluate(
+          () =>
             (
               window as unknown as {
                 viewConfig: {
@@ -154,13 +208,58 @@ export class SyncRenderer {
                   };
                 };
               }
-            ).viewConfig.calc_view.regions ?? []
-          ).filter((rule) => !rule.tag || rule.tag === "general.online.portal"),
+            ).viewConfig.calc_view.regions ?? [],
         );
-        scope.modes = configuredBillingModes(scope.modes, scope.region, rules);
-        if (!scope.modes.includes(mode)) continue;
+        const modes = configuredBillingModes(
+          locationCode ? scope.locationModes![locationCode] : scope.modes,
+          scope.region,
+          rules,
+          scope.tag,
+        );
+        if (locationCode) scope.locationModes![locationCode] = modes;
+        else scope.modes = modes;
+        if (!modes.includes(mode)) continue;
         let state = await action({ action: "open" });
+        if (Object.keys(scope.locationModes ?? {}).length) {
+          if (
+            !state.fields.some(
+              (field) => field.component === "global_LOCATIONTYPE",
+            )
+          )
+            throw new Error(
+              "The official availability-zone control was not synchronized",
+            );
+          if (
+            locationCode &&
+            (!state.fields.some(
+              (field) => field.component === "global_LOCATIONCODE",
+            ) ||
+              (await page
+                .frames()[1]
+                .evaluate(
+                  () =>
+                    (
+                      window as unknown as {
+                        __neoNativePricing?: {
+                          selectedProduct?: { locationCode?: string };
+                        };
+                      }
+                    ).__neoNativePricing?.selectedProduct?.locationCode,
+                )) !== locationCode)
+          )
+            throw new Error(
+              `The official calculator did not select availability zone ${locationCode}`,
+            );
+        }
         const modeChecks = checks;
+        if (
+          state.availability &&
+          !state.diagnostics.length &&
+          state.fields.every((field) => field.component.startsWith("global_"))
+        ) {
+          checks++;
+          continue;
+        }
         const noResources = await page.frames()[1].evaluate(
           () =>
             (
@@ -184,23 +283,115 @@ export class SyncRenderer {
           state.fields.every((field) => field.component.startsWith("global_"))
         ) {
           // Some menu modes have no offer after the official configuration's data filters.
-          scope.modes = scope.modes.filter((candidate) => candidate !== mode);
+          if (locationCode)
+            scope.locationModes![locationCode] = modes.filter(
+              (candidate) => candidate !== mode,
+            );
+          else scope.modes = modes.filter((candidate) => candidate !== mode);
           continue;
         }
+        let onlyUnavailable = state.availability === "unavailable";
+        assertLocalPricing(state);
         if (state.quote) state = await verify(state);
-        else if (state.diagnostics.length)
-          throw new Error(
-            `${state.priceError}; ${JSON.stringify(state.fields)}`,
-          );
 
+        if (scope.customPricing?.support) {
+          const literals = new Set<number>([0, 1000000]);
+          const visit = (node: unknown) => {
+            if (!node || typeof node !== "object") return;
+            if (
+              "literal" in node &&
+              typeof node.literal === "number" &&
+              node.literal >= 1
+            )
+              for (const value of [
+                node.literal - 1,
+                node.literal,
+                node.literal + 1,
+              ])
+                literals.add(value);
+            for (const value of Object.values(node)) visit(value);
+          };
+          visit(scope.customPricing.support);
+          const type = state.fields.find(
+            (field) =>
+              field.component === "calculator_support_radio" &&
+              field.type === "select",
+          )!;
+          for (const option of type.options!.filter(
+            (option) => !option.disabled,
+          )) {
+            if (
+              state.fields.find((field) => field.id === type.id)?.value !==
+              option.value
+            )
+              state = await action({
+                action: "change",
+                revision: state.revision,
+                field: type.id,
+                value: option.value,
+              });
+            for (const value of [...literals].sort((a, b) => a - b)) {
+              const field = state.fields.find(
+                (field) =>
+                  field.component === "calculator_support_radio" &&
+                  field.type === "number",
+              );
+              if (
+                !field ||
+                value < (field.min ?? 0) ||
+                value > (field.max ?? Infinity)
+              )
+                continue;
+              if (field.value !== value)
+                state = await action({
+                  action: "change",
+                  revision: state.revision,
+                  field: field.id,
+                  value,
+                });
+              state = await verify(state);
+            }
+          }
+        }
         // Exercise numeric changes and conditional branches using the same client adapter.
         if (unchanged) continue;
         const ids = state.fields
-          .filter((field) => !field.disabled && field.type !== "action")
+          .filter(
+            (field) =>
+              !field.disabled &&
+              field.type !== "action" &&
+              !field.component.startsWith("global_LOCATION"),
+          )
           .map((field) => field.id);
         for (const id of ids) {
           const field = state.fields.find((field) => field.id === id);
           if (!field || field.disabled) continue;
+          if (field.unitSelector) {
+            for (const option of field.options!.filter(
+              (option) => !option.disabled,
+            )) {
+              const current = state.fields.find((field) => field.id === id);
+              if (
+                !current ||
+                current.disabled ||
+                !current.options?.some(
+                  (item) => item.value === option.value && !item.disabled,
+                )
+              )
+                continue;
+              if (current.value !== option.value)
+                state = await action({
+                  action: "change",
+                  revision: state.revision,
+                  field: id,
+                  value: option.value,
+                });
+              onlyUnavailable &&= state.availability === "unavailable";
+              assertLocalPricing(state);
+              if (state.quote) state = await verify(state);
+            }
+            continue;
+          }
           let value: string | number | boolean | undefined;
           if (field.type === "number")
             value = Math.min(
@@ -221,12 +412,11 @@ export class SyncRenderer {
             field: id,
             value,
           });
+          onlyUnavailable &&= state.availability === "unavailable";
+          assertLocalPricing(state);
           if (state.quote) state = await verify(state);
-          else if (state.diagnostics.length)
-            throw new Error(
-              `${state.priceError}; ${JSON.stringify(state.fields)}`,
-            );
         }
+        if (checks === modeChecks && onlyUnavailable) checks++;
         if (checks === modeChecks)
           throw new Error(
             `No valid local quotation was found for ${mode}: ${state.priceError}; ${JSON.stringify(state.fields)}`,

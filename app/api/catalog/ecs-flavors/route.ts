@@ -4,12 +4,14 @@ import { snapshotFlavors } from "@/lib/huawei-snapshot/flavors";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 export async function GET(request: Request) {
-  const requested =
-      new URL(request.url).searchParams.get("region") ?? "la-sao-paulo1",
+  const params = new URL(request.url).searchParams;
+  const requested = params.get("region") ?? "la-sao-paulo1",
     region = nativeRegion(requested);
   try {
     const store = new SnapshotStore(),
-      release = await store.active(),
+      release = params.get("release")
+        ? await store.release(params.get("release")!)
+        : await store.active(),
       scope = await store.scope(release, "ecs", region, false);
     return Response.json(
       {
@@ -17,7 +19,7 @@ export async function GET(request: Request) {
         catalogRegionId: region,
         lastCompletedAt: scope.verifiedAt,
         syncing: false,
-        flavors: snapshotFlavors(scope),
+        flavors: snapshotFlavors(scope, params.get("locationCode") ?? ""),
       },
       { headers: { "cache-control": "public, max-age=300" } },
     );

@@ -42,6 +42,9 @@ export type ScopeSnapshot = {
   service: string;
   region: string;
   modes: NativeBillingMode[];
+  locationModes?: Record<string, NativeBillingMode[]>;
+  commonModes?: NativeBillingMode[];
+  tag?: "general.online.portal" | "general.online.beta";
   config: string;
   products: {
     product: Record<string, CatalogProduct[]>;
@@ -57,13 +60,20 @@ export type ScopeSnapshot = {
     menu: string;
     fetchedAt: string;
   };
+  customProof?: {
+    product: Record<string, unknown>;
+    months: number;
+    amount: number;
+  }[];
+  customPricing?: { support: import("./custom-pricing").PriceStatement[] };
+  ratingRuleVersion?: 1 | 2;
   ratingRules?: Record<
     string,
     {
       size: "multiply" | "ignore";
       multiplier: number;
       scale?: { numerator: number | string; denominator: number | string };
-      rounding?: "floor" | "round";
+      rounding?: "floor" | "round" | "round7-floor6";
       recurring?: { hourly: number; monthly: number };
     }
   >;
@@ -76,6 +86,7 @@ export type SnapshotRelease = {
   id: string;
   createdAt: string;
   bridgeHash?: string;
+  auditHash?: string;
   directory: NativeDirectory;
   menu: string;
   frameworkUrl: string;

@@ -2,6 +2,19 @@ import ts from "typescript";
 export type AssetImport = { start: number; end: number; url: string };
 /** Parse imports as JavaScript. Documentation comments can also contain fake import paths. */
 export function assetImports(body: string, original: string): AssetImport[] {
+  const errors = ts
+    .transpileModule(body, {
+      reportDiagnostics: true,
+      compilerOptions: {
+        target: ts.ScriptTarget.ESNext,
+        module: ts.ModuleKind.ESNext,
+      },
+    })
+    .diagnostics?.filter(
+      (diagnostic) => diagnostic.category === ts.DiagnosticCategory.Error,
+    );
+  if (errors?.length)
+    throw new Error("Invalid synchronized calculator JavaScript");
   const file = ts.createSourceFile(
       original,
       body,
