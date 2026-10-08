@@ -1,6 +1,6 @@
 {
-  "recordedAt": "2026-10-08T11:29:22.517655Z",
-  "status": "all-regions-failures-fixed-full-rerun-required",
+  "recordedAt": "2026-10-08T11:56:40.401879Z",
+  "status": "all-regions-corrected-full-audit-running",
   "discovery": {
     "availableServices": 97,
     "eligibleRegions": [
@@ -126,79 +126,18 @@
     "includesBetaServices": true
   },
   "audit": {
-    "startedAt": "2026-10-08T03:21:18.227Z",
-    "completedServiceRegionScopes": 1369,
-    "validatedServiceRegionScopes": 1357,
-    "validatedServices": 97,
-    "failures": [
-      {
-        "service": "hss",
-        "region": "me-east-1",
-        "error": "Huawei quote temporarily unavailable (504)"
-      },
-      {
-        "service": "dew",
-        "region": "me-east-1",
-        "error": "Huawei quote temporarily unavailable (504)"
-      },
-      {
-        "service": "sfsturbo",
-        "region": "la-south-2",
-        "error": "A learned pricing rule conflicts with another official response recorded in this audit: {\"inquiry\":{\"regionId\":\"la-south-2\",\"chargingMode\":1,\"periodType\":4,\"per"
-      },
-      {
-        "service": "mrs",
-        "region": "la-south-2",
-        "error": "A learned pricing rule conflicts with another official response recorded in this audit: {\"inquiry\":{\"regionId\":\"la-south-2\",\"chargingMode\":0,\"periodType\":3,\"per"
-      },
-      {
-        "service": "sfsturbo",
-        "region": "na-mexico-1",
-        "error": "A learned pricing rule conflicts with another official response recorded in this audit: {\"inquiry\":{\"regionId\":\"na-mexico-1\",\"chargingMode\":1,\"periodType\":4,\"pe"
-      },
-      {
-        "service": "servicestage",
-        "region": "sa-brazil-1",
-        "error": "No selected option for Edition"
-      },
-      {
-        "service": "sfsturbo",
-        "region": "la-north-2",
-        "error": "A learned pricing rule conflicts with another official response recorded in this audit: {\"inquiry\":{\"regionId\":\"la-north-2\",\"chargingMode\":1,\"periodType\":4,\"per"
-      },
-      {
-        "service": "kafka",
-        "region": "eu-west-0",
-        "error": "A learned pricing rule conflicts with another official response recorded in this audit: {\"inquiry\":{\"regionId\":\"eu-west-0\",\"chargingMode\":1,\"periodType\":4,\"peri"
-      },
-      {
-        "service": "rds",
-        "region": "sa-argentina-1",
-        "error": "No selected option for DB Engine"
-      },
-      {
-        "service": "search",
-        "region": "cn-east-3",
-        "error": "Unsupported pricing tiers"
-      },
-      {
-        "service": "apig",
-        "region": "cn-east-4",
-        "error": "Unsupported unit conversion 15 to 4"
-      },
-      {
-        "service": "apig",
-        "region": "cn-south-1",
-        "error": "Unsupported unit conversion 15 to 4"
-      }
-    ],
+    "startedAt": "2026-10-08T11:42:57.302Z",
+    "completedServiceRegionScopes": 76,
+    "validatedServiceRegionScopes": 76,
+    "validatedServices": 76,
+    "failures": [],
     "allEligibleRegionsValidated": false,
     "exhaustiveConfigurationCoverage": false,
     "unknownCatalogRequestFamiliesSkipped": true,
     "publicationRequiresEveryAdvertisedScope": true,
-    "validationFingerprint": "5c00c1d3f49bbe7fc6a507ca4435ada956fd567cd07301317115840a84ded681",
-    "bridgeHash": "a7a978b768815d76f6320b4b79d543dd06791ad8c65bf00cc64dda6e24dcddcd",
-    "measuredAt": "2026-10-08T06:51:14.138Z"
+    "validationFingerprint": "9dfe85fe610a14ca081ca4c16cec91e26ab7b71d6cef6ae024756af5f7eaa8ea",
+    "bridgeHash": "8ad430a4ef37abced65625c52cc19f036fbfa9c5bf7f4db247e45247254668d1",
+    "measuredAt": "2026-10-08T11:56:33.666Z"
   },
   "isolatedPreview": {
     "url": "https://calculator-offline.hwctools.site",
@@ -221,7 +160,7 @@
     "unit": {
       "passed": 425,
       "failed": 0,
-      "files": 91
+      "files": 92
     },
     "typescript": {
       "errors": 0
@@ -231,12 +170,12 @@
       "preexistingWarnings": 3
     },
     "browser": {
-      "passed": 24,
+      "passed": 27,
       "failed": 0,
       "serverNetwork": "internal Docker network without internet access",
       "externalRequestsInEcsTest": 0,
       "nativePostRequests": 0,
-      "ecsDurationChangeMilliseconds": 660,
+      "ecsDurationChangeMilliseconds": 578,
       "coverage": [
         "all four billing families",
         "ECS flavor cards",
@@ -266,9 +205,11 @@
         "all 28 snapshot regions exposed in the selector, including mainland and partner sites",
         "every published service reachable through Neo: 97 services, no external requests or failures",
         "Cairo OBS yearly-only catalog, monthly proration, quantity, term changes and saved price",
-        "Cairo ECS unavailable image and recovery through the visible advanced controls"
+        "Cairo ECS unavailable image and recovery through the visible advanced controls",
+        "all 12 previously failing regional scopes through the actual Neo interface",
+        "API Gateway duration tariff boundary at five hours"
       ],
-      "execution": "23 passed in the full suite; the corrected ECS test then passed separately"
+      "execution": "25 passed in the full offline suite; two new regional regressions passed separately. The latest artifact also passed the focused ECS and empty-selector checks."
     },
     "historicalReleaseReplay": {
       "scopes": 76,
@@ -276,10 +217,11 @@
       "failures": 0
     },
     "expandedIsolatedFixtureReplay": {
-      "scopes": 602,
-      "comparisons": 117329,
+      "scopes": 1369,
+      "comparisons": 263213,
       "failures": 0,
-      "release": "db267189fdf00b433b93297fe0cd334cc9fae2c7c37bc0239f63e628c91a1132"
+      "release": "a99d5e6c45a7facfafb0a573d51dfe285bed866af306a1058ae694127f2a9991",
+      "productionCandidate": false
     },
     "unchangedDailyJob": {
       "freshApiComparisons": 1491,
@@ -335,8 +277,8 @@
       "persistentlyIncorrectAssignmentsRejected": 1,
       "maximumAssignments": 3
     },
-    "applicationImage": "sha256:eec54d8ac067a2c576b8f5181cf6e7257cda836506d0981b7e3a90edb6f8df7e",
-    "workerImage": "sha256:61d8850b444820778b2911aa3d5e6f436abb525fa689f3a42825df8bc2099cb9",
+    "applicationImage": "sha256:817938f003915b9cd7cda558089739098e61a86ac39f3ad1fb822315e922b93c",
+    "workerImage": "sha256:3175bce2b60c49f8a491d7fddd3fb4b8f0c83a64b4c4328a408452b77cdfea49",
     "regionalFailureRegression": {
       "previousFullAuditFailures": 12,
       "allFailedScopesPassedFocusedRecheck": true,
@@ -419,7 +361,8 @@
       "calculatorCdnUsesConfiguredProxy": true,
       "offlineCdnRequestsBlocked": true,
       "obsHongKongZeroUsageFormAndCatalogChecks": 132,
-      "zeroUsageDoesNotConstrainRateInference": true
+      "zeroUsageDoesNotConstrainRateInference": true,
+      "neoInterfaceScopesChecked": 13
     }
   },
   "rollout": {
@@ -430,6 +373,28 @@
       "Rerun all 1369 scopes with the corrected frozen validator; focused rechecks passed for all 12 previous failures",
       "Replay the complete candidate and repeat offline browser checks against it",
       "Publish the full catalog and deploy matching app/worker images"
-    ]
+    ],
+    "automaticFollowThrough": {
+      "service": "neo-calculator-full-coverage-v17.service",
+      "persistsBeyondChatSession": true,
+      "steps": [
+        "wait for full audit success",
+        "replay every recorded candidate price",
+        "run complete offline browser suite against the candidate",
+        "promote matching snapshot and images to the preview",
+        "verify HTTPS and offline public behavior",
+        "notify ntfy.sh/codex"
+      ],
+      "previewRollbackOnFailure": true,
+      "productionChanged": false
+    }
+  },
+  "previousCompleteAudit": {
+    "startedAt": "2026-10-08T03:21:18.227Z",
+    "finishedAt": "2026-10-08T06:51:14.138Z",
+    "completedScopes": 1369,
+    "validatedScopes": 1357,
+    "failedScopes": 12,
+    "publicationBlocked": true
   }
 }
