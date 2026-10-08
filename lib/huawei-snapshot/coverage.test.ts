@@ -91,6 +91,11 @@ test("interrupted audit resumes valid current-source scopes without changing act
     expect(
       await resumed.resume({ ...scope, tag: "general.online.beta" }),
     ).toBeNull();
+    const changedStyles = await CoverageAudit.create(store, {
+      ...r,
+      assets: { ...r.assets, style: { hash: "new styles", type: "text/css" } },
+    }, 3);
+    expect(await changedStyles.resume(scope)).toBeNull();
     const changedAudit = await CoverageAudit.create(
       store,
       { ...r, auditHash: "new validator" },

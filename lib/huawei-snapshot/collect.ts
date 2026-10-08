@@ -12,7 +12,7 @@ import {
 import { compileSupportPricing } from "./compile-pricing";
 import { compileFlavorGenerations } from "./compile-flavors";
 import { assetImports } from "./imports";
-import { offlineFramework } from "./framework";
+import { frameworkAssetsHash, offlineFramework } from "./framework";
 import { SnapshotStore } from "./store";
 import type { SnapshotRelease, ScopeSnapshot } from "./types";
 
@@ -179,7 +179,7 @@ export async function collectScope(
       page: page.hash,
       config: config.hash,
       products: products.hash,
-      framework: release.assets[release.frameworkUrl].hash,
+      framework: frameworkAssetsHash(release.assets),
       menu: collector.store.latest(MENU_URL)!.hash,
       fetchedAt: products.fetchedAt,
     },

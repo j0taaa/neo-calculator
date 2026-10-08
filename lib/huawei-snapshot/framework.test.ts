@@ -1,5 +1,6 @@
 import { test, expect } from "bun:test";
-import { offlineFramework } from "./framework";
+import { frameworkAssetsHash, offlineFramework } from "./framework";
+import type { SnapshotRelease } from "./types";
 import { assetImports } from "./imports";
 const source = `const baseURL = (window.location.origin, () => {
 });
@@ -38,4 +39,21 @@ test("changed adapter anchors and invalid synchronized assets fail before public
   expect(() =>
     assetImports("export const x = {", "https://example.com/asset.js"),
   ).toThrow("Invalid synchronized");
+});
+
+test("framework identity includes all imported scripts, styles and their URL resolution, independently of fetch order", () => {
+  const assets: SnapshotRelease["assets"] = {
+    "https://official/framework.js": { hash: "main", type: "application/javascript", imports: [] },
+    "https://official/style.css": { hash: "style", type: "text/css", imports: [] },
+    "https://official/component.js": { hash: "component", type: "application/javascript", imports: [] },
+  };
+  const hash = frameworkAssetsHash(assets);
+  expect(frameworkAssetsHash(Object.fromEntries(Object.entries(assets).reverse()))).toBe(hash);
+  for (const url of Object.keys(assets)) {
+    expect(frameworkAssetsHash({ ...assets, [url]: { ...assets[url], hash: "changed" } })).not.toBe(hash);
+    const renamed = { ...assets, [url + "?revision=2"]: assets[url] };
+    delete renamed[url];
+    expect(frameworkAssetsHash(renamed)).not.toBe(hash);
+  }
+  expect(frameworkAssetsHash({ ...assets, "https://official/new.js": { hash: "new", type: "application/javascript" } })).not.toBe(hash);
 });

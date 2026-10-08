@@ -1,4 +1,11 @@
 import { instrumentNativePricing } from "../huawei-native/native-pricing";
+import { digest } from "./store";
+import type { SnapshotRelease } from "./types";
+
+/** Imported scripts and styles can change conditional choices independently of the entry script. */
+export function frameworkAssetsHash(assets: SnapshotRelease["assets"]) {
+  return digest(JSON.stringify(Object.entries(assets).sort(([a], [b]) => a.localeCompare(b))));
+}
 
 /** Isolate vendor storage and API origins. Pricing/conditional functions remain unchanged. */
 export function offlineFramework(source: string) {

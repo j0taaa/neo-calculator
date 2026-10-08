@@ -3,6 +3,7 @@ import { join } from "node:path";
 import { randomUUID } from "node:crypto";
 import type { SnapshotRelease, ScopeSnapshot } from "./types";
 import type { SnapshotStore } from "./store";
+import { frameworkAssetsHash } from "./framework";
 
 /** Enumerate every advertised offer, sampling each service before proceeding to its next region. */
 export function discoveryScopes(
@@ -80,8 +81,7 @@ export class CoverageAudit {
         old.phase !== "complete" &&
         old.release.bridgeHash === release.bridgeHash &&
         old.release.auditHash === release.auditHash &&
-        old.release.assets[old.release.frameworkUrl]?.hash ===
-          release.assets[release.frameworkUrl]?.hash &&
+        frameworkAssetsHash(old.release.assets) === frameworkAssetsHash(release.assets) &&
         old.release.menu === release.menu
       )
         cached = old.release;

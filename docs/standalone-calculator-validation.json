@@ -1,5 +1,5 @@
 {
-  "recordedAt": "2026-10-08T01:38:22.077345Z",
+  "recordedAt": "2026-10-08T01:49:55.909473Z",
   "status": "all-regions-bootstrap-in-progress-production-cutover-blocked",
   "discovery": {
     "availableServices": 97,
@@ -126,16 +126,16 @@
     "includesBetaServices": true
   },
   "audit": {
-    "startedAt": "2026-10-08T01:35:23.770Z",
-    "completedServiceRegionScopes": 29,
-    "validatedServiceRegionScopes": 29,
-    "validatedServices": 29,
+    "startedAt": "2026-10-08T01:49:20.828Z",
+    "completedServiceRegionScopes": 1,
+    "validatedServiceRegionScopes": 1,
+    "validatedServices": 1,
     "failures": [],
     "allEligibleRegionsValidated": false,
     "exhaustiveConfigurationCoverage": false,
     "unknownCatalogRequestFamiliesSkipped": true,
     "publicationRequiresEveryAdvertisedScope": true,
-    "validationFingerprint": "9199095ba237042b1f8cc2b6f9cdf8aa6a9066cf15b400e20de76e598dc40c90",
+    "validationFingerprint": "317e6f9ce5db2931c40a9a145e2e7741e1ff4775504912b4cb3d1ed50e5178e3",
     "bridgeHash": "02df53fa82a138002898c4b89ba97495e5dc3e70b14d223d104af822eec22ef7"
   },
   "isolatedPreview": {
@@ -157,7 +157,7 @@
   },
   "checks": {
     "unit": {
-      "passed": 413,
+      "passed": 414,
       "failed": 0,
       "files": 91
     },
@@ -240,6 +240,12 @@
       "downloadedJavaScriptEvaluatedOnServer": false,
       "catalogOnlyGenerationsExcluded": true,
       "riRequiresSameZoneOffer": true
+    },
+    "completeFrameworkIdentity": {
+      "includesImportedScripts": true,
+      "includesStylesheets": true,
+      "includesAssetUrls": true,
+      "changedDependenciesInvalidateCheckpoints": true
     }
   },
   "rollout": {
