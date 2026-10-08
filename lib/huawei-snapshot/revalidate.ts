@@ -27,7 +27,7 @@ export async function revalidateUnchangedScope(
         product.usageFactor,
         product.usageMeasureId,
         product.resouceSizeMeasureId,
-        matchingPlans(rows, proof.inquiry, product).map(({ plan }) => [
+        matchingPlans(rows, proof.inquiry, product, scope.ratingRuleVersion ?? 1).map(({ plan }) => [
           plan.billingMode,
           plan.usageFactor,
           plan.measureUnit,

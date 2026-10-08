@@ -19,7 +19,7 @@ export async function calibrateRecurring(
   if (inquiry.chargingMode !== 10)
     throw new Error("Unsupported recurring rate normalization");
   const product = inquiry.productInfos[index],
-    plans = matchingPlans(catalogRows(scope), inquiry, product);
+    plans = matchingPlans(catalogRows(scope), inquiry, product, scope.ratingRuleVersion ?? 1);
   if (!plans.some(({ plan }) => plan.originType === "perPrice"))
     throw new Error("Missing RI monthly payment plan");
   const cases = [];

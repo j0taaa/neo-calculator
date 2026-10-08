@@ -90,6 +90,16 @@ test("saved amounts are rebuilt from rates even if all client totals were tamper
     ]),
   ).toThrow("does not match");
 });
+
+test("priced resources with no selected product ID retain the actual inquiry component ID", () => {
+  const p = structuredClone(pricing);
+  delete p.selectedProduct.productAllInfos[0].productId;
+  const q = structuredClone(inquiry);
+  q.productInfos[0].id = "1-0-undefined";
+  expect(calculateQuote(scope, "release", p, [q]).quote.amount).toBe(2880);
+  q.productInfos[0].id = "1-0-noId";
+  expect(() => calculateQuote(scope, "release", p, [q])).toThrow("Unsupported");
+});
 test("subscription prices truncate the combined resource charge, including quantity and duration", () => {
   const s = {
     ...scope,

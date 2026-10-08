@@ -3,6 +3,8 @@ import type { Inquiry, InquiryProduct } from "../huawei-native/types";
 import type { InquiryResponse } from "../huawei-native/quotes";
 import type { CatalogProduct, Plan, ScopeSnapshot } from "./types";
 
+export class UnavailableProduct extends Error {}
+
 // Dimensions are converted before applying the published billing plans. No network access.
 const units: Record<number, [string, number]> = {
   0: ["time", 86400],
@@ -170,6 +172,7 @@ export function matchingPlans(
     productId?: string;
     bizExtAttributes?: { key: string; value: unknown }[];
   },
+  version: 1 | 2 = 2,
 ) {
   const billingMode = (
     {
@@ -223,12 +226,14 @@ export function matchingPlans(
       ({ row }) =>
         row.RITime === `nodeData.${request.periodNum}_${request.periodType}`,
     );
-  } else if (billingMode === "YEARLY" && !plans.length) {
+  } else if (!plans.length && (billingMode === "YEARLY" ||
+    (version === 2 && billingMode === "MONTHLY"))) {
+    const alternative = billingMode === "YEARLY" ? "MONTHLY" : "YEARLY";
     plans = matching.flatMap((row) =>
       (row.planList ?? [])
         .filter(
           (plan) =>
-            plan.billingMode === "MONTHLY" &&
+          plan.billingMode === alternative &&
             (!plan.siteCode || plan.siteCode === request.siteCode) &&
             (!product.skuCode || plan.skuCode === product.skuCode) &&
             (!product.productId || plan.productId === product.productId),
@@ -263,12 +268,21 @@ function plansForTerm(
   request: Inquiry,
   version: 1 | 2,
 ) {
+  if (version === 2 && candidates.some(({ plan }) => plan.condition)) {
+    // The calculator omits a usage-hour selection. CBC uses its 0000 tariff,
+    // including Deep Archive traffic, whose official form does not split hours.
+    if (request.chargingMode !== 1 || !candidates.every(({ plan }) => !plan.condition ||
+      (plan.conditionName === "serviceHourTime" && /^(?:[01]\d|2[0-3])[0-5]\d$/.test(plan.condition))) ||
+      !candidates.some(({ plan }) => plan.condition === "0000"))
+      throw new Error("This conditional price requires a supported local rule");
+    candidates = candidates.filter(({ plan }) => !plan.condition || plan.condition === "0000");
+  }
   const months = request.periodNum * (request.periodType === 3 ? 12 : 1);
   return candidates
     .filter(({ plan }) =>
       version === 2 && request.chargingMode === 0
         ? (plan.periodNum || 1) <=
-          (plan.billingMode === "YEARLY" ? months / 12 : months)
+          (plan.billingMode === "YEARLY" ? Math.max(1, months / 12) : months)
         : plan.billingMode !== "YEARLY" ||
           request.periodNum % (plan.periodNum || 1) === 0,
     )
@@ -280,7 +294,7 @@ export function ratingRuleKey(
   product: InquiryProduct,
 ) {
   const plans = plansForTerm(
-    matchingPlans(catalogRows(snapshot), request, product),
+    matchingPlans(catalogRows(snapshot), request, product, snapshot.ratingRuleVersion ?? 1),
     request,
     snapshot.ratingRuleVersion ?? 1,
   );
@@ -320,6 +334,9 @@ export function planRuleKey(
     ...(request.chargingMode === 10
       ? [request.periodNum, request.periodType]
       : []),
+    ...(version === 2 && plan.condition ? [plan.conditionName, plan.condition] : []),
+    ...(version === 2 && request.chargingMode === 0 && request.periodType === 2 &&
+      plan.billingMode === "YEARLY" ? ["monthly-from-yearly"] : []),
   ]);
 }
 export function rateInquiry(
@@ -351,6 +368,9 @@ export function rateInquiry(
     throw new Error("Invalid billing period");
   const rows = catalogRows(snapshot),
     ids = new Set<string>();
+  if (request.productInfos.some((product) =>
+    typeof product.resourceSpecCode !== "string" || !product.resourceSpecCode.trim()))
+    throw new UnavailableProduct("This configuration has no available product");
   let exactTotal = Decimal.of(0);
   const productRatingResult = request.productInfos.map((product) => {
     if (!product.id || ids.has(product.id))
@@ -362,7 +382,7 @@ export function rateInquiry(
       throw new Error("Quantity exceeds Huawei’s calculation limit (10000)");
     const rule =
       snapshot.ratingRules?.[ratingRuleKey(snapshot, request, product)];
-    const candidates = matchingPlans(rows, request, product);
+    const candidates = matchingPlans(rows, request, product, snapshot.ratingRuleVersion ?? 1);
     let amount: Decimal, perAmount: number | undefined;
     if (request.chargingMode === 10) {
       const upfront = candidates.find(
@@ -394,7 +414,8 @@ export function rateInquiry(
       );
       if (!choices.length) throw new Error("Unsupported subscription term");
       const { plan } = choices[0];
-      if (plan.condition)
+      if (plan.condition && !(snapshot.ratingRuleVersion === 2 &&
+        plan.conditionName === "serviceHourTime" && plan.condition === "0000"))
         throw new Error(
           "This conditional price requires a supported local rule",
         );
@@ -461,8 +482,8 @@ export function rateInquiry(
       }
       if (request.chargingMode === 0)
         base = base
-          .mul(plan.billingMode === "YEARLY" ? request.periodNum : n)
-          .div(plan.periodNum || 1);
+          .mul(n)
+          .div((plan.periodNum || 1) * (plan.billingMode === "YEARLY" ? 12 : 1));
       amount = base.mul(quantity);
       amount = rule?.scale
         ? amount.mul(rule.scale.numerator).div(rule.scale.denominator)

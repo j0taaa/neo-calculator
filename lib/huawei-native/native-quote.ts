@@ -3,6 +3,16 @@ import { nativeBillingModes, isNativeBillingMode } from "./native-billing";
 import type { Inquiry, Quote } from "./types";
 import type { NativePricing, NativeInquiryQuote } from "./native-pricing";
 
+export function nativeComponentId(
+  timeTag: number,
+  product: NativePricing["selectedProduct"]["productAllInfos"][number],
+) {
+  const productId = ["normal", "combine", "sameNamePackage"].includes(String(product.inquiryTag))
+    ? product.productId
+    : product.productId || "noId";
+  return `${timeTag}-${product.selectIndex}-${productId}`;
+}
+
 /** Validate the complete vendor aggregation and all of its fresh inquiry components together. */
 export function validateAggregatedQuote(
   pricing: NativePricing,
@@ -63,7 +73,7 @@ export function validateAggregatedQuote(
   );
   const expected = new Map(
     products.map((product) => [
-      `${selected.timeTag}-${product.selectIndex}-${product.productId || "noId"}`,
+      nativeComponentId(selected.timeTag, product),
       product,
     ]),
   );

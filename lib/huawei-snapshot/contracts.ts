@@ -57,7 +57,7 @@ export async function validateCatalogContracts(
           request.productInfos.some(
             (product) =>
               product.resourceType === row.resourceType &&
-              matchingPlans(rows, request, product).some(
+              matchingPlans(rows, request, product, scope.ratingRuleVersion ?? 1).some(
                 (item) => family(item.plan) === family(plan),
               ),
           ),
@@ -66,7 +66,7 @@ export async function validateCatalogContracts(
       const sample = template.productInfos.find(
         (product) =>
           product.resourceType === row.resourceType &&
-          matchingPlans(rows, template, product).some(
+          matchingPlans(rows, template, product, scope.ratingRuleVersion ?? 1).some(
             (item) => family(item.plan) === family(plan),
           ),
       )!;

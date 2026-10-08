@@ -16,7 +16,7 @@ import type {
 } from "../huawei-native/native-pricing";
 import type { ScopeSnapshot } from "./types";
 import type { Inquiry } from "../huawei-native/types";
-import { rateInquiry } from "./rating";
+import { rateInquiry, UnavailableProduct } from "./rating";
 import { localState } from "./state";
 import { calculateQuote } from "./verify";
 
@@ -96,6 +96,7 @@ const payload = win.__neoSnapshot,
 const captured = new Map<string, NativeInquiryQuote>();
 let state: NativeState | null = null;
 let priceError = "";
+let unavailableProduct = false;
 // All API reads and ratings are resolved from the pinned release, never from the network.
 function respond(url: string, body?: string | null) {
   const target = new URL(url, location.href);
@@ -120,7 +121,10 @@ function respond(url: string, body?: string | null) {
     let response;
     try {
       response = rateInquiry(scope, inquiry);
+      priceError = "";
+      unavailableProduct = false;
     } catch (error) {
+      unavailableProduct = error instanceof UnavailableProduct;
       throw new Error(
         `${error instanceof Error ? error.message : error}; ${JSON.stringify(inquiry)}`,
       );
@@ -209,8 +213,9 @@ async function settle(afterEpoch = -1) {
     const pricing: NativePricing | undefined = bridge
       ? JSON.parse(JSON.stringify(bridge))
       : undefined;
-    const form = readFormInDocument(),
-      signature = JSON.stringify(form);
+    const form = readFormInDocument();
+    if (unavailableProduct) form.availability = "unavailable";
+    const signature = JSON.stringify(form);
     if (signature !== previous) stableSince = Date.now();
     if (
       pricing &&
@@ -372,7 +377,7 @@ async function initialize() {
           modes.includes(payload.billingMode),
         )?.[0]
       : undefined);
-  win.iframeSetValue({
+  const values = {
     global_REGIONINFO: {
       region: scope.region,
       chargeMode: payload.billingMode,
@@ -380,10 +385,36 @@ async function initialize() {
       ...(locationCode ? { locationType: "homeZoneAZ", locationCode } : {}),
       tag: scope.tag ?? "general.online.portal",
     },
-  });
-  const guide = document.querySelector<HTMLElement>(".guide-dialog button");
-  guide?.click();
-  return settle();
+  };
+  const locationLabel = locationCode
+    ? JSON.parse(payload.menu).global?.[locationCode]
+    : undefined;
+  const locationMatches = () => {
+    if (!locationCode) return true;
+    const field = readFormInDocument().fields.find(
+      (field) => field.component === "global_LOCATIONCODE",
+    );
+    return win.__neoNativePricing?.selectedProduct?.locationCode === locationCode &&
+      !!locationLabel && field?.options?.some(
+        (option) => option.value === field.value && option.label === locationLabel,
+      );
+  };
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const priorEpoch = win.__neoNativePricing?.epoch ?? -1;
+    const alreadySelected = locationMatches() &&
+      win.__neoNativePricing?.selectedProduct?.region === scope.region &&
+      win.__neoNativePricing?.selectedProduct?.chargeMode === payload.billingMode;
+    win.iframeSetValue(values);
+    const guide = document.querySelector<HTMLElement>(".guide-dialog button");
+    guide?.click();
+    const result = await settle(alreadySelected ? -1 : priorEpoch);
+    if (locationMatches())
+      return result;
+    // Child controls can finish mounting after the first region assignment.
+    // Reapply the requested zone after that render, then verify it explicitly.
+    state = null;
+  }
+  throw new Error(`The synchronized calculator did not select availability zone ${locationCode}`);
 }
 let busy = false;
 window.addEventListener("message", async (event) => {

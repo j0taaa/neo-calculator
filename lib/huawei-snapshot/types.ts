@@ -15,6 +15,7 @@ export type Plan = {
   billingEvent?: string;
   divisionType?: string;
   condition?: string;
+  conditionName?: string;
   feeInstallMode?: string;
   perAmount?: number;
   installPeriodType?: string;

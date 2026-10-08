@@ -37,6 +37,7 @@ export function scaleFromRoundedQuotes(
     catalogRows(scope),
     cases[0].request,
     cases[0].request.productInfos[0],
+    scope.ratingRuleVersion ?? 1,
   )[0].plan;
   const rate = plan.amount && Decimal.of(plan.amount);
   // Prefer the shortest decimal effective rate proven by all probes (Huawei often rounds converted hourly rates).

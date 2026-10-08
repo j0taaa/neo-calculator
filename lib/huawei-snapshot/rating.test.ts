@@ -166,6 +166,26 @@ test("monthly discounts begin at their advertised term and retain separate corre
   s.products.product.rows[0].planList!.pop();
   expect(rateInquiry(s, { ...q, periodType: 3, periodNum: 3 }).amount).toBe(9150);
 });
+test("the default inquiry tariff uses CBC's 0000 service-hour condition independently of catalog order", () => {
+  const plans = [
+    { billingMode: "ONDEMAND", amount: 0.038, measureUnit: 10, conditionName: "serviceHourTime", condition: "1600" },
+    { billingMode: "ONDEMAND", amount: 0.077, measureUnit: 10, conditionName: "serviceHourTime", condition: "0000" },
+  ];
+  const s = scope(plans);
+  s.ratingRuleVersion = 2;
+  const q = { ...inquiry, productInfos: [{ ...inquiry.productInfos[0], productNum: 1, resourceSize: 1,
+    usageValue: 10, usageMeasureId: 10, usageFactor: "download_da.external" }] };
+  expect(rateInquiry(s, q).amount).toBe(0.77);
+  s.products.product.rows[0].planList!.reverse();
+  expect(rateInquiry(s, q).amount).toBe(0.77);
+  s.ratingRuleVersion = undefined;
+  expect(() => rateInquiry(s, q)).toThrow("conditional");
+  s.ratingRuleVersion = 2;
+  s.products.product.rows[0].planList = [plans.find((plan) => plan.condition === "1600")!];
+  expect(() => rateInquiry(s, q)).toThrow("conditional");
+  s.products.product.rows[0].planList = [{ ...plans.find((plan) => plan.condition === "0000")!, conditionName: "unknown" }];
+  expect(() => rateInquiry(s, q)).toThrow("conditional");
+});
 test("unknown rates, conditions, malformed quantities and cross-region requests fail closed", () => {
   const s = scope([
     { billingMode: "ONDEMAND", amount: 1, condition: "new rule" },
@@ -181,6 +201,29 @@ test("unknown rates, conditions, malformed quantities and cross-region requests 
     }),
   ).toThrow("quantity");
   expect(() => rateInquiry(scope([]), inquiry)).toThrow("No synchronized rate");
+});
+
+test("an official selection with no specification is unavailable rather than a free resource", () => {
+  const s = scope([{ billingMode: "ONDEMAND", amount: 1 }]);
+  for (const resourceSpecCode of [undefined, "", " "])
+    expect(() => rateInquiry(s, { ...inquiry, productInfos: [{
+      ...inquiry.productInfos[0], resourceSpecCode: resourceSpecCode as string,
+    }] })).toThrow("no available product");
+});
+
+test("yearly-only catalogs can prorate monthly offers without mixing their correction keys", () => {
+  const s = scope([{ billingMode: "YEARLY", amount: 7.48, periodNum: 1 }]);
+  s.ratingRuleVersion = 2;
+  const q = { ...inquiry, chargingMode: 0, periodType: 2,
+    productInfos: [{ ...inquiry.productInfos[0], productNum: 1, resourceSize: 1 }] };
+  expect(rateInquiry(s, q).amount).toBe(0.62);
+  expect(rateInquiry(s, { ...q, periodNum: 8 }).amount).toBe(4.98);
+  expect(rateInquiry(s, { ...q, productInfos: [{ ...q.productInfos[0], productNum: 99 }] }).amount).toBe(61.71);
+  const yearly = { ...q, periodType: 3 };
+  expect(rateInquiry(s, yearly).amount).toBe(7.48);
+  expect(ratingRuleKey(s, q, q.productInfos[0])).not.toBe(ratingRuleKey(s, yearly, yearly.productInfos[0]));
+  s.ratingRuleVersion = undefined;
+  expect(() => rateInquiry(s, q)).toThrow("No synchronized rate");
 });
 test("decimal truncation preserves large tier charges and exact repeated currency amounts", () => {
   const plan: Plan = {

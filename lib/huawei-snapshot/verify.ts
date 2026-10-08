@@ -1,6 +1,6 @@
 import type { NativePricing } from "../huawei-native/native-pricing";
 import type { Inquiry } from "../huawei-native/types";
-import { validateAggregatedQuote } from "../huawei-native/native-quote";
+import { nativeComponentId, validateAggregatedQuote } from "../huawei-native/native-quote";
 import { supportPrice } from "./custom-pricing";
 import { catalogRows, rateInquiry, rounded } from "./rating";
 import type { ScopeSnapshot } from "./types";
@@ -57,7 +57,7 @@ export function calculateQuote(
         ),
     )
     .map((product) => {
-      const id = `${selected.timeTag}-${product.selectIndex}-${product.productId || "noId"}`;
+      const id = nativeComponentId(selected.timeTag, product);
       const quote = rated.get(id);
       let amount: number;
       if (quote) {
