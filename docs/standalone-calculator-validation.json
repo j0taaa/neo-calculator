@@ -1,5 +1,5 @@
 {
-  "recordedAt": "2026-10-08T01:30:56.202753Z",
+  "recordedAt": "2026-10-08T01:38:22.077345Z",
   "status": "all-regions-bootstrap-in-progress-production-cutover-blocked",
   "discovery": {
     "availableServices": 97,
@@ -126,10 +126,10 @@
     "includesBetaServices": true
   },
   "audit": {
-    "startedAt": "2026-10-08T01:30:26.664Z",
-    "completedServiceRegionScopes": 0,
-    "validatedServiceRegionScopes": 0,
-    "validatedServices": 0,
+    "startedAt": "2026-10-08T01:35:23.770Z",
+    "completedServiceRegionScopes": 29,
+    "validatedServiceRegionScopes": 29,
+    "validatedServices": 29,
     "failures": [],
     "allEligibleRegionsValidated": false,
     "exhaustiveConfigurationCoverage": false,
@@ -169,12 +169,12 @@
       "preexistingWarnings": 3
     },
     "browser": {
-      "passed": 20,
+      "passed": 21,
       "failed": 0,
       "serverNetwork": "internal Docker network without internet access",
       "externalRequestsInEcsTest": 0,
       "nativePostRequests": 0,
-      "ecsDurationChangeMilliseconds": 837,
+      "ecsDurationChangeMilliseconds": 532,
       "coverage": [
         "all four billing families",
         "ECS flavor cards",
@@ -200,7 +200,8 @@
         "hidden and CSS-disabled radio choices",
         "numeric unit-selector discovery",
         "selectable ECS cards for the current image and billing family",
-        "CDM monthly discount threshold and yearly term"
+        "CDM monthly discount threshold and yearly term",
+        "all 28 snapshot regions exposed in the selector, including mainland and partner sites"
       ]
     },
     "historicalReleaseReplay": {
@@ -210,8 +211,9 @@
     },
     "expandedIsolatedFixtureReplay": {
       "scopes": 127,
-      "comparisons": 33080,
-      "failures": 0
+      "comparisons": 33048,
+      "failures": 0,
+      "release": "841cbf9417c8464bf5fca0b0785e5884c5e497c6c791a65cb1a0e202a32f9084"
     },
     "unchangedDailyJob": {
       "freshApiComparisons": 1491,

@@ -114,6 +114,22 @@ test("ECS duration updates locally, preserves flavor cards, and never sends a na
     await page.locator('iframe[title="Local calculator rules"]').count(),
   ).toBe(1);
 });
+test("region selection includes every snapshot region, including mainland and partner sites", async ({ page }) => {
+  await page.goto("/?service=ECS&region=cn-hong-kong");
+  expect(await price(page)).toBeGreaterThan(0);
+  const directory = await (await page.request.get("/api/calculator/native")).json();
+  const regions = directory.regions as { id: string; name: string }[];
+  expect(regions.length).toBeGreaterThan(2);
+  expect(regions.map(region => region.id)).toEqual(expect.arrayContaining([
+    "cn-north-4", "eu-west-0", "my-kualalumpur-1", "eu-west-101", "tr-central-201", "global-cbc-1",
+  ]));
+  await page.getByLabel("Huawei region", { exact: true }).click();
+  await expect(page.getByRole("option")).toHaveCount(regions.length);
+  for (const region of regions) {
+    await expect(page.locator(`[role="option"][data-value="${region.id}"]`)).toHaveText(region.name);
+  }
+  await page.keyboard.press("Escape");
+});
 for (const [service, mode] of [
   ["ECS", "Yearly/Monthly"],
   ["ECS", "RI"],
