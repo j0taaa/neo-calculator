@@ -1,5 +1,5 @@
 {
-  "recordedAt": "2026-10-08T00:37:59.883Z",
+  "recordedAt": "2026-10-08T00:45:26.079Z",
   "status": "all-regions-bootstrap-in-progress-production-cutover-blocked",
   "discovery": {
     "availableServices": 97,
@@ -126,16 +126,16 @@
     "includesBetaServices": true
   },
   "audit": {
-    "startedAt": "2026-10-08T00:16:52.747Z",
-    "completedServiceRegionScopes": 132,
-    "validatedServiceRegionScopes": 132,
-    "validatedServices": 97,
+    "startedAt": "2026-10-08T00:44:51.804Z",
+    "completedServiceRegionScopes": 1,
+    "validatedServiceRegionScopes": 1,
+    "validatedServices": 1,
     "failures": [],
     "allEligibleRegionsValidated": false,
     "exhaustiveConfigurationCoverage": false,
     "unknownCatalogRequestFamiliesSkipped": true,
     "publicationRequiresEveryAdvertisedScope": true,
-    "validationFingerprint": "ad0b7d0566c75956b0a89f8926747097d5e3af68a65c13f612bd1f3e961e80c3",
+    "validationFingerprint": "ae50007ecab01ecada06f584647b06a39b2841b5a02bc88d8889eb88ffec4f6c",
     "bridgeHash": "373e00f89514f9c16241230230c053acc2834b30d9e02735df248ab1d9d0badc"
   },
   "isolatedPreview": {
@@ -157,7 +157,7 @@
   },
   "checks": {
     "unit": {
-      "passed": 405,
+      "passed": 406,
       "failed": 0,
       "files": 90
     },
@@ -222,6 +222,13 @@
         "dli/eu-west-0",
         "sfsturbo/sa-brazil-1"
       ]
+    },
+    "discountedFixedPackage": {
+      "service": "dgcCdm",
+      "region": "ap-southeast-2",
+      "formChecks": 6,
+      "catalogChecks": 10,
+      "passed": true
     }
   },
   "rollout": {

@@ -54,27 +54,34 @@ async function calibrate(
     throw new Error("An RI rate disagrees with Huawei");
   const key = ratingRuleKey(scope, inquiry, product),
     rules = (scope.ratingRules ??= {});
+  const scaledQuantity = (factor: number) =>
+    quantity * factor <= 10000
+      ? quantity * factor
+      : Math.max(1, Math.floor(quantity / factor));
   const probes = [
     { ...product, id: "probe-1" },
     {
       ...product,
       id: "probe-2",
-      productNum:
-        quantity * 3 <= 10000
-          ? quantity * 3
-          : Math.max(1, Math.floor(quantity / 3)),
+      productNum: scaledQuantity(3),
     },
     {
       ...product,
       id: "probe-3",
-      resourceSize: Number(product.resourceSize ?? 1) * 2,
+      ...(product.resourceSize !== undefined
+        ? { resourceSize: Number(product.resourceSize) * 2 }
+        : product.usageValue !== undefined
+          ? { usageValue: product.usageValue * 3 }
+          : { productNum: scaledQuantity(5) }),
     },
     {
       ...product,
       id: "probe-4",
       ...(product.usageValue !== undefined
         ? { usageValue: product.usageValue * 2 }
-        : { resourceSize: 7 }),
+        : product.resourceSize !== undefined
+          ? { resourceSize: 7 }
+          : { productNum: scaledQuantity(7) }),
     },
   ];
   const cases = [];
@@ -90,11 +97,10 @@ async function calibrate(
       {
         ...product,
         id: "holdout",
-        productNum:
-          quantity * 2 <= 10000
-            ? quantity * 2
-            : Math.max(1, Math.floor(quantity / 2)),
-        resourceSize: Number(product.resourceSize ?? 1) * 7,
+        productNum: scaledQuantity(2),
+        ...(product.resourceSize !== undefined
+          ? { resourceSize: Number(product.resourceSize) * 7 }
+          : {}),
         ...(product.usageValue !== undefined
           ? { usageValue: product.usageValue * 3 }
           : {}),

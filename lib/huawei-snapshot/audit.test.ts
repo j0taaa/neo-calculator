@@ -88,6 +88,48 @@ test("unsupported nonlinear rules are rejected rather than fitted to a few defau
   );
   expect(Object.keys(s.ratingRules ?? {})).toHaveLength(0);
 });
+test("discounted fixed packages use independent quantity probes without inventing unsupported capacity", async () => {
+  const s = scope();
+  s.products.product.rows[0].planList = [
+    { billingMode: "MONTHLY", amount: 357, periodNum: 1 },
+  ];
+  const q: Inquiry = {
+    ...inquiry,
+    chargingMode: 0,
+    periodType: 2,
+    productInfos: [
+      {
+        id: "package",
+        cloudServiceType: "svc",
+        resourceType: "resource",
+        resourceSpecCode: "sku",
+        productNum: 1,
+      },
+    ],
+  };
+  const quantities = new Set<number>();
+  const gateway = new QuoteGateway(async (request) => {
+    const p = request.productInfos[0];
+    expect(p.resourceSize).toBeUndefined();
+    quantities.add(p.productNum);
+    const amount = 305 * p.productNum;
+    return {
+      amount,
+      currency: "USD",
+      productRatingResult: [{ id: p.id, amount }],
+    };
+  });
+  expect((await compareInquiry(s, q, gateway)).calibrated).toBe(true);
+  expect([...quantities].sort((a, b) => a - b)).toEqual([1, 2, 3, 5, 7, 9999]);
+  expect(
+    rateInquiry(s, {
+      ...q,
+      productInfos: [{ ...q.productInfos[0], productNum: 11 }],
+    }).amount,
+  ).toBe(3355);
+  const { verifyRecordedQuotes } = await import("./audit");
+  expect(() => verifyRecordedQuotes(s)).not.toThrow();
+});
 test("RI recurring corrections are validated and isolated by reservation term", async () => {
   const s = scope();
   s.products.product.rows = [1, 3].map((term) => ({
