@@ -1,6 +1,6 @@
 {
-  "recordedAt": "2026-10-08T15:23:52.089Z",
-  "status": "full-coverage-standalone-preview-verified",
+  "recordedAt": "2026-10-08T21:17:47.521Z",
+  "status": "full-coverage-faster-standalone-preview-verified",
   "discovery": {
     "availableServices": 97,
     "eligibleRegions": [
@@ -126,7 +126,7 @@
     "includesBetaServices": true
   },
   "audit": {
-    "startedAt": "2026-10-08T11:42:57.302Z",
+    "startedAt": "2026-10-08T17:47:10.355Z",
     "completedServiceRegionScopes": 1369,
     "validatedServiceRegionScopes": 1369,
     "validatedServices": 97,
@@ -135,15 +135,15 @@
     "exhaustiveConfigurationCoverage": false,
     "unknownCatalogRequestFamiliesSkipped": true,
     "publicationRequiresEveryAdvertisedScope": true,
-    "validationFingerprint": "9dfe85fe610a14ca081ca4c16cec91e26ab7b71d6cef6ae024756af5f7eaa8ea",
-    "bridgeHash": "8ad430a4ef37abced65625c52cc19f036fbfa9c5bf7f4db247e45247254668d1",
-    "measuredAt": "2026-10-08T15:16:50.858Z",
-    "finishedAt": "2026-10-08T15:16:50.858Z",
-    "durationSeconds": 12833.556
+    "validationFingerprint": "a5b7e9e69f8d4a78558aff5c449db46181198544cc5c26fd33826d8c6042ec41",
+    "bridgeHash": "ecfe1d67531131b2a84951c4d8bf0cf452b08e7025b7d62386b31aae8d1bd986",
+    "measuredAt": "2026-10-08T21:09:55.923Z",
+    "finishedAt": "2026-10-08T21:09:55.923Z",
+    "durationSeconds": 12165.568
   },
   "isolatedPreview": {
     "url": "https://calculator-offline.hwctools.site",
-    "release": "bf0858f4f399241e573de9b13beec21bf563559f7d53d7d834cf99e13326a202",
+    "release": "681cb612a0ad2d97d773deb2eab8b6a2953370bef17fd7f181c65305dd783f1c",
     "validatedServices": 97,
     "validatedServiceRegionScopes": 1369,
     "regions": [
@@ -264,9 +264,9 @@
   },
   "checks": {
     "unit": {
-      "passed": 425,
+      "passed": 428,
       "failed": 0,
-      "files": 92
+      "files": 93
     },
     "typescript": {
       "errors": 0
@@ -276,12 +276,12 @@
       "preexistingWarnings": 3
     },
     "browser": {
-      "passed": 27,
+      "passed": 29,
       "failed": 0,
       "serverNetwork": "internal Docker network without internet access",
       "externalRequestsInEcsTest": 0,
       "nativePostRequests": 0,
-      "ecsDurationChangeMilliseconds": 574,
+      "ecsDurationChangeMilliseconds": 265,
       "coverage": [
         "all four billing families",
         "ECS flavor cards",
@@ -313,9 +313,11 @@
         "Cairo OBS yearly-only catalog, monthly proration, quantity, term changes and saved price",
         "Cairo ECS unavailable image and recovery through the visible advanced controls",
         "all 12 previously failing regional scopes through the actual Neo interface",
-        "API Gateway duration tariff boundary at five hours"
+        "API Gateway duration tariff boundary at five hours",
+        "warm ECS, ELB and NAT duration-edit latency without timed component debounces",
+        "completed pricing withheld until outstanding conditional emissions finish"
       ],
-      "execution": "All 27 tests passed together against the complete candidate in 6.1 minutes; the application ran on an internal Docker network without internet access."
+      "execution": "All 29 tests passed together against the complete candidate in 6.2 minutes; the application ran on an internal Docker network without internet access. The legacy duration metric includes filling the input and assertion polling; direct render latency is recorded separately."
     },
     "historicalReleaseReplay": {
       "scopes": 76,
@@ -383,8 +385,8 @@
       "persistentlyIncorrectAssignmentsRejected": 1,
       "maximumAssignments": 3
     },
-    "applicationImage": "sha256:817938f003915b9cd7cda558089739098e61a86ac39f3ad1fb822315e922b93c",
-    "workerImage": "sha256:3175bce2b60c49f8a491d7fddd3fb4b8f0c83a64b4c4328a408452b77cdfea49",
+    "applicationImage": "sha256:05a1f085de4b3093edb9631d1a0d63e89b7823035abf6be8ef6e17d64cd20a35",
+    "workerImage": "sha256:0ce222d65ab525b46fa11de5af4ce76081a839f5947297689db09508b78346a8",
     "regionalFailureRegression": {
       "previousFullAuditFailures": 12,
       "allFailedScopesPassedFocusedRecheck": true,
@@ -471,9 +473,9 @@
       "neoInterfaceScopesChecked": 13
     },
     "completeCandidateReplay": {
-      "release": "bf0858f4f399241e573de9b13beec21bf563559f7d53d7d834cf99e13326a202",
+      "release": "681cb612a0ad2d97d773deb2eab8b6a2953370bef17fd7f181c65305dd783f1c",
       "scopes": 1369,
-      "comparisons": 266989,
+      "comparisons": 268062,
       "failures": 0
     },
     "publicPreviewSmoke": {
@@ -484,6 +486,50 @@
       "httpStatus": 200,
       "tlsVerified": true,
       "snapshotAndApplicationBridgeMatch": true
+    },
+    "runtimeRevision": "45559d1",
+    "localInteractionLatency": {
+      "measurement": "Committed input blur to changed price rendered, observed directly through DOM mutations without assertion polling",
+      "offlineDurationEditsMilliseconds": {
+        "ECS": [
+          80.4,
+          59.3,
+          58.6
+        ],
+        "ELB": [
+          54.6,
+          57.2,
+          53.7
+        ],
+        "NAT": [
+          40.8,
+          41.3,
+          39.6
+        ]
+      },
+      "publicEcsDurationEditsMilliseconds": {
+        "before": [
+          203.6,
+          215,
+          177.3
+        ],
+        "after": [
+          86,
+          76.1,
+          68.2
+        ]
+      },
+      "publicExternalRequests": 0,
+      "fixedEmissionWaitsRemovedMilliseconds": [
+        50,
+        100
+      ],
+      "fixedFormSettlingWaitRemovedMilliseconds": 80,
+      "requiresNoPendingEmissions": true,
+      "requiresFreshPricingEpoch": true,
+      "requiresTwoMatchingObservations": true,
+      "numericInputsCommitOn": "blur or Enter",
+      "latencyGuarantee": false
     }
   },
   "rollout": {
@@ -494,7 +540,7 @@
       "Switch main production to the verified standalone snapshot and matching images after checking the existing-account/cart migration"
     ],
     "automaticFollowThrough": {
-      "service": "neo-calculator-full-coverage-v17.service",
+      "service": "neo-calculator-full-coverage-v18.service",
       "persistsBeyondChatSession": true,
       "steps": [
         "wait for full audit success",
@@ -506,7 +552,7 @@
       ],
       "previewRollbackOnFailure": true,
       "productionChanged": false,
-      "completedAt": "2026-10-08T15:23:52.089Z",
+      "completedAt": "2026-10-08T21:17:47.521Z",
       "result": "Complete candidate replay, all offline browser tests, preview deployment and public HTTPS smoke passed."
     }
   },
@@ -517,5 +563,12 @@
     "validatedScopes": 1357,
     "failedScopes": 12,
     "publicationBlocked": true
+  },
+  "previousVerifiedRelease": {
+    "release": "bf0858f4f399241e573de9b13beec21bf563559f7d53d7d834cf99e13326a202",
+    "completedAt": "2026-10-08T15:23:52.089Z",
+    "scopes": 1369,
+    "comparisons": 266989,
+    "runtimeRevision": "73cdf57"
   }
 }
