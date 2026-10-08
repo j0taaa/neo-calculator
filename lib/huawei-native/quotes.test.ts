@@ -50,3 +50,13 @@ test("fresh inquiries preserve RI installments and reject invalid recurring rate
     await expect(new QuoteGateway(async () => ({...response,productRatingResult:[{id:"0",amount:0,perAmount}]})).inquire(inquiry)).rejects.toThrow();
   }
 });
+
+test("two transient upstream failures can recover on the final permitted attempt", async () => {
+  let attempts = 0;
+  const gateway = new QuoteGateway(async () => {
+    if (++attempts < 3) throw new TransientQuoteError("504");
+    return { amount: 4, currency: "USD", productRatingResult: [{ id: "0", amount: 4 }] };
+  });
+  expect((await gateway.inquire(inquiry)).amount).toBe(4);
+  expect(attempts).toBe(3);
+});

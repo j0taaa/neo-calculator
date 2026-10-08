@@ -83,6 +83,7 @@ export async function collectRelease(
           "../huawei-native/collector",
           "../huawei-native/native-billing",
           "../huawei-native/quotes",
+          "../huawei-http",
         ].map((name) => readFile(`lib/huawei-snapshot/${name}.ts`, "utf8")),
       )
     ).join("\n") +

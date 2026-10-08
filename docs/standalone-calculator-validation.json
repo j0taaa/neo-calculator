@@ -219,7 +219,7 @@
   },
   "checks": {
     "unit": {
-      "passed": 423,
+      "passed": 425,
       "failed": 0,
       "files": 91
     },
@@ -415,7 +415,9 @@
           "passed": true
         }
       ],
-      "emptySelectorBrowserRegressionPassed": true
+      "emptySelectorBrowserRegressionPassed": true,
+      "calculatorCdnUsesConfiguredProxy": true,
+      "offlineCdnRequestsBlocked": true
     }
   },
   "rollout": {

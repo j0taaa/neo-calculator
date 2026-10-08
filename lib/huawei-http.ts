@@ -83,7 +83,8 @@ function shouldProxyRequest(url: string): boolean {
   }
 
   try {
-    return new URL(url).hostname.endsWith("huaweicloud.com");
+    const hostname = new URL(url).hostname;
+    return hostname.endsWith("huaweicloud.com") || hostname.endsWith("hc-cdn.com");
   } catch {
     return false;
   }
@@ -172,7 +173,8 @@ async function sendFetchRequest(input: HttpRequestInput): Promise<HttpResponseSn
 export async function sendHttpRequest(input: HttpRequestInput): Promise<HttpResponseSnapshot> {
   const sourceUrl=new URL(input.url);
   const explicitCartRequest=sourceUrl.hostname==="portal-intl.huaweicloud.com"&&/^\/api\/calculator\/rest\/cbc\/portalcalculatornodeservice\/v4\/api\/share\/(?:list|add|detail|update)$/.test(sourceUrl.pathname);
-  if (process.env.HUAWEI_SOURCE_ACCESS !== "sync" && sourceUrl.hostname.endsWith("huaweicloud.com")&&!explicitCartRequest) {
+  if (process.env.HUAWEI_SOURCE_ACCESS !== "sync" &&
+    (sourceUrl.hostname.endsWith("huaweicloud.com") || sourceUrl.hostname.endsWith("hc-cdn.com")) && !explicitCartRequest) {
     const { snapshotResponse } = await import("./huawei-snapshot/http");
     return snapshotResponse(input.url, input.method, input.body);
   }
