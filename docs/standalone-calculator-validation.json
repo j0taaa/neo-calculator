@@ -1,5 +1,5 @@
 {
-  "recordedAt": "2026-10-08T01:49:55.909473Z",
+  "recordedAt": "2026-10-08T02:21:39.276916Z",
   "status": "all-regions-bootstrap-in-progress-production-cutover-blocked",
   "discovery": {
     "availableServices": 97,
@@ -127,9 +127,9 @@
   },
   "audit": {
     "startedAt": "2026-10-08T01:49:20.828Z",
-    "completedServiceRegionScopes": 1,
-    "validatedServiceRegionScopes": 1,
-    "validatedServices": 1,
+    "completedServiceRegionScopes": 202,
+    "validatedServiceRegionScopes": 202,
+    "validatedServices": 97,
     "failures": [],
     "allEligibleRegionsValidated": false,
     "exhaustiveConfigurationCoverage": false,
@@ -169,12 +169,12 @@
       "preexistingWarnings": 3
     },
     "browser": {
-      "passed": 21,
+      "passed": 22,
       "failed": 0,
       "serverNetwork": "internal Docker network without internet access",
       "externalRequestsInEcsTest": 0,
       "nativePostRequests": 0,
-      "ecsDurationChangeMilliseconds": 532,
+      "ecsDurationChangeMilliseconds": 527,
       "coverage": [
         "all four billing families",
         "ECS flavor cards",
@@ -201,7 +201,8 @@
         "numeric unit-selector discovery",
         "selectable ECS cards for the current image and billing family",
         "CDM monthly discount threshold and yearly term",
-        "all 28 snapshot regions exposed in the selector, including mainland and partner sites"
+        "all 28 snapshot regions exposed in the selector, including mainland and partner sites",
+        "every published service reachable through Neo: 97 services, no external requests or failures"
       ]
     },
     "historicalReleaseReplay": {
@@ -210,10 +211,10 @@
       "failures": 0
     },
     "expandedIsolatedFixtureReplay": {
-      "scopes": 127,
-      "comparisons": 33048,
+      "scopes": 174,
+      "comparisons": 39881,
       "failures": 0,
-      "release": "841cbf9417c8464bf5fca0b0785e5884c5e497c6c791a65cb1a0e202a32f9084"
+      "release": "5dd68620c120086bff411428edc316a40dccbe9b8c6615d32e921c07cffb7bbe"
     },
     "unchangedDailyJob": {
       "freshApiComparisons": 1491,
@@ -246,6 +247,13 @@
       "includesStylesheets": true,
       "includesAssetUrls": true,
       "changedDependenciesInvalidateCheckpoints": true
+    },
+    "allServicesUi": {
+      "services": 97,
+      "regionsSampledPerService": 1,
+      "failures": 0,
+      "externalRequests": 0,
+      "durationMinutes": 3.6
     }
   },
   "rollout": {

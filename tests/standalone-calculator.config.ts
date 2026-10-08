@@ -1,7 +1,7 @@
 import { defineConfig } from "@playwright/test";
 export default defineConfig({
   testDir: ".",
-  testMatch: "standalone-calculator.playwright.ts",
+  testMatch: "standalone-*.playwright.ts",
   workers: 1,
   timeout: 60000,
   expect: { timeout: 15000 },

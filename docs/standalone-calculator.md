@@ -8,7 +8,7 @@ This retains Huawei's dependent defaults, regional choices, disk actions and ELB
 
 ## Synchronization
 
-`bun run sync:calculator` performs an immediate synchronization. `Dockerfile.sync` runs `scripts/run-calculator-sync.ts`, which starts a job every 24 hours after success and retries failures after one hour. The worker owns Chromium and writable snapshot storage; the app mounts snapshots read-only. A process lease prevents concurrent jobs and recovers after a killed worker. Chromium closes when a changed-source audit finishes. Unchanged snapshots receive fresh API price checks using recorded inquiry shapes without launching Chromium.
+`bun run sync:calculator` performs an immediate synchronization. `Dockerfile.sync` runs `scripts/run-calculator-sync.ts`, which starts a job every 24 hours after success and retries failures after one hour. The worker owns Chromium and writable snapshot storage; the app mounts snapshots read-only. A process lease prevents concurrent jobs and recovers after a killed worker. Chromium closes when a changed-source audit finishes. Unchanged standard scopes receive fresh API price checks using recorded inquiry shapes without launching Chromium. Support Plans use configuration-defined arithmetic rather than that API, so their official form is checked with Chromium even when the source is unchanged.
 
 The job discovers all international-calculator services, eligible regions (including partner sites), online/beta offers and billing modes from the official menu. It does not restrict discovery to HWC billing sites. HomeZone availability zones remain options inside their parent region; each advertised zone is audited separately in every eligible billing mode. Regional catalog rows, inquiry locations and ECS flavor cards follow the selected zone. It also applies service-level rules that narrow that menu, such as SFS hiding PERIOD billing in São Paulo. The official framework explicitly reports empty selections. Informational modes and modes without purchasable options retain their notes and controls without producing a fabricated price; arbitrary form or pricing failures block the audit.
 
@@ -40,7 +40,7 @@ NEO_TEST_URL=http://127.0.0.1:3307 bunx playwright test --config tests/standalon
 HUAWEI_SNAPSHOT_DIR=/path/to/snapshots bun scripts/check-snapshot-evidence.ts
 ```
 
-The browser suite must run against an isolated local application/database with a seeded validated snapshot. The strongest check uses an internal Docker network with no internet access, then verifies actual quote editing, all four billing families, saved-cart replay, regional availability, frame cleanup and mobile layout. Historical browser tests that mock native POST sessions exercise the retired transport and are not evidence for this implementation.
+The browser suite must run against an isolated local application/database with a seeded validated snapshot. The strongest check uses an internal Docker network with no internet access, then verifies actual quote editing, all four billing families, saved-cart replay, regional availability, frame cleanup and mobile layout. The service sweep opens every published service through Neo itself and checks its rendered price or official availability, without external requests. Historical browser tests that mock native POST sessions exercise the retired transport and are not evidence for this implementation.
 
 ## Rollout status
 
