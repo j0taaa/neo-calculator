@@ -186,6 +186,20 @@ test("the default inquiry tariff uses CBC's 0000 service-hour condition independ
   s.products.product.rows[0].planList = [{ ...plans.find((plan) => plan.condition === "0000")!, conditionName: "unknown" }];
   expect(() => rateInquiry(s, q)).toThrow("conditional");
 });
+
+test("an unconditioned token tariff remains the default when the catalog includes an alternate service hour", () => {
+  const s = scope([
+    { billingMode: "ONDEMAND", amount: 0.000566, measureUnit: 109, conditionName: "serviceHourTime", condition: "1300" },
+    { billingMode: "ONDEMAND", amount: 0.000809, measureUnit: 109 },
+  ]);
+  s.ratingRuleVersion = 2;
+  const q = { ...inquiry, productInfos: [{ ...inquiry.productInfos[0],
+    resourceSize: 1, productNum: 1, usageFactor: "input_token_interval_1", usageMeasureId: 109, usageValue: 1,
+  }] };
+  expect(rateInquiry(s, q).amount).toBe(0.000809);
+  s.products.product.rows[0].planList!.reverse();
+  expect(rateInquiry(s, q).amount).toBe(0.000809);
+});
 test("unknown rates, conditions, malformed quantities and cross-region requests fail closed", () => {
   const s = scope([
     { billingMode: "ONDEMAND", amount: 1, condition: "new rule" },

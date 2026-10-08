@@ -126,17 +126,18 @@
     "includesBetaServices": true
   },
   "audit": {
-    "startedAt": "2026-10-08T01:49:20.828Z",
-    "completedServiceRegionScopes": 202,
-    "validatedServiceRegionScopes": 202,
-    "validatedServices": 97,
+    "startedAt": "2026-10-08T03:21:18.227Z",
+    "completedServiceRegionScopes": 70,
+    "validatedServiceRegionScopes": 70,
+    "validatedServices": 70,
     "failures": [],
     "allEligibleRegionsValidated": false,
     "exhaustiveConfigurationCoverage": false,
     "unknownCatalogRequestFamiliesSkipped": true,
     "publicationRequiresEveryAdvertisedScope": true,
-    "validationFingerprint": "317e6f9ce5db2931c40a9a145e2e7741e1ff4775504912b4cb3d1ed50e5178e3",
-    "bridgeHash": "02df53fa82a138002898c4b89ba97495e5dc3e70b14d223d104af822eec22ef7"
+    "validationFingerprint": "5c00c1d3f49bbe7fc6a507ca4435ada956fd567cd07301317115840a84ded681",
+    "bridgeHash": "a7a978b768815d76f6320b4b79d543dd06791ad8c65bf00cc64dda6e24dcddcd",
+    "measuredAt": "2026-10-08T03:32:57.276383Z"
   },
   "isolatedPreview": {
     "url": "https://calculator-offline.hwctools.site",
@@ -157,7 +158,7 @@
   },
   "checks": {
     "unit": {
-      "passed": 414,
+      "passed": 419,
       "failed": 0,
       "files": 91
     },
@@ -169,12 +170,12 @@
       "preexistingWarnings": 3
     },
     "browser": {
-      "passed": 22,
+      "passed": 24,
       "failed": 0,
       "serverNetwork": "internal Docker network without internet access",
       "externalRequestsInEcsTest": 0,
       "nativePostRequests": 0,
-      "ecsDurationChangeMilliseconds": 527,
+      "ecsDurationChangeMilliseconds": 660,
       "coverage": [
         "all four billing families",
         "ECS flavor cards",
@@ -202,8 +203,11 @@
         "selectable ECS cards for the current image and billing family",
         "CDM monthly discount threshold and yearly term",
         "all 28 snapshot regions exposed in the selector, including mainland and partner sites",
-        "every published service reachable through Neo: 97 services, no external requests or failures"
-      ]
+        "every published service reachable through Neo: 97 services, no external requests or failures",
+        "Cairo OBS yearly-only catalog, monthly proration, quantity, term changes and saved price",
+        "Cairo ECS unavailable image and recovery through the visible advanced controls"
+      ],
+      "execution": "23 passed in the full suite; the corrected ECS test then passed separately"
     },
     "historicalReleaseReplay": {
       "scopes": 76,
@@ -211,10 +215,10 @@
       "failures": 0
     },
     "expandedIsolatedFixtureReplay": {
-      "scopes": 174,
-      "comparisons": 39881,
+      "scopes": 602,
+      "comparisons": 117329,
       "failures": 0,
-      "release": "5dd68620c120086bff411428edc316a40dccbe9b8c6615d32e921c07cffb7bbe"
+      "release": "db267189fdf00b433b93297fe0cd334cc9fae2c7c37bc0239f63e628c91a1132"
     },
     "unchangedDailyJob": {
       "freshApiComparisons": 1491,
@@ -254,7 +258,24 @@
       "failures": 0,
       "externalRequests": 0,
       "durationMinutes": 3.6
-    }
+    },
+    "regionalTariffs": {
+      "obsManilaServiceHourFreshApiComparisons": 72,
+      "obsCairoMonthlyAndYearlyFreshApiComparisons": 64,
+      "maasUnconditionedDefaultFreshApiComparisons": 12,
+      "obsCairoFormAndCatalogChecks": 92,
+      "obsManilaFormAndCatalogChecks": 71,
+      "ecsCairoFormAndCatalogChecks": 1137,
+      "missingEcsImageSpecificationOfficialStatus": 400
+    },
+    "homeZoneInitialization": {
+      "successfulNormalInitializations": 80,
+      "deliberatelyIncorrectInitialAssignmentsRecovered": 4,
+      "persistentlyIncorrectAssignmentsRejected": 1,
+      "maximumAssignments": 3
+    },
+    "applicationImage": "sha256:eec54d8ac067a2c576b8f5181cf6e7257cda836506d0981b7e3a90edb6f8df7e",
+    "workerImage": "sha256:61d8850b444820778b2911aa3d5e6f436abb525fa689f3a42825df8bc2099cb9"
   },
   "rollout": {
     "productionChanged": false,

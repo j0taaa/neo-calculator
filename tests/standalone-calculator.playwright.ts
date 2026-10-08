@@ -270,6 +270,48 @@ test("CDM monthly discounts apply at the official six-month threshold", async ({
     await expect.poll(() => price(page)).toBe(amount);
   }
 });
+
+test("OBS Cairo prorates its yearly-only catalog and saves the complete local price", async ({ page }) => {
+  expect((await page.request.post("/api/auth/sign-up/email", { data: {
+    name: "Regional OBS regression", email: `obs-${crypto.randomUUID()}@example.test`,
+    password: "Standalone-regression-2026",
+  } })).ok()).toBe(true);
+  const project = await (await page.request.post("/api/projects", {
+    data: { name: "Regional OBS regression" },
+  })).json();
+  const list = await (await page.request.post(`/api/projects/${project.id}/lists`, {
+    data: { name: "Regional OBS cart" },
+  })).json();
+  await page.goto(`/?service=OBS&region=af-north-1&billing=Yearly%2FMonthly&project=${project.id}&list=${list.id}`);
+  await expect.poll(() => price(page)).toBe(0.62);
+  const quantity = page.locator('input[data-field-id="global_QUANTITY:0"]');
+  await quantity.fill("99");
+  await quantity.press("Tab");
+  await expect.poll(() => price(page)).toBe(61.71);
+  const period = page.locator('[data-field-id="global_PERIODTIME:0"]');
+  await chooseControl(page, period, { label: "8" });
+  await expect.poll(() => price(page)).toBe(493.68);
+  await chooseControl(page, period, { label: "1 year" });
+  await expect.poll(() => price(page)).toBe(740.52);
+  await page.getByRole("button", { name: "Add to List", exact: true }).click();
+  await expect(page.getByText("Product added using synchronized rates.")).toBeVisible();
+  const projects = await (await page.request.get("/api/projects")).json();
+  const products = projects.find((p: { id: number }) => p.id === project.id).lists
+    .find((l: { id: number }) => l.id === list.id).products;
+  expect(products[0].pricing.amount).toBe(740.52);
+});
+
+test("an unavailable ECS image leaves controls usable and recovers when a valid image is selected", async ({ page }) => {
+  await page.goto("/?service=ECS&region=af-north-1&billing=Yearly%2FMonthly");
+  expect(await price(page)).toBeGreaterThan(0);
+  await page.getByText("Advanced ECS specification", { exact: true }).click();
+  await chooseControl(page, page.locator('[data-field-id="calculator_ecs_radio:1"]'), { label: "Large-memory" });
+  await chooseControl(page, page.locator('[data-field-id="calculator_ecs_radio:3"]'), { label: "384 vCPUs" });
+  await chooseControl(page, page.locator('[data-field-id="calculator_ims_select:0"]'), { label: "SUSESAP" });
+  await expect(page.getByTestId("lab-price")).toHaveCount(0);
+  await chooseControl(page, page.locator('[data-field-id="calculator_ims_select:0"]'), { label: "Huawei Cloud EulerOS" });
+  expect(await price(page)).toBeGreaterThan(0);
+});
 test("Support Plans tier arithmetic and subscription duration save from local rules", async ({
   page,
 }) => {

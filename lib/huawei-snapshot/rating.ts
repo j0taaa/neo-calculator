@@ -273,9 +273,11 @@ function plansForTerm(
     // including Deep Archive traffic, whose official form does not split hours.
     if (request.chargingMode !== 1 || !candidates.every(({ plan }) => !plan.condition ||
       (plan.conditionName === "serviceHourTime" && /^(?:[01]\d|2[0-3])[0-5]\d$/.test(plan.condition))) ||
-      !candidates.some(({ plan }) => plan.condition === "0000"))
+      !candidates.some(({ plan }) => !plan.condition || plan.condition === "0000"))
       throw new Error("This conditional price requires a supported local rule");
-    candidates = candidates.filter(({ plan }) => !plan.condition || plan.condition === "0000");
+    const unconditioned = candidates.filter(({ plan }) => !plan.condition);
+    candidates = unconditioned.length ? unconditioned :
+      candidates.filter(({ plan }) => plan.condition === "0000");
   }
   const months = request.periodNum * (request.periodType === 3 ? 12 : 1);
   return candidates
