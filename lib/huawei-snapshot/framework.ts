@@ -7,7 +7,29 @@ export function frameworkAssetsHash(assets: SnapshotRelease["assets"]) {
   return digest(JSON.stringify(Object.entries(assets).sort(([a], [b]) => a.localeCompare(b))));
 }
 
-/** Isolate vendor storage and API origins. Pricing/conditional functions remain unchanged. */
+/** Replace only the two component-emission delays; conditional and pricing functions stay intact. */
+export function localEmissions(source: string) {
+  let matches = 0;
+  const delays = new Set<string>();
+  const adapted = source.replace(
+    /const emitValue = lodash_debounce\(function\(\) \{([\s\S]*?)\}, (50|100)\);/g,
+    (match, body: string, delay: string) => {
+      const marker = delay === "50"
+        ? "value: compactObject(value)"
+        : "let selectedProduct = parseSelected(filteredValue, funcList, languagePack.value, tempGlobalInfo, viewConfig);";
+      if (!body.includes(marker))
+        throw new Error("Huawei's component emission adapter changed");
+      matches++;
+      delays.add(delay);
+      return match.replace("lodash_debounce", "window.__neoLocalEmissions.debounce");
+    },
+  );
+  if (matches !== 2 || delays.size !== 2 || adapted.includes("const emitValue = lodash_debounce("))
+    throw new Error("Huawei's component emission adapter changed");
+  return adapted;
+}
+
+/** Isolate vendor storage, API origins and scheduling. Pricing/conditional functions remain unchanged. */
 export function offlineFramework(source: string) {
   let origins = 0;
   source = source.replace(
@@ -58,5 +80,5 @@ export function offlineFramework(source: string) {
         return;
       }`,
   );
-  return instrumentNativePricing(source);
+  return localEmissions(instrumentNativePricing(source));
 }

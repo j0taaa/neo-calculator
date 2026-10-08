@@ -1,5 +1,5 @@
 import { test, expect } from "bun:test";
-import { frameworkAssetsHash, offlineFramework } from "./framework";
+import { frameworkAssetsHash, offlineFramework, localEmissions } from "./framework";
 import type { SnapshotRelease } from "./types";
 import { assetImports } from "./imports";
 const source = `const baseURL = (window.location.origin, () => {
@@ -18,7 +18,18 @@ const getHandlePriceBoardAmountFn = () => 0;
 const queryPrice = (selectedInfo, queryOptions) => {
   return Promise.resolve(selectedInfo);
 };
-const funcPriceboardSetup = () => 0;`;
+const funcPriceboardSetup = () => 0;
+function group() {
+  const emitValue = lodash_debounce(function() {
+    emit("valueChange", { value: compactObject(value) });
+  }, 50);
+}
+function calculator() {
+  const emitValue = lodash_debounce(function() {
+    let selectedProduct = parseSelected(filteredValue, funcList, languagePack.value, tempGlobalInfo, viewConfig);
+    emit("valueChange", { selectedProduct });
+  }, 100);
+}`;
 test("observing an empty official selection preserves valid JavaScript when preceding the storage adapter", () => {
   const transformed = offlineFramework(source);
   expect(() =>
@@ -26,6 +37,20 @@ test("observing an empty official selection preserves valid JavaScript when prec
   ).not.toThrow();
   expect(transformed).toContain("window.__neoNativeEmptySelection");
   expect(transformed).toContain("const getHandlePriceBoardAmountFn = () => 0;");
+});
+
+test("local scheduling removes only recognized component emission delays and rejects changed anchors", () => {
+  const unrelated = "const other = lodash_debounce(() => animate(), 100);";
+  const transformed = localEmissions(source + unrelated);
+  expect(transformed).toContain(unrelated);
+  expect(transformed.match(/window\.__neoLocalEmissions\.debounce/g)).toHaveLength(2);
+  expect(transformed).toContain("emit(\"valueChange\", { selectedProduct });");
+  for (const changed of [
+    source.replace("}, 50);", "}, 60);"),
+    source.replace("value: compactObject(value)", "value: changed(value)"),
+    source.replace("let selectedProduct = parseSelected", "let selectedProduct = changed"),
+    source + source,
+  ]) expect(() => localEmissions(changed)).toThrow("emission adapter changed");
 });
 test("changed adapter anchors and invalid synchronized assets fail before publication", () => {
   expect(() =>

@@ -19,6 +19,7 @@ import type { Inquiry } from "../huawei-native/types";
 import { rateInquiry, UnavailableProduct } from "./rating";
 import { localState } from "./state";
 import { calculateQuote } from "./verify";
+import { createEmissionQueue } from "./emissions";
 
 // Opaque sandbox origins deliberately have no cookies or persistent browser storage.
 Object.defineProperty(document, "cookie", {
@@ -93,6 +94,8 @@ const win = window as unknown as {
 };
 const payload = win.__neoSnapshot,
   scope = payload.snapshot;
+const emissions = createEmissionQueue();
+Object.assign(window, { __neoLocalEmissions: emissions });
 const captured = new Map<string, NativeInquiryQuote>();
 let state: NativeState | null = null;
 let priceError = "";
@@ -206,10 +209,18 @@ async function settle(afterEpoch = -1) {
     started = Date.now();
   let previous = "",
     epoch = -1,
+    emissionVersion = -1,
     stableSince = Date.now();
   while (Date.now() < deadline) {
-    await pause(16);
+    // Each turn lets Vue's render/microtasks and coalesced component emissions finish.
+    // A price is usable only after two identical observations with no pending emissions.
+    await pause(0);
     const bridge = win.__neoNativePricing;
+    if (emissions.pending || bridge?.pending) {
+      previous = "";
+      epoch = -1;
+      continue;
+    }
     const pricing: NativePricing | undefined = bridge
       ? JSON.parse(JSON.stringify(bridge))
       : undefined;
@@ -227,7 +238,7 @@ async function settle(afterEpoch = -1) {
       if (
         epoch === pricing.epoch &&
         signature === previous &&
-        Date.now() - stableSince > 80
+        emissionVersion === emissions.version
       ) {
         try {
           if (pricing.result.wrongTag)
@@ -317,6 +328,9 @@ async function settle(afterEpoch = -1) {
     }
     previous = signature;
     epoch = pricing?.epoch ?? -1;
+    emissionVersion = emissions.version;
+    // Informational/unavailable defaults keep the conservative diagnostic deadline.
+    if (!pricing?.result || pricing.epoch <= afterEpoch) await pause(16);
   }
   throw new Error(priceError || "The synchronized calculator did not settle");
 }
