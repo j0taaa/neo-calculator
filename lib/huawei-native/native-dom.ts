@@ -115,8 +115,10 @@ export function readFormInDocument(): NativeForm {
           field.disabled ||= !!el.closest(".is-disabled, .disabled");
         }
         field.label = component.id === "global_LOCATIONCODE" ? "Availability zone" : label;
-        // Huawei intentionally leaves some controls unavailable (for example aC8 images).
-        // A disabled empty control requires no selection; populated or enabled controls still do.
+        // Some official forms keep an empty selector enabled while choosing a valid SKU
+        // internally (for example trial editions or BYOL engines). It offers no action.
+        if (field.options?.length === 0) field.disabled = true;
+        // Populated controls still require a selected option.
         const unavailable = field.disabled && field.options?.length === 0;
         if (field.options && !unavailable && (!field.options.length || field.value === "-1")) diagnostics.push(`No selected option for ${label}`);
         el.setAttribute("data-neo-control", id);

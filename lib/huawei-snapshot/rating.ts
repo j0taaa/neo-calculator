@@ -113,6 +113,9 @@ function tierAmount(plan: Plan, size: number, normalize: boolean) {
           : tier.division.endValue,
     },
   }));
+  if (normalize && plan.divisionType === "DIVISION_FIXED")
+    return tiers.reduce((sum, tier) => size >= tier.division.beginValue
+      ? sum.add(Decimal.of(finite(tier.amount, "tier rate"))) : sum, Decimal.of(0));
   if (!["DIVISION_STEP", "DIVISION_TIER"].includes(plan.divisionType ?? ""))
     throw new Error("Unsupported pricing tiers");
   const picked = tiers.find(
@@ -339,6 +342,8 @@ export function planRuleKey(
     ...(version === 2 && plan.condition ? [plan.conditionName, plan.condition] : []),
     ...(version === 2 && request.chargingMode === 0 && request.periodType === 2 &&
       plan.billingMode === "YEARLY" ? ["monthly-from-yearly"] : []),
+    ...(version === 2 && request.chargingMode === 0 && request.periodType === 3 &&
+      plan.billingMode === "MONTHLY" ? ["yearly-from-monthly"] : []),
   ]);
 }
 export function rateInquiry(
@@ -432,7 +437,10 @@ export function rateInquiry(
       let base: Decimal;
       if (plan.divisionList) {
         const tierUnit = plan.divisionList[0]?.division.beginUnit;
-        const tierUsesSize = request.chargingMode !== 1 || duration;
+        const timeTier = snapshot.ratingRuleVersion === 2 &&
+          request.chargingMode === 1 && duration &&
+          units[Number(tierUnit)]?.[0] === "time";
+        const tierUsesSize = request.chargingMode !== 1 || (duration && !timeTier);
         const tierSize = tierUsesSize
           ? convert(
               product.resourceSize ?? 1,
@@ -441,7 +449,8 @@ export function rateInquiry(
             )
           : convert(product.usageValue ?? 0, product.usageMeasureId, tierUnit);
         base = tierAmount(plan, tierSize, snapshot.ratingRuleVersion === 2);
-        if (request.chargingMode === 1 && duration)
+        if (timeTier) base = base.mul(size);
+        else if (request.chargingMode === 1 && duration)
           base = base.mul(
             Decimal.of(product.usageValue ?? 1)
               .mul(units[Number(product.usageMeasureId)]?.[1] ?? 3600)

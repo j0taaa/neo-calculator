@@ -283,3 +283,29 @@ test("rounded Huawei VOD conversion rates are inferred from intervals and retain
     return copy;
   }
 });
+
+test("later calibration preserves earlier large quotes and micro-unit rounding", async () => {
+  const { Decimal } = await import("./decimal");
+  const { verifyRecordedQuotes } = await import("./audit");
+  // SFS Turbo and partner Kafka expose rounded catalog rates at very different capacities.
+  for (const [catalogRate, effectiveRate, size, hours, expected] of [
+    ["0.0000559998", "0.0000559998", 1, 500, 0.027999],
+    ["0.007", "0.000068985", 600, 1, 0.041391],
+  ] as const) {
+    const s = scope();
+    s.ratingRuleVersion = 2;
+    s.products.product.rows[0].planList![0].amount = Number(catalogRate);
+    const gateway = new QuoteGateway(async (q) => {
+      const p = q.productInfos[0];
+      const amount = Decimal.of(effectiveRate).mul(p.productNum)
+        .mul(Number(p.resourceSize)).mul(p.usageValue!).quantized(7).truncated(6);
+      return { amount, currency: "USD", productRatingResult: [{ id: p.id, amount }] };
+    });
+    const first = { ...inquiry, productInfos: [{ ...inquiry.productInfos[0], resourceSize: size, usageValue: hours }] };
+    await compareInquiry(s, first, gateway);
+    expect(rateInquiry(s, first).amount).toBe(expected);
+    await compareInquiry(s, { ...first, productInfos: [{ ...first.productInfos[0], resourceSize: 1, usageValue: 1 }] }, gateway);
+    expect(rateInquiry(s, first).amount).toBe(expected);
+    expect(() => verifyRecordedQuotes(s)).not.toThrow();
+  }
+});

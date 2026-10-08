@@ -1,6 +1,6 @@
 {
-  "recordedAt": "2026-10-08T02:21:39.276916Z",
-  "status": "all-regions-bootstrap-in-progress-production-cutover-blocked",
+  "recordedAt": "2026-10-08T11:29:22.517655Z",
+  "status": "all-regions-failures-fixed-full-rerun-required",
   "discovery": {
     "availableServices": 97,
     "eligibleRegions": [
@@ -127,17 +127,78 @@
   },
   "audit": {
     "startedAt": "2026-10-08T03:21:18.227Z",
-    "completedServiceRegionScopes": 70,
-    "validatedServiceRegionScopes": 70,
-    "validatedServices": 70,
-    "failures": [],
+    "completedServiceRegionScopes": 1369,
+    "validatedServiceRegionScopes": 1357,
+    "validatedServices": 97,
+    "failures": [
+      {
+        "service": "hss",
+        "region": "me-east-1",
+        "error": "Huawei quote temporarily unavailable (504)"
+      },
+      {
+        "service": "dew",
+        "region": "me-east-1",
+        "error": "Huawei quote temporarily unavailable (504)"
+      },
+      {
+        "service": "sfsturbo",
+        "region": "la-south-2",
+        "error": "A learned pricing rule conflicts with another official response recorded in this audit: {\"inquiry\":{\"regionId\":\"la-south-2\",\"chargingMode\":1,\"periodType\":4,\"per"
+      },
+      {
+        "service": "mrs",
+        "region": "la-south-2",
+        "error": "A learned pricing rule conflicts with another official response recorded in this audit: {\"inquiry\":{\"regionId\":\"la-south-2\",\"chargingMode\":0,\"periodType\":3,\"per"
+      },
+      {
+        "service": "sfsturbo",
+        "region": "na-mexico-1",
+        "error": "A learned pricing rule conflicts with another official response recorded in this audit: {\"inquiry\":{\"regionId\":\"na-mexico-1\",\"chargingMode\":1,\"periodType\":4,\"pe"
+      },
+      {
+        "service": "servicestage",
+        "region": "sa-brazil-1",
+        "error": "No selected option for Edition"
+      },
+      {
+        "service": "sfsturbo",
+        "region": "la-north-2",
+        "error": "A learned pricing rule conflicts with another official response recorded in this audit: {\"inquiry\":{\"regionId\":\"la-north-2\",\"chargingMode\":1,\"periodType\":4,\"per"
+      },
+      {
+        "service": "kafka",
+        "region": "eu-west-0",
+        "error": "A learned pricing rule conflicts with another official response recorded in this audit: {\"inquiry\":{\"regionId\":\"eu-west-0\",\"chargingMode\":1,\"periodType\":4,\"peri"
+      },
+      {
+        "service": "rds",
+        "region": "sa-argentina-1",
+        "error": "No selected option for DB Engine"
+      },
+      {
+        "service": "search",
+        "region": "cn-east-3",
+        "error": "Unsupported pricing tiers"
+      },
+      {
+        "service": "apig",
+        "region": "cn-east-4",
+        "error": "Unsupported unit conversion 15 to 4"
+      },
+      {
+        "service": "apig",
+        "region": "cn-south-1",
+        "error": "Unsupported unit conversion 15 to 4"
+      }
+    ],
     "allEligibleRegionsValidated": false,
     "exhaustiveConfigurationCoverage": false,
     "unknownCatalogRequestFamiliesSkipped": true,
     "publicationRequiresEveryAdvertisedScope": true,
     "validationFingerprint": "5c00c1d3f49bbe7fc6a507ca4435ada956fd567cd07301317115840a84ded681",
     "bridgeHash": "a7a978b768815d76f6320b4b79d543dd06791ad8c65bf00cc64dda6e24dcddcd",
-    "measuredAt": "2026-10-08T03:32:57.276383Z"
+    "measuredAt": "2026-10-08T06:51:14.138Z"
   },
   "isolatedPreview": {
     "url": "https://calculator-offline.hwctools.site",
@@ -158,7 +219,7 @@
   },
   "checks": {
     "unit": {
-      "passed": 419,
+      "passed": 423,
       "failed": 0,
       "files": 91
     },
@@ -275,14 +336,94 @@
       "maximumAssignments": 3
     },
     "applicationImage": "sha256:eec54d8ac067a2c576b8f5181cf6e7257cda836506d0981b7e3a90edb6f8df7e",
-    "workerImage": "sha256:61d8850b444820778b2911aa3d5e6f436abb525fa689f3a42825df8bc2099cb9"
+    "workerImage": "sha256:61d8850b444820778b2911aa3d5e6f436abb525fa689f3a42825df8bc2099cb9",
+    "regionalFailureRegression": {
+      "previousFullAuditFailures": 12,
+      "allFailedScopesPassedFocusedRecheck": true,
+      "freshFormAndCatalogComparisons": 1751,
+      "scopes": [
+        {
+          "service": "sfsturbo",
+          "region": "la-south-2",
+          "checks": 42,
+          "passed": true
+        },
+        {
+          "service": "mrs",
+          "region": "la-south-2",
+          "checks": 460,
+          "passed": true
+        },
+        {
+          "service": "kafka",
+          "region": "eu-west-0",
+          "checks": 18,
+          "passed": true
+        },
+        {
+          "service": "search",
+          "region": "cn-east-3",
+          "checks": 207,
+          "passed": true
+        },
+        {
+          "service": "apig",
+          "region": "cn-east-4",
+          "checks": 18,
+          "passed": true
+        },
+        {
+          "service": "servicestage",
+          "region": "sa-brazil-1",
+          "checks": 4,
+          "passed": true
+        },
+        {
+          "service": "rds",
+          "region": "sa-argentina-1",
+          "checks": 845,
+          "passed": true
+        },
+        {
+          "service": "hss",
+          "region": "me-east-1",
+          "checks": 28,
+          "passed": true
+        },
+        {
+          "service": "dew",
+          "region": "me-east-1",
+          "checks": 27,
+          "passed": true
+        },
+        {
+          "service": "sfsturbo",
+          "region": "na-mexico-1",
+          "checks": 42,
+          "passed": true
+        },
+        {
+          "service": "sfsturbo",
+          "region": "la-north-2",
+          "checks": 42,
+          "passed": true
+        },
+        {
+          "service": "apig",
+          "region": "cn-south-1",
+          "checks": 18,
+          "passed": true
+        }
+      ],
+      "emptySelectorBrowserRegressionPassed": true
+    }
   },
   "rollout": {
     "productionChanged": false,
     "publicPreviewUpdated": false,
     "automaticUnknownRuleAcceptance": false,
     "remaining": [
-      "Complete all 1369 advertised service/region audits, including every eligible HomeZone mode",
+      "Rerun all 1369 scopes with the corrected frozen validator; focused rechecks passed for all 12 previous failures",
       "Replay the complete candidate and repeat offline browser checks against it",
       "Publish the full catalog and deploy matching app/worker images"
     ]

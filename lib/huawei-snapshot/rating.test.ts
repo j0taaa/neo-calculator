@@ -570,3 +570,53 @@ test("CDN tier ranges normalize TB/PB boundaries before applying the verified pe
     expect(rateInquiry(s, q).amount).toBe(official);
   }
 });
+
+test("duration tiers charge capacity once and select the tariff by hours", () => {
+  const s = scope([{
+    billingMode: "ONDEMAND", usageFactor: "duration", divisionType: "DIVISION_TIER",
+    divisionList: [
+      { amount: 0.01, division: { beginValue: 0, endValue: 5, beginUnit: 4, endUnit: 4 } },
+      { amount: 0.038, division: { beginValue: 5, endValue: -1, beginUnit: 4, endUnit: 4 } },
+    ],
+  }]);
+  s.ratingRuleVersion = 2;
+  const q = (hours: number) => ({ ...inquiry, productInfos: [{
+    ...inquiry.productInfos[0], productNum: 1, resourceSize: 5,
+    resouceSizeMeasureId: 15, usageValue: hours,
+  }] });
+  // Fresh Huawei API Gateway responses, including the tariff boundary.
+  for (const [hours, amount] of [[0, 0], [1, 0.05], [4, 0.2], [5, 0.25], [6, 1.14], [24, 4.56]])
+    expect(rateInquiry(s, q(hours)).amount).toBe(amount);
+});
+
+test("fixed tiers add each reached flat charge, including the lower boundary", () => {
+  const s = scope([{
+    billingMode: "ONDEMAND", usageFactor: "duration", divisionType: "DIVISION_FIXED",
+    divisionList: [
+      { amount: 0.013, division: { beginValue: 0, endValue: 5, beginUnit: 15, endUnit: 15 } },
+      { amount: 0.04, division: { beginValue: 5, endValue: -1, beginUnit: 15, endUnit: 15 } },
+    ],
+  }]);
+  s.ratingRuleVersion = 2;
+  for (const [size, amount] of [[0, 0], [1, 0.013], [4, 0.013], [5, 0.053], [6, 0.053], [10, 0.053]]) {
+    const q = { ...inquiry, productInfos: [{ ...inquiry.productInfos[0],
+      productNum: 1, resourceSize: size, resouceSizeMeasureId: 15, usageValue: 1,
+    }] };
+    expect(rateInquiry(s, q).amount).toBe(amount);
+    expect(rateInquiry(s, { ...q, productInfos: [{ ...q.productInfos[0], productNum: 3, usageValue: 2 }] }).amount)
+      .toBe(Number((amount * 6).toFixed(6)));
+  }
+});
+
+test("yearly discounts on monthly-only plans do not alter monthly quotes", () => {
+  const s = scope([{ billingMode: "MONTHLY", amount: 0.0405, periodNum: 1 }]);
+  s.ratingRuleVersion = 2;
+  const monthly = { ...inquiry, chargingMode: 0, periodType: 2,
+    productInfos: [{ ...inquiry.productInfos[0], productNum: 1, resourceSize: 480 }] };
+  const yearly = { ...monthly, periodType: 3 };
+  const key = ratingRuleKey(s, yearly, yearly.productInfos[0]);
+  expect(key).not.toBe(ratingRuleKey(s, monthly, monthly.productInfos[0]));
+  s.ratingRules = { [key]: { size: "multiply", multiplier: 1, scale: { numerator: 5, denominator: 6 } } };
+  expect(rateInquiry(s, yearly).amount).toBe(194.4);
+  expect(rateInquiry(s, monthly).amount).toBe(19.44);
+});

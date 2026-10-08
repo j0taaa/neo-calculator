@@ -7,6 +7,15 @@ import type { ScopeSnapshot } from "./types";
 import { calibrateRecurring } from "./recurring";
 import { rateInquiry, ratingRuleKey } from "./rating";
 const equal = (a: number, b: number) => Math.abs(a - b) < 0.0000001;
+export function quotesAgree(actual: InquiryResponse, official: InquiryResponse) {
+  return equal(actual.amount, official.amount) &&
+    actual.productRatingResult.length === official.productRatingResult.length &&
+    official.productRatingResult.every((component) => {
+      const item = actual.productRatingResult.find((item) => item.id === component.id);
+      return !!item && equal(item.amount, component.amount) &&
+        equal(Number(item.perAmount ?? 0), Number(component.perAmount ?? 0));
+    });
+}
 export function verifyRecordedQuotes(scope: ScopeSnapshot) {
   for (const proof of scope.customProof ?? [])
     if (!equal(supportPrice(scope, proof.product, proof.months), proof.amount))
@@ -15,19 +24,7 @@ export function verifyRecordedQuotes(scope: ScopeSnapshot) {
       );
   for (const { inquiry, response } of scope.proof ?? []) {
     const actual = rateInquiry(scope, inquiry);
-    if (
-      !equal(actual.amount, response.amount) ||
-      response.productRatingResult.some((component) => {
-        const item = actual.productRatingResult.find(
-          (item) => item.id === component.id,
-        );
-        return (
-          !item ||
-          !equal(item.amount, component.amount) ||
-          !equal(Number(item.perAmount ?? 0), Number(component.perAmount ?? 0))
-        );
-      })
-    )
+    if (!quotesAgree(actual, response))
       throw new Error(
         `A learned pricing rule conflicts with another official response recorded in this audit: ${JSON.stringify({ inquiry, local: actual, official: response })}`,
       );
@@ -84,7 +81,18 @@ async function calibrate(
           : { productNum: scaledQuantity(7) }),
     },
   ];
-  const cases = [];
+  // A later SKU contract must preserve every earlier quote sharing this rule.
+  // Compare individual components, since recorded inquiries may contain many SKUs.
+  const cases = (scope.proof ?? []).flatMap(({ inquiry: request, response }) =>
+    request.productInfos.flatMap((item) => {
+      if (ratingRuleKey(scope, request, item) !== key) return [];
+      const component = response.productRatingResult.find((p) => p.id === item.id);
+      if (!component) throw new Error("Incomplete recorded Huawei quote");
+      return [{ request: { ...request, productInfos: [item] }, response: {
+        ...response, amount: component.amount, productRatingResult: [component],
+      } }];
+    }),
+  );
   for (const item of probes) {
     const request = { ...inquiry, productInfos: [item] },
       response = await gateway.inquire(request);

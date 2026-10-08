@@ -1,7 +1,7 @@
 import { QuoteGateway } from "../huawei-native/quotes";
 import { applyRecurringOverrides } from "./recurring";
-import { compareInquiry } from "./audit";
-import { matchingPlans, catalogRows } from "./rating";
+import { quotesAgree } from "./audit";
+import { matchingPlans, catalogRows, rateInquiry } from "./rating";
 export class PricingChanged extends Error {}
 import type { ScopeSnapshot } from "./types";
 /** Unchanged code/data need fresh price checks, not another render of identical conditional rules. */
@@ -50,12 +50,12 @@ export async function revalidateUnchangedScope(
       entries![0],
       ...(entries!.length > 1 ? [entries!.at(-1)!] : []),
     ]) {
-      const checked = await compareInquiry(scope, proof.inquiry, gateway);
-      if (checked.calibrated)
+      const official = await gateway.inquire(proof.inquiry);
+      if (!quotesAgree(rateInquiry(scope, proof.inquiry), official))
         throw new PricingChanged(
           "The pricing API changed while the catalog was unchanged",
         );
-      checks += checked.checks;
+      checks += proof.inquiry.productInfos.length;
     }
   // Preserve validated request shapes for a future changed catalog, without accumulating daily copies.
   scope.proof = previous.proof;
