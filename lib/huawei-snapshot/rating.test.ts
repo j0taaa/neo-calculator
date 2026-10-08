@@ -142,6 +142,30 @@ test("yearly rates and RI upfront/effective rates preserve their billing semanti
   expect(result.amount).toBe(200);
   expect(result.perAmount).toBe(0.02);
 });
+test("monthly discounts begin at their advertised term and retain separate correction keys", () => {
+  const s = scope([
+    { billingMode: "MONTHLY", amount: 305, periodNum: 1 },
+    { billingMode: "MONTHLY", amount: 1525, periodNum: 6 },
+    { billingMode: "YEARLY", amount: 3050, periodNum: 1 },
+  ]);
+  s.ratingRuleVersion = 2;
+  const q = {
+    ...inquiry,
+    chargingMode: 0,
+    periodType: 2,
+    productInfos: [{ ...inquiry.productInfos[0], productNum: 1, resourceSize: 1 }],
+  };
+  const observed = [305, 610, 915, 1220, 1525, 1525, 1779.16, 2033.33, 2287.5, 2541.66, 2795.83];
+  for (const [index, amount] of observed.entries())
+    expect(rateInquiry(s, { ...q, periodNum: index + 1 }).amount).toBe(amount);
+  for (const periodNum of [1, 2, 3])
+    expect(rateInquiry(s, { ...q, periodType: 3, periodNum }).amount).toBe(3050 * periodNum);
+  expect(ratingRuleKey(s, q, q.productInfos[0])).not.toBe(
+    ratingRuleKey(s, { ...q, periodNum: 6 }, q.productInfos[0]),
+  );
+  s.products.product.rows[0].planList!.pop();
+  expect(rateInquiry(s, { ...q, periodType: 3, periodNum: 3 }).amount).toBe(9150);
+});
 test("unknown rates, conditions, malformed quantities and cross-region requests fail closed", () => {
   const s = scope([
     { billingMode: "ONDEMAND", amount: 1, condition: "new rule" },

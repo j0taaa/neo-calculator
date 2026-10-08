@@ -13,6 +13,7 @@ export type CatalogFlavor = {
   cpu: number;
   ramGiB: number;
   prices: Partial<Record<FlavorBillingMode, number>>;
+  billingModes?: FlavorBillingMode[];
   priceSources?: Partial<Record<FlavorBillingMode, FlavorPriceSource>>;
   currency: string;
   updatedAt: string;

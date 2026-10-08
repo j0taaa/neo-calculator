@@ -98,6 +98,15 @@ test("ECS duration updates locally, preserves flavor cards, and never sends a na
   await duration.press("Tab");
   await expect.poll(() => price(page)).toBeCloseTo(original * 720, 6);
   console.log("Local duration update milliseconds", Date.now() - start);
+  const cards = page.getByRole("region", { name: "ECS flavor browser" })
+    .getByRole("button", { name: /^Select / });
+  await expect(cards.first()).toBeVisible();
+  const labels = await cards.evaluateAll(elements => elements.map(element => element.getAttribute("aria-label")));
+  expect(labels.every(label => label?.endsWith(".linux"))).toBe(true);
+  const picked = cards.first();
+  await picked.click();
+  await expect(picked).toHaveAttribute("aria-pressed", "true");
+  expect(await price(page)).toBeGreaterThan(0);
   expect(requests).toEqual([]);
   expect(external).toEqual([]);
   expect(errors).toEqual([]);
@@ -133,6 +142,16 @@ for (const [service, mode] of [
         } as Record<string, string>
       )[mode],
     );
+    if (service === "ECS" && mode === "RI") {
+      const search = page.getByLabel("Search flavors");
+      await search.fill("t6.large.2.linux");
+      await expect(page.getByRole("button", { name: "Select t6.large.2.linux", exact: true })).toHaveCount(0);
+      await search.fill("");
+      const card = page.getByRole("region", { name: "ECS flavor browser" }).getByRole("button", { name: /^Select / }).first();
+      await card.click();
+      await expect(card).toHaveAttribute("aria-pressed", "true");
+      expect(await price(page)).toBeGreaterThan(0);
+    }
   });
 test("CDN traffic prices remain correct across GB, TB and PB", async ({
   page,
@@ -225,6 +244,15 @@ test("informational official modes show their notes without a fabricated zero es
     ),
   ).toBeVisible();
   await expect(page.getByTestId("lab-price")).toHaveCount(0);
+});
+test("CDM monthly discounts apply at the official six-month threshold", async ({ page }) => {
+  await page.goto("/?service=HUAWEI%3AdgcCdm&region=ap-southeast-2&billing=Yearly%2FMonthly");
+  await expect.poll(() => price(page)).toBe(305);
+  const period = page.locator('[data-field-id="global_PERIODTIME:0"]');
+  for (const [label, amount] of [["6", 1525], ["1 year", 3050], ["1", 305]] as const) {
+    await chooseControl(page, period, { label });
+    await expect.poll(() => price(page)).toBe(amount);
+  }
 });
 test("Support Plans tier arithmetic and subscription duration save from local rules", async ({
   page,

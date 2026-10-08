@@ -10,6 +10,7 @@ import {
   isNativeBillingMode,
 } from "../huawei-native/native-billing";
 import { compileSupportPricing } from "./compile-pricing";
+import { compileFlavorGenerations } from "./compile-flavors";
 import { assetImports } from "./imports";
 import { offlineFramework } from "./framework";
 import { SnapshotStore } from "./store";
@@ -69,6 +70,8 @@ export async function collectRelease(
           "contracts",
           "audit",
           "compile-pricing",
+          "compile-flavors",
+          "flavors",
           "coverage",
           "revalidate",
           "rounding-scale",
@@ -86,6 +89,7 @@ export async function collectRelease(
       (await readFile("scripts/sync-calculator-snapshot.ts", "utf8")),
   );
   const data = JSON.parse(menu.body);
+  const services = parseDirectory(menu.body).filter(service => service.available);
   const regions = Object.keys(data.regionRules)
     .filter(
       (id) => data.regionRules[id] === "ALL" || !!data.regionRules[id]?.calc,
@@ -103,11 +107,12 @@ export async function collectRelease(
     scopes: {},
     diagnostics: [],
     directory: {
-      services: parseDirectory(menu.body).filter(
-        (service) => service.available,
-      ),
+      services,
       regions,
-      billingModes: nativeBillingDirectory(data),
+      billingModes: nativeBillingDirectory(data, {
+        services: new Set(services.map(service => service.id)),
+        regions: new Set(regions.map(region => region.id)),
+      }),
     },
   };
 }
@@ -167,6 +172,7 @@ export async function collectScope(
       : {}),
     tag,
     config: config.body,
+    ...(service === "ecs" ? { flavorGenerations: compileFlavorGenerations(config.body) } : {}),
     ...(support ? { customPricing: { support } } : {}),
     products: JSON.parse(products.body),
     source: {

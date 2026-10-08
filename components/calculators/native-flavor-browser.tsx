@@ -38,11 +38,16 @@ export function NativeFlavorBrowser({ region, billingMode, disabled, selectedFla
     }).catch(error => { if (!abort.signal.aborted) setFailure({ key: scopeKey, message: error.message }); });
     return () => abort.abort();
   }, [region, releaseId, locationCode, scopeKey, catalogKey, attempt, enabled]);
-  const filterKey = [query, minCpu, minRam, sort, pageSize, scopeKey, billingMode].join("|");
+  const imageSpec = selectedFlavor.split(".").at(-1);
+  const filterKey = [query, minCpu, minRam, sort, pageSize, scopeKey, billingMode, imageSpec].join("|");
   const page = pagination.key === filterKey ? pagination.page : 1;
   const setPage = (page: number) => setPagination({ key: filterKey, page });
-  const priceMode = billingMode === "PERIOD" ? "MONTHLY" : billingMode;
+  const priceMode = billingMode === "RI" ? "ONDEMAND" : billingMode === "PERIOD" ? "MONTHLY" : billingMode;
   const flavors = useMemo(() => (catalog?.key === scopeKey ? catalog.flavors : []).filter(flavor =>
+    (!selectedFlavor || flavor.resourceSpecCode.split(".").at(-1) === imageSpec) &&
+    (billingMode === "PERIOD"
+      ? (flavor.billingModes ?? Object.keys(flavor.prices)).some(mode => mode === "MONTHLY" || mode === "YEARLY")
+      : (flavor.billingModes ?? Object.keys(flavor.prices)).includes(billingMode)) &&
     flavor.cpu >= Number(minCpu || 0) && flavor.ramGiB >= Number(minRam || 0) &&
     `${flavor.resourceSpecCode} ${flavor.family} ${flavor.description} ${flavor.architecture}`.toLowerCase().includes(query.toLowerCase().trim()),
   ).sort((a, b) => {
@@ -50,7 +55,7 @@ export function NativeFlavorBrowser({ region, billingMode, disabled, selectedFla
     if (sort === "name") return a.resourceSpecCode.localeCompare(b.resourceSpecCode);
     const price = (flavor: CatalogFlavor) => flavor.prices[priceMode] ?? (sort === "price-desc" ? -Infinity : Infinity);
     return sort === "price-desc" ? price(b) - price(a) : price(a) - price(b);
-  }), [catalog, scopeKey, query, minCpu, minRam, sort, priceMode]);
+  }), [catalog, scopeKey, query, minCpu, minRam, sort, priceMode, billingMode, imageSpec, selectedFlavor]);
   const pages = Math.max(1, Math.ceil(flavors.length / pageSize));
   const currentPage = Math.min(page, pages);
   return <section aria-label="ECS flavor browser" className="space-y-3">
@@ -62,8 +67,8 @@ export function NativeFlavorBrowser({ region, billingMode, disabled, selectedFla
       visibleFlavors={flavors.slice((currentPage - 1) * pageSize, currentPage * pageSize).map(flavor => ({
         name: flavor.resourceSpecCode, family: flavor.family ?? flavor.series ?? flavor.architecture ?? "ECS",
         vcpu: String(flavor.cpu), ram: String(flavor.ramGiB), riPrice: null,
-        priceModeLabel: "Compute reference price", price: flavor.prices[priceMode] !== undefined ?
-          `${flavor.currency} ${flavor.prices[priceMode]} / ${priceMode === "ONDEMAND" ? "hour" : priceMode === "MONTHLY" ? "month" : "term"}` : "Huawei price checked on selection",
+        priceModeLabel: billingMode === "RI" ? "Pay-per-use reference price" : "Compute reference price", price: flavor.prices[priceMode] !== undefined ?
+          `${flavor.currency} ${flavor.prices[priceMode]} / ${priceMode === "ONDEMAND" ? "hour" : priceMode === "MONTHLY" ? "month" : "term"}` : "See complete estimate",
       }))}
       onSelectFlavor={name => { const flavor = flavors.find(flavor => flavor.resourceSpecCode === name); if (flavor) void onSelect(flavor); }}
       currentFlavorPage={currentPage} totalFlavorPages={pages} onPreviousFlavorPage={() => setPage(currentPage - 1)} onNextFlavorPage={() => setPage(currentPage + 1)}

@@ -258,17 +258,32 @@ export function matchingPlans(
     );
   return plans;
 }
+function plansForTerm(
+  candidates: { row: CatalogProduct; plan: Plan }[],
+  request: Inquiry,
+  version: 1 | 2,
+) {
+  const months = request.periodNum * (request.periodType === 3 ? 12 : 1);
+  return candidates
+    .filter(({ plan }) =>
+      version === 2 && request.chargingMode === 0
+        ? (plan.periodNum || 1) <=
+          (plan.billingMode === "YEARLY" ? months / 12 : months)
+        : plan.billingMode !== "YEARLY" ||
+          request.periodNum % (plan.periodNum || 1) === 0,
+    )
+    .sort((a, b) => (b.plan.periodNum || 1) - (a.plan.periodNum || 1));
+}
 export function ratingRuleKey(
   snapshot: ScopeSnapshot,
   request: Inquiry,
   product: InquiryProduct,
 ) {
-  const plans = matchingPlans(catalogRows(snapshot), request, product).filter(
-    ({ plan }) =>
-      plan.billingMode !== "YEARLY" ||
-      request.periodNum % (plan.periodNum ?? 1) === 0,
+  const plans = plansForTerm(
+    matchingPlans(catalogRows(snapshot), request, product),
+    request,
+    snapshot.ratingRuleVersion ?? 1,
   );
-  plans.sort((a, b) => (b.plan.periodNum ?? 1) - (a.plan.periodNum ?? 1));
   const plan = plans[0]?.plan;
   if (!plan) throw new Error("Missing rate plan");
   return planRuleKey(request, product, plan, snapshot.ratingRuleVersion ?? 1);
@@ -372,12 +387,11 @@ export function rateInquiry(
     } else {
       const n =
         request.periodType === 3 ? request.periodNum * 12 : request.periodNum;
-      const choices = candidates.filter(
-        ({ plan }) =>
-          plan.billingMode !== "YEARLY" ||
-          request.periodNum % (plan.periodNum ?? 1) === 0,
+      const choices = plansForTerm(
+        candidates,
+        request,
+        snapshot.ratingRuleVersion ?? 1,
       );
-      choices.sort((a, b) => (b.plan.periodNum ?? 1) - (a.plan.periodNum ?? 1));
       if (!choices.length) throw new Error("Unsupported subscription term");
       const { plan } = choices[0];
       if (plan.condition)

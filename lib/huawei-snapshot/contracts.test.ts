@@ -87,3 +87,32 @@ test("catalog contracts preserve fixed packages and send the declared unit for v
   expect(await validateCatalogContracts(scope, gateway)).toBe(2);
   expect(requests).toHaveLength(1);
 });
+test("catalog audits independently verify both monthly discount thresholds instead of deduplicating their terms", async () => {
+  const packageRow = {
+    ...row,
+    capacity: "fixed",
+    planList: [
+      { ...row.planList![0], amount: 305, periodNum: 1 },
+      { ...row.planList![0], amount: 1525, periodNum: 6 },
+    ],
+  };
+  const inquiry = {
+    regionId: "region", siteCode: "HWC", chargingMode: 0, periodType: 2,
+    periodNum: 1, subscriptionNum: 1,
+    productInfos: [{ id: "template", cloudServiceType: "svc", resourceType: "pool",
+      resourceSpecCode: "variable", productNum: 1, productId: "variable-id" }],
+  };
+  const scope = {
+    region: "region", ratingRuleVersion: 2,
+    products: { product: { rows: [packageRow] } },
+    proof: [{ inquiry, response: { amount: 305, currency: "USD", productRatingResult: [{ id: "template", amount: 305 }] } }],
+  } as unknown as ScopeSnapshot;
+  const periods: number[] = [];
+  const gateway = new QuoteGateway(async request => {
+    periods.push(request.periodNum);
+    const amount = request.periodNum === 6 ? 1525 : 305;
+    return { amount, currency: "USD", productRatingResult: request.productInfos.map(product => ({ id: product.id, amount })) };
+  });
+  expect(await validateCatalogContracts(scope, gateway)).toBe(2);
+  expect(periods).toEqual([1, 6]);
+});

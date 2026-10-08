@@ -1,5 +1,5 @@
 {
-  "recordedAt": "2026-10-08T00:45:26.079Z",
+  "recordedAt": "2026-10-08T01:30:56.202753Z",
   "status": "all-regions-bootstrap-in-progress-production-cutover-blocked",
   "discovery": {
     "availableServices": 97,
@@ -126,17 +126,17 @@
     "includesBetaServices": true
   },
   "audit": {
-    "startedAt": "2026-10-08T00:44:51.804Z",
-    "completedServiceRegionScopes": 1,
-    "validatedServiceRegionScopes": 1,
-    "validatedServices": 1,
+    "startedAt": "2026-10-08T01:30:26.664Z",
+    "completedServiceRegionScopes": 0,
+    "validatedServiceRegionScopes": 0,
+    "validatedServices": 0,
     "failures": [],
     "allEligibleRegionsValidated": false,
     "exhaustiveConfigurationCoverage": false,
     "unknownCatalogRequestFamiliesSkipped": true,
     "publicationRequiresEveryAdvertisedScope": true,
-    "validationFingerprint": "ae50007ecab01ecada06f584647b06a39b2841b5a02bc88d8889eb88ffec4f6c",
-    "bridgeHash": "373e00f89514f9c16241230230c053acc2834b30d9e02735df248ab1d9d0badc"
+    "validationFingerprint": "9199095ba237042b1f8cc2b6f9cdf8aa6a9066cf15b400e20de76e598dc40c90",
+    "bridgeHash": "02df53fa82a138002898c4b89ba97495e5dc3e70b14d223d104af822eec22ef7"
   },
   "isolatedPreview": {
     "url": "https://calculator-offline.hwctools.site",
@@ -157,9 +157,9 @@
   },
   "checks": {
     "unit": {
-      "passed": 406,
+      "passed": 413,
       "failed": 0,
-      "files": 90
+      "files": 91
     },
     "typescript": {
       "errors": 0
@@ -169,12 +169,12 @@
       "preexistingWarnings": 3
     },
     "browser": {
-      "passed": 19,
+      "passed": 20,
       "failed": 0,
       "serverNetwork": "internal Docker network without internet access",
       "externalRequestsInEcsTest": 0,
       "nativePostRequests": 0,
-      "ecsDurationChangeMilliseconds": 588,
+      "ecsDurationChangeMilliseconds": 837,
       "coverage": [
         "all four billing families",
         "ECS flavor cards",
@@ -182,7 +182,7 @@
         "ELB",
         "NAT",
         "DCS",
-        "OBS São Paulo",
+        "OBS S\u00e3o Paulo",
         "CCM one-time",
         "save/reopen/edit",
         "client-total and quantity tampering",
@@ -198,7 +198,9 @@
         "Support Plans custom fees, duration and tamper-resistant saving",
         "informational official modes",
         "hidden and CSS-disabled radio choices",
-        "numeric unit-selector discovery"
+        "numeric unit-selector discovery",
+        "selectable ECS cards for the current image and billing family",
+        "CDM monthly discount threshold and yearly term"
       ]
     },
     "historicalReleaseReplay": {
@@ -207,8 +209,8 @@
       "failures": 0
     },
     "expandedIsolatedFixtureReplay": {
-      "scopes": 117,
-      "comparisons": 31171,
+      "scopes": 127,
+      "comparisons": 33080,
       "failures": 0
     },
     "unchangedDailyJob": {
@@ -227,8 +229,15 @@
       "service": "dgcCdm",
       "region": "ap-southeast-2",
       "formChecks": 6,
-      "catalogChecks": 10,
-      "passed": true
+      "catalogChecks": 13,
+      "passed": true,
+      "freshDirectApiTermsCompared": 14
+    },
+    "compiledEcsChoices": {
+      "officialSelectableGenerations": 95,
+      "downloadedJavaScriptEvaluatedOnServer": false,
+      "catalogOnlyGenerationsExcluded": true,
+      "riRequiresSameZoneOffer": true
     }
   },
   "rollout": {

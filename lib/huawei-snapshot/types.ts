@@ -66,6 +66,7 @@ export type ScopeSnapshot = {
     amount: number;
   }[];
   customPricing?: { support: import("./custom-pricing").PriceStatement[] };
+  flavorGenerations?: string[];
   ratingRuleVersion?: 1 | 2;
   ratingRules?: Record<
     string,
