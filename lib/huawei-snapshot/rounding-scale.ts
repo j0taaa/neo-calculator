@@ -26,7 +26,10 @@ export function scaleFromRoundedQuotes(
       denominator: string;
     };
     const raw = Decimal.ratio(exact.numerator, exact.denominator);
-    if (raw.numerator <= BigInt(0)) return undefined;
+    if (raw.numerator <= BigInt(0)) {
+      if (raw.numerator === BigInt(0) && response.amount === 0) continue;
+      return undefined;
+    }
     const low = Decimal.of(response.amount).sub(Decimal.of(below)).div(raw),
       high = Decimal.of(response.amount).add(Decimal.of(above)).div(raw);
     if (compare(low, lower) > BigInt(0)) lower = low;

@@ -152,18 +152,18 @@ async function calibrate(
   // Try an observed scale only when the independent probes also prove that same scale.
   delete rules[key];
   const scales = cases
-    .map(({ request, response }) => {
+    .flatMap(({ request, response }) => {
       const raw = rateInquiry(scope, request, false).exactAmount as {
         numerator: string;
         denominator: string;
       };
-      const ratio = Decimal.of(response.amount).div(
-        Decimal.ratio(raw.numerator, raw.denominator),
-      );
-      return {
+      const amount = Decimal.ratio(raw.numerator, raw.denominator);
+      if (amount.numerator === BigInt(0)) return [];
+      const ratio = Decimal.of(response.amount).div(amount);
+      return [{
         numerator: String(ratio.numerator),
         denominator: String(ratio.denominator),
-      };
+      }];
     })
     .filter(
       (scale) =>

@@ -302,6 +302,7 @@ test("later calibration preserves earlier large quotes and micro-unit rounding",
       return { amount, currency: "USD", productRatingResult: [{ id: p.id, amount }] };
     });
     const first = { ...inquiry, productInfos: [{ ...inquiry.productInfos[0], resourceSize: size, usageValue: hours }] };
+    await compareInquiry(s, { ...first, productInfos: [{ ...first.productInfos[0], usageValue: 0 }] }, gateway);
     await compareInquiry(s, first, gateway);
     expect(rateInquiry(s, first).amount).toBe(expected);
     await compareInquiry(s, { ...first, productInfos: [{ ...first.productInfos[0], resourceSize: 1, usageValue: 1 }] }, gateway);

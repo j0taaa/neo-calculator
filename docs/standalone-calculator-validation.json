@@ -417,7 +417,9 @@
       ],
       "emptySelectorBrowserRegressionPassed": true,
       "calculatorCdnUsesConfiguredProxy": true,
-      "offlineCdnRequestsBlocked": true
+      "offlineCdnRequestsBlocked": true,
+      "obsHongKongZeroUsageFormAndCatalogChecks": 132,
+      "zeroUsageDoesNotConstrainRateInference": true
     }
   },
   "rollout": {
