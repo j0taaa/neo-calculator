@@ -12,6 +12,7 @@ export type NativePricing = {
     region: string; serviceCode: string; chargeMode: NativeBillingMode; timeTag: number;
     locationType?: string; locationCode?: string;
     periodType: number; periodNum: number; subscriptionNum: number;
+    purchaseNum?: { measureValue: number; [key: string]: unknown };
     productAllInfos: { productId?: string; selectIndex: number; resourceSpecCode: string; productNum: number; _injectedMode?: string; inquiryTag: string | false; [key: string]: unknown }[];
   };
   result: {

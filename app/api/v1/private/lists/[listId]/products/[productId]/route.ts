@@ -1,3 +1,4 @@
+import { productInputError, snapshotServiceCode } from "@/lib/product-input";
 import { getApiKeyUser, jsonError, readJsonBody } from "@/lib/api-route";
 import { db } from "@/lib/db";
 import { getListAccessForUser } from "@/lib/resource-access";
@@ -28,9 +29,11 @@ export async function PATCH(
 
   const { listId, productId } = await context.params;
   const body = await readJsonBody<UpdateListProductBody>(request);
+  const inputError = productInputError(body);
+  if (inputError) return jsonError(inputError);
   const listAccess = getListAccessForUser(apiKeyUser.userId, listId);
 
-  const serviceCode = body?.serviceCode?.trim();
+  let serviceCode = body?.serviceCode?.trim();
   const serviceName = body?.serviceName?.trim();
   const productType = body?.productType?.trim();
   const title = body?.title?.trim();
@@ -39,6 +42,7 @@ export async function PATCH(
   if (!serviceCode || !serviceName) {
     return jsonError("serviceCode and serviceName are required");
   }
+  serviceCode = snapshotServiceCode(serviceCode, body?.config);
   if (!listAccess) {
     return jsonError("List not found", 404);
   }

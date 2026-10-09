@@ -1,3 +1,4 @@
+import { productInputError, snapshotServiceCode } from "@/lib/product-input";
 import { getApiKeyUser, jsonError, readJsonBody } from "@/lib/api-route";
 import { db } from "@/lib/db";
 import { getListAccessForUser } from "@/lib/resource-access";
@@ -59,8 +60,10 @@ export async function POST(
 
   const { listId } = await context.params;
   const body = await readJsonBody<CreateListProductBody>(request);
+  const inputError = productInputError(body);
+  if (inputError) return jsonError(inputError);
 
-  const serviceCode = body?.serviceCode?.trim();
+  let serviceCode = body?.serviceCode?.trim();
   const serviceName = body?.serviceName?.trim();
   const productType = body?.productType?.trim();
   let quantity = Math.max(1, Math.floor(body?.quantity ?? 1));
@@ -68,6 +71,7 @@ export async function POST(
   if (!serviceCode || !serviceName) {
     return jsonError("serviceCode and serviceName are required");
   }
+  serviceCode = snapshotServiceCode(serviceCode, body?.config);
 
   const list = getListAccessForUser(apiKeyUser.userId, listId);
 

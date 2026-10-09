@@ -9,11 +9,14 @@ import { nativeBillingModes } from "../huawei-native/native-billing";
 import { SnapshotStore, digest } from "./store";
 import { catalogRows } from "./rating";
 import { calculateQuote } from "./verify";
+import { quotationQuantity } from "./quantity";
+import type { SnapshotRelease } from "./types";
 
 export async function verifySnapshotProduct(
   product: ProductMutationBody,
   store = new SnapshotStore(),
   currentRates = false,
+  currentRelease?: SnapshotRelease,
 ): Promise<ProductMutationBody> {
   const config = product.config as {
     selection?: unknown;
@@ -24,7 +27,9 @@ export async function verifySnapshotProduct(
   const selection = parseNativeSelection(config?.selection),
     mode = selectionBillingMode(selection),
     local = config?.local;
-  if (!local || !Array.isArray(local.inquiries) || local.inquiries.length > 100)
+  if (!local || !Array.isArray(local.inquiries) || local.inquiries.length > 100 ||
+    !Array.isArray(local.pricing?.selectedProduct?.productAllInfos) ||
+    local.pricing.selectedProduct.productAllInfos.length > 100)
     throw new Error(
       "Open this configuration once to calculate it using the synchronized catalog",
     );
@@ -36,7 +41,7 @@ export async function verifySnapshotProduct(
   )
     throw new Error("Quotation scope does not match its configuration");
   const pinned = await store.release(local.release);
-  const release = currentRates ? await store.active() : pinned;
+  const release = currentRates ? currentRelease ?? await store.active() : pinned;
   const scope = await store.scope(
     release,
     selection.service,
@@ -107,12 +112,7 @@ export async function verifySnapshotProduct(
       amount: quote.amount,
     }),
   );
-  const quantity = Number(
-    selection.fields.find((field) => field.component === "global_QUANTITY")
-      ?.value ?? 1,
-  );
-  if (!Number.isSafeInteger(quantity) || quantity < 1 || quantity > 9999)
-    throw new Error("Invalid quotation quantity");
+  const quantity = quotationQuantity(selection, proof.pricing);
   return {
     ...product,
     productType: "huawei-native",

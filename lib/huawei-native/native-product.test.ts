@@ -112,11 +112,13 @@ test("saved quotations use local rates, preserve quantity, and reject changed id
         periodType: 4,
         periodNum: 1,
         subscriptionNum: 1,
+        purchaseNum: { measureValue: 2 },
         productAllInfos: [
           {
             selectIndex: 0,
             resourceSpecCode: "sku",
             productNum: 2,
+            selfProductNum: 1,
             inquiryTag: "normal",
             productId: "product",
           },

@@ -2,6 +2,8 @@ import { expect, test } from "@playwright/test";
 import { nativeBillingModes } from "../lib/huawei-native/native-billing";
 import type { NativeDirectory, NativeState } from "../lib/huawei-native/native-types";
 import { chooseControl } from "./calculator-controls";
+import { calculatorApiKey } from "./calculator-api-fixture";
+import { nativeDraft } from "../lib/huawei-native/native-draft";
 
 type ObservedWindow = Window & { neoSmokeState?: NativeState };
 
@@ -9,6 +11,8 @@ test("every published service is reachable and calculates or preserves its offic
   test.setTimeout(15 * 60 * 1000);
   expect(["localhost", "127.0.0.1"]).toContain(new URL(baseURL!).hostname);
   const directory = await (await page.request.get("/api/calculator/native")).json() as NativeDirectory;
+  const headers = await calculatorApiKey(page);
+  let apiQuotes = 0, quantityChecks = 0;
   const external: string[] = [], failures: string[] = [];
   page.on("request", request => {
     if (/^https?:/.test(request.url()) && new URL(request.url()).origin !== new URL(baseURL!).origin)
@@ -56,6 +60,24 @@ test("every published service is reachable and calculates or preserves its offic
       }
       expect(state.diagnostics, service.id).toEqual([]);
       if (state.quote) {
+        const quantity = state.fields.find(field => field.component === "global_QUANTITY" && !field.disabled && (field.max ?? 9999) >= 2);
+        if (quantity) {
+          const control = page.locator(`[data-field-id="${quantity.id}"]`).first();
+          await control.fill("2"); await control.press("Tab");
+          await page.waitForFunction(() => {
+            const state = (window as ObservedWindow).neoSmokeState;
+            return state?.quote && Number(state.selection.fields.find(field => field.component === "global_QUANTITY")?.value) === 2;
+          });
+          state = await read();
+          quantityChecks++;
+        }
+        const response = await page.request.post("/api/v1/calculate", { headers, data: { products: [nativeDraft(state, service.name, service.name, true)] } });
+        const calculated = await response.json();
+        expect(response.status(), `${service.id}: ${JSON.stringify(calculated.results?.[0]?.error)}`).toBe(200);
+        // The official aggregator can retain a binary float tail (e.g. 1.4540000000000002).
+        expect(calculated.results[0].pricing.amount).toBeCloseTo(state.quote!.amount, 8);
+        expect(calculated.results[0].quantity).toBe(quantity ? 2 : 1);
+        apiQuotes++;
         await expect.poll(async () => Number((await page.getByTestId("lab-price").innerText()).replace(/[^\d.]/g, "")))
           .toBeCloseTo(state.quote.amount, 6);
         await expect.poll(async () => (await page.getByRole("alert").allTextContents()).map(text => text.trim()).filter(Boolean)).toEqual([]);
@@ -75,4 +97,5 @@ test("every published service is reachable and calculates or preserves its offic
   expect(external).toEqual([]);
   expect(failures).toEqual([]);
   console.log(`Standalone services checked: ${directory.services.length}`);
+  console.log(`Standalone API quotes checked: ${apiQuotes}; multi-instance quantities: ${quantityChecks}`);
 });

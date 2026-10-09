@@ -36,7 +36,7 @@ Explicit Huawei cart import/export/synchronization still uses Huawei's authentic
 
 ## Deployment and checks
 
-`compose.snapshot.yml` describes the production app/read-only volume and daily worker. Build the app and worker from the same revision so their generated bridge hashes match. Do not stop the existing production sidecar until a full bootstrap and the application regression checks pass. `compose.snapshot-preview.yml` is a separate preview with its own accounts and snapshot volume.
+`compose.snapshot.yml` describes the production app/read-only volume and daily worker. The app and worker must use matching generated bridge hashes and pricing rules. API-only app updates can retain the verified worker/snapshot when those hashes and rules are unchanged. Do not stop the existing production sidecar until a full bootstrap and the application regression checks pass. `compose.snapshot-preview.yml` is a separate preview with its own accounts and snapshot volume.
 
 ```sh
 bun run test
@@ -57,3 +57,9 @@ The persistent follow-through service promoted the complete snapshot and matchin
 The first full sweep had 12 failures; their pricing, regional-selector and transient-request issues were corrected and rechecked before the successful complete run. A zero-usage calibration edge case was also corrected and verified. Failed audits still preserve the previous release; promotion checks restore the prior preview if deployment fails. Main production remains unchanged. Its cutover requires checking existing-account/cart migration before switching to the verified snapshot and matching images.
 
 The runtime skips loading audit bodies and the iframe payload excludes proof records. For the audited Hong Kong ECS scope, that avoids sending approximately 2.2 MB of verification evidence with each form. Direct committed-input-to-render measurements on the public preview improved from 177–215 ms to 68–86 ms for ECS duration edits, with no external requests. The complete candidate offline suite measured 59–80 ms for ECS, 54–57 ms for ELB and 40–41 ms for NAT. The older regression helper measured 265 ms including input filling and assertion polling. These are measured runs, not a latency guarantee. Initial loading still includes the self-hosted official framework and product data; the public smoke reached its first ECS price in 2.8 seconds. A cold public smoke immediately after container recreation timed out once; the subsequent public smoke and debug run succeeded. Further startup/performance testing is part of the production rollout gate.
+
+## REST API integration
+
+The REST calculation endpoint now verifies complete local configurations with the snapshot pricing engine instead of its former ECS/ELB/WAF unit-price shortcuts. Service discovery and schemas advertise the local configuration workflow, available billing modes/regions, and the authenticated calculation endpoint. Catalog endpoints read the same published snapshot; the old advertised `/pricing` URL is a compatibility alias. Unknown regions are rejected rather than silently changed. See [the calculator API contract](calculator-api.md).
+
+Session and API-key product creation/update validate untrusted input before accessing string methods. Native configurations submitted under service aliases use snapshot verification. Global quantities are checked against purchase quantity and component counts; fixed disabled quantity-one controls without scaling metadata remain supported. Calculation batches capture one published release, avoiding mixed rates if synchronization publishes during a batch. API tests cover repeated calculations, both save/update routes, malformed/tampered requests, aliases, mixed batches and service-wide UI/API price comparisons.
