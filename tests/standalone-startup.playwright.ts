@@ -55,7 +55,7 @@ test("parallel startup preserves defaults, conditional options and prices across
         const frame = page.frames().find(frame => frame.url().includes("/snapshot/frame"))!;
         // The browser must reuse the preload when the entry script imports it.
         const modules = await frame.evaluate(() => performance.getEntriesByType("resource")
-          .filter(entry => ["script", "link"].includes((entry as PerformanceResourceTiming).initiatorType))
+          .filter(entry => entry.name.includes("/api/calculator/snapshot/") && entry.name.includes("/asset/"))
           .map(entry => entry.name));
         expect(new Set(modules).size).toBe(modules.length);
         states.push(state);

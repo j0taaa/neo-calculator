@@ -1,6 +1,6 @@
 {
-  "recordedAt": "2026-10-09T02:00:57.305Z",
-  "status": "full-coverage-standalone-api-verified",
+  "recordedAt": "2026-10-09T14:47:00.039074Z",
+  "status": "full-coverage-standalone-startup-verified",
   "discovery": {
     "availableServices": 97,
     "eligibleRegions": [
@@ -261,16 +261,16 @@
       }
     ],
     "fullCoverage": true,
-    "runtimeRevision": "79a37a7",
-    "appImage": "sha256:0fa82000deccda0924d53b1bdf5f3ead24c834df69e5406c3715329639be48f5",
+    "runtimeRevision": "8f97678",
+    "appImage": "sha256:e771d24b9d0c3fbf84a2d4a7ec76c14ea38060efaf13bfe111252d25519c5938",
     "workerRuntimeRevision": "45559d1",
     "workerImage": "sha256:0ce222d65ab525b46fa11de5af4ce76081a839f5947297689db09508b78346a8"
   },
   "checks": {
     "unit": {
-      "passed": 438,
+      "passed": 441,
       "failed": 0,
-      "files": 97
+      "files": 98
     },
     "typescript": {
       "errors": 0
@@ -280,12 +280,12 @@
       "preexistingWarnings": 3
     },
     "browser": {
-      "passed": 30,
+      "passed": 32,
       "failed": 0,
       "serverNetwork": "internal Docker network without internet access",
       "externalRequestsInEcsTest": 0,
       "nativePostRequests": 0,
-      "ecsDurationChangeMilliseconds": 220,
+      "ecsDurationChangeMilliseconds": 275,
       "coverage": [
         "all four billing families",
         "ECS flavor cards",
@@ -323,9 +323,11 @@
         "REST service/catalog/schema discovery and all published-region identities",
         "nine focused API calculation/save configurations across all four billing families",
         "session and API-key product updates, malformed input validation, quantity/purchase/component inconsistencies, aliases and mixed batches",
-        "95 published services with local UI/API price agreement and 40 editable global quantity checks"
+        "95 published services with local UI/API price agreement and 40 editable global quantity checks",
+        "parallel and sequential startup produce identical fields, notes and price/payment details across all four billing modes",
+        "initial opening waits for directory/bookmark hydration and opens exactly one correct frame"
       ],
-      "execution": "All 30 tests passed together against the complete snapshot and API-fixed app in 6.8 minutes, on an internal Docker network without internet access. The service sweep verified 95 API/UI quote agreements across all 97 published services, preserving two official non-quotable states; 40 editable global quantity controls were checked."
+      "execution": "All 32 tests passed together against the complete snapshot and startup-optimized app in 7.9 minutes on an internal Docker network without internet access. The service sweep verified 95 API/UI quote agreements across all 97 published services, preserving two official non-quotable states; 40 editable global quantity controls were checked."
     },
     "historicalReleaseReplay": {
       "scopes": 76,
@@ -393,7 +395,7 @@
       "persistentlyIncorrectAssignmentsRejected": 1,
       "maximumAssignments": 3
     },
-    "applicationImage": "sha256:05a1f085de4b3093edb9631d1a0d63e89b7823035abf6be8ef6e17d64cd20a35",
+    "applicationImage": "sha256:e771d24b9d0c3fbf84a2d4a7ec76c14ea38060efaf13bfe111252d25519c5938",
     "workerImage": "sha256:0ce222d65ab525b46fa11de5af4ce76081a839f5947297689db09508b78346a8",
     "regionalFailureRegression": {
       "previousFullAuditFailures": 12,
@@ -495,24 +497,24 @@
       "tlsVerified": true,
       "snapshotAndApplicationBridgeMatch": true
     },
-    "runtimeRevision": "45559d1",
+    "runtimeRevision": "8f97678",
     "localInteractionLatency": {
       "measurement": "Committed input blur to changed price rendered, observed directly through DOM mutations without assertion polling",
       "offlineDurationEditsMilliseconds": {
         "ECS": [
-          80.4,
-          59.3,
-          58.6
+          78.7,
+          62.8,
+          63.1
         ],
         "ELB": [
-          54.6,
-          57.2,
-          53.7
+          56.2,
+          64.1,
+          61.6
         ],
         "NAT": [
-          40.8,
-          41.3,
-          39.6
+          39.8,
+          46.2,
+          43.6
         ]
       },
       "publicEcsDurationEditsMilliseconds": {
@@ -545,6 +547,16 @@
       "freshHuaweiRequests": 36,
       "failures": 0,
       "publicSmokePassed": true
+    },
+    "startup": {
+      "report": "calculator-startup-validation.json",
+      "unitTestsPassed": 441,
+      "browserTestsPassed": 32,
+      "localRepeatedLoadMedianBeforeMs": 2502.0,
+      "localRepeatedLoadMedianAfterMs": 2059.0,
+      "publicRepeatedLoadMedianBeforeMs": 2361.5,
+      "publicRepeatedLoadMedianAfterMs": 1887.0,
+      "bridgeAndRatingRulesUnchanged": true
     }
   },
   "rollout": {
