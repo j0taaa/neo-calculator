@@ -10,13 +10,16 @@ export type NativeField = {
   value: string | number | boolean;
   disabled: boolean;
   unit?: string;
+  unitSelector?: boolean;
   hint?: string;
   min?: number;
   max?: number;
   options?: { value: string; label: string; disabled: boolean }[];
 };
-export type NativeForm = { fields: NativeField[]; notes: string[]; diagnostics: string[] };
+export type NativeForm = { availability?: "information" | "unavailable"; fields: NativeField[]; notes: string[]; diagnostics: string[] };
 export type NativeState = NativeForm & {
+  /** Extraction evidence only; the application never needs a vendor runtime. */
+  ruleOrder?: string[];
   selection: import("./native-selection").NativeSelection;
   session: string;
   revision: number;
@@ -29,6 +32,7 @@ export type NativeState = NativeForm & {
   inquiries: Inquiry[];
   quote: Quote | null;
   priceError?: string;
+  local?: { release: string; pricing: import("./native-pricing").NativePricing; inquiries: Inquiry[] };
 };
 export type NativeAction = { session: string; revision: number; field: string; value: string | number | boolean };
 export type NativeDirectory = { services: HuaweiService[]; regions: { id: string; name: string }[]; billingModes: Record<string, Record<string, NativeBillingMode[]>> };

@@ -10,7 +10,7 @@ export function useNativeBatch(save: (product: ProductMutationBody) => Promise<v
   function enqueue(product: ProductMutationBody) {
     if (working.current) return;
     setItems(current => [...current, { id: crypto.randomUUID(), product: structuredClone(product) }]);
-    setMessage("Configuration queued. Each item receives a fresh Huawei price when saved.");
+    setMessage("Configuration queued. Each item is recalculated from its synchronized catalog when saved.");
   }
   async function submit() {
     if (working.current || !items.length) return;
@@ -25,7 +25,7 @@ export function useNativeBatch(save: (product: ProductMutationBody) => Promise<v
         // Only acknowledged writes leave the queue. Retry cannot repeat completed items.
         setItems(current => current.filter(candidate => candidate.id !== item.id));
       }
-      setMessage(`Added ${saved} configuration${saved === 1 ? "" : "s"} with fresh Huawei prices.`);
+      setMessage(`Added ${saved} configuration${saved === 1 ? "" : "s"} using synchronized prices.`);
     } catch (error) {
       setMessage(`${saved} saved. ${error instanceof Error ? error.message : "Unable to save batch"} Remaining configurations stay queued.`);
     } finally {

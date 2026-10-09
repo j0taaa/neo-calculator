@@ -21,7 +21,7 @@ test("partial, duplicated and invalid quote responses fail instead of becoming z
 });
 
 
-test("transient inquiry failures retry once and permanent failures are not retried", async () => {
+test("transient inquiry failures retry with bounded backoff and permanent failures are not retried", async () => {
   let calls = 0;
   const gateway = new QuoteGateway(async () => {
     if (++calls === 1) throw new TransientQuoteError("503");
@@ -31,8 +31,8 @@ test("transient inquiry failures retry once and permanent failures are not retri
   expect(calls).toBe(2);
   let failures = 0;
   const unavailable = new QuoteGateway(async () => { failures++; throw new TransientQuoteError("503"); });
-  await expect(unavailable.inquire(inquiry)).rejects.toThrow("503"); expect(failures).toBe(2);
-  await expect(unavailable.inquire(inquiry)).rejects.toThrow("503"); expect(failures).toBe(4);
+  await expect(unavailable.inquire(inquiry)).rejects.toThrow("503"); expect(failures).toBe(3);
+  await expect(unavailable.inquire(inquiry)).rejects.toThrow("503"); expect(failures).toBe(6);
   let permanent = 0;
   await expect(new QuoteGateway(async () => { permanent++; throw new Error("Invalid inquiry"); }).inquire(inquiry)).rejects.toThrow();
   expect(permanent).toBe(1);
@@ -49,4 +49,14 @@ test("fresh inquiries preserve RI installments and reject invalid recurring rate
     await expect(new QuoteGateway(async () => ({...response,perAmount})).inquire(inquiry)).rejects.toThrow();
     await expect(new QuoteGateway(async () => ({...response,productRatingResult:[{id:"0",amount:0,perAmount}]})).inquire(inquiry)).rejects.toThrow();
   }
+});
+
+test("two transient upstream failures can recover on the final permitted attempt", async () => {
+  let attempts = 0;
+  const gateway = new QuoteGateway(async () => {
+    if (++attempts < 3) throw new TransientQuoteError("504");
+    return { amount: 4, currency: "USD", productRatingResult: [{ id: "0", amount: 4 }] };
+  });
+  expect((await gateway.inquire(inquiry)).amount).toBe(4);
+  expect(attempts).toBe(3);
 });

@@ -4,7 +4,8 @@ import type { BillingOption, ProductMutationBody } from "@/lib/calculator-types"
 import { getCatalogFetchFn } from "@/lib/catalog-fetch-registry";
 import { ecsDiskSizeBounds } from "@/lib/configurable-runtime-utils";
 import { getTypedDeclarativeRuntimeDefinitionByCode } from "@/lib/declarative-service-runtime-registry";
-import { ensureRegionCatalogAvailable, listStoredEcsFlavors } from "@/lib/ecs-flavor-catalog";
+import { SnapshotStore } from "@/lib/huawei-snapshot/store";
+import { snapshotFlavors } from "@/lib/huawei-snapshot/flavors";
 import { fetchRegionSystemDiskPricing } from "@/lib/evs-disk-pricing";
 import { findFlexusLPlan, flexusLPricingReference } from "@/lib/flexus-l-catalog";
 import { huaweiRegions, type HuaweiRegionKey } from "@/lib/huawei-regions";
@@ -338,8 +339,11 @@ async function computeEcsPricing(config: ConfigRecord): Promise<ServerPricingRes
     return { pricing: {}, title: "", productType: "ecs", config, error: "Missing required field: config.flavor" };
   }
 
+  const snapshotStore = new SnapshotStore();
+  let ecsScope: Awaited<ReturnType<SnapshotStore["scope"]>>;
   try {
-    await fetchWithRetry(() => ensureRegionCatalogAvailable(catalogRegionId), "ECS catalog");
+    const snapshotRelease = await snapshotStore.active();
+    ecsScope = await snapshotStore.scope(snapshotRelease, "ecs", catalogRegionId, false);
   } catch (err) {
     return {
       pricing: {},
@@ -350,7 +354,7 @@ async function computeEcsPricing(config: ConfigRecord): Promise<ServerPricingRes
     };
   }
 
-  const flavors = listStoredEcsFlavors(catalogRegionId);
+  const flavors = snapshotFlavors(ecsScope);
   const matchedFlavor = flavors.find((f) => f.resourceSpecCode === flavor);
 
   if (!matchedFlavor) {
@@ -508,8 +512,8 @@ function isConfigurableService(serviceCode: string): boolean {
 export async function computeServerPricing(serviceCode: string, config: ConfigRecord): Promise<ServerPricingResult> {
   if (serviceCode.startsWith("HUAWEI:")) {
     try {
-      const { verifyNativeProduct } = await import("@/lib/huawei-native/native-product");
-      const result = await verifyNativeProduct({
+      const {verifySnapshotProduct} = await import("@/lib/huawei-snapshot/product");
+      const result = await verifySnapshotProduct({
         serviceCode,
         serviceName: serviceCode.slice(7),
         productType: "huawei-native",
@@ -517,7 +521,7 @@ export async function computeServerPricing(serviceCode: string, config: ConfigRe
         quantity: 1,
         config,
         pricing: null,
-      });
+      },undefined,true);
       return {
         quantity: result.quantity,
         pricing: result.pricing as Record<string, unknown>,

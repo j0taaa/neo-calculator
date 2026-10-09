@@ -1,0 +1,30 @@
+# Standalone app reads a shared, immutable daily release. The sync worker owns Chromium.
+services:
+  calculator:
+    environment:
+      HUAWEI_SNAPSHOT_DIR: /app/snapshots
+      HUAWEI_SOURCE_ACCESS: offline
+    volumes:
+      - calculator_snapshots:/app/snapshots:ro
+  calculator-sync:
+    build:
+      context: ${NEO_CALCULATOR_DIR:-/home/neo-calculator}
+      dockerfile: Dockerfile.sync
+    environment:
+      HWC_SOCKS5_PROXY: socks5h://host.docker.internal:40001
+      HUAWEI_SYNC_CONCURRENCY: '1'
+    extra_hosts:
+      - host.docker.internal:host-gateway
+    volumes:
+      - calculator_snapshots:/app/snapshots
+    init: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    shm_size: 256mb
+    mem_limit: 2g
+    pids_limit: 256
+    restart: unless-stopped
+    networks:
+      - web
+volumes:
+  calculator_snapshots:

@@ -14,7 +14,8 @@ const aliases: Record<string, string> = {
 export type CalculatorService = ServiceCatalogEntry & { huaweiId?: string };
 export type CalculatorScope = { service: string; region: string; billingMode: NativeBillingMode };
 export function huaweiServiceId(code: string) {
-  return code.startsWith("HUAWEI:") ? code.slice(7) : code.startsWith("HWC:") ? code.slice(4) : aliases[code] ?? code.toLowerCase();
+  return /^HUAWEI:/i.test(code) ? code.slice(7) : /^HWC:/i.test(code) ? code.slice(4) :
+    Object.entries(aliases).find(([alias]) => alias.toLowerCase() === code.toLowerCase())?.[1] ?? code.toLowerCase();
 }
 export function calculatorServices(original: ServiceCatalogEntry[], directory: NativeDirectory | null): CalculatorService[] {
   const available = new Map(directory?.services.map(s => [s.id, s]) ?? []);

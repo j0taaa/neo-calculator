@@ -1,0 +1,616 @@
+{
+  "recordedAt": "2026-10-09T16:11:12.370086Z",
+  "status": "full-coverage-standalone-cache-verified",
+  "discovery": {
+    "availableServices": 97,
+    "eligibleRegions": [
+      {
+        "id": "ap-southeast-1",
+        "name": "CN-Hong Kong"
+      },
+      {
+        "id": "ap-southeast-2",
+        "name": "AP-Bangkok"
+      },
+      {
+        "id": "ap-southeast-3",
+        "name": "AP-Singapore"
+      },
+      {
+        "id": "ap-southeast-4",
+        "name": "AP-Jakarta"
+      },
+      {
+        "id": "ap-southeast-5",
+        "name": "AP-Manila"
+      },
+      {
+        "id": "af-south-1",
+        "name": "AF-Johannesburg"
+      },
+      {
+        "id": "af-north-1",
+        "name": "AF-Cairo"
+      },
+      {
+        "id": "tr-west-1",
+        "name": "TR-Istanbul"
+      },
+      {
+        "id": "me-east-1",
+        "name": "ME-Riyadh"
+      },
+      {
+        "id": "la-south-2",
+        "name": "LA-Santiago"
+      },
+      {
+        "id": "na-mexico-1",
+        "name": "LA-Mexico City1"
+      },
+      {
+        "id": "la-north-2",
+        "name": "LA-Mexico City2"
+      },
+      {
+        "id": "sa-peru-1",
+        "name": "LA-Lima1"
+      },
+      {
+        "id": "eu-west-0",
+        "name": "EU-Paris"
+      },
+      {
+        "id": "my-kualalumpur-1",
+        "name": "AP-Kuala Lumpur-OP6"
+      },
+      {
+        "id": "sa-brazil-1",
+        "name": "LA-Sao Paulo1"
+      },
+      {
+        "id": "sa-argentina-1",
+        "name": "LA-Buenos Aires1"
+      },
+      {
+        "id": "cn-north-4",
+        "name": "CN North-Beijing4"
+      },
+      {
+        "id": "cn-north-9",
+        "name": "CN North-Ulanqab1"
+      },
+      {
+        "id": "cn-north-12",
+        "name": "CN North3"
+      },
+      {
+        "id": "cn-east-3",
+        "name": "CN East-Shanghai1"
+      },
+      {
+        "id": "cn-east-5",
+        "name": "CN East-Qingdao"
+      },
+      {
+        "id": "cn-east-4",
+        "name": "CN East2"
+      },
+      {
+        "id": "cn-south-1",
+        "name": "CN South-Guangzhou"
+      },
+      {
+        "id": "cn-southwest-2",
+        "name": "CN Southwest-Guiyang1"
+      },
+      {
+        "id": "eu-west-101",
+        "name": "EU-Dublin"
+      },
+      {
+        "id": "global-cbc-1",
+        "name": "Global"
+      },
+      {
+        "id": "tr-central-201",
+        "name": "TR-Ankara-PUR"
+      }
+    ],
+    "advertisedServiceRegionScopes": 1369,
+    "homeZoneServiceRegionScopes": 10,
+    "homeZoneIds": [
+      "af-south-1-los1a"
+    ],
+    "includesPartnerBillingSites": true,
+    "includesBetaServices": true
+  },
+  "audit": {
+    "startedAt": "2026-10-08T17:47:10.355Z",
+    "completedServiceRegionScopes": 1369,
+    "validatedServiceRegionScopes": 1369,
+    "validatedServices": 97,
+    "failures": [],
+    "allEligibleRegionsValidated": true,
+    "exhaustiveConfigurationCoverage": false,
+    "unknownCatalogRequestFamiliesSkipped": true,
+    "publicationRequiresEveryAdvertisedScope": true,
+    "validationFingerprint": "a5b7e9e69f8d4a78558aff5c449db46181198544cc5c26fd33826d8c6042ec41",
+    "bridgeHash": "ecfe1d67531131b2a84951c4d8bf0cf452b08e7025b7d62386b31aae8d1bd986",
+    "measuredAt": "2026-10-08T21:09:55.923Z",
+    "finishedAt": "2026-10-08T21:09:55.923Z",
+    "durationSeconds": 12165.568
+  },
+  "isolatedPreview": {
+    "url": "https://calculator-offline.hwctools.site",
+    "release": "681cb612a0ad2d97d773deb2eab8b6a2953370bef17fd7f181c65305dd783f1c",
+    "validatedServices": 97,
+    "validatedServiceRegionScopes": 1369,
+    "regions": [
+      {
+        "id": "ap-southeast-1",
+        "name": "CN-Hong Kong"
+      },
+      {
+        "id": "ap-southeast-2",
+        "name": "AP-Bangkok"
+      },
+      {
+        "id": "ap-southeast-3",
+        "name": "AP-Singapore"
+      },
+      {
+        "id": "ap-southeast-4",
+        "name": "AP-Jakarta"
+      },
+      {
+        "id": "ap-southeast-5",
+        "name": "AP-Manila"
+      },
+      {
+        "id": "af-south-1",
+        "name": "AF-Johannesburg"
+      },
+      {
+        "id": "af-north-1",
+        "name": "AF-Cairo"
+      },
+      {
+        "id": "tr-west-1",
+        "name": "TR-Istanbul"
+      },
+      {
+        "id": "me-east-1",
+        "name": "ME-Riyadh"
+      },
+      {
+        "id": "la-south-2",
+        "name": "LA-Santiago"
+      },
+      {
+        "id": "na-mexico-1",
+        "name": "LA-Mexico City1"
+      },
+      {
+        "id": "la-north-2",
+        "name": "LA-Mexico City2"
+      },
+      {
+        "id": "sa-peru-1",
+        "name": "LA-Lima1"
+      },
+      {
+        "id": "eu-west-0",
+        "name": "EU-Paris"
+      },
+      {
+        "id": "my-kualalumpur-1",
+        "name": "AP-Kuala Lumpur-OP6"
+      },
+      {
+        "id": "sa-brazil-1",
+        "name": "LA-Sao Paulo1"
+      },
+      {
+        "id": "sa-argentina-1",
+        "name": "LA-Buenos Aires1"
+      },
+      {
+        "id": "cn-north-4",
+        "name": "CN North-Beijing4"
+      },
+      {
+        "id": "cn-north-9",
+        "name": "CN North-Ulanqab1"
+      },
+      {
+        "id": "cn-north-12",
+        "name": "CN North3"
+      },
+      {
+        "id": "cn-east-3",
+        "name": "CN East-Shanghai1"
+      },
+      {
+        "id": "cn-east-5",
+        "name": "CN East-Qingdao"
+      },
+      {
+        "id": "cn-east-4",
+        "name": "CN East2"
+      },
+      {
+        "id": "cn-south-1",
+        "name": "CN South-Guangzhou"
+      },
+      {
+        "id": "cn-southwest-2",
+        "name": "CN Southwest-Guiyang1"
+      },
+      {
+        "id": "eu-west-101",
+        "name": "EU-Dublin"
+      },
+      {
+        "id": "global-cbc-1",
+        "name": "Global"
+      },
+      {
+        "id": "tr-central-201",
+        "name": "TR-Ankara-PUR"
+      }
+    ],
+    "fullCoverage": true,
+    "runtimeRevision": "c5c8cea",
+    "appImage": "sha256:e5e56beb02d921bc8fe3a8538213e9730fc4941c1574118d3d07f6356280b10a",
+    "workerRuntimeRevision": "45559d1",
+    "workerImage": "sha256:0ce222d65ab525b46fa11de5af4ce76081a839f5947297689db09508b78346a8"
+  },
+  "checks": {
+    "unit": {
+      "passed": 445,
+      "failed": 0,
+      "files": 99
+    },
+    "typescript": {
+      "errors": 0
+    },
+    "eslint": {
+      "errors": 0,
+      "preexistingWarnings": 3
+    },
+    "browser": {
+      "passed": 33,
+      "failed": 0,
+      "serverNetwork": "internal Docker network without internet access",
+      "externalRequestsInEcsTest": 0,
+      "nativePostRequests": 0,
+      "ecsDurationChangeMilliseconds": 329,
+      "coverage": [
+        "all four billing families",
+        "ECS flavor cards",
+        "Flexus L",
+        "ELB",
+        "NAT",
+        "DCS",
+        "OBS S\u00e3o Paulo",
+        "CCM one-time",
+        "save/reopen/edit",
+        "client-total and quantity tampering",
+        "batch saving",
+        "cart export/import",
+        "regional billing availability",
+        "iframe cleanup",
+        "mobile overflow",
+        "CDN GB/TB/PB units",
+        "ECS HomeZone selection and zone-specific flavor cards",
+        "Paris partner billing site",
+        "MaaS beta token pricing",
+        "Support Plans custom fees, duration and tamper-resistant saving",
+        "informational official modes",
+        "hidden and CSS-disabled radio choices",
+        "numeric unit-selector discovery",
+        "selectable ECS cards for the current image and billing family",
+        "CDM monthly discount threshold and yearly term",
+        "all 28 snapshot regions exposed in the selector, including mainland and partner sites",
+        "every published service reachable through Neo: 97 services, no external requests or failures",
+        "Cairo OBS yearly-only catalog, monthly proration, quantity, term changes and saved price",
+        "Cairo ECS unavailable image and recovery through the visible advanced controls",
+        "all 12 previously failing regional scopes through the actual Neo interface",
+        "API Gateway duration tariff boundary at five hours",
+        "warm ECS, ELB and NAT duration-edit latency without timed component debounces",
+        "completed pricing withheld until outstanding conditional emissions finish",
+        "REST service/catalog/schema discovery and all published-region identities",
+        "nine focused API calculation/save configurations across all four billing families",
+        "session and API-key product updates, malformed input validation, quantity/purchase/component inconsistencies, aliases and mixed batches",
+        "95 published services with local UI/API price agreement and 40 editable global quantity checks",
+        "parallel and sequential startup produce identical fields, notes and price/payment details across all four billing modes",
+        "initial opening waits for directory/bookmark hydration and opens exactly one correct frame",
+        "pinned scope data cache reuse and uncached session isolation",
+        "cached/inline equivalence of all options and input limits"
+      ],
+      "execution": "All 32 tests passed together against the complete snapshot and startup-optimized app in 7.9 minutes on an internal Docker network without internet access. The service sweep verified 95 API/UI quote agreements across all 97 published services, preserving two official non-quotable states; 40 editable global quantity controls were checked."
+    },
+    "historicalReleaseReplay": {
+      "scopes": 76,
+      "comparisons": 23151,
+      "failures": 0
+    },
+    "expandedIsolatedFixtureReplay": {
+      "scopes": 1369,
+      "comparisons": 263213,
+      "failures": 0,
+      "release": "a99d5e6c45a7facfafb0a573d51dfe285bed866af306a1058ae694127f2a9991",
+      "productionCandidate": false
+    },
+    "unchangedDailyJob": {
+      "freshApiComparisons": 1491,
+      "chromiumLaunched": false,
+      "scopes": [
+        "ecs/af-south-1",
+        "obs/af-south-1",
+        "cdn/global-cbc-1",
+        "vod/ap-southeast-2",
+        "dli/eu-west-0",
+        "sfsturbo/sa-brazil-1"
+      ]
+    },
+    "discountedFixedPackage": {
+      "service": "dgcCdm",
+      "region": "ap-southeast-2",
+      "formChecks": 6,
+      "catalogChecks": 13,
+      "passed": true,
+      "freshDirectApiTermsCompared": 14
+    },
+    "compiledEcsChoices": {
+      "officialSelectableGenerations": 95,
+      "downloadedJavaScriptEvaluatedOnServer": false,
+      "catalogOnlyGenerationsExcluded": true,
+      "riRequiresSameZoneOffer": true
+    },
+    "completeFrameworkIdentity": {
+      "includesImportedScripts": true,
+      "includesStylesheets": true,
+      "includesAssetUrls": true,
+      "changedDependenciesInvalidateCheckpoints": true
+    },
+    "allServicesUi": {
+      "services": 97,
+      "regionsSampledPerService": 1,
+      "failures": 0,
+      "externalRequests": 0,
+      "durationMinutes": 3.5
+    },
+    "regionalTariffs": {
+      "obsManilaServiceHourFreshApiComparisons": 72,
+      "obsCairoMonthlyAndYearlyFreshApiComparisons": 64,
+      "maasUnconditionedDefaultFreshApiComparisons": 12,
+      "obsCairoFormAndCatalogChecks": 92,
+      "obsManilaFormAndCatalogChecks": 71,
+      "ecsCairoFormAndCatalogChecks": 1137,
+      "missingEcsImageSpecificationOfficialStatus": 400
+    },
+    "homeZoneInitialization": {
+      "successfulNormalInitializations": 80,
+      "deliberatelyIncorrectInitialAssignmentsRecovered": 4,
+      "persistentlyIncorrectAssignmentsRejected": 1,
+      "maximumAssignments": 3
+    },
+    "applicationImage": "sha256:e5e56beb02d921bc8fe3a8538213e9730fc4941c1574118d3d07f6356280b10a",
+    "workerImage": "sha256:0ce222d65ab525b46fa11de5af4ce76081a839f5947297689db09508b78346a8",
+    "regionalFailureRegression": {
+      "previousFullAuditFailures": 12,
+      "allFailedScopesPassedFocusedRecheck": true,
+      "freshFormAndCatalogComparisons": 1751,
+      "scopes": [
+        {
+          "service": "sfsturbo",
+          "region": "la-south-2",
+          "checks": 42,
+          "passed": true
+        },
+        {
+          "service": "mrs",
+          "region": "la-south-2",
+          "checks": 460,
+          "passed": true
+        },
+        {
+          "service": "kafka",
+          "region": "eu-west-0",
+          "checks": 18,
+          "passed": true
+        },
+        {
+          "service": "search",
+          "region": "cn-east-3",
+          "checks": 207,
+          "passed": true
+        },
+        {
+          "service": "apig",
+          "region": "cn-east-4",
+          "checks": 18,
+          "passed": true
+        },
+        {
+          "service": "servicestage",
+          "region": "sa-brazil-1",
+          "checks": 4,
+          "passed": true
+        },
+        {
+          "service": "rds",
+          "region": "sa-argentina-1",
+          "checks": 845,
+          "passed": true
+        },
+        {
+          "service": "hss",
+          "region": "me-east-1",
+          "checks": 28,
+          "passed": true
+        },
+        {
+          "service": "dew",
+          "region": "me-east-1",
+          "checks": 27,
+          "passed": true
+        },
+        {
+          "service": "sfsturbo",
+          "region": "na-mexico-1",
+          "checks": 42,
+          "passed": true
+        },
+        {
+          "service": "sfsturbo",
+          "region": "la-north-2",
+          "checks": 42,
+          "passed": true
+        },
+        {
+          "service": "apig",
+          "region": "cn-south-1",
+          "checks": 18,
+          "passed": true
+        }
+      ],
+      "emptySelectorBrowserRegressionPassed": true,
+      "calculatorCdnUsesConfiguredProxy": true,
+      "offlineCdnRequestsBlocked": true,
+      "obsHongKongZeroUsageFormAndCatalogChecks": 132,
+      "zeroUsageDoesNotConstrainRateInference": true,
+      "neoInterfaceScopesChecked": 13
+    },
+    "completeCandidateReplay": {
+      "release": "681cb612a0ad2d97d773deb2eab8b6a2953370bef17fd7f181c65305dd783f1c",
+      "scopes": 1369,
+      "comparisons": 268062,
+      "failures": 0
+    },
+    "publicPreviewSmoke": {
+      "services": 97,
+      "regions": 28,
+      "externalRequests": 0,
+      "nativePostRequests": 0,
+      "httpStatus": 200,
+      "tlsVerified": true,
+      "snapshotAndApplicationBridgeMatch": true
+    },
+    "runtimeRevision": "c5c8cea",
+    "localInteractionLatency": {
+      "measurement": "Committed input blur to changed price rendered, observed directly through DOM mutations without assertion polling",
+      "offlineDurationEditsMilliseconds": {
+        "ECS": [
+          78.7,
+          62.8,
+          63.1
+        ],
+        "ELB": [
+          56.2,
+          64.1,
+          61.6
+        ],
+        "NAT": [
+          39.8,
+          46.2,
+          43.6
+        ]
+      },
+      "publicEcsDurationEditsMilliseconds": {
+        "before": [
+          203.6,
+          215,
+          177.3
+        ],
+        "after": [
+          86,
+          76.1,
+          68.2
+        ]
+      },
+      "publicExternalRequests": 0,
+      "fixedEmissionWaitsRemovedMilliseconds": [
+        50,
+        100
+      ],
+      "fixedFormSettlingWaitRemovedMilliseconds": 80,
+      "requiresNoPendingEmissions": true,
+      "requiresFreshPricingEpoch": true,
+      "requiresTwoMatchingObservations": true,
+      "numericInputsCommitOn": "blur or Enter",
+      "latencyGuarantee": false
+    },
+    "api": {
+      "evidence": "calculator-api-validation.json",
+      "runtimeRevision": "79a37a7",
+      "freshHuaweiRequests": 36,
+      "failures": 0,
+      "publicSmokePassed": true
+    },
+    "startup": {
+      "report": "calculator-startup-validation.json",
+      "unitTestsPassed": 441,
+      "browserTestsPassed": 32,
+      "localRepeatedLoadMedianBeforeMs": 2502.0,
+      "localRepeatedLoadMedianAfterMs": 2059.0,
+      "publicRepeatedLoadMedianBeforeMs": 2361.5,
+      "publicRepeatedLoadMedianAfterMs": 1887.0,
+      "bridgeAndRatingRulesUnchanged": true
+    },
+    "snapshotCache": {
+      "report": "calculator-snapshot-cache-validation.json",
+      "runtimeRevision": "c5c8cea",
+      "unitTestsPassed": 445,
+      "browserTestsPassed": 33,
+      "freshHuaweiComponentChecks": 15,
+      "calibrationChanges": 0,
+      "publicRepeatedReadyMedianBeforeMs": 2002.0,
+      "publicRepeatedReadyMedianAfterMs": 1861.5,
+      "publicRepeatedLoaderMedianBeforeMs": 1487.0,
+      "publicRepeatedLoaderMedianAfterMs": 1229.5,
+      "bridgeAndRatingRulesUnchanged": true
+    }
+  },
+  "rollout": {
+    "productionChanged": false,
+    "publicPreviewUpdated": true,
+    "automaticUnknownRuleAcceptance": false,
+    "remaining": [
+      "Switch main production to the verified standalone snapshot and matching images after checking the existing-account/cart migration"
+    ],
+    "automaticFollowThrough": {
+      "service": "neo-calculator-full-coverage-v18.service",
+      "persistsBeyondChatSession": true,
+      "steps": [
+        "wait for full audit success",
+        "replay every recorded candidate price",
+        "run complete offline browser suite against the candidate",
+        "promote matching snapshot and images to the preview",
+        "verify HTTPS and offline public behavior",
+        "notify ntfy.sh/codex"
+      ],
+      "previewRollbackOnFailure": true,
+      "productionChanged": false,
+      "completedAt": "2026-10-08T21:17:47.521Z",
+      "result": "Complete candidate replay, all offline browser tests, preview deployment and public HTTPS smoke passed."
+    }
+  },
+  "previousCompleteAudit": {
+    "startedAt": "2026-10-08T03:21:18.227Z",
+    "finishedAt": "2026-10-08T06:51:14.138Z",
+    "completedScopes": 1369,
+    "validatedScopes": 1357,
+    "failedScopes": 12,
+    "publicationBlocked": true
+  },
+  "previousVerifiedRelease": {
+    "release": "bf0858f4f399241e573de9b13beec21bf563559f7d53d7d834cf99e13326a202",
+    "completedAt": "2026-10-08T15:23:52.089Z",
+    "scopes": 1369,
+    "comparisons": 266989,
+    "runtimeRevision": "73cdf57"
+  }
+}

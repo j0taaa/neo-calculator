@@ -53,3 +53,22 @@ test("concurrent source fetches share work; a later forced refresh still reaches
     await expect(collector.fetch("https://example.test/source", 60000, () => { throw new Error("Invalid cached source"); })).rejects.toThrow("Invalid cached source");
   } finally { store.close(); }
 });
+test("each daily collector refreshes configuration once across all regions even when the cache is recent", async () => {
+  const store = new SourceStore(":memory:");
+  let configs = 0;
+  const request = async (url: string) => {
+    const u = new URL(url);
+    return { ok: true, status: 200, bodyText: u.pathname.endsWith("/config") ? `config-${++configs}` : JSON.stringify({ product: {}, region: u.searchParams.get("region"), urlPath: "ecs" }) };
+  };
+  try {
+    await new HuaweiCollector(store, request).service("ecs", "first");
+    const daily = new HuaweiCollector(store, request);
+    const a = await daily.service("ecs", "first", true, "general.online.portal", true);
+    const b = await daily.service("ecs", "second", true, "general.online.portal", true);
+    expect(a.config.body).toBe("config-2");
+    expect(b.config.hash).toBe(a.config.hash);
+    expect(configs).toBe(2);
+    await new HuaweiCollector(store, request).service("ecs", "first", true, "general.online.portal", true);
+    expect(configs).toBe(3);
+  } finally { store.close(); }
+});

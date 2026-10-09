@@ -1,21 +1,24 @@
+import {
+  localRequest,
+  closeLocalSession,
+  cancelLocalOperation,
+  setLocalDirectory,
+} from "../huawei-snapshot/client";
+
 export async function nativeRequest(body?: unknown, signal?: AbortSignal) {
-  const response = await fetch("/api/calculator/native", body ? {
-    method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body), signal,
-  } : undefined);
+  if (body) {
+    const state = await localRequest(body as Record<string, unknown>, signal);
+    if (typeof window !== "undefined") window.dispatchEvent(new CustomEvent("neo:calculator-state", { detail: state }));
+    return state;
+  }
+  const response = await fetch("/api/calculator/native", { signal });
   const data = await response.json();
-  if (!response.ok) throw new Error(data.error || "Huawei is unavailable");
+  if (!response.ok)
+    throw new Error(
+      data.error || "The daily calculator snapshot is unavailable",
+    );
+  setLocalDirectory(data);
   return data;
 }
-export function closeNativeSession(session: string) {
-  void fetch("/api/calculator/native", {
-    method: "POST", headers: { "content-type": "application/json" },
-    body: JSON.stringify({ action: "close", session }), keepalive: true,
-  }).catch(() => {});
-}
-
-export function cancelNativeOperation(operationId: string) {
-  void fetch("/api/calculator/native", {
-    method: "POST", headers: { "content-type": "application/json" },
-    body: JSON.stringify({ action: "cancel", operationId }), keepalive: true,
-  }).catch(() => {});
-}
+export const closeNativeSession = closeLocalSession;
+export const cancelNativeOperation = cancelLocalOperation;

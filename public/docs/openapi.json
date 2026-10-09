@@ -25,6 +25,165 @@
     }
   ],
   "paths": {
+    "/public/catalog/{service}/pricing": {
+      "get": {
+        "tags": [
+          "Public"
+        ],
+        "summary": "Get pricing catalog for a service",
+        "description": "Compatibility alias for /public/catalog/{service}. Use the canonical catalog URL advertised by service discovery.",
+        "operationId": "getServicePricingCompatibility",
+        "parameters": [
+          {
+            "name": "service",
+            "in": "path",
+            "required": true,
+            "description": "The service code (e.g., vpn, cce, eip)",
+            "schema": {
+              "type": "string",
+              "example": "vpn"
+            }
+          },
+          {
+            "name": "region",
+            "in": "query",
+            "required": false,
+            "description": "The Huawei region ID or legacy region alias; defaults to the first available region for this service",
+            "schema": {
+              "type": "string",
+              "example": "la-sao-paulo1"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "service": {
+                      "type": "string",
+                      "example": "vpn"
+                    },
+                    "region": {
+                      "type": "string",
+                      "example": "la-sao-paulo1"
+                    },
+                    "catalogRegionId": {
+                      "type": "string",
+                      "example": "sa-brazil-1"
+                    },
+                    "catalog": {
+                      "type": "object",
+                      "description": "The pricing catalog for the service. Structure varies by service."
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid region or service",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Service not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "deprecated": true
+      }
+    },
+    "/calculate": {
+      "post": {
+        "tags": [
+          "Private"
+        ],
+        "summary": "Recalculate configurations from the daily synchronized snapshot",
+        "description": "Reconstructs complete prices using the same offline engine as saving. Provide durable config.selection and config.local from the local calculator, not a flat legacy configuration. Client prices and top-level quantities are ignored; quantity is derived and validated against the pricing components. One snapshot is used for the entire batch. Current rates are used; changed conditional rules require reopening the configuration. Supports every published service and its available billing modes.",
+        "operationId": "calculateSnapshotProducts",
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "products"
+                ],
+                "properties": {
+                  "region": {
+                    "type": "string",
+                    "description": "Optional region constraint, validated against every product; no implicit region fallback."
+                  },
+                  "products": {
+                    "type": "array",
+                    "minItems": 1,
+                    "maxItems": 100,
+                    "items": {
+                      "type": "object",
+                      "required": [
+                        "serviceCode",
+                        "config"
+                      ],
+                      "properties": {
+                        "serviceCode": {
+                          "type": "string",
+                          "example": "HUAWEI:ecs"
+                        },
+                        "config": {
+                          "type": "object",
+                          "description": "The complete config emitted by the local calculator, including selection and local."
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Every product was priced; results include numeric pricing.amount, currency, breakdown and any RI payment schedule."
+          },
+          "207": {
+            "description": "Mixed batch: successful prices and per-product errors; failed entries have pricing:null."
+          },
+          "400": {
+            "description": "Malformed product/body, invalid region or batch size."
+          },
+          "401": {
+            "description": "Missing or invalid API key."
+          },
+          "422": {
+            "description": "No products could be verified; results contain per-product errors."
+          },
+          "503": {
+            "description": "No published snapshot is available."
+          }
+        }
+      }
+    },
     "/public/services": {
       "get": {
         "tags": ["Public"],
@@ -95,11 +254,11 @@
         }
       }
     },
-    "/public/catalog/{service}/pricing": {
+    "/public/catalog/{service}": {
       "get": {
         "tags": ["Public"],
         "summary": "Get pricing catalog for a service",
-        "description": "Returns the pricing catalog for a specific service in the specified region. The catalog contains all available pricing options, specifications, and rates.",
+        "description": "Reads the synchronized catalog and conditional configuration for a service and region. Service aliases and HUAWEI:<id> codes are accepted. Unknown regions are rejected instead of silently selecting another region.",
         "operationId": "getServicePricing",
         "parameters": [
           {
@@ -116,10 +275,9 @@
             "name": "region",
             "in": "query",
             "required": false,
-            "description": "The region code (defaults to la-sao-paulo1)",
+            "description": "The Huawei region ID or legacy region alias; defaults to the first available region for this service",
             "schema": {
               "type": "string",
-              "default": "la-sao-paulo1",
               "example": "la-sao-paulo1"
             }
           }
@@ -167,14 +325,14 @@
       "get": {
         "tags": ["Public"],
         "summary": "Get the JSON Schema for a service product body",
-        "description": "Returns a JSON Schema (draft 2020-12) describing the request body format for adding a product to a list. Use this to know which fields are required and what values are accepted for a specific service. Supports all configurable services plus ECS and Flexus L.",
+        "description": "Returns the synchronized calculator workflow and the JSON schema for a durable local configuration. All published services and billing modes use config.region, config.billingMode, config.selection and config.local. Legacy service aliases resolve to the canonical HUAWEI:<id> service. No server browser session is used.",
         "operationId": "getServiceSchema",
         "parameters": [
           {
             "name": "serviceCode",
             "in": "path",
             "required": true,
-            "description": "The service code (case-insensitive, e.g. 'dcs', 'ECS', 'Flexus L')",
+            "description": "The service alias or canonical HUAWEI:<id> code",
             "schema": {
               "type": "string",
               "example": "dcs"
@@ -183,32 +341,18 @@
         ],
         "responses": {
           "200": {
-            "description": "Successful response with JSON Schema and example",
+            "description": "Successful response with synchronized calculator metadata and JSON Schema",
             "content": {
               "application/json": {
                 "schema": {
                   "type": "object",
                   "properties": {
-                    "serviceCode": { "type": "string", "example": "DCS" },
+                    "serviceCode": { "type": "string", "example": "HUAWEI:redis" },
                     "serviceName": { "type": "string", "example": "Distributed Cache Service (for Redis)" },
-                    "productType": { "type": "string", "example": "dcs" },
-                    "billingOptions": {
-                      "type": "array",
-                      "items": { "type": "string" },
-                      "example": ["Pay-per-use"]
-                    },
-                    "schema": {
-                      "type": "object",
-                      "description": "JSON Schema (draft 2020-12) for the product request body"
-                    },
-                    "configDefaults": {
-                      "type": "object",
-                      "description": "Default config values for all fields"
-                    },
-                    "example": {
-                      "type": "object",
-                      "description": "A ready-to-use example request body for POST /private/lists/{listId}/products"
-                    }
+                    "productType": { "type": "string", "example": "huawei-native" },
+                    "releaseId": { "type": "string" },
+                    "calculator": { "type": "object", "description": "Offline workflow URLs and billing availability by region." },
+                    "schema": { "type": "object", "description": "Schema for a durable local configuration." }
                   }
                 }
               }
@@ -780,7 +924,7 @@
       "post": {
         "tags": ["Private"],
         "summary": "Add a product to a list",
-        "description": "Adds a new product to the specified list. The server automatically calculates pricing based on the serviceCode and config provided. Use the /public/services/{serviceCode}/schema endpoint to discover valid config fields for each service.",
+        "description": "Verifies and prices the durable local configuration against synchronized catalog rates. Discover the required config.selection and config.local through /public/services/{serviceCode}/schema. Client monetary totals are ignored. Invalid input returns a client error; inconsistent quantities or pricing scopes are rejected.",
         "operationId": "addProduct",
         "security": [{ "ApiKeyAuth": [] }],
         "parameters": [
@@ -866,7 +1010,7 @@
       "patch": {
         "tags": ["Private"],
         "summary": "Update a product in a list",
-        "description": "Updates an existing product in the specified list. Pricing is automatically recalculated server-side from the config.",
+        "description": "Verifies and prices the durable local configuration against synchronized catalog rates. Discover the required config.selection and config.local through /public/services/{serviceCode}/schema. Client monetary totals are ignored. Invalid input returns a client error; inconsistent quantities or pricing scopes are rejected.",
         "operationId": "updateProduct",
         "security": [{ "ApiKeyAuth": [] }],
         "parameters": [

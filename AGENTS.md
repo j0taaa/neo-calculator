@@ -1,6 +1,6 @@
 When you feel like it is needed, like when you find errors or when there is something you need to remember to do, you can add that to this file.
 
-This project is a better version of the Huawei Cloud calculator. It uses the Huawei Cloud calculator API to get the updated prices of the products and show them.
+This project is an independent Huawei Cloud calculator. Only the daily synchronization worker may contact Huawei for calculator discovery/pricing or run its calculator in Chromium as an extraction/validation oracle. Normal application operation must use Neo's own controls, resource-selection rules and local pricing engine with a published snapshot. Never embed an upstream calculator, including a hidden iframe or a saved Vue/TinyVue application, or call Huawei pricing APIs during interactive calculation. Cached upstream UI execution does not satisfy independence. Do not report this architecture complete until all supported services, regions, billing modes and conditional options pass independent-engine comparisons and runtime tests with external access blocked.
 
 Use shadcn/ui when possible for the UI
 

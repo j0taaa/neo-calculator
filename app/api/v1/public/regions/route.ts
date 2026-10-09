@@ -1,25 +1,19 @@
-import { calculatorDirectory } from "@/lib/calculator/server-directory";
+import { SnapshotStore } from "@/lib/huawei-snapshot/store";
+import { legacyRegion } from "@/lib/calculator/service-directory";
 import { huaweiRegions } from "@/lib/huawei-regions";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
 export async function GET() {
-  const directory = await calculatorDirectory();
-  const regions: { code: string; short: string; full: string; catalogRegionId: string | null; liveAvailable: boolean }[] = Object.entries(huaweiRegions).map(([key, data]) => ({
-    code: key,
-    short: data.short,
-    full: data.full,
-    catalogRegionId: data.catalogRegionId,
-    liveAvailable: directory?.regions.some(region => region.id === data.catalogRegionId) ?? false,
-  }));
-
-  for (const region of directory?.regions ?? []) {
-    if (!regions.some(existing => existing.catalogRegionId === region.id)) regions.push({ code: region.id,
-      short: region.name, full: region.name, catalogRegionId: region.id, liveAvailable: true });
-  }
-  return Response.json({
-    regions,
-    total: regions.length,
+  const release = await new SnapshotStore().active().catch(() => null);
+  if (!release) return Response.json({ error: "The daily calculator snapshot is not available yet" }, { status: 503 });
+  const regions = release.directory.regions.map(region => {
+    const alias = legacyRegion(region.id);
+    const legacy = alias ? huaweiRegions[alias as keyof typeof huaweiRegions] : undefined;
+    return { id: region.id, code: alias ?? region.id, short: legacy?.short ?? region.name,
+      full: legacy?.full ?? region.name, catalogRegionId: region.id, snapshotAvailable: true,
+      liveAvailable: true }; // Retained for existing clients; availability now comes from the snapshot.
   });
+  return Response.json({ regions, total: regions.length, releaseId: release.id }, { headers: { "cache-control": "no-store" } });
 }

@@ -6,3 +6,6 @@ data/
 data.db
 node_modules/
 tsconfig.tsbuildinfo
+
+# Built before dev, production builds and daily synchronization.
+public/calculator-snapshot-bridge.js

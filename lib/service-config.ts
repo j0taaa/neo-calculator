@@ -1,3 +1,4 @@
+import {localServiceIcon} from "./service-icons";
 import { serviceBundles } from "@/config/services/bundles";
 import { serviceRegistryDocument } from "@/config/services/index";
 import {
@@ -434,7 +435,7 @@ for (const metadata of serviceRegistry.definitions) {
   });
 }
 
-export const serviceCatalog = serviceRegistry.services;
+export const serviceCatalog = serviceRegistry.services.map(service=>({...service,icon:localServiceIcon(service.icon)}));
 export const supportedCalculatorServiceCodes = [...serviceRegistry.supportedCalculatorServiceCodes];
 export const freeAlwaysServiceCodes = [...serviceRegistry.freeAlwaysServiceCodes];
 export const configurableServiceCodes = [...configurableServiceBundles.keys()];
