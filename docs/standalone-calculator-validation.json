@@ -1,6 +1,6 @@
 {
-  "recordedAt": "2026-10-08T21:17:47.521Z",
-  "status": "full-coverage-faster-standalone-preview-verified",
+  "recordedAt": "2026-10-09T02:00:57.305Z",
+  "status": "full-coverage-standalone-api-verified",
   "discovery": {
     "availableServices": 97,
     "eligibleRegions": [
@@ -260,13 +260,17 @@
         "name": "TR-Ankara-PUR"
       }
     ],
-    "fullCoverage": true
+    "fullCoverage": true,
+    "runtimeRevision": "79a37a7",
+    "appImage": "sha256:0fa82000deccda0924d53b1bdf5f3ead24c834df69e5406c3715329639be48f5",
+    "workerRuntimeRevision": "45559d1",
+    "workerImage": "sha256:0ce222d65ab525b46fa11de5af4ce76081a839f5947297689db09508b78346a8"
   },
   "checks": {
     "unit": {
-      "passed": 428,
+      "passed": 438,
       "failed": 0,
-      "files": 93
+      "files": 97
     },
     "typescript": {
       "errors": 0
@@ -276,12 +280,12 @@
       "preexistingWarnings": 3
     },
     "browser": {
-      "passed": 29,
+      "passed": 30,
       "failed": 0,
       "serverNetwork": "internal Docker network without internet access",
       "externalRequestsInEcsTest": 0,
       "nativePostRequests": 0,
-      "ecsDurationChangeMilliseconds": 265,
+      "ecsDurationChangeMilliseconds": 220,
       "coverage": [
         "all four billing families",
         "ECS flavor cards",
@@ -315,9 +319,13 @@
         "all 12 previously failing regional scopes through the actual Neo interface",
         "API Gateway duration tariff boundary at five hours",
         "warm ECS, ELB and NAT duration-edit latency without timed component debounces",
-        "completed pricing withheld until outstanding conditional emissions finish"
+        "completed pricing withheld until outstanding conditional emissions finish",
+        "REST service/catalog/schema discovery and all published-region identities",
+        "nine focused API calculation/save configurations across all four billing families",
+        "session and API-key product updates, malformed input validation, quantity/purchase/component inconsistencies, aliases and mixed batches",
+        "95 published services with local UI/API price agreement and 40 editable global quantity checks"
       ],
-      "execution": "All 29 tests passed together against the complete candidate in 6.2 minutes; the application ran on an internal Docker network without internet access. The legacy duration metric includes filling the input and assertion polling; direct render latency is recorded separately."
+      "execution": "All 30 tests passed together against the complete snapshot and API-fixed app in 6.8 minutes, on an internal Docker network without internet access. The service sweep verified 95 API/UI quote agreements across all 97 published services, preserving two official non-quotable states; 40 editable global quantity controls were checked."
     },
     "historicalReleaseReplay": {
       "scopes": 76,
@@ -530,6 +538,13 @@
       "requiresTwoMatchingObservations": true,
       "numericInputsCommitOn": "blur or Enter",
       "latencyGuarantee": false
+    },
+    "api": {
+      "evidence": "calculator-api-validation.json",
+      "runtimeRevision": "79a37a7",
+      "freshHuaweiRequests": 36,
+      "failures": 0,
+      "publicSmokePassed": true
     }
   },
   "rollout": {

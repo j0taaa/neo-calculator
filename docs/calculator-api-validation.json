@@ -1,0 +1,110 @@
+{
+  "recordedAt": "2026-10-09T02:00:57.305Z",
+  "status": "verified-and-deployed-to-offline-preview",
+  "runtimeRevision": "79a37a7",
+  "snapshot": "681cb612a0ad2d97d773deb2eab8b6a2953370bef17fd7f181c65305dd783f1c",
+  "appImage": "sha256:0fa82000deccda0924d53b1bdf5f3ead24c834df69e5406c3715329639be48f5",
+  "bridgeHash": "ecfe1d67531131b2a84951c4d8bf0cf452b08e7025b7d62386b31aae8d1bd986",
+  "before": {
+    "httpChecksPassed": 15,
+    "httpChecksFailed": 16,
+    "defectCategories": 6
+  },
+  "fixed": [
+    "REST calculation uses snapshot verification for every published service and available billing mode",
+    "Discovery and schemas advertise the offline configuration workflow and correct methods/URLs",
+    "The formerly advertised catalog pricing URL is available as a compatibility route",
+    "Global quantities agree with purchase quantity and component counts, including fixed quantity-one controls",
+    "Malformed product identities/configurations/quantities return client errors on create, update and calculate",
+    "Unknown regions do not silently fall back to another region"
+  ],
+  "additionalChecks": [
+    "Service aliases cannot send local configurations through legacy pricing handlers",
+    "Inherited object-property names are rejected as unknown service identities",
+    "Client-supplied error properties cannot change calculation success status",
+    "Each calculation batch captures one complete published snapshot",
+    "Client monetary totals, currencies and top-level quantities are not authoritative"
+  ],
+  "unit": {
+    "passed": 438,
+    "failed": 0,
+    "files": 97,
+    "expectations": 2740
+  },
+  "browser": {
+    "passed": 30,
+    "failed": 0,
+    "durationMinutes": 6.8,
+    "serverNetwork": "internal Docker network without internet access",
+    "publishedServicesChecked": 97,
+    "quotableServicesWithApiAgreement": 95,
+    "officialNonQuotableStates": 2,
+    "editableGlobalQuantityChecks": 40,
+    "focusedConfigurations": 9,
+    "focusedBillingModes": [
+      "ONDEMAND",
+      "PERIOD",
+      "RI",
+      "ONETIME"
+    ],
+    "focusedRegions": [
+      "ap-southeast-1",
+      "cn-east-4"
+    ],
+    "sessionAndApiKeySavesAndUpdates": true,
+    "mixedBatchStatus": 207
+  },
+  "freshHuawei": {
+    "requests": 36,
+    "inquiryShapes": 18,
+    "failures": 0,
+    "checks": [
+      "total amounts",
+      "component amounts",
+      "RI recurring charges",
+      "repeat consistency",
+      "multi-instance quotes",
+      "DSC fixed quantity",
+      "GA component aggregation"
+    ],
+    "supportPlansHasNoCbcInquiry": true
+  },
+  "typescript": {
+    "errors": 0
+  },
+  "eslint": {
+    "errors": 0,
+    "preexistingWarnings": 3
+  },
+  "publicPreview": {
+    "at": "2026-10-09T02:00:57.305Z",
+    "url": "https://calculator-offline.hwctools.site",
+    "release": "681cb612a0ad2d97d773deb2eab8b6a2953370bef17fd7f181c65305dd783f1c",
+    "services": 97,
+    "regions": 28,
+    "publicServicesEntries": 98,
+    "ecsPrice": 0.14968,
+    "ecsQuantityDurationTwoPrice": 0.29936,
+    "initialMilliseconds": 2905,
+    "externalRequests": 0,
+    "nativePosts": 0,
+    "checks": [
+      "service directory advertises the offline API workflow",
+      "ECS alias schema requires local pricing data",
+      "old advertised catalog URL works with the published snapshot",
+      "invalid regions and service identities return client errors",
+      "calculation requires an API key",
+      "published API docs describe calculation",
+      "public ECS loads automatically, preserves flavor cards and edits entirely locally"
+    ],
+    "passed": true
+  },
+  "tls": {
+    "status": 200,
+    "certificateVerification": 0
+  },
+  "workerChanged": false,
+  "pricingRulesAndBridgeChanged": false,
+  "productionChanged": false,
+  "coverageLimit": "Representative API configurations and the published-service sweep; not every possible input combination or a new full synchronization audit."
+}
