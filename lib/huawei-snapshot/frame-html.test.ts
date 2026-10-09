@@ -59,3 +59,19 @@ test("missing pinned dependencies fail closed and old snapshots retain the bridg
   const html = frameHtml({ ...release, bridgeHash: undefined }, scope, "ONDEMAND", "https://neo.example", "token");
   expect(html).toContain('<script src="https://neo.example/api/calculator/snapshot/bridge">');
 });
+
+test("cached delivery loads data before the bridge and keeps session credentials out of cached data", () => {
+  const html = frameHtml(release, scope, "RI", "https://neo.example", "session-token", "zone",
+    "/api/calculator/snapshot/release/data/scope");
+  expect(html).not.toContain('"products"');
+  expect(html).not.toContain('"config":"rules"');
+  expect(html).toContain('Object.assign({},window.__neoSnapshotData,{"release":"release","billingMode":"RI","token":"session-token","locationCode":"zone"})');
+  const data = '<script src="https://neo.example/api/calculator/snapshot/release/data/scope"></script>';
+  expect(html).toContain('<link rel="preload" as="script" href="https://neo.example/api/calculator/snapshot/release/data/scope">');
+  expect(html.indexOf(data)).toBeLessThan(html.indexOf("window.__neoSnapshot="));
+  expect(html.indexOf("window.__neoSnapshot=")).toBeLessThan(html.indexOf('<script src="https://neo.example/api/calculator/snapshot/release/asset/bridge"'));
+  expect(frameHtml(release, { modes: scope.modes }, "RI", "https://neo.example", "session-token", "zone",
+    "/api/calculator/snapshot/release/data/scope")).toBe(html);
+  expect(() => frameHtml(release, { modes: scope.modes }, "RI", "https://neo.example", "session-token"))
+    .toThrow("complete scope data");
+});

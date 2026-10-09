@@ -1,5 +1,6 @@
 import type { NativeBillingMode } from "../huawei-native/native-billing";
 import type { SnapshotRelease, ScopeSnapshot } from "./types";
+import { frameData } from "./frame-data";
 
 export function assetPath(release: SnapshotRelease, original: string) {
   const asset = release.assets[original];
@@ -42,21 +43,20 @@ function modulePreloads(release: SnapshotRelease, origin: string) {
 }
 export function frameHtml(
   release: SnapshotRelease,
-  snapshot: ScopeSnapshot,
+  snapshot: ScopeSnapshot | Pick<ScopeSnapshot, "modes">,
   billingMode: NativeBillingMode,
   origin: string,
   token: string,
   locationCode?: string,
+  dataPath?: string,
 ) {
   if (!snapshot.modes.includes(billingMode))
     throw new Error("Billing mode is not present in this snapshot");
+  if (!dataPath && !("config" in snapshot))
+    throw new Error("Inline delivery requires the complete scope data");
   const payload = JSON.stringify({
     release: release.id,
-    snapshot: { ...snapshot, proof: undefined, customProof: undefined },
-    menu: release.menu.replace(
-      /https:\/\/[^"\s]+\.(?:svg|png)(?:\?[^"\s]*)?/g,
-      "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'/%3E",
-    ),
+    ...(dataPath || !("config" in snapshot) ? {} : frameData(release, snapshot)),
     billingMode,
     token,
     ...(locationCode ? { locationCode } : {}),
@@ -67,8 +67,10 @@ export function frameHtml(
     origin +
     assetPath(release, new URL("style.css", release.frameworkUrl).href);
   const bridge = origin + (release.bridgeHash ? assetPath(release, "neo:bridge") : "/api/calculator/snapshot/bridge");
-  return `<!doctype html><html><head><meta charset="utf-8"><link rel="stylesheet" href="${css}">${modulePreloads(release, origin)}<link rel="preload" as="script" href="${bridge}"></head><body><div id="app"></div>
-<script>window.__neoSnapshot=${payload}; Object.assign(window,{version:${JSON.stringify(version)},timeOutTime:30000,calcStation:'zh-HK',calcLanguage:'en-us',calcSymbol:'$',calcUnit:'USD',baseUrl:'/'});</script>
+  const data = dataPath ? origin + dataPath : undefined;
+  return `<!doctype html><html><head><meta charset="utf-8"><link rel="stylesheet" href="${css}">${data ? `<link rel="preload" as="script" href="${data}">` : ""}${modulePreloads(release, origin)}<link rel="preload" as="script" href="${bridge}"></head><body><div id="app"></div>
+${data ? `<script src="${data}"></script>` : ""}
+<script>window.__neoSnapshot=${data ? `Object.assign({},window.__neoSnapshotData,${payload})` : payload}; Object.assign(window,{version:${JSON.stringify(version)},timeOutTime:30000,calcStation:'zh-HK',calcLanguage:'en-us',calcSymbol:'$',calcUnit:'USD',baseUrl:'/'});</script>
 <script src="${bridge}"></script>
 <script type="module" src="${framework}"></script></body></html>`;
 }

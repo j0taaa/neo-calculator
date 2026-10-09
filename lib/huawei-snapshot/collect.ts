@@ -77,6 +77,7 @@ export async function collectRelease(
           "rounding-scale",
           "recurring",
           "frame-html",
+          "frame-data",
           "framework",
           "imports",
           "store",

@@ -112,3 +112,21 @@ test("runtime scope reads skip audit bodies while audit reads still check integr
     await rm(root, { recursive: true, force: true });
   }
 });
+
+test("session headers validate the pinned metadata without reading catalogs, while calculation still requires verified catalogs", async () => {
+  const root = await mkdtemp(join(tmpdir(), "snapshot-header-")), store = new SnapshotStore(root);
+  try {
+    const hash = await store.writeScope(scope);
+    const release = { scopes: { "ecs/region-1": hash } } as SnapshotRelease;
+    const record = JSON.parse(await store.read(hash, ".json"));
+    await unlink(join(root, "blobs", record.productsBlob));
+    expect(await store.scopeHeader(release, "ecs", "region-1")).toEqual({ modes: ["ONDEMAND"] });
+    await expect(store.scope(release, "ecs", "region-1", false)).rejects.toThrow();
+    await expect(store.scopeHeader(release, "ecs", "other-region")).rejects.toThrow("no validated");
+    const wrong = await store.writeScope({ ...scope, region: "wrong-region" });
+    await expect(store.scopeHeader({ scopes: { "ecs/region-1": wrong } } as SnapshotRelease, "ecs", "region-1"))
+      .rejects.toThrow("Invalid synchronized scope");
+    await writeFile(join(root, "blobs", hash + ".json"), "tampered");
+    await expect(store.scopeHeader(release, "ecs", "region-1")).rejects.toThrow("integrity");
+  } finally { await rm(root, { recursive: true, force: true }); }
+});

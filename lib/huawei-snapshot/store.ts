@@ -76,12 +76,7 @@ export class SnapshotStore {
     region: string,
     includeProof = true,
   ): Promise<ScopeSnapshot> {
-    const hash = release.scopes[scopeKey(service, region)];
-    if (!hash)
-      throw new Error(
-        "This service and region have no validated local snapshot",
-      );
-    const record = JSON.parse(await this.read(hash, ".json"));
+    const record = await this.scopeRecord(release, service, region);
     const scope: ScopeSnapshot = record.productsBlob
       ? {
           ...record,
@@ -103,14 +98,28 @@ export class SnapshotStore {
       delete scope.proof;
       delete scope.customProof;
     }
+    return scope;
+  }
+  /** Opening the session shell does not need the multi-megabyte catalog. */
+  async scopeHeader(release: SnapshotRelease, service: string, region: string): Promise<Pick<ScopeSnapshot, "modes">> {
+    const record = await this.scopeRecord(release, service, region);
+    return { modes: record.modes };
+  }
+  private async scopeRecord(release: SnapshotRelease, service: string, region: string) {
+    const hash = release.scopes[scopeKey(service, region)];
+    if (!hash)
+      throw new Error(
+        "This service and region have no validated local snapshot",
+      );
+    const record = JSON.parse(await this.read(hash, ".json"));
     if (
-      scope.service !== service ||
-      scope.region !== region ||
-      !scope.checks ||
-      !scope.verifiedAt
+      record.service !== service ||
+      record.region !== region ||
+      !record.checks ||
+      !record.verifiedAt
     )
       throw new Error("Invalid synchronized scope");
-    return scope;
+    return record;
   }
   async publish(candidate: SnapshotRelease) {
     if (!Object.keys(candidate.scopes).length)

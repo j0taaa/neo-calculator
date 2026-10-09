@@ -1,6 +1,7 @@
 import { chromium, type Browser } from "playwright";
 import { readFile } from "node:fs/promises";
 import { frameHtml, rewriteImports } from "./frame-html";
+import { frameDataScript } from "./frame-data";
 import { SnapshotStore } from "./store";
 import type { ScopeSnapshot, SnapshotRelease } from "./types";
 import type { NativeState } from "../huawei-native/native-types";
@@ -39,6 +40,7 @@ export class SyncRenderer {
     const token = crypto.randomUUID();
     let mode: NativeBillingMode = scope.modes[0];
     const origin = "http://calculator.local";
+    const dataPath = "/api/calculator/snapshot/candidate/data/scope";
     await context.route("**/*", async (route) => {
       const url = new URL(route.request().url());
       if (url.origin !== origin) return route.abort();
@@ -50,7 +52,12 @@ export class SyncRenderer {
       if (url.pathname === "/frame")
         return route.fulfill({
           contentType: "text/html",
-          body: frameHtml(release, scope, mode, origin, token, locationCode),
+          body: frameHtml(release, scope, mode, origin, token, locationCode, dataPath),
+        });
+      if (url.pathname === dataPath)
+        return route.fulfill({
+          contentType: "application/javascript",
+          body: frameDataScript(release, scope),
         });
       if (url.pathname.endsWith("/bridge"))
         return route.fulfill({
