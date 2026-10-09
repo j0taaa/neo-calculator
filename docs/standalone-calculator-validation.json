@@ -1,6 +1,6 @@
 {
-  "recordedAt": "2026-10-09T14:47:00.039074Z",
-  "status": "full-coverage-standalone-startup-verified",
+  "recordedAt": "2026-10-09T16:11:12.370086Z",
+  "status": "full-coverage-standalone-cache-verified",
   "discovery": {
     "availableServices": 97,
     "eligibleRegions": [
@@ -261,16 +261,16 @@
       }
     ],
     "fullCoverage": true,
-    "runtimeRevision": "8f97678",
-    "appImage": "sha256:e771d24b9d0c3fbf84a2d4a7ec76c14ea38060efaf13bfe111252d25519c5938",
+    "runtimeRevision": "c5c8cea",
+    "appImage": "sha256:e5e56beb02d921bc8fe3a8538213e9730fc4941c1574118d3d07f6356280b10a",
     "workerRuntimeRevision": "45559d1",
     "workerImage": "sha256:0ce222d65ab525b46fa11de5af4ce76081a839f5947297689db09508b78346a8"
   },
   "checks": {
     "unit": {
-      "passed": 441,
+      "passed": 445,
       "failed": 0,
-      "files": 98
+      "files": 99
     },
     "typescript": {
       "errors": 0
@@ -280,12 +280,12 @@
       "preexistingWarnings": 3
     },
     "browser": {
-      "passed": 32,
+      "passed": 33,
       "failed": 0,
       "serverNetwork": "internal Docker network without internet access",
       "externalRequestsInEcsTest": 0,
       "nativePostRequests": 0,
-      "ecsDurationChangeMilliseconds": 275,
+      "ecsDurationChangeMilliseconds": 329,
       "coverage": [
         "all four billing families",
         "ECS flavor cards",
@@ -325,7 +325,9 @@
         "session and API-key product updates, malformed input validation, quantity/purchase/component inconsistencies, aliases and mixed batches",
         "95 published services with local UI/API price agreement and 40 editable global quantity checks",
         "parallel and sequential startup produce identical fields, notes and price/payment details across all four billing modes",
-        "initial opening waits for directory/bookmark hydration and opens exactly one correct frame"
+        "initial opening waits for directory/bookmark hydration and opens exactly one correct frame",
+        "pinned scope data cache reuse and uncached session isolation",
+        "cached/inline equivalence of all options and input limits"
       ],
       "execution": "All 32 tests passed together against the complete snapshot and startup-optimized app in 7.9 minutes on an internal Docker network without internet access. The service sweep verified 95 API/UI quote agreements across all 97 published services, preserving two official non-quotable states; 40 editable global quantity controls were checked."
     },
@@ -378,7 +380,7 @@
       "regionsSampledPerService": 1,
       "failures": 0,
       "externalRequests": 0,
-      "durationMinutes": 3.6
+      "durationMinutes": 3.5
     },
     "regionalTariffs": {
       "obsManilaServiceHourFreshApiComparisons": 72,
@@ -395,7 +397,7 @@
       "persistentlyIncorrectAssignmentsRejected": 1,
       "maximumAssignments": 3
     },
-    "applicationImage": "sha256:e771d24b9d0c3fbf84a2d4a7ec76c14ea38060efaf13bfe111252d25519c5938",
+    "applicationImage": "sha256:e5e56beb02d921bc8fe3a8538213e9730fc4941c1574118d3d07f6356280b10a",
     "workerImage": "sha256:0ce222d65ab525b46fa11de5af4ce76081a839f5947297689db09508b78346a8",
     "regionalFailureRegression": {
       "previousFullAuditFailures": 12,
@@ -497,7 +499,7 @@
       "tlsVerified": true,
       "snapshotAndApplicationBridgeMatch": true
     },
-    "runtimeRevision": "8f97678",
+    "runtimeRevision": "c5c8cea",
     "localInteractionLatency": {
       "measurement": "Committed input blur to changed price rendered, observed directly through DOM mutations without assertion polling",
       "offlineDurationEditsMilliseconds": {
@@ -556,6 +558,19 @@
       "localRepeatedLoadMedianAfterMs": 2059.0,
       "publicRepeatedLoadMedianBeforeMs": 2361.5,
       "publicRepeatedLoadMedianAfterMs": 1887.0,
+      "bridgeAndRatingRulesUnchanged": true
+    },
+    "snapshotCache": {
+      "report": "calculator-snapshot-cache-validation.json",
+      "runtimeRevision": "c5c8cea",
+      "unitTestsPassed": 445,
+      "browserTestsPassed": 33,
+      "freshHuaweiComponentChecks": 15,
+      "calibrationChanges": 0,
+      "publicRepeatedReadyMedianBeforeMs": 2002.0,
+      "publicRepeatedReadyMedianAfterMs": 1861.5,
+      "publicRepeatedLoaderMedianBeforeMs": 1487.0,
+      "publicRepeatedLoaderMedianAfterMs": 1229.5,
       "bridgeAndRatingRulesUnchanged": true
     }
   },
