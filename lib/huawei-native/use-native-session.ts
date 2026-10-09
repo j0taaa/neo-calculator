@@ -60,8 +60,8 @@ export function useNativeSession(scope: CalculatorScope, editingProduct?: AppPro
     const operationId = createsSession ? crypto.randomUUID() : undefined;
     if (createsSession) hasOpened.current = true;
     pending.current = { controller, operationId };
-    setBusy(true); setError("");
-    setState(previous => previous ? { ...previous, quote: null } : null);
+    setBusy(createsSession); setError("");
+    if (createsSession) setState(null);
     try {
       const next = await request(controller.signal, operationId);
       if (generation !== epoch.current) { closeNativeSession(next.session); return; }
@@ -69,9 +69,11 @@ export function useNativeSession(scope: CalculatorScope, editingProduct?: AppPro
       setState(next);
     } catch (error) {
       if (generation === epoch.current) {
-        if (current.current) closeNativeSession(current.current.session);
-        current.current = null;
-        setState(null); setError(error instanceof Error ? error.message : "Huawei is unavailable");
+        if (createsSession) {
+          if (current.current) closeNativeSession(current.current.session);
+          current.current = null;
+        }
+        setState(current.current); setError(error instanceof Error ? error.message : "Calculator unavailable");
       }
     } finally {
       if (generation === epoch.current) { pending.current = null; working.current = false; setBusy(false); }

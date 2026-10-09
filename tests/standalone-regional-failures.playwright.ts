@@ -6,10 +6,8 @@ import { nativeBillingModes } from "../lib/huawei-native/native-billing";
 type ObservedWindow = Window & { regionalState?: NativeState };
 async function observe(page: Page) {
   await page.addInitScript(() => {
-    addEventListener("message", event => {
-      const frame = document.querySelector<HTMLIFrameElement>('iframe[title="Local calculator rules"]');
-      if (event.source === frame?.contentWindow && event.data?.result?.fields)
-        (window as ObservedWindow).regionalState = event.data.result;
+    addEventListener("neo:calculator-state", event => {
+      (window as ObservedWindow).regionalState = (event as CustomEvent<NativeState>).detail;
     });
   });
 }

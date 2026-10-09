@@ -282,14 +282,14 @@ function plansForTerm(
     candidates = unconditioned.length ? unconditioned :
       candidates.filter(({ plan }) => plan.condition === "0000");
   }
-  const months = request.periodNum * (request.periodType === 3 ? 12 : 1);
+  const months = Number(request.periodNum) * (request.periodType === 3 ? 12 : 1);
   return candidates
     .filter(({ plan }) =>
       version === 2 && request.chargingMode === 0
         ? (plan.periodNum || 1) <=
           (plan.billingMode === "YEARLY" ? Math.max(1, months / 12) : months)
         : plan.billingMode !== "YEARLY" ||
-          request.periodNum % (plan.periodNum || 1) === 0,
+          Number(request.periodNum) % (plan.periodNum || 1) === 0,
     )
     .sort((a, b) => (b.plan.periodNum || 1) - (a.plan.periodNum || 1));
 }
@@ -366,11 +366,11 @@ export function rateInquiry(
   if (
     (request.chargingMode !== 2 &&
       (!Number.isSafeInteger(request.periodNum) ||
-        request.periodNum < 1 ||
-        request.periodNum > 9999)) ||
+        Number(request.periodNum) < 1 ||
+        Number(request.periodNum) > 9999)) ||
     !Number.isSafeInteger(request.subscriptionNum) ||
     request.subscriptionNum !== 1 ||
-    (request.chargingMode === 0 && ![2, 3].includes(request.periodType))
+    (request.chargingMode === 0 && ![2, 3].includes(Number(request.periodType)))
   )
     throw new Error("Invalid billing period");
   const rows = catalogRows(snapshot),
@@ -413,7 +413,7 @@ export function rateInquiry(
             : 0;
     } else {
       const n =
-        request.periodType === 3 ? request.periodNum * 12 : request.periodNum;
+        request.periodType === 3 ? Number(request.periodNum) * 12 : Number(request.periodNum);
       const choices = plansForTerm(
         candidates,
         request,

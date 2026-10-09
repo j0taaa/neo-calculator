@@ -9,6 +9,10 @@ import type { NativeBillingMode } from "../huawei-native/native-billing";
 import { calculateQuote } from "./verify";
 import { compareInquiry } from "./audit";
 import { configuredBillingModes } from "./availability";
+import { compileRules } from "../calculator-rules/compile";
+import { CalculatorEngine } from "../calculator-rules/engine";
+import { assertIndependentState, verifyIndependentConfiguration } from "../calculator-rules/validate";
+import { observeRuleOrder } from "./framework";
 
 /** Chromium is an oracle in the daily job only. Requests from the local frame are blocked. */
 export class SyncRenderer {
@@ -33,6 +37,7 @@ export class SyncRenderer {
     unchanged = false,
     locationCode?: string,
   ) {
+    scope.rules ??= compileRules(scope.config);
     const context = await this.browser.newContext({
       viewport: { width: 1500, height: 1300 },
       serviceWorkers: "block",
@@ -68,9 +73,10 @@ export class SyncRenderer {
         ([, asset]) => asset.hash === url.pathname.split("/").at(-1),
       );
       if (entry) {
-        let body = await this.store.read(entry[1].hash);
+        let body = entry[0] === "neo:bridge" ? this.bridge : await this.store.read(entry[1].hash);
         if (entry[1].type === "application/javascript")
           body = rewriteImports(body, entry[0], release);
+        if (entry[0] === release.frameworkUrl) body = observeRuleOrder(body);
         return route.fulfill({
           contentType: entry[1].type,
           headers: { "access-control-allow-origin": "*" },
@@ -108,6 +114,7 @@ export class SyncRenderer {
       );
       if (data.error)
         throw new Error(`${data.error}; action ${JSON.stringify(body)}`);
+      data.result.ruleOrder = await page.frames()[1].evaluate(() => (window as unknown as { __neoRuleOrder?: string[] }).__neoRuleOrder);
       return data.result;
     }
     function assertLocalPricing(state: NativeState) {
@@ -121,6 +128,14 @@ export class SyncRenderer {
         );
       if (state.diagnostics.length || !recoverable)
         throw new Error(`${state.priceError}; ${JSON.stringify(state.fields)}`);
+    }
+    function verifyRules(state: NativeState) {
+      const engine = new CalculatorEngine(scope.rules!, scope, JSON.parse(release.menu), release.id, state.billingMode);
+      const order = engine.learnDependencyOrder(state);
+      if (order) (scope.defaults ??= {})[`${state.billingMode}/${locationCode ?? "common"}`].global_PERIODORDER = order;
+      if (locationCode) engine.learnDefaults(state);
+      verifyIndependentConfiguration(state, engine);
+      scope.rulesChecks = (scope.rulesChecks ?? 0) + 1;
     }
     async function verify(state: NativeState) {
       if (!state.quote || state.diagnostics.length)
@@ -157,6 +172,7 @@ export class SyncRenderer {
       )
         throw new Error("The local form and server calculation disagree");
       const pricing = state.local.pricing;
+      verifyRules(state);
       for (const product of pricing.selectedProduct.productAllInfos.filter(
         (product) => product.inquiryTag === "support",
       )) {
@@ -227,6 +243,13 @@ export class SyncRenderer {
         else scope.modes = modes;
         if (!modes.includes(mode)) continue;
         let state = await action({ action: "open" });
+        const independent = new CalculatorEngine(scope.rules!, scope, JSON.parse(release.menu), release.id, mode);
+        const defaults = independent.learnDefaults(state);
+        (scope.defaults ??= {})[`${mode}/${locationCode ?? "common"}`] = defaults;
+        if (!state.quote) {
+          assertIndependentState(state, independent.state);
+          scope.rulesChecks = (scope.rulesChecks ?? 0) + 1;
+        }
         if (Object.keys(scope.locationModes ?? {}).length) {
           if (
             !state.fields.some(
@@ -396,6 +419,7 @@ export class SyncRenderer {
               onlyUnavailable &&= state.availability === "unavailable";
               assertLocalPricing(state);
               if (state.quote) state = await verify(state);
+              else verifyRules(state);
             }
             continue;
           }
@@ -422,6 +446,7 @@ export class SyncRenderer {
           onlyUnavailable &&= state.availability === "unavailable";
           assertLocalPricing(state);
           if (state.quote) state = await verify(state);
+          else verifyRules(state);
         }
         if (checks === modeChecks && onlyUnavailable) checks++;
         if (checks === modeChecks)

@@ -40,6 +40,7 @@ export type CatalogProduct = {
   [key: string]: unknown;
 };
 export type ScopeSnapshot = {
+  modeAvailability?: Partial<Record<NativeBillingMode, "information" | "unavailable">>;
   service: string;
   region: string;
   modes: NativeBillingMode[];
@@ -47,6 +48,11 @@ export type ScopeSnapshot = {
   commonModes?: NativeBillingMode[];
   tag?: "general.online.portal" | "general.online.beta";
   config: string;
+  rules?: import("../calculator-rules/program").CompiledRules;
+  rulesChecks?: number;
+  rulesReference?: import("../huawei-native/native-types").NativeState[];
+  defaults?: Record<string, Record<string, unknown>>;
+  emptyForms?: Record<string, import("../huawei-native/native-types").NativeForm>;
   products: {
     product: Record<string, CatalogProduct[]>;
     region: string;
@@ -89,6 +95,7 @@ export type SnapshotRelease = {
   createdAt: string;
   bridgeHash?: string;
   auditHash?: string;
+  engine?: { kind: "neo-rules"; version: 1; fingerprint: string };
   directory: NativeDirectory;
   menu: string;
   frameworkUrl: string;

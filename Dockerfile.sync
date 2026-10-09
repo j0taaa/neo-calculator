@@ -6,7 +6,7 @@ RUN bun install --frozen-lockfile
 RUN bunx playwright install --with-deps chromium
 COPY tsconfig.json ./
 COPY lib ./lib
-COPY scripts/build-snapshot-bridge.ts scripts/sync-calculator-snapshot.ts scripts/run-calculator-sync.ts ./scripts/
+COPY scripts/build-snapshot-bridge.ts scripts/sync-calculator-snapshot.ts scripts/run-calculator-sync.ts scripts/compile-calculator-rules.ts ./scripts/
 RUN bun run scripts/build-snapshot-bridge.ts
 ENV HUAWEI_SOURCE_DB=/app/snapshots/sources.sqlite
 ENV HUAWEI_SNAPSHOT_DIR=/app/snapshots

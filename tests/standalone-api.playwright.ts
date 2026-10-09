@@ -54,10 +54,8 @@ test("API discovery, calculation, saves and updates use the offline engine and r
       expect((await request.get(`/api/v1/public/services/${code}/schema`)).status()).toBe(404);
     }
 
-    await page.addInitScript(() => addEventListener("message", event => {
-      const frame = document.querySelector<HTMLIFrameElement>('iframe[title="Local calculator rules"]');
-      if (event.source === frame?.contentWindow && event.data?.result?.local)
-        (window as ObservedWindow).apiState = event.data.result;
+    await page.addInitScript(() => addEventListener("neo:calculator-state", event => {
+      (window as ObservedWindow).apiState = (event as CustomEvent<NativeState>).detail;
     }));
     let first: ReturnType<typeof nativeDraft> | undefined, productId = "";
     for (const [service, mode, region] of [

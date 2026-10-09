@@ -1,171 +1,68 @@
-import {
-  parseNativeSelection,
-  selectionBillingMode,
-} from "../huawei-native/native-selection";
-import type { NativeState } from "../huawei-native/native-types";
+import { parseNativeSelection, selectionBillingMode } from "../huawei-native/native-selection";
+import type { NativeDirectory, NativeState } from "../huawei-native/native-types";
+import type { ScopeSnapshot } from "./types";
+import { CalculatorEngine } from "../calculator-rules/engine";
+import { isNativeBillingMode } from "../huawei-native/native-billing";
 
-type Operation = {
-  id: string;
-  resolve: (state: NativeState) => void;
-  reject: (error: Error) => void;
-  timer: number;
-};
-type Session = {
-  frame: HTMLIFrameElement;
-  token: string;
-  ready: Promise<void>;
-  dispose: () => void;
-  pending?: Operation;
-};
-const sessions = new Map<string, Session>();
-const operations = new Map<string, string>();
-const abortError = () =>
-  new DOMException("Calculation cancelled", "AbortError");
-
-export function closeLocalSession(token: string) {
-  sessions.get(token)?.dispose();
-}
-export function cancelLocalOperation(id: string) {
-  const token = operations.get(id);
-  if (token) closeLocalSession(token);
-}
-
-function createSession(
-  service: string,
-  region: string,
-  mode: string,
-  operationId?: string,
-): Session {
-  const token = crypto.randomUUID(),
-    frame = document.createElement("iframe");
-  frame.title = "Local calculator rules";
-  frame.setAttribute("sandbox", "allow-scripts");
-  frame.setAttribute("aria-hidden", "true");
-  frame.tabIndex = -1;
-  // The rules inspect layout. Keep a normal viewport outside the visible interface.
-  Object.assign(frame.style, {
-    position: "fixed",
-    left: "-10000px",
-    top: "0",
-    width: "1440px",
-    height: "1200px",
-    pointerEvents: "none",
-    border: "0",
-  });
-  const params = new URLSearchParams({
-    service,
-    region,
-    mode,
-    token,
-    inIframe: "true",
-  });
-  frame.src = `/api/calculator/snapshot/frame?${params}#/${encodeURIComponent(service)}`;
-  let resolveReady!: () => void, rejectReady!: (error: Error) => void;
-  const ready = new Promise<void>((resolve, reject) => {
-    resolveReady = resolve;
-    rejectReady = reject;
-  });
-  const timeout = window.setTimeout(() => {
-    rejectReady(new Error("The local calculator did not initialize"));
-    session.dispose();
-  }, 20000);
-  function receive(event: MessageEvent) {
-    if (event.source !== frame.contentWindow || event.data?.token !== token)
-      return;
-    if (event.data.ready) {
-      clearTimeout(timeout);
-      resolveReady();
-    }
-    const pending = session.pending;
-    if (pending && event.data.id === pending.id) {
-      session.pending = undefined;
-      clearTimeout(pending.timer);
-      if (event.data.error) pending.reject(new Error(event.data.error));
-      else pending.resolve(event.data.result);
-    }
+type Directory = NativeDirectory & { releaseId: string; scopes: Record<string, string>; engine?: { kind: string } };
+type Model = { release: string; scope: ScopeSnapshot; menu: unknown };
+const sessions = new Map<string, CalculatorEngine>();
+const operations = new Map<string, AbortController>();
+const models = new Map<string, Promise<Model>>();
+let directory: Directory | undefined;
+export function setLocalDirectory(value: Directory) { directory = value; }
+const abortError = () => new DOMException("Calculation cancelled", "AbortError");
+export function closeLocalSession(token: string) { sessions.delete(token); }
+export function cancelLocalOperation(id: string) { operations.get(id)?.abort(); operations.delete(id); }
+async function loadModel(service: string, region: string, signal?: AbortSignal): Promise<Model> {
+  if (!directory) {
+    const response = await fetch("/api/calculator/native", { signal });
+    const body = await response.json();
+    if (!response.ok) throw new Error(body.error ?? "The daily calculator snapshot is unavailable");
+    directory = body;
   }
-  const session: Session = {
-    frame,
-    token,
-    ready,
-    dispose: () => {
-      clearTimeout(timeout);
-      window.removeEventListener("message", receive);
-      frame.remove();
-      sessions.delete(token);
-      if (operationId) operations.delete(operationId);
-      rejectReady(abortError());
-      if (session.pending) {
-        clearTimeout(session.pending.timer);
-        session.pending.reject(abortError());
-      }
-      session.pending = undefined;
-    },
-  };
-  window.addEventListener("message", receive);
-  sessions.set(token, session);
-  if (operationId) operations.set(operationId, token);
-  document.body.append(frame);
-  return session;
-}
-
-export async function localRequest(
-  body: Record<string, unknown>,
-  signal?: AbortSignal,
-): Promise<NativeState> {
-  let session: Session | undefined;
-  const creates = body.action === "open" || body.action === "restore";
-  if (creates) {
-    const saved =
-      body.action === "restore"
-        ? parseNativeSelection(body.selection)
-        : undefined;
-    session = createSession(
-      saved?.service ?? String(body.service),
-      saved?.region ?? String(body.region),
-      saved ? selectionBillingMode(saved) : String(body.billingMode),
-      typeof body.operationId === "string" ? body.operationId : undefined,
-    );
-  } else session = sessions.get(String(body.session));
-  if (!session) throw new Error("Reopen this local calculator configuration");
-  const current = session;
-  if (current.pending)
-    throw new Error("A local calculation is already in progress");
-  const abort = () => current.dispose();
-  signal?.addEventListener("abort", abort, { once: true });
-  try {
-    if (signal?.aborted) {
-      abort();
-      throw abortError();
-    }
-    await current.ready;
-    const result = await new Promise<NativeState>((resolve, reject) => {
-      const id = crypto.randomUUID();
-      current.pending = {
-        id,
-        resolve,
-        reject,
-        timer: window.setTimeout(() => {
-          reject(
-            new Error(
-              "The local calculator did not finish. Reopen this configuration.",
-            ),
-          );
-          current.dispose();
-        }, 20000),
-      };
-      current.frame.contentWindow!.postMessage(
-        { ...body, id, token: current.token },
-        "*",
-      );
+  if (directory!.engine?.kind !== "neo-rules") throw new Error("An independently validated calculator snapshot is not available yet");
+  const hash = directory!.scopes[`${service}/${region}`];
+  if (!hash) throw new Error("This service is unavailable in the selected region");
+  const key = `${directory!.releaseId}/${hash}`;
+  let pending = models.get(key);
+  if (!pending) {
+    pending = fetch(`/api/calculator/snapshot/${directory!.releaseId}/model/${hash}`).then(async response => {
+      const body = await response.json();
+      if (!response.ok) throw new Error(body.error ?? "The synchronized calculator model is unavailable");
+      return body as Model;
     });
-    if (creates && typeof body.operationId === "string")
-      operations.delete(body.operationId);
-    return result;
-  } catch (error) {
-    current.dispose();
-    throw error;
-  } finally {
-    signal?.removeEventListener("abort", abort);
+    models.set(key, pending);
+    pending.catch(() => models.delete(key));
   }
+  const model = await pending;
+  if (signal?.aborted) throw abortError();
+  return model;
+}
+/** Only opening a scope loads data. Every option change and price calculation is pure local work. */
+export async function localRequest(body: Record<string, unknown>, signal?: AbortSignal): Promise<NativeState> {
+  if (signal?.aborted) throw abortError();
+  if (body.action === "open" || body.action === "restore") {
+    const saved = body.action === "restore" ? parseNativeSelection(body.selection) : undefined;
+    const service = saved?.service ?? String(body.service), region = saved?.region ?? String(body.region);
+    const mode = saved ? selectionBillingMode(saved) : body.billingMode;
+    if (!isNativeBillingMode(mode)) throw new Error("Invalid calculator billing mode");
+    const controller = new AbortController(), id = typeof body.operationId === "string" ? body.operationId : crypto.randomUUID();
+    const abort = () => controller.abort();
+    signal?.addEventListener("abort", abort, { once: true }); operations.set(id, controller);
+    try {
+      const model = await loadModel(service, region, controller.signal);
+      if (signal?.aborted || controller.signal.aborted) throw abortError();
+      if (!model.scope.rules) throw new Error("Missing independently compiled calculator rules");
+      const engine = new CalculatorEngine(model.scope.rules, model.scope, model.menu, model.release, mode);
+      const state = saved ? engine.restore(saved) : engine.evaluate();
+      sessions.set(engine.token, engine); return state;
+    } finally { operations.delete(id); signal?.removeEventListener("abort", abort); }
+  }
+  const engine = sessions.get(String(body.session));
+  if (!engine) throw new Error("Reopen this calculator configuration");
+  if (body.revision !== engine.state.revision) throw new Error("The calculator configuration changed");
+  if (body.action === "refresh") return engine.evaluate();
+  if (body.action !== "change" || typeof body.field !== "string" || !["string", "number", "boolean"].includes(typeof body.value)) throw new Error("Invalid calculator operation");
+  return engine.change(body.field, body.value as string | number | boolean);
 }

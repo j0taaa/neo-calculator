@@ -84,11 +84,7 @@ test("ECS duration updates locally, preserves flavor cards, and never sends a na
   await page.goto("/?service=ECS&region=cn-hong-kong");
   const original = await price(page);
   expect(original).toBeGreaterThan(0);
-  const frame = page.locator('iframe[title="Local calculator rules"]');
-  const frameHtml = await (
-    await page.request.get((await frame.getAttribute("src"))!)
-  ).text();
-  expect(frameHtml).not.toContain('"proof":');
+  await expect(page.locator("iframe")).toHaveCount(0);
   await expect(page.getByLabel("Minimum vCPUs")).toBeVisible();
   const duration = page
     .locator('[data-field-id="global_ONDEMANDTIME:0"]')
@@ -111,8 +107,8 @@ test("ECS duration updates locally, preserves flavor cards, and never sends a na
   expect(external).toEqual([]);
   expect(errors).toEqual([]);
   expect(
-    await page.locator('iframe[title="Local calculator rules"]').count(),
-  ).toBe(1);
+    await page.locator('iframe').count(),
+  ).toBe(0);
 });
 test("region selection includes every snapshot region, including mainland and partner sites", async ({ page }) => {
   await page.goto("/?service=ECS&region=cn-hong-kong");
@@ -265,7 +261,7 @@ test("CDM monthly discounts apply at the official six-month threshold", async ({
   await page.goto("/?service=HUAWEI%3AdgcCdm&region=ap-southeast-2&billing=Yearly%2FMonthly");
   await expect.poll(() => price(page)).toBe(305);
   const period = page.locator('[data-field-id="global_PERIODTIME:0"]');
-  for (const [label, amount] of [["6", 1525], ["1 year", 3050], ["1", 305]] as const) {
+  for (const [label, amount] of [["6 months", 1525], ["1 year", 3050], ["1 month", 305]] as const) {
     await chooseControl(page, period, { label });
     await expect.poll(() => price(page)).toBe(amount);
   }
@@ -289,7 +285,7 @@ test("OBS Cairo prorates its yearly-only catalog and saves the complete local pr
   await quantity.press("Tab");
   await expect.poll(() => price(page)).toBe(61.71);
   const period = page.locator('[data-field-id="global_PERIODTIME:0"]');
-  await chooseControl(page, period, { label: "8" });
+  await chooseControl(page, period, { label: "8 months" });
   await expect.poll(() => price(page)).toBe(493.68);
   await chooseControl(page, period, { label: "1 year" });
   await expect.poll(() => price(page)).toBe(740.52);
@@ -477,7 +473,7 @@ test("saving and reopening a cart recomputes money locally with Huawei unreachab
   expect(imported.status()).toBe(201);
   expect((await imported.json()).importedProductCount).toBe(3);
 });
-test("regional billing availability and switching services clean up hidden frames", async ({
+test("regional billing availability and switching services use only native controls", async ({
   page,
 }) => {
   await page.goto("/?service=SFS&region=sa-brazil-1");
@@ -490,12 +486,12 @@ test("regional billing availability and switching services clean up hidden frame
   await chooseControl(page, page.getByLabel("Service", { exact: true }), "ELB");
   await price(page);
   expect(
-    await page.locator('iframe[title="Local calculator rules"]').count(),
-  ).toBe(1);
+    await page.locator('iframe').count(),
+  ).toBe(0);
   await page.getByRole("tab", { name: "Batch add", exact: true }).click();
   await expect(
-    page.locator('iframe[title="Local calculator rules"]'),
-  ).toHaveCount(1);
+    page.locator('iframe'),
+  ).toHaveCount(0);
 });
 test("mobile calculator has no horizontal overflow", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });

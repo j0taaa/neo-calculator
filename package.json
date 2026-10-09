@@ -3,9 +3,9 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "bun run scripts/build-snapshot-bridge.ts && bunx --bun next dev",
+    "dev": "bunx --bun next dev",
     "dev:clean": "rm -rf .next node_modules/.cache && bun run dev",
-    "build": "bun run scripts/build-snapshot-bridge.ts && bunx --bun next build",
+    "build": "bunx --bun next build",
     "start": "bunx --bun next start",
     "clean": "rm -rf .next node_modules/.cache",
     "lint": "eslint",

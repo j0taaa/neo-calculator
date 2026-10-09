@@ -170,8 +170,9 @@ export function calculateQuote(
       perAmount: rounded(recurring),
       injectedAmount: extras,
     });
-  return validateAggregatedQuote(
-    { ...pricing, pending: false, result },
+  const calculated = { ...pricing, pending: false, result };
+  return { ...validateAggregatedQuote(
+    calculated,
     captured,
     {
       service: snapshot.service,
@@ -179,5 +180,5 @@ export function calculateQuote(
       billingMode: selected.chargeMode,
       releaseId: release,
     },
-  );
+  ), pricing: calculated };
 }

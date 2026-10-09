@@ -164,7 +164,7 @@ export function NativeCalculatorPanel({ editingProduct, onSave, onCancelEdit, sc
         </div>
         {directory && !modes.length && <p role="status" className="text-sm text-zinc-600">Huawei has no calculator billing modes for this service in the selected region.</p>}
       </div>
-      {busy && <p role="status" className="text-sm text-zinc-500">{state ? "Calculating…" : "Loading the synchronized calculator…"}</p>}
+      {busy && <p role="status" className="text-sm text-zinc-500">{saving ? "Saving quotation…" : "Loading calculator data…"}</p>}
       {error && <div role="alert" className="rounded-lg bg-red-50 p-4 text-sm text-red-700">
         <p>{error}</p>
         <Button variant="outline" className="mt-3" disabled={busy || !directory || !modes.length} onClick={() => void open()}>Retry calculator</Button>

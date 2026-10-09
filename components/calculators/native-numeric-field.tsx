@@ -17,6 +17,9 @@ export function NativeNumericField({
   const submit = () => {
     if (!dirty.current) return;
     const value = Number(draft);
+    if (field.component === "global_QUANTITY" && !Number.isSafeInteger(value)) {
+      setError("Enter a whole purchase quantity."); return;
+    }
     if (
       !draft.trim() ||
       !Number.isFinite(value) ||

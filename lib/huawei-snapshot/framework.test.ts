@@ -1,5 +1,5 @@
 import { test, expect } from "bun:test";
-import { frameworkAssetsHash, offlineFramework, localEmissions } from "./framework";
+import { frameworkAssetsHash, offlineFramework, localEmissions, observeRuleOrder } from "./framework";
 import type { SnapshotRelease } from "./types";
 import { assetImports } from "./imports";
 const source = `const baseURL = (window.location.origin, () => {
@@ -30,6 +30,14 @@ function calculator() {
     emit("valueChange", { selectedProduct });
   }, 100);
 }`;
+test("worker dependency observation is idempotent and rejects ambiguous or changed anchors", () => {
+  const source = "for (const componentKey of Object.keys(product)) { visit(product[componentKey]); }";
+  const observed = observeRuleOrder(source);
+  expect(observeRuleOrder(observed)).toBe(observed);
+  expect(observed).toContain("window.__neoRuleOrder = Object.keys(product);");
+  expect(() => observeRuleOrder("unknown framework")).toThrow("dependency observer changed");
+  expect(() => observeRuleOrder(source + source)).toThrow("dependency observer changed");
+});
 test("observing an empty official selection preserves valid JavaScript when preceding the storage adapter", () => {
   const transformed = offlineFramework(source);
   expect(() =>

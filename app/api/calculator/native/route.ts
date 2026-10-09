@@ -8,11 +8,14 @@ const headers = {
 export async function GET() {
   try {
     const release = await new SnapshotStore().active();
+    if (!release.engine) throw new Error("The independently validated daily calculator snapshot is not available yet");
     return Response.json(
       {
         ...release.directory,
         synchronizedAt: release.createdAt,
         releaseId: release.id,
+        engine: release.engine,
+        scopes: release.scopes,
       },
       { headers },
     );

@@ -18,6 +18,8 @@ export type NativeField = {
 };
 export type NativeForm = { availability?: "information" | "unavailable"; fields: NativeField[]; notes: string[]; diagnostics: string[] };
 export type NativeState = NativeForm & {
+  /** Extraction evidence only; the application never needs a vendor runtime. */
+  ruleOrder?: string[];
   selection: import("./native-selection").NativeSelection;
   session: string;
   revision: number;

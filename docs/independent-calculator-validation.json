@@ -1,0 +1,83 @@
+{
+  "verifiedAt": "2026-10-09T20:02:31.714279Z",
+  "runtime": "Neo controls, bounded JSON rules and local pricing; no upstream UI execution",
+  "release": "2533df6a32ff35d7c55f2647075d83b0a1104aec1f08304e2e515d51ab120bd6",
+  "engine": {
+    "kind": "neo-rules",
+    "version": 1,
+    "fingerprint": "a71c451e43a30488907a08bfe455fec5de6fdd8a160154e038afb902656c8753"
+  },
+  "catalog": {
+    "services": 97,
+    "regions": 28,
+    "serviceRegionScopes": 1369,
+    "billingModeAndZoneComparisons": 2184,
+    "conditionalComparisons": 762,
+    "recordedOfficialPriceComparisons": 268062,
+    "freshOfficialRequests": 12,
+    "freshOfficialComponents": 29,
+    "priceSource": "Last successful full daily catalog; fresh representative official responses were checked after migration"
+  },
+  "tests": {
+    "unit": {
+      "passed": 466,
+      "failed": 0,
+      "files": 101
+    },
+    "typescript": "passed",
+    "lint": {
+      "errors": 0,
+      "preExistingWarnings": 3
+    },
+    "privateBrowserAndApi": {
+      "passed": 32,
+      "failed": 0,
+      "appContainerInternetAccess": false,
+      "httpBlockedDuringEdits": true
+    },
+    "publicBrowser": {
+      "mainPassed": 4,
+      "previewPassed": 4
+    },
+    "durationLatencyMsPrivate": {
+      "ecs": [
+        35.8,
+        25.3,
+        26.1
+      ],
+      "elb": [
+        18.4,
+        14.2,
+        11.2
+      ],
+      "nat": [
+        2.5,
+        2.6,
+        2.1
+      ]
+    },
+    "productionBuilds": "passed"
+  },
+  "deployment": {
+    "main": "https://calculator.hwctools.site",
+    "preview": "https://calculator-offline.hwctools.site",
+    "lab": "https://calculator-lab.hwctools.site",
+    "images": {
+      "home-calculator-1": "sha256:172477dd5aca41988f2f14467b3fa05ac90af8ead44b8fdf70151b0e25c62c6f",
+      "neo-offline-app-1": "sha256:82ce183155c47f8692de504cf335d02721875cc7d40293964daf2bf95a0fa7a5",
+      "neo-offline-sync-1": "sha256:654dacc53e79ddb74bcd2c106e16a164fd434d5f952d61547a550819324ce63a"
+    },
+    "snapshotAppMount": "read-only",
+    "liveBrowserSidecarsRemoved": 2,
+    "preserved": "main application database and previously deployed metadata"
+  },
+  "dailySync": {
+    "intervalHours": 24,
+    "retryHours": 1,
+    "maximumConcurrency": 2,
+    "productionConcurrency": 1,
+    "workerMemoryLimitGiB": 2,
+    "publication": "all discovered scopes must pass; otherwise retain the previous independent release"
+  },
+  "onlineIntegrationException": "Explicit user-initiated Huawei cart export; never used for Neo calculation"
+}

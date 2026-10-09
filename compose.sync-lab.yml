@@ -5,63 +5,38 @@ services:
       dockerfile: Dockerfile
       args:
         BETTER_AUTH_SECRET: ${SYNC_LAB_AUTH_SECRET:?Set a separate preview secret}
-    image: neo-calculator-sync-lab:latest
+    image: neo-calculator:standalone-test
     environment:
       BETTER_AUTH_SECRET: ${SYNC_LAB_AUTH_SECRET}
       BETTER_AUTH_URL: https://calculator-lab.hwctools.site
-      HWC_SOCKS5_PROXY: socks5h://host.docker.internal:40001
-      HUAWEI_NATIVE_URL: http://native-calculator:3001
-      HUAWEI_NATIVE_TOKEN: ${SYNC_LAB_NATIVE_TOKEN:?Set a separate native adapter token}
       CATALOG_DB_PATH: /app/data/catalog.db
-    volumes:
-      - sync_lab_data:/app/data
-    extra_hosts:
-      - host.docker.internal:host-gateway
-    labels:
-      - traefik.enable=true
-      - traefik.docker.network=home_web
-      - traefik.http.routers.calculator-lab.rule=Host(`calculator-lab.hwctools.site`)
-      - traefik.http.routers.calculator-lab.entrypoints=websecure
-      - traefik.http.routers.calculator-lab.tls.certresolver=le
-      - traefik.http.routers.calculator-lab.middlewares=calculator-lab-noindex
-      - traefik.http.middlewares.calculator-lab-noindex.headers.customresponseheaders.X-Robots-Tag=noindex, nofollow
-      - traefik.http.services.calculator-lab.loadbalancer.server.port=3000
-    restart: unless-stopped
-    networks:
-      - web
-      - native
-  native-calculator:
-    build:
-      context: .
-      dockerfile: Dockerfile.native
-    environment:
+      HUAWEI_SOURCE_ACCESS: offline
+      HUAWEI_SNAPSHOT_DIR: /app/snapshots
       HWC_SOCKS5_PROXY: socks5h://host.docker.internal:40001
-      HUAWEI_NATIVE_TOKEN: ${SYNC_LAB_NATIVE_TOKEN:?Set a separate native adapter token}
     volumes:
-      - native_data:/app/data
-    extra_hosts:
-      - host.docker.internal:host-gateway
-    init: true
-    cap_drop:
-      - ALL
-    security_opt:
-      - no-new-privileges:true
-    healthcheck:
-      test: ["CMD", "bun", "-e", "fetch('http://127.0.0.1:3001/health', {headers:{authorization:'Bearer '+process.env.HUAWEI_NATIVE_TOKEN}}).then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
-      interval: 30s
-      timeout: 5s
-      retries: 3
-    shm_size: 512mb
-    mem_limit: 3g
-    pids_limit: 512
+    - sync_lab_data:/app/data
+    - snapshots:/app/snapshots:ro
+    labels:
+    - traefik.enable=true
+    - traefik.docker.network=home_web
+    - traefik.http.routers.calculator-lab.rule=Host(`calculator-lab.hwctools.site`)
+    - traefik.http.routers.calculator-lab.entrypoints=websecure
+    - traefik.http.routers.calculator-lab.tls.certresolver=le
+    - traefik.http.routers.calculator-lab.middlewares=calculator-lab-noindex
+    - traefik.http.middlewares.calculator-lab-noindex.headers.customresponseheaders.X-Robots-Tag=noindex,
+      nofollow
+    - traefik.http.services.calculator-lab.loadbalancer.server.port=3000
     restart: unless-stopped
     networks:
-      - native
+    - web
+    extra_hosts:
+    - host.docker.internal:host-gateway
 volumes:
-  native_data:
-  sync_lab_data:
+  sync_lab_data: null
+  snapshots:
+    external: true
+    name: neo-offline_snapshots
 networks:
-  native:
   web:
     external: true
     name: home_web

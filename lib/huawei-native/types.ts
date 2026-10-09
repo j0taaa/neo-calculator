@@ -6,12 +6,12 @@ export type InquiryProduct = {
   usageFactor?: string; usageValue?: number; usageMeasureId?: number | string;
 };
 export type Inquiry = {
-  regionId: string; chargingMode: number; periodType: number; periodNum: number;
+  regionId: string; chargingMode: number; periodType: number | null; periodNum: number | null;
   subscriptionNum: number; siteCode: string; availableZoneId?: string; productInfos: InquiryProduct[];
 };
 export type Quote = {
   amount: number; currency: string; quotedAt: string; releaseId: string; requestHash: string;
   source: "huawei-inquiry" | "huawei-catalog"; breakdown: { id: string; amount: number; label?: string }[];
-  aggregation?: "huawei-renderer";
+  aggregation?: "huawei-renderer" | "neo-engine";
   payment?: { upfront: number; recurring: number; installments: number; period: "Month" | "Year"; extras: { mode: string; recurring: number }[] };
 };

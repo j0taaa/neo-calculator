@@ -7,6 +7,14 @@ export function frameworkAssetsHash(assets: SnapshotRelease["assets"]) {
   return digest(JSON.stringify(Object.entries(assets).sort(([a], [b]) => a.localeCompare(b))));
 }
 
+/** Worker-only observation of the dependency order used by global billing terms. */
+export function observeRuleOrder(source: string) {
+  if (source.includes("window.__neoRuleOrder = Object.keys(product);")) return source;
+  const anchor = "for (const componentKey of Object.keys(product)) {";
+  if (source.split(anchor).length !== 2) throw new Error("Huawei's billing dependency observer changed");
+  return source.replace(anchor, "window.__neoRuleOrder = Object.keys(product);\n  " + anchor);
+}
+
 /** Replace only the two component-emission delays; conditional and pricing functions stay intact. */
 export function localEmissions(source: string) {
   let matches = 0;

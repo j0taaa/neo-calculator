@@ -4,7 +4,7 @@ import { join } from "node:path";
 import { SourceStore } from "../lib/huawei-native/store";
 import { HuaweiCollector } from "../lib/huawei-native/collector";
 import { SnapshotStore, snapshotDirectory } from "../lib/huawei-snapshot/store";
-import { collectRelease, collectScope } from "../lib/huawei-snapshot/collect";
+import { auditFingerprint, collectRelease, collectScope } from "../lib/huawei-snapshot/collect";
 import { SyncRenderer } from "../lib/huawei-snapshot/sync-renderer";
 import { validateCatalogContracts } from "../lib/huawei-snapshot/contracts";
 import { verifyRecordedQuotes } from "../lib/huawei-snapshot/audit";
@@ -19,6 +19,7 @@ import {
   discoveryScopes,
   assertFullCoverage,
 } from "../lib/huawei-snapshot/coverage";
+import { compileRules } from "../lib/calculator-rules/compile";
 
 const root = snapshotDirectory();
 await mkdir(root, { recursive: true });
@@ -56,6 +57,7 @@ try {
           key = scopeKey(service, region);
         try {
           let scope = await collectScope(collector, release, service, region);
+          scope.rules = compileRules(scope.config);
           const resumed = await audit!.resume(scope);
           const old = previous?.scopes[key]
             ? await store.scope(previous, service, region)
@@ -66,6 +68,9 @@ try {
             previous?.auditHash === release.auditHash &&
             old &&
             old.proof?.length &&
+            old.rulesChecks &&
+            old.rules?.fingerprint === scope.rules.fingerprint &&
+            previous.engine?.fingerprint === release.engine?.fingerprint &&
             ["config", "products", "framework", "menu"].every(
               (k) =>
                 old.source[k as keyof typeof old.source] ===
@@ -97,6 +102,10 @@ try {
             verifyRecordedQuotes(scope);
           } else if (unchanged) {
             scope.modes = old!.modes;
+            scope.defaults = old!.defaults;
+            scope.emptyForms = old!.emptyForms;
+            scope.modeAvailability = old!.modeAvailability;
+            scope.rulesChecks = old!.rulesChecks;
             try {
               scope.checks = await revalidateUnchangedScope(scope, old!);
             } catch (error) {
@@ -150,6 +159,7 @@ try {
     for (const region of Object.keys(regionModes))
       if (!release.scopes[scopeKey(service, region)])
         delete regionModes[region];
+  if (await auditFingerprint(store) !== release.auditHash) throw new Error("Synchronization code changed during the audit; the previous release remains active");
   const id = await store.publish(release);
   await audit.finish("complete");
   console.log(

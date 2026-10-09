@@ -34,6 +34,8 @@ export class SnapshotStore {
   async writeScope(scope: ScopeSnapshot) {
     const configBlob = await this.blob(scope.config);
     const productsBlob = await this.blob(JSON.stringify(scope.products));
+    const rulesBlob = scope.rules ? await this.blob(JSON.stringify(scope.rules)) : undefined;
+    const rulesReferenceBlob = scope.rulesReference ? await this.blob(JSON.stringify(scope.rulesReference)) : undefined;
     const proofBlob = scope.proof
       ? await this.blob(JSON.stringify(scope.proof))
       : undefined;
@@ -45,6 +47,10 @@ export class SnapshotStore {
         ...scope,
         config: undefined,
         products: undefined,
+        rules: undefined,
+        rulesBlob,
+        rulesReference: undefined,
+        rulesReferenceBlob,
         proof: undefined,
         customProof: undefined,
         customProofBlob,
@@ -82,6 +88,8 @@ export class SnapshotStore {
           ...record,
           config: await this.read(record.configBlob),
           products: JSON.parse(await this.read(record.productsBlob)),
+          ...(record.rulesBlob ? { rules: JSON.parse(await this.read(record.rulesBlob)) } : {}),
+          ...(includeProof && record.rulesReferenceBlob ? { rulesReference: JSON.parse(await this.read(record.rulesReferenceBlob)) } : {}),
           ...(includeProof && record.customProofBlob
             ? {
                 customProof: JSON.parse(
@@ -97,6 +105,7 @@ export class SnapshotStore {
     if (!includeProof) {
       delete scope.proof;
       delete scope.customProof;
+      delete scope.rulesReference;
     }
     return scope;
   }
@@ -128,7 +137,9 @@ export class SnapshotStore {
       );
     for (const key of Object.keys(candidate.scopes)) {
       const [service, region] = key.split("/");
-      await this.scope(candidate, service, region);
+      const scope = await this.scope(candidate, service, region);
+      if (candidate.engine && (!scope.rules || !scope.rulesChecks))
+        throw new Error(`The independent rules have not been verified: ${key}`);
     }
     for (const asset of Object.values(candidate.assets))
       await this.read(asset.hash);

@@ -61,35 +61,7 @@ export async function collectRelease(
     type: "application/javascript",
     imports: [],
   };
-  const auditHash = await store.blob(
-    (
-      await Promise.all(
-        [
-          "collect",
-          "sync-renderer",
-          "contracts",
-          "audit",
-          "compile-pricing",
-          "compile-flavors",
-          "flavors",
-          "coverage",
-          "revalidate",
-          "rounding-scale",
-          "recurring",
-          "frame-html",
-          "frame-data",
-          "framework",
-          "imports",
-          "store",
-          "../huawei-native/collector",
-          "../huawei-native/native-billing",
-          "../huawei-native/quotes",
-          "../huawei-http",
-        ].map((name) => readFile(`lib/huawei-snapshot/${name}.ts`, "utf8")),
-      )
-    ).join("\n") +
-      (await readFile("scripts/sync-calculator-snapshot.ts", "utf8")),
-  );
+  const auditHash = await auditFingerprint(store);
   const data = JSON.parse(menu.body);
   const services = parseDirectory(menu.body).filter(service => service.available);
   const regions = Object.keys(data.regionRules)
@@ -102,6 +74,7 @@ export async function collectRelease(
     id: "",
     bridgeHash,
     auditHash,
+    engine: { kind: "neo-rules", version: 1, fingerprint: auditHash },
     createdAt: new Date().toISOString(),
     menu: menu.body,
     frameworkUrl,
@@ -189,4 +162,61 @@ export async function collectScope(
     verifiedAt: "",
     checks: 0,
   };
+}
+
+/** Worker code changes invalidate resume and reuse without contacting upstream. */
+export async function auditFingerprint(store: SnapshotStore) {
+  return store.blob(
+    (
+      await Promise.all(
+        [
+          "collect",
+          "availability",
+          "decimal",
+          "rating",
+          "custom-pricing",
+          "verify",
+          "quantity",
+          "state",
+          "types",
+          "emissions",
+          "frame",
+          "sync-renderer",
+          "contracts",
+          "audit",
+          "compile-pricing",
+          "compile-flavors",
+          "flavors",
+          "coverage",
+          "revalidate",
+          "rounding-scale",
+          "recurring",
+          "frame-html",
+          "frame-data",
+          "framework",
+          "imports",
+          "store",
+          "../huawei-native/collector",
+          "../huawei-native/native-billing",
+          "../huawei-native/quotes",
+          "../huawei-native/native-dom",
+          "../huawei-native/native-pricing",
+          "../calculator-rules/oracle",
+          "../huawei-http",
+          "../calculator-rules/program",
+          "../calculator-rules/compile",
+          "../calculator-rules/evaluate",
+          "../calculator-rules/catalog",
+          "../calculator-rules/controls",
+          "../calculator-rules/bundles",
+          "../calculator-rules/specialized",
+          "../calculator-rules/periods",
+          "../calculator-rules/engine",
+          "../calculator-rules/selection-pricing",
+          "../calculator-rules/validate",
+        ].map((name) => readFile(`lib/huawei-snapshot/${name}.ts`, "utf8")),
+      )
+    ).join("\n") +
+      (await readFile("scripts/sync-calculator-snapshot.ts", "utf8")),
+  );
 }

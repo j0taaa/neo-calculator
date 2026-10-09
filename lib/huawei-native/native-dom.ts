@@ -18,7 +18,7 @@ export function readFormInDocument(): NativeForm {
     if (!config?.calc_view?.components) return { fields, notes, diagnostics: ["Huawei form metadata is unavailable"] };
     document.querySelectorAll("[data-neo-control]").forEach(el => el.removeAttribute("data-neo-control"));
     document.querySelectorAll("[data-neo-option]").forEach(el => el.removeAttribute("data-neo-option"));
-    const allowed = new Set(["CommonRadioGroup", "CommonSelect", "CommonStepper", "CommonRadioStepper", "CommonCheckboxGroup", "CommonAddible", "CommonSwitch", "CommonTip", "CommonInput", "FuncCombine"]);
+    const allowed = new Set(["CommonRadioGroup", "CommonSelect", "CommonStepper", "CommonRadioStepper", "CommonCheckboxGroup", "CommonAddible", "CommonSwitch", "CommonTip", "CommonInput", "FuncCombine", "CustomMRSNodeRadio", "CustomVODMultiSelect", "FuncTableCalc", "CalculatorStepperWithSelect"]);
     const components = [...config.calc_view.components];
     components.unshift({ id: "global_LOCATIONTYPE", type: "CommonStepper" }, { id: "global_LOCATIONCODE", type: "CommonStepper" });
     const globals = ["global_ONDEMANDTIME", "global_QUANTITY", "global_PERIODTIME", "global_FEEINSTALLMODE", "global_LOCATIONTYPE", "global_LOCATIONCODE"];
@@ -26,8 +26,14 @@ export function readFormInDocument(): NativeForm {
     for (const component of components) {
       if (component.id.startsWith("global_") && !globals.includes(component.id)) continue;
       const locationControl = component.id === "global_LOCATIONTYPE" ? document.getElementById("calculator_locationType") : component.id === "global_LOCATIONCODE" ? document.getElementById("calculator_locationCode") : null;
-      const root = locationControl?.closest<HTMLElement>(".tiny-form-item") ?? document.getElementById(component.id) ?? document.querySelector<HTMLElement>(`[idheader="${component.id}"]`);
-      if (!root || !visible(root)) continue;
+      // Huawei reuses IDs for a component and another component's numbered child.
+      // Select the component wrapper, rather than an unrelated visible child.
+      const wrapperClasses: Record<string, string> = { CommonRadioGroup: "common-radio-group", CommonSelect: "common-select", CommonSwitch: "common-switch", CommonStepper: "common-stepper", CommonRadioStepper: "common-radio-stepper", CommonCheckboxGroup: "common-checkbox-group", CommonAddible: "common-addible", CommonInput: "common-input" };
+      const matches = [...document.querySelectorAll<HTMLElement>(`[id="${component.id}"]`)];
+      const wrapper = matches.find(el => el.classList.contains(wrapperClasses[component.type])) ?? matches.find(el => !el.matches(".base-radio-group, .base-radio-stepper, .base-stepper"));
+      const specialized = component.type === "CustomMRSNodeRadio" ? document.getElementById(`${component.id}_radio`)?.parentElement : component.type === "CustomVODMultiSelect" ? document.querySelector<HTMLElement>(`[id^="${component.id}_"]`)?.parentElement : null;
+      const root = locationControl?.closest<HTMLElement>(".tiny-form-item") ?? wrapper ?? document.querySelector<HTMLElement>(`[idheader="${component.id}"]`) ?? specialized;
+      if (!root || !visible(root) && ![...root.querySelectorAll(".base-radio-group, .base-select, input")].some(visible)) continue;
       if (!allowed.has(component.type) && !component.id.startsWith("global_")) diagnostics.push(`Unsupported Huawei control: ${component.type}`);
       if (component.type === "FuncCombine") {
         const validateChildren = (children: Component[]) => {
@@ -67,7 +73,7 @@ export function readFormInDocument(): NativeForm {
           }
           if (!label) {
             const indexes = el.id.slice(component.id.length + 1).split("_").map(Number);
-            const keys = component.type === "FuncCombine" ? component.subComponents?.[indexes[0]]?.optionKeys : component.optionKeys;
+            const keys = component.type === "CustomMRSNodeRadio" ? ["vmType", "generation", "nodeSize"] : component.type === "FuncCombine" ? component.subComponents?.[indexes[0]]?.optionKeys : component.optionKeys;
             const key = keys?.[indexes.at(-1) ?? 0] || clean(el.getAttribute("optionkey"));
             const labels: Record<string, string> = { cpu: "vCPUs", mem: "Memory", generation: "Generation", vm_spec: "Specification", image: "Image" };
             label = labels[key] || key?.replace(/([a-z])([A-Z])/g, "$1 $2") || "Specification";

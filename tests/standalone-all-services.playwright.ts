@@ -4,6 +4,7 @@ import type { NativeDirectory, NativeState } from "../lib/huawei-native/native-t
 import { chooseControl } from "./calculator-controls";
 import { calculatorApiKey } from "./calculator-api-fixture";
 import { nativeDraft } from "../lib/huawei-native/native-draft";
+import type { Route } from "@playwright/test";
 
 type ObservedWindow = Window & { neoSmokeState?: NativeState };
 
@@ -13,16 +14,15 @@ test("every published service is reachable and calculates or preserves its offic
   const directory = await (await page.request.get("/api/calculator/native")).json() as NativeDirectory;
   const headers = await calculatorApiKey(page);
   let apiQuotes = 0, quantityChecks = 0;
-  const external: string[] = [], failures: string[] = [];
+  const external: string[] = [], failures: string[] = [], calculationRequests: string[] = [];
+  const blockCalculationNetwork = async (route: Route) => { calculationRequests.push(route.request().url()); await route.abort(); };
   page.on("request", request => {
     if (/^https?:/.test(request.url()) && new URL(request.url()).origin !== new URL(baseURL!).origin)
       external.push(request.url());
   });
   await page.addInitScript(() => {
-    addEventListener("message", event => {
-      const frame = document.querySelector<HTMLIFrameElement>('iframe[title="Local calculator rules"]');
-      if (event.source === frame?.contentWindow && event.data?.result?.fields)
-        (window as ObservedWindow).neoSmokeState = event.data.result;
+    addEventListener("neo:calculator-state", event => {
+      (window as ObservedWindow).neoSmokeState = (event as CustomEvent<NativeState>).detail;
     });
   });
   for (const service of directory.services) {
@@ -59,6 +59,7 @@ test("every published service is reachable and calculates or preserves its offic
         state = await read();
       }
       expect(state.diagnostics, service.id).toEqual([]);
+      await page.route(/^https?:\/\//, blockCalculationNetwork);
       if (state.quote) {
         const quantity = state.fields.find(field => field.component === "global_QUANTITY" && !field.disabled && (field.max ?? 9999) >= 2);
         if (quantity) {
@@ -70,6 +71,15 @@ test("every published service is reachable and calculates or preserves its offic
           });
           state = await read();
           quantityChecks++;
+        } else {
+          const numeric = state.fields.find(field => field.type === "number" && !field.disabled && Number(field.value) < (field.max ?? Infinity));
+          if (numeric) {
+            const value = Math.min(numeric.max ?? 9999, Number(numeric.value) + 1), revision = state.revision;
+            const control = page.locator(`[data-field-id="${numeric.id}"]`).first();
+            await control.fill(String(value)); await control.press("Tab");
+            await page.waitForFunction(revision => (window as ObservedWindow).neoSmokeState!.revision > revision, revision);
+            state = await read(); expect(state.quote, service.id).toBeTruthy();
+          }
         }
         const response = await page.request.post("/api/v1/calculate", { headers, data: { products: [nativeDraft(state, service.name, service.name, true)] } });
         const calculated = await response.json();
@@ -86,15 +96,16 @@ test("every published service is reachable and calculates or preserves its offic
         await expect(page.getByTestId("scope-status")).toContainText(state.availability === "information" ? "billing information" : "no purchasable options");
         await expect(page.getByTestId("lab-price")).toHaveCount(0);
       }
-      await expect(page.locator('iframe[title="Local calculator rules"]')).toHaveCount(1);
+      await expect(page.locator('iframe')).toHaveCount(0);
       console.log(`Standalone service passed: ${service.id}/${region.id}/${mode}`);
     } catch (error) {
       const message = `${service.id}: ${error instanceof Error ? error.message : String(error)}`;
       failures.push(message);
       console.error(`Standalone service failed: ${message.split("\n")[0]}`);
-    }
+    } finally { await page.unroute(/^https?:\/\//, blockCalculationNetwork); }
   }
   expect(external).toEqual([]);
+  expect(calculationRequests).toEqual([]);
   expect(failures).toEqual([]);
   console.log(`Standalone services checked: ${directory.services.length}`);
   console.log(`Standalone API quotes checked: ${apiQuotes}; multi-instance quantities: ${quantityChecks}`);
