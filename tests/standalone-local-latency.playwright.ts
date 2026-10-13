@@ -14,8 +14,9 @@ test("duration edits calculate with native rules without any HTTP request, ifram
     await page.route("**/*", route => { requests.push(route.request().url()); return route.abort(); });
     measurements[service] = [];
     for (const value of [2, 3, 720]) {
-      await page.locator('input[data-field-id="global_ONDEMANDTIME:0"]').fill(String(value));
-      const elapsed = await page.evaluate(() => new Promise<number>((resolve, reject) => {
+      const input = page.locator('input[data-field-id="global_ONDEMANDTIME:0"]');
+      await input.focus();
+      const elapsed = await page.evaluate(value => new Promise<number>((resolve, reject) => {
         const start = performance.now();
         const timer = setTimeout(() => { removeEventListener("neo:calculator-state", listener); reject(new Error("Local edit timed out")); }, 2000);
         const listener = (event: Event) => {
@@ -24,8 +25,11 @@ test("duration edits calculate with native rules without any HTTP request, ifram
           clearTimeout(timer); removeEventListener("neo:calculator-state", listener); resolve(performance.now() - start);
         };
         addEventListener("neo:calculator-state", listener);
-        (document.activeElement as HTMLElement).blur();
-      }));
+        const input = document.activeElement as HTMLInputElement;
+        Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!.call(input, String(value));
+        input.dispatchEvent(new Event("input", { bubbles: true }));
+      }), value);
+      await expect(input).toBeFocused();
       measurements[service].push(elapsed);
       await expect.poll(async () => Number((await page.getByTestId("lab-price").innerText()).replace(/[^\d.]/g, ""))).toBeCloseTo(unit * value, 6);
       expect(elapsed).toBeLessThan(500);

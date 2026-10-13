@@ -73,7 +73,7 @@ export function NativeCalculatorPanel({ editingProduct, onSave, onCancelEdit, sc
     .slice()
     .sort((a, b) => Number(!!names[b.id]) - Number(!!names[a.id]) || a.name.localeCompare(b.name));
   const renderField = (field: NativeField) => (
-                  <div data-calculator-focus-group key={`${state?.revision}:${field.id}`}>
+                  <div data-calculator-focus-group key={`${field.component}:${field.id}:${field.type}:${field.label}`}>
                     {field.type === "action" ? (
                       <Button
                         variant="outline"
@@ -109,6 +109,7 @@ export function NativeCalculatorPanel({ editingProduct, onSave, onCancelEdit, sc
                         ) : (
                           <NativeNumericField
                             field={field}
+                            revision={state?.revision ?? 0}
                             invalidate={invalidate}
                             change={(value) => change(field, value)}
                           />

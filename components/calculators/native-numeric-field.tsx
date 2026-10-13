@@ -1,41 +1,43 @@
 "use client";
-import { useRef, useState } from "react";
+import { useState } from "react";
 import { Input } from "@/components/ui/input";
 import type { NativeField } from "@/lib/huawei-native/native-types";
 export function NativeNumericField({
   field,
+  revision,
   change,
   invalidate,
 }: {
   field: NativeField;
+  revision: number;
   change: (value: number) => void;
   invalidate: () => void;
 }) {
-  const [draft, setDraft] = useState(String(field.value));
-  const [error, setError] = useState("");
-  const dirty = useRef(false);
-  const submit = () => {
-    if (!dirty.current) return;
-    const value = Number(draft);
+  const [draft, setDraft] = useState({ text: String(field.value), error: "", revision, pendingValue: null as number | null });
+  if (draft.revision !== revision) {
+    // Preserve the user's text for our own update, including leading zeros.
+    // Other configuration changes can reset a value or change its limits.
+    setDraft({ text: draft.pendingValue === field.value ? draft.text : String(field.value), error: "", revision, pendingValue: null });
+  }
+  const validationError = (text: string) => {
+    const value = Number(text);
     if (field.component === "global_QUANTITY" && !Number.isSafeInteger(value)) {
-      setError("Enter a whole purchase quantity."); return;
+      return "Enter a whole purchase quantity.";
     }
     if (
-      !draft.trim() ||
+      !text.trim() ||
       !Number.isFinite(value) ||
       (field.min !== undefined && value < field.min) ||
       (field.max !== undefined && value > field.max)
     ) {
-      setError(`Enter a value from ${field.min ?? "the minimum"} to ${field.max ?? "the maximum"}.`);
-      return;
+      return `Enter a value from ${field.min ?? "the minimum"} to ${field.max ?? "the maximum"}.`;
     }
-    setError("");
-    change(value);
+    return "";
   };
   return (
     <>
       <Input
-        aria-invalid={!!error}
+        aria-invalid={!!draft.error}
         data-field-id={field.id}
         aria-label={field.label}
         type="number"
@@ -43,20 +45,24 @@ export function NativeNumericField({
         min={field.min}
         max={field.max}
         step="any"
-        value={draft}
+        value={draft.text}
         onChange={(event) => {
-          dirty.current = true;
-          setDraft(event.target.value);
-          invalidate();
+          const text = event.target.value;
+          const invalid = !!validationError(text);
+          setDraft({ text, error: "", revision, pendingValue: invalid ? null : Number(text) });
+          if (invalid) invalidate();
+          else {
+            change(Number(text));
+          }
         }}
-        onBlur={submit}
+        onBlur={() => setDraft(previous => ({ ...previous, error: validationError(previous.text) }))}
         onKeyDown={(event) => {
           if (event.key === "Enter") event.currentTarget.blur();
         }}
       />
-      {error && (
+      {draft.error && (
         <p role="alert" className="mt-1 text-xs text-red-700">
-          {error}
+          {draft.error}
         </p>
       )}
     </>

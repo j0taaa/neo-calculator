@@ -49,7 +49,7 @@ test("every published service is reachable and calculates or preserves its offic
           const value = Math.min(field.max ?? 9999, Math.max(field.min ?? 0, Number(field.value) + 1));
           if (value === Number(field.value)) continue;
           await control.fill(String(value));
-          await control.press("Tab");
+          await expect(control).toBeFocused();
         } else if (field.type === "select") {
           const option = field.options?.filter(option => !option.disabled && option.value !== field.value).at(-1);
           if (!option) continue;
@@ -64,7 +64,7 @@ test("every published service is reachable and calculates or preserves its offic
         const quantity = state.fields.find(field => field.component === "global_QUANTITY" && !field.disabled && (field.max ?? 9999) >= 2);
         if (quantity) {
           const control = page.locator(`[data-field-id="${quantity.id}"]`).first();
-          await control.fill("2"); await control.press("Tab");
+          await control.fill("2"); await expect(control).toBeFocused();
           await page.waitForFunction(() => {
             const state = (window as ObservedWindow).neoSmokeState;
             return state?.quote && Number(state.selection.fields.find(field => field.component === "global_QUANTITY")?.value) === 2;
@@ -76,7 +76,7 @@ test("every published service is reachable and calculates or preserves its offic
           if (numeric) {
             const value = Math.min(numeric.max ?? 9999, Number(numeric.value) + 1), revision = state.revision;
             const control = page.locator(`[data-field-id="${numeric.id}"]`).first();
-            await control.fill(String(value)); await control.press("Tab");
+            await control.fill(String(value)); await expect(control).toBeFocused();
             await page.waitForFunction(revision => (window as ObservedWindow).neoSmokeState!.revision > revision, revision);
             state = await read(); expect(state.quote, service.id).toBeTruthy();
           }
