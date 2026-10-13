@@ -23,10 +23,11 @@ const scopes = [
 
 test("previously failing regional scopes work through the offline Neo interface", async ({ page, baseURL }) => {
   test.setTimeout(180000);
-  expect(new URL(baseURL!).hostname).toBe("127.0.0.1");
+  // This check only reads calculator data and can also verify production.
+  const origin = new URL(baseURL!).origin;
   const external: string[] = [];
   page.on("request", request => {
-    if (/^https?:/.test(request.url()) && new URL(request.url()).origin !== baseURL)
+    if (/^https?:/.test(request.url()) && new URL(request.url()).origin !== origin)
       external.push(request.url());
   });
   const directory = await (await page.request.get("/api/calculator/native")).json() as NativeDirectory;

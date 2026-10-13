@@ -2,6 +2,12 @@
 
 Neo owns its controls, conditional state machine, resource selection and pricing. Opening a service loads an immutable JSON model from Neo once; subsequent option, duration and quantity changes run locally. There is no iframe, Huawei/Vue/TinyVue application, live rating API, server browser session, DOM extraction or upstream JavaScript evaluation in the application. The server reconstructs submitted selections using the same engine and published rates.
 
+## Production deployment
+
+There is one public app at `calculator.hwctools.site`, backed by the production account/project database. `calculator-offline.hwctools.site` and `calculator-lab.hwctools.site` are permanent redirects to the same path and query on production. The old `/sync-lab` and `/sync-lab/audit` pages also redirect into the main workspace, retaining configuration parameters. The former preview app containers are retired; their databases are preserved as archives.
+
+The parent Compose file extends `calculator` and `calculator-sync` from `compose.snapshot.yml`. They share the existing `neo-offline_snapshots` Docker volume, mounted read-only by the application and read-write by the worker. The historical volume name does not represent a second application. Authentication and saved production data are unchanged. Worker checkpoints, leases and published releases remain on the same volume.
+
 ## Daily worker
 
 `bun run sync:calculator` performs an immediate synchronization. `Dockerfile.sync` runs `scripts/run-calculator-sync.ts`: jobs start every 24 hours after success, failures retry after one hour, and a process lease prevents overlapping jobs. Chromium runs exclusively in this worker as an extraction and comparison oracle; the app mounts snapshots read-only and does not contain Chromium.

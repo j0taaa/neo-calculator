@@ -1,6 +1,6 @@
 # Calculator architecture
 
-The active calculator uses Neo's independent rule engine and a daily published data catalog. The synchronization worker is the only process that contacts Huawei or uses Chromium. See [the runtime and synchronization contract](standalone-calculator.md).
+The sole production app at `calculator.hwctools.site` uses Neo's independent rule engine and a daily published data catalog. The former offline/lab domains redirect to production. The synchronization worker is the only process that contacts Huawei or uses Chromium. See [the runtime and synchronization contract](standalone-calculator.md).
 
 ```mermaid
 flowchart LR

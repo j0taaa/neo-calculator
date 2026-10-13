@@ -1,0 +1,60 @@
+{
+  "verifiedAt": "2026-10-13T15:21:38.298878Z",
+  "publicApplication": "https://calculator.hwctools.site",
+  "retiredHosts": [
+    "calculator-offline.hwctools.site",
+    "calculator-lab.hwctools.site"
+  ],
+  "redirects": {
+    "hosts": "permanent; path and query preserved; POST retains its method",
+    "labPages": [
+      "/sync-lab",
+      "/sync-lab/audit"
+    ],
+    "target": "main calculator workspace, preserving configuration"
+  },
+  "runningContainers": [
+    "home-calculator-1",
+    "home-calculator-sync-1"
+  ],
+  "images": {
+    "home-calculator-1": "sha256:a9a10699d20aacc860ce37f80028b27d0344477e35f8c47fc6e021f0fa4a8ddf",
+    "home-calculator-sync-1": "sha256:654dacc53e79ddb74bcd2c106e16a164fd434d5f952d61547a550819324ce63a"
+  },
+  "catalogVolume": "existing neo-offline_snapshots; retained without copying or replacing storage",
+  "snapshotPermissions": {
+    "app": "read-only",
+    "worker": "read-write"
+  },
+  "data": {
+    "productionAccountsProjectsQuotesSharingAndKeys": "all records matched the read-only pre-migration backup",
+    "preview": "no customer projects to migrate; databases archived with restricted permissions",
+    "volumes": "retained"
+  },
+  "worker": {
+    "previousWorkerRemoved": true,
+    "duplicateWorker": false,
+    "checkpointResumeObserved": true,
+    "imageUnchanged": true,
+    "memoryLimitGiB": 2,
+    "pidsLimit": 256,
+    "publicRouting": false
+  },
+  "verification": {
+    "redirectBrowserChecks": 4,
+    "productionBrowserChecks": 9,
+    "workerSafetyCoverageAndStorageTests": 15,
+    "typescript": "passed",
+    "lintErrors": 0,
+    "preExistingWarnings": 3,
+    "productionBuild": "passed",
+    "parentCompose": "resolved mounts, limits and redirect labels verified; unrelated services unchanged"
+  },
+  "publishedRelease": "2533df6a32ff35d7c55f2647075d83b0a1104aec1f08304e2e515d51ab120bd6",
+  "separateDailyAuditStatus": {
+    "at": "2026-10-13T13:16:18.724Z",
+    "ok": false,
+    "error": "Full synchronization is incomplete (1356/1369 scopes validated). No partial catalog was published. See audit-progress.json for failed scopes.",
+    "note": "Consolidation preserves the worker and its checkpoints; it does not fix the existing full-audit failures."
+  }
+}

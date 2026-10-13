@@ -26,7 +26,13 @@ The application needs a published independent snapshot at `HUAWEI_SNAPSHOT_DIR` 
 bun run sync:calculator
 ```
 
-Synchronization fetches official data and compares Neo's independently generated controls, resource dimensions and prices before publication. It needs network access and Playwright Chromium. `Dockerfile.sync` includes those dependencies and schedules synchronization every 24 hours, with retries after failures. `Dockerfile` builds the application without Chromium or the upstream calculator bridge. Mount the snapshot volume read-only in the application; see `compose.snapshot-preview.yml` for the two-process deployment.
+Synchronization fetches official data and compares Neo's independently generated controls, resource dimensions and prices before publication. It needs network access and Playwright Chromium. `Dockerfile.sync` includes those dependencies and schedules synchronization every 24 hours, with retries after failures. `Dockerfile` builds the application without Chromium or the upstream calculator bridge. Mount the snapshot volume read-only in the application; see `compose.snapshot.yml` for the application and its daily worker.
+
+## Deployment
+
+Production runs only at https://calculator.hwctools.site. The former offline and lab URLs permanently redirect there, preserving paths and query parameters. The old `/sync-lab` and `/sync-lab/audit` pages also redirect into the main workspace, retaining configuration parameters. Accounts and saved projects use the production database. Retired preview databases remain archived.
+
+On this VPS, `/home/docker-compose.yml` extends the `calculator` and `calculator-sync` services from `compose.snapshot.yml`. The application mounts the existing catalog volume read-only; the worker mounts it read-write. Only the worker contains Chromium. The existing volume retains its historical Docker name, `neo-offline_snapshots`, to avoid replacing the published catalog with empty storage.
 
 ## Structure
 
