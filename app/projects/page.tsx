@@ -15,6 +15,7 @@ import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from 
 
 import { useNavbar } from "@/components/navbar-context";
 import { ProjectAddCartModalContent } from "@/components/project-add-cart-modal-content";
+import { ResourceImportInputs } from "@/components/dashboard/resource-import-inputs";
 import { useSessionContext } from "@/components/session-provider";
 import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
@@ -701,6 +702,7 @@ export default function ProjectsPage() {
   const [, setSelectedListId] = useState("");
   const { sharingProjectKey, sharingListKey, projectShareMessages, listShareMessages, handleCreateShare } =
     useResourceSharing();
+  const transfer = useResourceTransfer({ session, setProjectsError, reloadProjectsSnapshot: loadProjects });
   const {
     importProjectPending,
     importProjectMessage,
@@ -712,20 +714,15 @@ export default function ProjectsPage() {
     projectImportMessageErrors,
     projectExportMessages,
     projectExportMessageErrors,
-    importCartTargetProjectId,
     importCartPendingProjectId,
-    projectImportInputRef,
-    cartImportInputRef,
     openProjectImportPicker,
     openCartImportPicker,
-    handleImportProjectFile,
-    handleImportCartFile,
     handleOpenProjectExport,
     handleOpenListExport,
     handleExportProjectExcel,
     handleCopyResourceExport,
     handleDownloadResourceExport,
-  } = useResourceTransfer({ session, setProjectsError, reloadProjectsSnapshot: loadProjects });
+  } = transfer;
   const {
     projectCloneNameDrafts,
     setProjectCloneNameDrafts,
@@ -880,33 +877,7 @@ export default function ProjectsPage() {
           </div>
         </div>
 
-        <input
-          ref={projectImportInputRef}
-          type="file"
-          accept="application/json,.json"
-          className="hidden"
-          onChange={(event) => {
-            const file = event.target.files?.[0];
-            if (file) {
-              void handleImportProjectFile(file);
-            }
-            event.target.value = "";
-          }}
-        />
-        <input
-          ref={cartImportInputRef}
-          type="file"
-          accept="application/json,.json"
-          className="hidden"
-          onChange={(event) => {
-            const file = event.target.files?.[0];
-            const projectId = importCartTargetProjectId;
-            if (file && projectId) {
-              void handleImportCartFile(projectId, file);
-            }
-            event.target.value = "";
-          }}
-        />
+        <ResourceImportInputs transfer={transfer} />
 
         {showSessionState && session ? (
           <Card className="overflow-hidden shadow-sm">

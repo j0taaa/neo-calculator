@@ -4,6 +4,8 @@ Download `GET /api/v1/cart/schema` (or `?download=1`). The document is a self-co
 
 The schema validates structure and service/region/billing combinations. Service rules can reveal controls and change option lists after a choice. These conditions and prices are evaluated by Neo's local engine through the endpoints below, rather than pretending that a static list of fields proves a valid quotation. An agent needs HTTP access to Neo to discover choices and verify its document; it does not need the UI, Chromium, a Huawei API, or a fabricated price proof.
 
+The **Import Cart** and **Import Project** menus open a shared popup on both the calculator and Projects page. It fetches the current published schema each time it opens, with copy, download, preview and refresh controls. Select **Choose JSON file** to continue importing. A schema loading failure does not block an existing-file import, and cancelling the file picker keeps the popup open.
+
 ## Agent workflow
 
 1. Fetch the schema. Choose a canonical `HUAWEI:<service>` code and a supported region and mode. Use its `x-neo.releaseId` throughout drafting to detect a daily publication.
