@@ -20,7 +20,7 @@ export function CompatibilityCalculator({
   selectedServiceMeta,
   selectedService,
   editingProductId,
-  isSignedIn,
+  canUseCart,
   regionValue,
   setRegionValue,
   billingMode,
@@ -219,7 +219,7 @@ export function CompatibilityCalculator({
                       <Button
                         data-calculator-add-button
                         onClick={handleAddToList}
-                        disabled={addToListPending || !selectedListId || !isSignedIn}
+                        disabled={addToListPending || !selectedListId || !canUseCart}
                         className="bg-zinc-950 hover:bg-zinc-800"
                       >
                         {addToListPending

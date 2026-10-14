@@ -18,6 +18,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import type { DashboardModel } from "@/lib/dashboard/use-dashboard";
 import { formatDate, formatDateTime } from "@/lib/utils";
+import Link from "next/link";
 import {
   Check,
   ChevronDown,
@@ -107,6 +108,7 @@ export function ProjectSidebar({
           <div className="flex items-center justify-between">
             <div>
               <CardTitle>My Projects</CardTitle>
+              {isSignedIn && <Link href="/cart" className="mt-1 inline-block text-xs text-zinc-600 underline">Open local carts</Link>}
               <p className="mt-1 text-sm text-zinc-500">
                 {isSignedIn
                   ? "Projects and lists are scoped to your account."

@@ -235,7 +235,7 @@ export function NativeCalculatorPanel({ editingProduct, onSave, onCancelEdit, sc
                     onQueue(nativeDraft(state, serviceName, title || serviceName, true));
                     setSaveMessage("Configuration queued for batch.");
                   }}>Queue for batch</Button>}
-                  {!canSave && <p className="text-sm text-zinc-500">Sign in and select a cart to save.</p>}
+                  {!canSave && <p className="text-sm text-zinc-500">Create or select a cart to save.</p>}
                   {editingProduct && (
                     <Button variant="outline" onClick={onCancelEdit} disabled={busy}>
                       Cancel

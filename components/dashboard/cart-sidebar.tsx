@@ -34,6 +34,8 @@ export function CartSidebar({
   setIsCartMenuOpen,
   editingProductId,
   isSignedIn,
+  guest,
+  guestMode,
 }: DashboardModel["cart"]) {
   const { selectedList, selectedProject, selectedListId } = projectStore;
   const { huaweiActionMessage, handleSyncSelectedList, syncingHuaweiListId } = huawei;
@@ -66,7 +68,12 @@ export function CartSidebar({
   const { handleOpenListExport } = transfer;
   const { handleDeleteList, deletingListId } = projectActions;
   const selectedCartMenuItems: ActionMenuItem[] =
-    selectedList && selectedProject
+    selectedList && guestMode ? [
+      { label: "Export Cart JSON", icon: <Download className="size-4" />, onSelect: () => transfer.handleOpenStandaloneCartExport(selectedList) },
+      { label: "Share Cart", icon: <Share2 className="size-4" />, onSelect: () => { void guest.openShare(selectedList.id); }, disabled: guest.busy },
+      { label: "Duplicate Cart", icon: <Copy className="size-4" />, onSelect: () => guest.clone(selectedList.id), disabled: guest.busy },
+      { label: "Delete Cart", icon: <Trash2 className="size-4" />, onSelect: () => { if (window.confirm(`Delete local cart ${selectedList.name}?`)) guest.remove(selectedList.id); }, disabled: guest.busy },
+    ] : selectedList && selectedProject
       ? [
           {
             label: selectedList.huaweiCartKey ? "Sync Huawei Cart" : "Create Huawei Cart",
@@ -124,7 +131,7 @@ export function CartSidebar({
               <p className="mt-1 truncate text-sm text-zinc-500">
                 {selectedList && selectedProject
                   ? `${selectedProject.name} / ${selectedList.name}`
-                  : "Select a list to see its saved products."}
+                  : selectedList ? selectedList.name : "Select a cart to see its products."}
               </p>
               {selectedList?.huaweiCartKey ? (
                 <p className="mt-1 text-xs text-zinc-400">
@@ -402,7 +409,7 @@ export function CartSidebar({
                                   disabled={
                                     addToListPending ||
                                     !selectedListId ||
-                                    !isSignedIn ||
+                                    !(isSignedIn || guestMode) ||
                                     deletingProductId === product.id
                                   }
                                 >

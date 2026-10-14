@@ -5,6 +5,7 @@ import { nativeBillingModes } from "../huawei-native/native-billing";
 import { CalculatorEngine } from "../calculator-rules/engine";
 import { SnapshotStore, digest } from "./store";
 import { quotationQuantity } from "./quantity";
+import { independentProductBody } from "./product-body";
 import type { SnapshotRelease } from "./types";
 
 /** Replay the choices using Neo's engine. Client-selected resources and totals are never authoritative. */
@@ -36,12 +37,6 @@ export async function verifySnapshotProduct(product: ProductMutationBody, store 
 /** Only accept states created by Neo's own engine; never pass an input JSON state here. */
 export function productFromIndependentState(product: ProductMutationBody, state: NativeState, scope: import("./types").ScopeSnapshot, release: SnapshotRelease): ProductMutationBody {
   if (!state.quote || !state.local || state.diagnostics.length) throw new Error(state.priceError ?? "The selected options cannot be priced");
-  const quote = { ...state.quote }, proof = state.local, selection = state.selection, mode = state.billingMode;
-  quote.source = "huawei-catalog"; quote.quotedAt = scope.source.fetchedAt;
-  quote.requestHash = digest(JSON.stringify({ release: release.id, inquiries: proof.inquiries, amount: quote.amount }));
-  return {
-    ...product, productType: "huawei-native", quantity: quotationQuantity(state.selection, proof.pricing, false),
-    config: { runtime: "huawei-native", region: selection.region, billingMode: nativeBillingModes[mode].label, selection: state.selection, source: scope.source, local: proof },
-    pricing: { total: `${quote.currency} ${quote.amount.toFixed(6)}`, amount: quote.amount, currency: quote.currency, source: quote.source, quotedAt: quote.quotedAt, requestHash: quote.requestHash, breakdown: quote.breakdown, ...(quote.payment ? { payment: quote.payment } : {}) },
-  };
+  const requestHash = digest(JSON.stringify({ release: release.id, inquiries: state.local.inquiries, amount: state.quote.amount }));
+  return independentProductBody(product, state, scope.source, requestHash);
 }

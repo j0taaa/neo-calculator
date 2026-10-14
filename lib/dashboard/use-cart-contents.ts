@@ -27,7 +27,9 @@ type Options = {
   setProjects: Dispatch<SetStateAction<AppProject[]>>;
   editingProductId: string | null;
   handleCancelEdit: () => void;
-  isSignedIn: boolean;
+  canUseCart: boolean;
+  deleteLocalProducts?: (cartId: string, ids: string[]) => Promise<void>;
+  validateProducts?: (products: ProductMutationBody[]) => Promise<ProductMutationBody[]>;
   mutateListProduct: (
     requestUrl: string,
     requestMethod: "POST" | "PATCH",
@@ -49,7 +51,9 @@ export function useCartContents({
   setProjects,
   editingProductId,
   handleCancelEdit,
-  isSignedIn,
+  canUseCart,
+  deleteLocalProducts,
+  validateProducts,
   mutateListProduct,
 }: Options) {
   const [deletingProductId, setDeletingProductId] = useState<string | null>(
@@ -238,6 +242,12 @@ export function useCartContents({
     setAddToListMessage("");
 
     try {
+      if (deleteLocalProducts) {
+        await deleteLocalProducts(selectedListId, [product.id]);
+        if (editingProductId === product.id) handleCancelEdit();
+        setCartCopyNotice("Product deleted.");
+        return;
+      }
       const response = await fetch(
         `/api/lists/${selectedListId}/products/${product.id}`,
         {
@@ -334,6 +344,13 @@ export function useCartContents({
       editingProductId != null && selectedIds.has(editingProductId);
 
     try {
+      if (deleteLocalProducts) {
+        await deleteLocalProducts(selectedListId, [...selectedIds]);
+        if (editingSelectionRemoved) handleCancelEdit();
+        clearCartItemSelection();
+        setCartCopyNotice(`${selectedCartItems.length} item(s) cut`);
+        return;
+      }
       for (const product of selectedCartItems) {
         const response = await fetch(
           `/api/lists/${selectedListId}/products/${product.id}`,
@@ -384,11 +401,12 @@ export function useCartContents({
     selectedListId,
     setAddToListMessage,
     setProjects,
+    deleteLocalProducts,
   ]);
 
   const handlePasteCartItemsFromText = useCallback(
     async (clipboardText: string) => {
-      if (!isSignedIn) {
+      if (!canUseCart) {
         setCartClipboardMessageIsError(true);
         setCartClipboardMessage("Sign in to paste cart items.");
         return;
@@ -431,7 +449,8 @@ export function useCartContents({
 
       try {
         const createdIds: string[] = [];
-        for (const requestBody of requestBodies) {
+        const validated = validateProducts ? await validateProducts(requestBodies) : requestBodies;
+        for (const requestBody of validated) {
           const createdPayload = await mutateListProduct(
             `/api/lists/${selectedListId}/products`,
             "POST",
@@ -459,7 +478,7 @@ export function useCartContents({
         );
       }
     },
-    [isSignedIn, mutateListProduct, selectedListId, setProjects],
+    [canUseCart, mutateListProduct, selectedListId, setProjects, validateProducts],
   );
   return {
     deletingProductId,

@@ -20,7 +20,7 @@ async function expectUnclipped(menu: Locator) {
 test.beforeEach(async ({ baseURL }) => expect(["localhost", "127.0.0.1"]).toContain(new URL(baseURL!).hostname));
 
 for (const width of [280, 375, 1440]) {
-  test(`anonymous project menu stays visible at ${width}px without checking an old Huawei cookie`, async ({ page }) => {
+  test(`anonymous local cart menu stays visible at ${width}px without checking an old Huawei cookie`, async ({ page }) => {
     await page.setViewportSize({ width, height: 800 });
     await page.addInitScript(() => localStorage.setItem("neoCalculator.huaweiCookie", "old-demo-cookie"));
     let cartChecks = 0;
@@ -30,17 +30,16 @@ for (const width of [280, 375, 1440]) {
     });
     await page.goto("/");
     await expect(page.getByRole("region", { name: "ECS flavor browser" }).getByRole("button", { name: /^Select / }).first()).toBeVisible();
-    const trigger = page.getByRole("button", { name: "Open project actions", exact: true });
+    const trigger = page.getByRole("button", { name: "Open local cart actions", exact: true });
     await trigger.click();
-    const menu = page.getByRole("menu", { name: "Open project actions", exact: true });
+    const menu = page.getByRole("menu", { name: "Open local cart actions", exact: true });
     await expectUnclipped(menu);
-    await expect(menu.getByRole("menuitem", { name: "Import Project", exact: true })).toBeDisabled();
-    await expect(menu.getByRole("menuitem", { name: "Import Project", exact: true })).toHaveCSS("opacity", "0.5");
+    await expect(menu.getByRole("menuitem", { name: "Import Project", exact: true })).toBeEnabled();
     await page.keyboard.press("Escape");
     await expect(menu).toHaveCount(0);
     await expect(trigger).toBeFocused();
     await trigger.click();
-    await page.getByText("My Projects", { exact: true }).click();
+    await page.getByText("Local Carts", { exact: true }).click();
     await expect(menu).toHaveCount(0);
     await expect(page.getByText(expiredCookie, { exact: true })).toHaveCount(0);
     await page.goto("/projects");
@@ -108,7 +107,7 @@ test("signed-in users still see expired Huawei cookies and sign-out stops automa
   expect(signOut.ok()).toBe(true);
   const checksBeforeSignOut = cartChecks;
   await page.goto("/");
-  await expect(page.getByRole("button", { name: "New Project", exact: true })).toBeDisabled();
+  await expect(page.getByRole("button", { name: "New Cart", exact: true })).toBeEnabled();
   await expect(page.getByText(expiredCookie, { exact: true })).toHaveCount(0);
   expect(cartChecks).toBe(checksBeforeSignOut);
 });

@@ -14,6 +14,7 @@ import {
 } from "@/lib/resource-export";
 import type { Dispatch, SetStateAction } from "react";
 import { useRef, useState } from "react";
+import { guestCartDocument } from "../guest-carts/store";
 
 type Options = {
   session: { user: { id: string } } | null;
@@ -239,6 +240,12 @@ export function useResourceTransfer({
     );
   };
 
+  const handleOpenStandaloneCartExport = (cart: AppList) => {
+    openResourceExportModal("Export Cart JSON", "This export contains this standalone cart and all its products.",
+      guestCartDocument(cart),
+      buildNamedExportFilename("cart", cart.name, "json"));
+  };
+
   const handleExportProjectExcel = async (project: AppProject) => {
     setProjectExportMessages((current) => ({ ...current, [project.id]: "" }));
     setProjectExportMessageErrors((current) => ({
@@ -324,6 +331,7 @@ export function useResourceTransfer({
     );
   };
   return {
+    handleOpenStandaloneCartExport,
     importProjectPending,
     importProjectMessage,
     importProjectMessageIsError,

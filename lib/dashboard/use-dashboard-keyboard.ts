@@ -19,7 +19,7 @@ type Options = {
   handleCutSelectedCartItems: () => Promise<void>;
   selectedCartItemCount: number;
   clearCartItemSelection: () => void;
-  isSignedIn: boolean;
+  canUseCart: boolean;
   selectedListId: string;
   handlePasteCartItemsFromText: (clipboardText: string) => Promise<void>;
 };
@@ -39,7 +39,7 @@ export function useDashboardKeyboard({
   handleCutSelectedCartItems,
   selectedCartItemCount,
   clearCartItemSelection,
-  isSignedIn,
+  canUseCart,
   selectedListId,
   handlePasteCartItemsFromText,
 }: Options) {
@@ -147,7 +147,7 @@ export function useDashboardKeyboard({
     };
 
     const handlePaste = (event: ClipboardEvent) => {
-      if (isEditableTarget(event.target) || !isSignedIn || !selectedListId) {
+      if (isEditableTarget(event.target) || !canUseCart || !selectedListId) {
         return;
       }
 
@@ -175,7 +175,7 @@ export function useDashboardKeyboard({
     filteredCartProducts,
     handleCutSelectedCartItems,
     handlePasteCartItemsFromText,
-    isSignedIn,
+    canUseCart,
     profileAreaRef,
     searchAreaRef,
     searchInputRef,
