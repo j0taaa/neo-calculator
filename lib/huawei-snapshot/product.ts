@@ -18,7 +18,7 @@ export async function verifySnapshotProduct(product: ProductMutationBody, store 
     throw new Error("Quotation scope does not match its configuration");
   // Also reject inconsistent client quantity proofs rather than silently accepting a changed quotation.
   if (local) quotationQuantity(selection, local.pricing, false);
-  const pinned = local ? await store.release(local.release) : undefined;
+  const pinned = local && !currentRates ? await store.release(local.release) : undefined;
   const release = currentRates || !pinned?.engine ? currentRelease ?? await store.active() : pinned;
   if (!release.engine) throw new Error("The independently validated calculator snapshot is not available");
   const scope = await store.scope(release, selection.service, selection.region, false);
@@ -30,7 +30,13 @@ export async function verifySnapshotProduct(product: ProductMutationBody, store 
   // assuming every service scales as purchaseNum * selfProductNum.
   const counts = (pricing: NonNullable<NativeState["local"]>["pricing"]) => pricing.selectedProduct.productAllInfos.map(p => p.productNum ?? null).sort((a, b) => Number(a) - Number(b));
   if (local && JSON.stringify(counts(local.pricing)) !== JSON.stringify(counts(state.local.pricing))) throw new Error("Selected quantity does not match its priced components");
-  const quote = state.quote, proof = state.local;
+  return productFromIndependentState(product, state, scope, release);
+}
+
+/** Only accept states created by Neo's own engine; never pass an input JSON state here. */
+export function productFromIndependentState(product: ProductMutationBody, state: NativeState, scope: import("./types").ScopeSnapshot, release: SnapshotRelease): ProductMutationBody {
+  if (!state.quote || !state.local || state.diagnostics.length) throw new Error(state.priceError ?? "The selected options cannot be priced");
+  const quote = { ...state.quote }, proof = state.local, selection = state.selection, mode = state.billingMode;
   quote.source = "huawei-catalog"; quote.quotedAt = scope.source.fetchedAt;
   quote.requestHash = digest(JSON.stringify({ release: release.id, inquiries: proof.inquiries, amount: quote.amount }));
   return {

@@ -17,11 +17,14 @@ export function calculatorApi(directory: NativeDirectory, serviceId: string) {
     directoryUrl: "/api/calculator/native",
     calculatorUrl: `/?service=${encodeURIComponent(serviceCode)}`,
     catalogUrl: `/api/v1/public/catalog/${encodeURIComponent(serviceCode)}`,
+    resourceDocumentSchemaUrl: "/api/v1/cart/schema",
+    configureUrl: "/api/v1/cart/configure",
+    validateCartUrl: "/api/v1/cart/validate",
     calculationUrl: "/api/v1/calculate",
     calculationMethod: "POST",
     billingModes,
     regions: directory.regions.filter(region => billingModes[region.id]?.length),
-    instructions: "Configure this service in the local calculator. Submit its config.region, config.billingMode, config.selection and config.local (release, selected pricing products and inquiries) for server-side price reconstruction from the synchronized catalog. Client monetary totals are ignored. Flat legacy configurations are not sufficient. No server browser session is required.",
+    instructions: "Agents can fetch resourceDocumentSchemaUrl, discover current controls through configureUrl and build a cart from ordered choices for validateCartUrl without using the UI. The legacy calculation endpoint accepts config.region, config.billingMode, config.selection and config.local from a saved calculator configuration. Client monetary totals are ignored. No server browser session is required.",
   };
 }
 

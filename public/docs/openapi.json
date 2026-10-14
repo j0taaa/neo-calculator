@@ -25,6 +25,100 @@
     }
   ],
   "paths": {
+    "/cart/schema": {
+      "get": {
+        "tags": [
+          "Public"
+        ],
+        "summary": "Download the complete cart/project JSON schema",
+        "description": "Self-contained JSON Schema draft 2020-12 with all published service/region/billing combinations, examples and agent workflow. Conditional choices are discovered through configure and checked by validate. No authentication.",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Successful schema, controls or validated document"
+          },
+          "422": {
+            "description": "Invalid structure, scope, choice or configuration; JSON Pointer errors"
+          },
+          "413": {
+            "description": "JSON body exceeds 2 MB"
+          },
+          "503": {
+            "description": "Published independent catalog unavailable"
+          }
+        }
+      }
+    },
+    "/cart/configure": {
+      "post": {
+        "tags": [
+          "Public"
+        ],
+        "summary": "Discover conditional calculator controls for an agent",
+        "description": "Send {releaseId?,product:{serviceCode,region,billingMode,choices,title?}}. Ordered choices use {field,option} for exact option labels or {field,value} for numeric, checkbox and action values. Returns current controls, limits, enabled options, quote and nextChoiceSchema. Stateless; no authentication.",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Successful schema, controls or validated document"
+          },
+          "422": {
+            "description": "Invalid structure, scope, choice or configuration; JSON Pointer errors"
+          },
+          "413": {
+            "description": "JSON body exceeds 2 MB"
+          },
+          "503": {
+            "description": "Published independent catalog unavailable"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "description": "See GET /cart/schema for the self-contained JSON schema and workflow."
+              }
+            }
+          }
+        }
+      }
+    },
+    "/cart/validate": {
+      "post": {
+        "tags": [
+          "Public"
+        ],
+        "summary": "Validate and calculate a whole cart or project",
+        "description": "Send a schemaVersion:2 cart/project resource document or an existing saved JSON export. Returns valid:true, normalized importable JSON and totals by currency. Invalid documents return valid:false and JSON Pointer errors. Does not write or contact Huawei. No authentication.",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Successful schema, controls or validated document"
+          },
+          "422": {
+            "description": "Invalid structure, scope, choice or configuration; JSON Pointer errors"
+          },
+          "413": {
+            "description": "JSON body exceeds 2 MB"
+          },
+          "503": {
+            "description": "Published independent catalog unavailable"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "description": "See GET /cart/schema for the self-contained JSON schema and workflow."
+              }
+            }
+          }
+        }
+      }
+    },
     "/public/catalog/{service}/pricing": {
       "get": {
         "tags": [

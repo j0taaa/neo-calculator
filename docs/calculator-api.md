@@ -4,6 +4,8 @@ The REST calculator and API-key product saves reconstruct prices with the same l
 
 ## Discovery and configuration
 
+For agents generating new carts without the UI, use the self-contained `GET /api/v1/cart/schema`, `POST /api/v1/cart/configure` and `POST /api/v1/cart/validate`. These read-only endpoints need no API key. See [Resource JSON for agents](resource-json.md) for the format, conditional discovery, validation and atomic import workflow. The saved-product contract below remains supported.
+
 - `GET /api/v1/public/services` lists published services, aliases, schema URLs and calculator metadata. `pricingUrl` is `/api/v1/calculate` and `pricingMethod` is `POST`.
 - `GET /api/v1/public/regions` lists only regions in the published snapshot. `id` and `catalogRegionId` are canonical Huawei IDs; `code` preserves a legacy alias where available.
 - `GET /api/v1/public/services/{serviceCode}/schema` resolves service aliases to a canonical `HUAWEI:<id>` code and describes the required product configuration. Its calculator metadata includes billing availability by region, a local calculator URL and catalog URL. It never advertises a server session.
