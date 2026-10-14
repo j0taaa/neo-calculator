@@ -108,7 +108,13 @@ export function useHuaweiCarts({
   }, [cookieValue]);
 
   useEffect(() => {
-    void loadHuaweiCarts();
+    if (session?.user.id) {
+      void loadHuaweiCarts();
+    } else {
+      setHuaweiCarts([]);
+      setHuaweiCartsError("");
+      setHuaweiCartsSyncedAt(null);
+    }
   }, [loadHuaweiCarts, session?.user.id]);
 
   useEffect(() => {

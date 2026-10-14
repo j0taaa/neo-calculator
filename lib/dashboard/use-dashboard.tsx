@@ -338,25 +338,6 @@ export function useDashboard() {
   }, [isSearchOpen]);
 
   useEffect(() => {
-    if (!openProjectMenuId && !isCartMenuOpen && !isProjectCreateMenuOpen) {
-      return;
-    }
-
-    const handlePointerDown = (event: MouseEvent) => {
-      if (event.target instanceof Element && event.target.closest("[data-action-menu-root]")) {
-        return;
-      }
-
-      setOpenProjectMenuId(null);
-      setIsProjectCreateMenuOpen(false);
-      setIsCartMenuOpen(false);
-    };
-
-    document.addEventListener("mousedown", handlePointerDown);
-    return () => document.removeEventListener("mousedown", handlePointerDown);
-  }, [isCartMenuOpen, isProjectCreateMenuOpen, openProjectMenuId]);
-
-  useEffect(() => {
     if (!activeModal) {
       return;
     }

@@ -1,6 +1,7 @@
 "use client";
 
-import type { ReactNode } from "react";
+import { useRef, type ReactNode } from "react";
+import { Menu } from "@base-ui/react/menu";
 
 import Link from "next/link";
 import { MoreHorizontal, X } from "lucide-react";
@@ -25,43 +26,52 @@ export function ActionMenu({
   label: string;
   items: ActionMenuItem[];
 }) {
+  const trigger = useRef<HTMLButtonElement>(null);
+  const actionSelected = useRef(false);
   return (
-    <div data-action-menu-root className="relative">
-      <Button
-        type="button"
-        variant="ghost"
-        size="icon"
-        aria-haspopup="menu"
-        aria-expanded={open}
+    <Menu.Root open={open} onOpenChange={(nextOpen) => {
+      if (nextOpen) actionSelected.current = false;
+      onOpenChange(nextOpen);
+    }} modal={false}>
+      <Menu.Trigger
+        data-action-menu-root
+        render={<Button ref={trigger} type="button" variant="ghost" size="icon" />}
         aria-label={label}
-        onClick={() => onOpenChange(!open)}
       >
         <MoreHorizontal className="size-4" />
-      </Button>
-      {open ? (
-        <div
-          role="menu"
-          className="absolute top-full right-0 z-30 mt-2 w-52 rounded-xl border border-zinc-200 bg-white p-1 shadow-[0_24px_70px_-32px_rgba(15,23,42,0.45)]"
-        >
-          {items.map((item) => (
-            <button
-              key={item.label}
-              type="button"
-              role="menuitem"
-              disabled={item.disabled}
-              className="flex w-full cursor-pointer items-center gap-2 rounded-lg px-3 py-2 text-left text-sm text-zinc-700 transition hover:bg-zinc-100 disabled:cursor-not-allowed disabled:opacity-50"
-              onClick={() => {
-                onOpenChange(false);
-                item.onSelect();
-              }}
-            >
-              <span className="text-zinc-500">{item.icon}</span>
-              <span>{item.label}</span>
-            </button>
-          ))}
-        </div>
-      ) : null}
-    </div>
+      </Menu.Trigger>
+      <Menu.Portal>
+        <Menu.Positioner align="end" sideOffset={8} collisionPadding={8} className="z-50">
+          <Menu.Popup
+            data-action-menu-root
+            aria-label={label}
+            finalFocus={() => {
+              if (!actionSelected.current) return true;
+              // Let the selected action mount and focus its editor/dialog first.
+              requestAnimationFrame(() => {
+                if (document.activeElement === document.body) trigger.current?.focus({ preventScroll: true });
+              });
+              return false;
+            }}
+            className="max-h-[var(--available-height)] w-52 max-w-[calc(100vw_-_1rem)] overflow-y-auto rounded-xl border border-zinc-200 bg-white p-1 shadow-[0_24px_70px_-32px_rgba(15,23,42,0.45)] outline-none"
+          >
+            {items.map((item) => (
+              <Menu.Item
+                key={item.label}
+                render={<button type="button" />}
+                nativeButton
+                disabled={item.disabled}
+                className="flex w-full cursor-pointer items-center gap-2 rounded-lg px-3 py-2 text-left text-sm text-zinc-700 outline-none transition data-highlighted:bg-zinc-100 data-disabled:cursor-not-allowed data-disabled:opacity-50"
+                onClick={() => { actionSelected.current = true; item.onSelect(); }}
+              >
+                <span className="text-zinc-500">{item.icon}</span>
+                <span>{item.label}</span>
+              </Menu.Item>
+            ))}
+          </Menu.Popup>
+        </Menu.Positioner>
+      </Menu.Portal>
+    </Menu.Root>
   );
 }
 

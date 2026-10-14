@@ -112,12 +112,12 @@ export function ProjectSidebar({
                   ? "Projects and lists are scoped to your account."
                   : "Browse anonymously. Sign in when you want to save carts and projects."}
               </p>
-              {huaweiCartsSyncedAt ? (
+              {isSignedIn && huaweiCartsSyncedAt ? (
                 <p className="mt-1 text-xs text-zinc-400">
                   Huawei carts synced {formatDateTime(huaweiCartsSyncedAt)}
                 </p>
               ) : null}
-              {huaweiCartsError ? (
+              {isSignedIn && huaweiCartsError ? (
                 <p className="mt-1 text-xs text-red-600">{huaweiCartsError}</p>
               ) : null}
             </div>

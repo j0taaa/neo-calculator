@@ -1,0 +1,65 @@
+{
+  "testedAt": "2026-10-14T19:21:13.124622Z",
+  "releaseId": "2533df6a32ff35d7c55f2647075d83b0a1104aec1f08304e2e515d51ab120bd6",
+  "productionImage": "sha256:8956b2bafe340379b881613093d345e51f86fa29a62dee3b1e372a1e10b55439",
+  "unitTests": 479,
+  "browserTests": 36,
+  "checks": [
+    "Shared action menus escape card and scroll-area clipping and stay within viewport margins",
+    "Anonymous menus fit at 280, 375 and 1440 pixel widths; disabled imports remain visibly disabled",
+    "Keyboard opening, selection, Escape focus return, resizing, outside dismissal and switching menus",
+    "Import dialogs retain focus; rename action focuses its editor and saves successfully",
+    "Anonymous saved cookies do not trigger automatic Huawei cart requests or session-expiry warnings",
+    "Signed-in expired-cookie errors remain visible on both pages; sign-out stops automatic checks",
+    "Existing independent calculator, billing modes, API prices, saves and JSON import/schema regressions",
+    "TypeScript, production build and lint with three existing warnings",
+    "Deployed source hashes match tested workspace files; private test container uses an internal Docker network",
+    "Public HTTPS returns 200 and HTTP redirects to HTTPS; synchronization worker image unchanged"
+  ],
+  "publicChecks": {
+    "anonymous": {
+      "anonymousChecks": 4,
+      "measurements": [
+        {
+          "width": 280,
+          "menu": {
+            "x": 8,
+            "y": 424,
+            "width": 208,
+            "height": 46
+          }
+        },
+        {
+          "width": 375,
+          "menu": {
+            "x": 143,
+            "y": 424,
+            "width": 208,
+            "height": 46
+          }
+        },
+        {
+          "width": 1440,
+          "menu": {
+            "x": 155,
+            "y": 286,
+            "width": 208,
+            "height": 46
+          }
+        }
+      ],
+      "noProductionWrites": true,
+      "noAnonymousHuaweiCartChecks": true,
+      "pageErrors": []
+    },
+    "schemaPopups": {
+      "checks": 4,
+      "https": true,
+      "publicSchemaCopyDownload": true,
+      "realFileChooser": true,
+      "noProductionWrites": true,
+      "sessionAndProjectsMocked": true
+    }
+  },
+  "scope": "Menu presentation, focus management and anonymous Huawei cart checks only. No pricing-engine or daily synchronization changes."
+}

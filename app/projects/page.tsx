@@ -217,8 +217,14 @@ export default function ProjectsPage() {
   }, [loadProjects]);
 
   useEffect(() => {
-    void loadHuaweiCarts();
-  }, [loadHuaweiCarts]);
+    if (session?.user.id) {
+      void loadHuaweiCarts();
+    } else {
+      setHuaweiCarts([]);
+      setHuaweiCartsError("");
+      setHuaweiCartsSyncedAt(null);
+    }
+  }, [loadHuaweiCarts, session?.user.id]);
 
   // Sync navbar config (projects page only shows search, no dashboard extras)
   useEffect(() => {
@@ -226,25 +232,6 @@ export default function ProjectsPage() {
       showHuaweiCarts: false,
     });
   }, [setConfig]);
-
-  useEffect(() => {
-    if (!openProjectMenuId && !openListMenuId && !isProjectCreateMenuOpen) {
-      return;
-    }
-
-    const handlePointerDown = (event: MouseEvent) => {
-      if (event.target instanceof Element && event.target.closest("[data-action-menu-root]")) {
-        return;
-      }
-
-      setOpenProjectMenuId(null);
-      setOpenListMenuId(null);
-      setIsProjectCreateMenuOpen(false);
-    };
-
-    document.addEventListener("mousedown", handlePointerDown);
-    return () => document.removeEventListener("mousedown", handlePointerDown);
-  }, [isProjectCreateMenuOpen, openListMenuId, openProjectMenuId]);
 
   useEffect(() => {
     if (!activeModal) {
@@ -870,10 +857,10 @@ export default function ProjectsPage() {
           <div>
             <p className="text-xs font-medium tracking-[0.22em] text-zinc-500 uppercase">Projects</p>
             <h1 className="mt-2 text-3xl font-semibold tracking-tight text-zinc-950">Project Manager</h1>
-            {huaweiCartsSyncedAt ? (
+            {session && huaweiCartsSyncedAt ? (
               <p className="mt-1 text-xs text-zinc-400">Huawei carts synced {formatDateTime(huaweiCartsSyncedAt)}</p>
             ) : null}
-            {huaweiCartsError ? <p className="mt-1 text-xs text-red-600">{huaweiCartsError}</p> : null}
+            {session && huaweiCartsError ? <p className="mt-1 text-xs text-red-600">{huaweiCartsError}</p> : null}
           </div>
         </div>
 
