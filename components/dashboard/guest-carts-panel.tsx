@@ -2,40 +2,40 @@
 
 import { useRef, useState } from "react";
 import { Dialog } from "@base-ui/react/dialog";
-import { Copy, Download, Pencil, Plus, Share2, Trash2, Upload, X } from "lucide-react";
+import { Copy, Download, Pencil, Share2, Trash2, Upload, X } from "lucide-react";
 import { ActionMenu } from "../home-page-shell-parts";
 import { Button } from "../ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
 import { Input } from "../ui/input";
 import { ScrollArea } from "../ui/scroll-area";
 import { ResourceImportDialog } from "./resource-import-dialog";
+import { CreateResourceButton } from "./create-resource-button";
 import type { DashboardModel } from "@/lib/dashboard/use-dashboard";
 import { copyText } from "@/lib/calculator-page-helpers";
 import { downloadTextFile } from "@/lib/resource-export";
 
 export function GuestCartsPanel({ guest, transfer }: { guest: DashboardModel["guest"]; transfer: DashboardModel["imports"]["transfer"] }) {
-  const [name, setName] = useState("");
   const [menuId, setMenuId] = useState<string | null>(null);
   const [importKind, setImportKind] = useState<"cart" | "project" | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [rename, setRename] = useState("");
   const [copyMessage, setCopyMessage] = useState("");
   const file = useRef<HTMLInputElement>(null);
-  const create = () => { if (guest.create(name || `Cart ${guest.lists.length + 1}`)) setName(""); };
   return <>
     <Card className="min-w-0 overflow-hidden shadow-sm">
       <CardHeader>
-        <CardTitle>Local Carts</CardTitle>
-        <p className="text-xs text-zinc-500">Saved in this browser</p>
-        <div className="flex flex-wrap gap-2">
-          <Input aria-label="New local cart name" placeholder="New cart name" value={name} onChange={event => setName(event.target.value)} onKeyDown={event => { if (event.key === "Enter" && guest.ready && !guest.busy) create(); }} disabled={!guest.ready || guest.busy} />
-          <Button onClick={create} disabled={!guest.ready || guest.busy}><Plus />New Cart</Button>
+        <div className="flex items-center justify-between gap-2">
+          <CardTitle>Local Carts</CardTitle>
+          <div className="flex items-center gap-1">
+          <CreateResourceButton kind="cart" defaultName={`Cart ${guest.lists.length + 1}`} disabled={!guest.ready || guest.busy} onCreate={guest.create} />
           <ActionMenu label="Open local cart actions" open={menuId === "import"} onOpenChange={open => setMenuId(open ? "import" : null)} items={[
             { label: "Import from Huawei Cloud", icon: <Download />, onSelect: () => { window.location.href = "/huawei-carts"; } },
             { label: "Import Cart", icon: <Upload />, onSelect: () => setImportKind("cart"), disabled: !guest.ready || guest.busy },
             { label: "Import Project", icon: <Upload />, onSelect: () => setImportKind("project"), disabled: !guest.ready || guest.busy },
           ]} />
+          </div>
         </div>
+        <p className="text-xs text-zinc-500">Saved in this browser</p>
         {!guest.ready && !guest.error && <p role="status" className="text-sm text-zinc-500">Loading local carts…</p>}
         {guest.busy && <p role="status" className="text-sm text-zinc-500">Preparing carts…</p>}
         {guest.error && <p role="alert" className="text-sm text-red-700">{guest.error}</p>}

@@ -2,6 +2,11 @@ import { findServiceCatalogEntry } from "@/lib/service-config";
 import type { AppProduct, AppProject, BillingOption as PageBillingOption, ProductMutationBody } from "@/lib/calculator-types";
 import type { ActiveModalKind } from "@/lib/dashboard-url-state";
 
+export function hasOpenDialog() {
+  return Array.from(document.querySelectorAll<HTMLElement>('[role="dialog"]'))
+    .some(dialog => dialog.getClientRects().length > 0);
+}
+
 export type BillingOption = PageBillingOption;
 
 export type CartSortOption = "default" | "title-asc" | "title-desc" | "price-desc" | "price-asc";

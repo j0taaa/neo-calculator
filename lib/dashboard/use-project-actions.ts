@@ -45,10 +45,6 @@ export function useProjectActions({
   editingProductListId,
   handleCancelEdit,
 }: Options) {
-  const [newProjectName, setNewProjectName] = useState("");
-
-  const [newProjectPending, setNewProjectPending] = useState(false);
-
   const [editingProjectId, setEditingProjectId] = useState<string | null>(null);
 
   const [projectNameDrafts, setProjectNameDrafts] = useState<
@@ -73,47 +69,35 @@ export function useProjectActions({
 
   const [deletingListId, setDeletingListId] = useState<string | null>(null);
 
-  const handleCreateProject = async () => {
+  const handleCreateProject = async (projectName: string) => {
     if (!session) {
-      setProjectsError("Sign in to save carts and projects.");
-      return;
+      throw new Error("Sign in to create projects.");
     }
 
-    const name = newProjectName.trim();
-    if (!name) return;
+    const name = projectName.trim();
+    if (!name) throw new Error("Enter a project name.");
 
-    setNewProjectPending(true);
     setProjectsError("");
+    const response = await fetch("/api/projects", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name }),
+    });
 
-    try {
-      const response = await fetch("/api/projects", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name }),
-      });
-
-      if (!response.ok) {
-        const payload = (await response.json().catch(() => null)) as {
-          error?: string;
-        } | null;
-        throw new Error(getResponseError(payload, "Unable to create project"));
-      }
-
-      const project = (await response.json()) as Omit<AppProject, "lists">;
-      setProjects((current) => [{ ...project, lists: [] }, ...current]);
-      setExpandedProjects((current) => ({ ...current, [project.id]: true }));
-      setProjectNameDrafts((current) => ({
-        ...current,
-        [project.id]: project.name,
-      }));
-      setNewProjectName("");
-    } catch (error) {
-      setProjectsError(
-        error instanceof Error ? error.message : "Unable to create project",
-      );
-    } finally {
-      setNewProjectPending(false);
+    if (!response.ok) {
+      const payload = (await response.json().catch(() => null)) as {
+        error?: string;
+      } | null;
+      throw new Error(getResponseError(payload, "Unable to create project"));
     }
+
+    const project = (await response.json()) as Omit<AppProject, "lists">;
+    setProjects((current) => [{ ...project, lists: [] }, ...current]);
+    setExpandedProjects((current) => ({ ...current, [project.id]: true }));
+    setProjectNameDrafts((current) => ({
+      ...current,
+      [project.id]: project.name,
+    }));
   };
 
   const handleCreateList = async (projectId: string) => {
@@ -392,9 +376,6 @@ export function useProjectActions({
     }
   };
   return {
-    newProjectName,
-    setNewProjectName,
-    newProjectPending,
     editingProjectId,
     projectNameDrafts,
     setProjectNameDrafts,

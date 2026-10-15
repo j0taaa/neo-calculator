@@ -116,7 +116,14 @@ export function useGuestCarts(enabled: boolean) {
   return {
     shareDialog, setShareDialog,
     enabled, ready, busy, error, message, lists, selectedList, selectedListId: snapshot.selectedId, select,
-    create: (name: string) => run(local => local.import([{ name, products: [] }])),
+    create: (name: string) => {
+      if (!store.current || !ready) throw new Error("Wait for local carts to finish loading.");
+      // Creation errors belong to its dialog; preserve the specific storage or tab-conflict message.
+      store.current.import([{ name, products: [] }]);
+      setSnapshot(store.current.snapshot);
+      setError("");
+      setMessage("");
+    },
     rename: (id: string, name: string) => run(local => local.rename(id, name)),
     remove: (id: string) => run(local => local.remove(id)),
     clone: (id: string) => run(local => { const cart = local.snapshot.carts.find(cart => cart.id === id); if (cart) local.import([{ name: `${cart.name.slice(0, 295)} copy`, products: cart.products }]); }),

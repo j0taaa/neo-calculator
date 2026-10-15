@@ -53,3 +53,7 @@ Example of correct parser field definitions:
 ## Huawei account carts
 
 `/huawei-carts` owns Huawei account login and explicit cart-copy transfers. Account IDs have been verified to work as both IAM password-auth account/domain name and username, including the user's Huawei ID account. The HTTP-only IAM token -> temporary credentials -> console login token -> portal `/index/islogin` ticket flow establishes cart access without Chromium. The portal callback needs the Huawei Origin/Referer headers; `portal_csrf` becomes the `csrf` request header. Huawei cart names are limited to 50 characters. Never store account passwords or return portal cookies to browser JavaScript. Keep ordinary calculator pages independent of this optional integration. Unknown imported configurations must retain every original field as read-only saved estimates; never drop them or call them newly calculated prices.
+
+## Creation controls
+
+Project and local-cart creation use the shared `CreateResourceButton`: show a plus button and open the form only when requested. Keep drafts and actionable errors in the dialog, close only on successful creation or cancellation, and block duplicate submissions. Global calculator and clipboard shortcuts must not act behind an open dialog. Detect visible dialogs rather than relying on `aria-modal`, which Base UI does not always supply. Keep cart filters within their panel and display option labels rather than internal codes.

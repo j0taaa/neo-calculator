@@ -1,6 +1,6 @@
 import { copyText } from "@/lib/calculator-page-helpers";
 import type { AppList, AppProduct } from "@/lib/calculator-types";
-import { isEditableTarget } from "@/lib/page-utils";
+import { hasOpenDialog, isEditableTarget } from "@/lib/page-utils";
 import type { Dispatch, RefObject, SetStateAction } from "react";
 import { useEffect } from "react";
 
@@ -68,6 +68,7 @@ export function useDashboardKeyboard({
     };
 
     const handleShortcut = (event: KeyboardEvent) => {
+      if (hasOpenDialog()) return;
       if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "k") {
         event.preventDefault();
         setIsSearchOpen(true);
@@ -147,6 +148,7 @@ export function useDashboardKeyboard({
     };
 
     const handlePaste = (event: ClipboardEvent) => {
+      if (hasOpenDialog()) return;
       if (isEditableTarget(event.target) || !canUseCart || !selectedListId) {
         return;
       }

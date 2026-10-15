@@ -103,8 +103,9 @@ test("share links open editable local copies, preserve recipient carts and also 
   const context = await browser.newContext({ baseURL });
   const recipient = await context.newPage();
   await recipient.goto("/");
-  await recipient.getByRole("textbox", { name: "New local cart name", exact: true }).fill("Recipient cart");
   await recipient.getByRole("button", { name: "New Cart", exact: true }).click();
+  await recipient.getByRole("dialog", { name: "Create cart", exact: true }).getByLabel("Cart name", { exact: true }).fill("Recipient cart");
+  await recipient.getByRole("button", { name: "Create cart", exact: true }).click();
   await calculatorApiKey(recipient); // An authenticated recipient still opens the standalone workspace.
   await recipient.goto(link);
   await expect(recipient.getByText("Shared cart opened as a local copy. Your changes stay in this browser.", { exact: true })).toBeVisible();
@@ -197,6 +198,7 @@ test("queued configurations, clipboard cut/paste and local cart management work 
   await expect(page.locator("p:visible").filter({ hasText: /^Create or select a cart to save\.$/ })).toBeVisible();
   expect((await workspace(page)).carts).toHaveLength(0);
   await page.getByRole("button", { name: "New Cart", exact: true }).click();
+  await page.getByRole("button", { name: "Create cart", exact: true }).click();
   await page.locator("[data-calculator-add-button]").click();
   await expect.poll(async () => (await selected(page)).products.length).toBe(1);
   expect(privateWrites).toEqual([]);
@@ -206,11 +208,13 @@ test("two tabs cannot overwrite each other's newer local carts", async ({ page, 
   await page.goto("/"); await expect(page.getByRole("button", { name: "New Cart", exact: true })).toBeEnabled();
   const second = await context.newPage();
   await second.goto("/"); await expect(second.getByRole("button", { name: "New Cart", exact: true })).toBeEnabled();
-  await page.getByRole("textbox", { name: "New local cart name", exact: true }).fill("First tab cart");
   await page.getByRole("button", { name: "New Cart", exact: true }).click();
-  await second.getByRole("textbox", { name: "New local cart name", exact: true }).fill("Second tab cart");
+  await page.getByRole("dialog", { name: "Create cart", exact: true }).getByLabel("Cart name", { exact: true }).fill("First tab cart");
+  await page.getByRole("button", { name: "Create cart", exact: true }).click();
   await second.getByRole("button", { name: "New Cart", exact: true }).click();
-  await expect(second.getByRole("alert").filter({ hasText: "Local carts changed in another tab" })).toBeVisible();
+  await second.getByRole("dialog", { name: "Create cart", exact: true }).getByLabel("Cart name", { exact: true }).fill("Second tab cart");
+  await second.getByRole("button", { name: "Create cart", exact: true }).click();
+  await expect(second.getByRole("dialog", { name: "Create cart", exact: true }).getByRole("alert")).toContainText("Local carts changed in another tab");
   expect((await workspace(page)).carts.map(cart => cart.name)).toEqual(["My Cart", "First tab cart"]);
   await second.reload();
   await expect(second.getByRole("button", { name: "Select local cart First tab cart", exact: true })).toBeVisible();

@@ -98,9 +98,10 @@ async function main() {
   await page.screenshot({ path: "test-results/step3-eip.png", fullPage: true });
 
   // 6. Create project
-  const projectName = page.locator("input[placeholder='New project name']").first();
-  await projectName.fill("Test Inquiry Pricing");
   await clickButton(/^New Project$/);
+  const projectName = page.getByRole("dialog", { name: "Create project", exact: true }).getByLabel("Project name", { exact: true });
+  await projectName.fill("Test Inquiry Pricing");
+  await clickButton(/^Create project$/);
   await page.waitForTimeout(3000);
   console.log("11. Project created");
 

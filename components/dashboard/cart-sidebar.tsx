@@ -1,4 +1,5 @@
 "use client";
+import { useId, useRef } from "react";
 
 import { isHuaweiCalculatorProduct } from "@/lib/huawei-native/legacy-product";
 import { type ActionMenuItem } from "@/components/home-page-shell-parts";
@@ -35,6 +36,8 @@ export function CartSidebar({
   guest,
   guestMode,
 }: DashboardModel["cart"]) {
+  const filterId = useId();
+  const filterTrigger = useRef<HTMLButtonElement>(null);
   const { selectedList, selectedProject, selectedListId } = projectStore;
 
   const { cloneActionMessage, cloneActionIsError } = cloning;
@@ -147,7 +150,13 @@ export function CartSidebar({
             </div>
           </div>
           {selectedList && (selectedCartProducts.length > 0 || hasActiveCartFilters) ? (
-            <div className="mt-3 flex items-center gap-2">
+            <div ref={cartFilterAreaRef} className="mt-3 flex flex-wrap items-center gap-2" onKeyDown={event => {
+              if (event.key === "Escape" && isCartFiltersOpen) {
+                event.preventDefault();
+                setIsCartFiltersOpen(false);
+                filterTrigger.current?.focus();
+              }
+            }}>
               <div className="relative min-w-0 flex-1">
                 <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-zinc-400" />
                 <Input
@@ -158,19 +167,20 @@ export function CartSidebar({
                   aria-label="Search cart items"
                 />
               </div>
-              <div ref={cartFilterAreaRef} className="relative">
                 <Button
+                  ref={filterTrigger}
                   type="button"
                   variant={isCartFiltersOpen || hasActiveCartFilters ? "default" : "outline"}
                   size="icon"
                   onClick={() => setIsCartFiltersOpen((current) => !current)}
                   aria-label="Open cart filters"
                   aria-expanded={isCartFiltersOpen}
+                  aria-controls={filterId}
                 >
                   <SlidersHorizontal className="size-4" />
                 </Button>
                 {isCartFiltersOpen ? (
-                  <div className="absolute top-full right-0 z-20 mt-2 w-72 rounded-xl border border-zinc-200 bg-white p-3 shadow-[0_18px_40px_-30px_rgba(15,23,42,0.35)]">
+                  <div id={filterId} role="region" aria-label="Cart filters" className="w-full basis-full space-y-3 rounded-xl border border-zinc-200 bg-zinc-50 p-3">
                     <div className="flex items-center justify-between gap-3">
                       <p className="text-sm font-medium text-zinc-950">Filter & Sort</p>
                       <Button
@@ -182,21 +192,23 @@ export function CartSidebar({
                           setCartSearchQuery("");
                           setCartServiceFilter("__all");
                           setCartSortOption("default");
+                          filterTrigger.current?.focus();
                         }}
                         disabled={!hasActiveCartFilters}
                       >
                         <RotateCcw className="size-4" />
-                        Default
+                        Reset
                       </Button>
                     </div>
                     <div className="mt-3 space-y-3">
                       <div className="space-y-1.5">
                         <p className="text-xs font-medium tracking-[0.16em] text-zinc-500 uppercase">Service</p>
                         <Select
+                          items={[{ value: "__all", label: "All services" }, ...cartServiceFilterOptions.map(option => ({ value: option.serviceCode, label: option.serviceName }))]}
                           value={cartServiceFilter}
                           onValueChange={(value) => setCartServiceFilter(value ?? "__all")}
                         >
-                          <SelectTrigger className="bg-white">
+                          <SelectTrigger aria-label="Filter by service" className="w-full bg-white">
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
@@ -212,10 +224,17 @@ export function CartSidebar({
                       <div className="space-y-1.5">
                         <p className="text-xs font-medium tracking-[0.16em] text-zinc-500 uppercase">Order</p>
                         <Select
+                          items={[
+                            { value: "default", label: "Saved order" },
+                            { value: "title-asc", label: "Title A-Z" },
+                            { value: "title-desc", label: "Title Z-A" },
+                            { value: "price-desc", label: "Price high to low" },
+                            { value: "price-asc", label: "Price low to high" },
+                          ]}
                           value={cartSortOption}
                           onValueChange={(value) => setCartSortOption(value as CartSortOption)}
                         >
-                          <SelectTrigger className="bg-white">
+                          <SelectTrigger aria-label="Sort cart items" className="w-full bg-white">
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
@@ -230,7 +249,6 @@ export function CartSidebar({
                     </div>
                   </div>
                 ) : null}
-              </div>
             </div>
           ) : null}
           {selectedList && selectedCartItemCount > 0 ? (

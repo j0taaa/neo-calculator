@@ -15,6 +15,7 @@ import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from 
 
 import { ProjectAddCartModalContent } from "@/components/project-add-cart-modal-content";
 import { ResourceImportInputs } from "@/components/dashboard/resource-import-inputs";
+import { CreateResourceButton } from "@/components/dashboard/create-resource-button";
 import { useSessionContext } from "@/components/session-provider";
 import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
@@ -465,9 +466,6 @@ export default function ProjectsPage() {
     handleCloneProject,
   } = useProjectCloning({ setProjects, setExpandedProjects });
   const {
-    newProjectName,
-    setNewProjectName,
-    newProjectPending,
     editingProjectId,
     projectNameDrafts,
     setProjectNameDrafts,
@@ -595,27 +593,15 @@ export default function ProjectsPage() {
                     {totals.productCount !== 1 ? "s" : ""}.
                   </p>
                 </div>
-              </div>
-              <div className="flex flex-col gap-2 sm:flex-row">
-                <Input
-                  value={newProjectName}
-                  onChange={(event) => setNewProjectName(event.target.value)}
-                  placeholder="New project name"
-                />
-                <Button
-                  size="sm"
-                  onClick={handleCreateProject}
-                  disabled={newProjectPending}
-                  className="bg-zinc-950 hover:bg-zinc-800"
-                >
-                  {newProjectPending ? "Adding..." : "New Project"}
-                </Button>
+                <div className="flex items-center gap-1">
+                <CreateResourceButton kind="project" onCreate={handleCreateProject} />
                 <ActionMenu
                   open={isProjectCreateMenuOpen}
                   onOpenChange={setIsProjectCreateMenuOpen}
                   label="Open project actions"
                   items={projectCreateMenuItems}
                 />
+                </div>
               </div>
               {projectsError ? <p className="text-sm text-red-600">{projectsError}</p> : null}
               {importProjectMessage ? (

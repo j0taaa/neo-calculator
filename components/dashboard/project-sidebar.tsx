@@ -17,6 +17,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import type { DashboardModel } from "@/lib/dashboard/use-dashboard";
 import Link from "next/link";
+import { CreateResourceButton } from "./create-resource-button";
 import {
   Check,
   ChevronDown,
@@ -50,10 +51,7 @@ export function ProjectSidebar({
     setSelectedListId,
   } = projectStore;
   const {
-    newProjectName,
-    setNewProjectName,
     handleCreateProject,
-    newProjectPending,
     editingProjectId,
     renamingProjectId,
     deletingProjectId,
@@ -101,25 +99,9 @@ export function ProjectSidebar({
               {isSignedIn && <Link href="/cart" className="mt-1 inline-block text-xs text-zinc-600 underline">Open local carts</Link>}
 
             </div>
-            <Badge variant="secondary">{projects.length}</Badge>
-          </div>
-          <div className="flex flex-col gap-2">
-            <div className="flex flex-wrap gap-2">
-              <Input
-                value={newProjectName}
-                onChange={(event) => setNewProjectName(event.target.value)}
-                className="min-w-0 basis-full"
-                placeholder="New project name"
-                disabled={!isSignedIn}
-              />
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleCreateProject}
-                disabled={newProjectPending || !isSignedIn}
-              >
-                {newProjectPending ? "Adding..." : "New Project"}
-              </Button>
+            <div className="flex items-center gap-1">
+              <Badge variant="secondary">{projects.length}</Badge>
+              <CreateResourceButton kind="project" onCreate={handleCreateProject} disabled={!isSignedIn} />
               <ActionMenu
                 open={isProjectCreateMenuOpen}
                 onOpenChange={setIsProjectCreateMenuOpen}
@@ -127,6 +109,8 @@ export function ProjectSidebar({
                 items={projectCreateMenuItems}
               />
             </div>
+          </div>
+          <div className="flex flex-col gap-2">
             {projectsError ? (
               <p className="text-sm text-red-600">{projectsError}</p>
             ) : null}
