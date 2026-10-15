@@ -23,6 +23,9 @@ for (const direction of ["studio", "console", "atelier"]) {
         ),
       ).toBe(true);
       expect(await page.locator("iframe").count()).toBe(0);
+      await expect(
+        page.getByText("Sample prices", { exact: true }),
+      ).toBeVisible();
       expect(errors).toEqual([]);
       await page.evaluate(() => document.fonts.ready);
       expect(
@@ -66,7 +69,9 @@ for (const direction of ["studio", "console", "atelier"]) {
         "1",
       );
       await expect(page.getByTestId("proposal-price")).toHaveText("$52.56");
-      await page.getByRole("button", { name: /Performance 4 vCPUs/ }).click();
+      await page
+        .getByRole("button", { name: "4 vCPUs · 16 GiB", exact: true })
+        .click();
       await expect(page.getByTestId("proposal-price")).toHaveText("$105.12");
       await page.getByLabel("Resource name").fill("Preview machine");
       await page
@@ -81,19 +86,23 @@ for (const direction of ["studio", "console", "atelier"]) {
         .getByRole("button", { name: "Remove Preview machine" })
         .click();
       await expect(page.getByTestId("proposal-total")).toHaveText("$57.36");
-      await page.getByLabel("Search sample services").fill("nonexistent");
-      await expect(page.getByText("No sample services found.")).toBeVisible();
-      await page.getByLabel("Search sample services").fill("database");
+      await page.getByLabel("Search services").fill("nonexistent");
+      await expect(page.getByText("No services found.")).toBeVisible();
+      await page.getByLabel("Search services").fill("database");
       await page.getByRole("button", { name: /RDS Database/ }).click();
       await expect(
         page.getByRole("heading", { name: "Relational Database Service" }),
       ).toBeVisible();
       await expect(page.getByTestId("proposal-price")).toHaveText("$116.80");
-      await page.getByLabel("Search sample services").fill("");
-      for (const service of ["ELB Networking", "EVS Storage", "ECS Compute"]) {
+      await page.getByLabel("Search services").fill("");
+      for (const [service, spec] of [
+        ["ELB Networking", "Small"],
+        ["EVS Storage", "100 GiB · General purpose"],
+        ["ECS Compute", "2 vCPUs · 8 GiB"],
+      ]) {
         await page.getByRole("button", { name: service }).click();
         await expect(
-          page.getByRole("button", { name: /^Essentials/ }),
+          page.getByRole("button", { name: spec, exact: true }),
         ).toHaveAttribute("aria-pressed", "true");
       }
       await page.getByLabel("Duration", { exact: true }).fill("");
@@ -156,7 +165,7 @@ test("gallery links all proposals, navigation and invalid routes behave correctl
       1,
     );
   }
-  await page.getByRole("link", { name: /Explore Studio/ }).click();
+  await page.getByRole("link", { name: "Studio", exact: true }).click();
   await expect(page).toHaveURL(/\/designs\/studio$/);
   await page
     .getByRole("navigation", { name: "Design direction" })

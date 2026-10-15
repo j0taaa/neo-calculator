@@ -9,21 +9,9 @@ export default function DesignProposals() {
         <Link href="/" className="design-back">
           <ArrowLeft size={16} /> Back to calculator
         </Link>
-        <span className="design-wordmark">
-          neo<span> / </span>design explorations
-        </span>
       </header>
       <div className="gallery-intro">
-        <p className="design-eyebrow">THREE DIRECTIONS. ONE CALCULATOR.</p>
-        <h1>
-          A new home for
-          <br />
-          your cloud ideas.
-        </h1>
-        <p>
-          Explore three ways NeoCalculator could feel. Open a direction, try the
-          controls, and see which one feels right.
-        </p>
+        <h1>Designs</h1>
       </div>
       <div className="design-gallery-grid">
         {directions.map((direction) => (
@@ -31,11 +19,11 @@ export default function DesignProposals() {
             key={direction.id}
             href={`/designs/${direction.id}`}
             className={`design-preview-card ${direction.id}`}
+            aria-label={direction.name}
           >
             <div className="design-miniature" aria-hidden="true">
               <div className="mini-top">
                 <b>neo</b>
-                <span>Cloud workspace</span>
                 <i />
               </div>
               <div className="mini-content">
@@ -45,7 +33,6 @@ export default function DesignProposals() {
                   <i />
                 </div>
                 <div className="mini-form">
-                  <small>YOUR INFRASTRUCTURE</small>
                   <strong>Elastic Cloud Server</strong>
                   <div className="mini-choices">
                     <i />
@@ -73,29 +60,15 @@ export default function DesignProposals() {
             </div>
             <div className="design-card-copy">
               <div>
-                <span className="design-eyebrow">
-                  {direction.number} / {direction.name}
-                </span>
+                <h2>{direction.name}</h2>
                 <ArrowUpRight size={22} />
               </div>
-              <h2>{direction.tagline}</h2>
               <p>{direction.description}</p>
-              <div className="design-traits">
-                {direction.traits.map((trait) => (
-                  <span key={trait}>{trait}</span>
-                ))}
-              </div>
-              <strong className="design-open">
-                Explore {direction.name} <span>→</span>
-              </strong>
             </div>
           </Link>
         ))}
       </div>
-      <footer>
-        Interactive visual prototypes. Sample data only; your saved carts and
-        current calculator are unchanged.
-      </footer>
+      <footer>Interactive previews · sample prices</footer>
     </main>
   );
 }
