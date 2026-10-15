@@ -176,7 +176,7 @@ export function TopNavbar() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [isSettingsOpen]);
 
-  if (pathname === "/sync-lab") return null;
+  if (pathname === "/sync-lab" || pathname === "/designs" || pathname.startsWith("/designs/")) return null;
 
   return (
     <header className="sticky top-0 z-50 border-b border-zinc-200 bg-white/90 backdrop-blur">
