@@ -20,6 +20,7 @@ export function useNativeSession(scope: CalculatorScope, editingProduct?: AppPro
   const restored = useRef<AppProduct | null>(null);
   const attempted = useRef("");
   const previousScope = useRef("");
+  const hasOpened = useRef(false);
   const scopeCallback = useRef(onRestoreScope);
   scopeCallback.current = onRestoreScope;
   function reset() {
@@ -57,9 +58,10 @@ export function useNativeSession(scope: CalculatorScope, editingProduct?: AppPro
     const generation = epoch.current;
     const controller = new AbortController();
     const operationId = createsSession ? crypto.randomUUID() : undefined;
+    if (createsSession) hasOpened.current = true;
     pending.current = { controller, operationId };
-    setBusy(true); setError("");
-    setState(previous => previous ? { ...previous, quote: null } : null);
+    setBusy(createsSession); setError("");
+    if (createsSession) setState(null);
     try {
       const next = await request(controller.signal, operationId);
       if (generation !== epoch.current) { closeNativeSession(next.session); return; }
@@ -67,9 +69,11 @@ export function useNativeSession(scope: CalculatorScope, editingProduct?: AppPro
       setState(next);
     } catch (error) {
       if (generation === epoch.current) {
-        if (current.current) closeNativeSession(current.current.session);
-        current.current = null;
-        setState(null); setError(error instanceof Error ? error.message : "Huawei is unavailable");
+        if (createsSession) {
+          if (current.current) closeNativeSession(current.current.session);
+          current.current = null;
+        }
+        setState(current.current); setError(error instanceof Error ? error.message : "Calculator unavailable");
       }
     } finally {
       if (generation === epoch.current) { pending.current = null; working.current = false; setBusy(false); }
@@ -102,11 +106,12 @@ export function useNativeSession(scope: CalculatorScope, editingProduct?: AppPro
     const canOpen = !editingProduct || isLegacyHuaweiProduct(editingProduct) || restored.current === editingProduct;
     if (ready && canOpen && !working.current && !current.current &&
       autoOpen && attempted.current !== key) {
-      // Coalesce bookmark hydration and rapid service/region/mode changes.
+      // The caller gates initial opening on bookmark hydration. Start on the next
+      // turn; retain the debounce for subsequent rapid service/region/mode changes.
       const timer = window.setTimeout(() => {
         attempted.current = key;
         void open();
-      }, 200);
+      }, hasOpened.current ? 200 : 0);
       return () => window.clearTimeout(timer);
     }
   // Editing uses the guarded restore below; changing callbacks must not reopen sessions.

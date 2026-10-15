@@ -7,6 +7,6 @@ export function nativeDraft(state: NativeState, name: string, title = name, dura
     serviceCode: `HUAWEI:${state.service}`, serviceName: name, productType: "huawei-native", title,
     quantity: 1, pricing: null,
     config: { runtime: "huawei-native", region: state.region, billingMode: nativeBillingModes[state.billingMode].label,
-      selection: state.selection, ...(durable ? {} : { session: state.session, revision: state.revision }) },
+      selection: state.selection, ...(state.local ? {local:state.local} : {}), ...(durable ? {} : { session: state.session, revision: state.revision }) },
   };
 }

@@ -1,200 +1,53 @@
 import { getApiKeyUser, jsonError, readJsonBody } from "@/lib/api-route";
-import { fetchElbPricingCatalog } from "@/lib/elb-pricing";
-import { getCatalogRegionId, huaweiRegions, type HuaweiRegionKey } from "@/lib/huawei-regions";
-import { fetchWafPricingCatalog } from "@/lib/waf-pricing";
-import { estimateWafConfiguration } from "@/lib/waf-catalog";
-import { listStoredEcsFlavors, type BillingMode } from "@/lib/ecs-flavor-catalog";
+import type { ProductMutationBody } from "@/lib/calculator-types";
+import { apiService } from "@/lib/calculator/api";
+import { nativeRegion } from "@/lib/calculator/service-directory";
+import { isRecord, productInputError } from "@/lib/product-input";
+import { SnapshotStore } from "@/lib/huawei-snapshot/store";
+import { verifySnapshotProduct } from "@/lib/huawei-snapshot/product";
 
 export const runtime = "nodejs";
 
-type PricingInputProduct = {
-  serviceCode: string;
-  productType: string;
-  quantity?: number;
-  config: Record<string, unknown>;
-};
-
-type CalculatePricingRequest = {
-  region?: string;
-  products: PricingInputProduct[];
-};
-
-type PricingResult = {
-  serviceCode: string;
-  productType: string;
-  quantity: number;
-  config: Record<string, unknown>;
-  pricing: {
-    total: string;
-    breakdown: Record<string, string>;
-    currency: string;
-  } | null;
-  error?: string;
-};
-
-async function calculateEcsPricing(config: Record<string, unknown>, regionId: string, billingMode: string): Promise<{ amount: number; currency: string } | null> {
-  const flavor = config.flavor as string;
-  if (!flavor) return null;
-
-  await import("@/lib/ecs-flavor-catalog").then(async ({ ensureRegionCatalogAvailable }) => {
-    await ensureRegionCatalogAvailable(regionId);
-  });
-
-  const flavors = listStoredEcsFlavors(regionId);
-  const storedFlavor = flavors.find((f) => f.resourceSpecCode === flavor);
-  if (!storedFlavor) return null;
-
-  const mode: BillingMode = billingMode === "Pay-per-use" ? "ONDEMAND" : billingMode === "Yearly/Monthly" ? "YEARLY" : billingMode === "RI" ? "RI" : "ONDEMAND";
-  const amount = storedFlavor.prices[mode] ?? storedFlavor.prices.ONDEMAND;
-  if (typeof amount !== "number") return null;
-
-  return { amount, currency: storedFlavor.currency };
-}
-
-async function calculateElbPricing(config: Record<string, unknown>, regionId: string, billingMode: string): Promise<{ amount: number; currency: string } | null> {
-  try {
-    const catalog = await fetchElbPricingCatalog(regionId);
-    const type = config.type as string;
-    const isDedicated = type === "Dedicated load balancer";
-    const mode = billingMode === "Pay-per-use" ? "ONDEMAND" : billingMode === "Yearly/Monthly" ? "MONTHLY" : "ONDEMAND";
-
-    if (!isDedicated) {
-      const sharedRate = catalog.sharedRates?.[mode];
-      if (typeof sharedRate === "number") {
-        return { amount: sharedRate, currency: catalog.currency || "USD" };
-      }
-      if (typeof catalog.sharedRates?.ONDEMAND === "number") {
-        return { amount: catalog.sharedRates.ONDEMAND, currency: catalog.currency || "USD" };
-      }
-    } else {
-      const elasticRates = catalog.dedicatedRates?.elastic;
-      if (elasticRates) {
-        for (const subAz of Object.keys(elasticRates)) {
-          const azData = elasticRates[subAz as keyof typeof elasticRates];
-          if (azData?.basePerHour && typeof azData.basePerHour === "number") {
-            return { amount: azData.basePerHour, currency: catalog.currency || "USD" };
-          }
-        }
-      }
-    }
-    return null;
-  } catch {
-    return null;
-  }
-}
-
-async function calculateWafPricing(config: Record<string, unknown>, regionId: string): Promise<{ amount: number; currency: string; suffix?: string } | null> {
-  try {
-    const catalog = await fetchWafPricingCatalog(regionId);
-    const edition = config.edition as string;
-    const quantity = (config.quantity as number) || 1;
-
-    const estimate = estimateWafConfiguration(catalog, { edition, quantity });
-    if (estimate) {
-      return { amount: estimate.amount, currency: estimate.currency, suffix: estimate.suffix };
-    }
-    return null;
-  } catch {
-    return null;
-  }
-}
-
-function formatPrice(amount: number, currency: string, suffix?: string): string {
-  const formattedSuffix = suffix ? (suffix.startsWith("/") ? suffix : `/${suffix}`) : "";
-  return `USD ${amount.toFixed(2)}${formattedSuffix}`;
-}
-
 export async function POST(request: Request) {
-  const apiKeyUser = await getApiKeyUser(request.headers);
-  if (!apiKeyUser) {
+  if (!await getApiKeyUser(request.headers))
     return jsonError("Invalid or missing API key. Provide your key via the X-API-Key header.", 401);
+  const body = await readJsonBody<unknown>(request);
+  if (!isRecord(body) || !Array.isArray(body.products) || !body.products.length || body.products.length > 100)
+    return jsonError("products must contain between 1 and 100 products");
+  for (const product of body.products) {
+    const error = productInputError(product);
+    if (error) return jsonError(error);
+    if (!isRecord(product) || typeof product.serviceCode !== "string" || !product.serviceCode.trim() || !isRecord(product.config))
+      return jsonError("Each product requires serviceCode and config");
   }
+  if (body.region !== undefined && (typeof body.region !== "string" || !body.region.trim()))
+    return jsonError("region must be a nonempty region ID");
 
-  const body = await readJsonBody<CalculatePricingRequest>(request);
-  if (!body) {
-    return jsonError("Invalid request body");
+  const store = new SnapshotStore();
+  const release = await store.active().catch(() => null);
+  if (!release) return jsonError("The daily calculator snapshot is not available yet", 503);
+  const region = typeof body.region === "string" ? nativeRegion(body.region.trim()) : undefined;
+  if (region && !release.directory.regions.some(entry => entry.id === region))
+    return jsonError("Unknown region");
+
+  // Every product in a batch uses one complete release, even during a daily publication.
+  const results = [];
+  for (const entry of body.products as ProductMutationBody[]) {
+    const service = apiService(release.directory, entry.serviceCode.trim());
+    const product = { serviceCode: service ? `HUAWEI:${service.id}` : entry.serviceCode,
+      serviceName: entry.serviceName?.trim() || service?.name || entry.serviceCode,
+      productType: "huawei-native", title: entry.title?.trim() || service?.name || entry.serviceCode,
+      quantity: 1, pricing: null, config: entry.config };
+    try {
+      if (!service) throw new Error(`Unknown synchronized service: ${entry.serviceCode}`);
+      if (region && (!isRecord(product.config) || product.config.region !== region))
+        throw new Error("Request region does not match the product configuration");
+      results.push(await verifySnapshotProduct(product, store, true, release));
+    } catch (error) {
+      results.push({ ...product, pricing: null, error: error instanceof Error ? error.message : "Unable to calculate this configuration" });
+    }
   }
-
-  const products = body.products;
-  if (!Array.isArray(products) || products.length === 0) {
-    return jsonError("products array is required");
-  }
-
-  const regionKey = (body.region && body.region in huaweiRegions ? body.region : "la-sao-paulo1") as HuaweiRegionKey;
-  const regionId = getCatalogRegionId(regionKey) || "la-south-1";
-
-  const results: PricingResult[] = await Promise.all(
-    products.map(async (product) => {
-      const { serviceCode, productType, quantity = 1, config } = product;
-      const billingMode = (config.billingMode as string) || "Pay-per-use";
-
-      try {
-        let priceResult: { amount: number; currency: string; suffix?: string } | null = null;
-
-        switch (serviceCode) {
-          case "ECS":
-            priceResult = await calculateEcsPricing(config, regionId, billingMode);
-            break;
-          case "ELB":
-            priceResult = await calculateElbPricing(config, regionId, billingMode);
-            break;
-          case "WAF":
-            priceResult = await calculateWafPricing(config, regionId);
-            break;
-          default: {
-            return {
-              serviceCode,
-              productType,
-              quantity,
-              config,
-              pricing: null,
-              error: `Pricing calculation not yet implemented for ${serviceCode}`,
-            };
-          }
-        }
-
-        if (priceResult) {
-          const total = priceResult.amount * quantity;
-          return {
-            serviceCode,
-            productType,
-            quantity,
-            config,
-            pricing: {
-              total: formatPrice(total, priceResult.currency, priceResult.suffix),
-              breakdown: {
-                unit: formatPrice(priceResult.amount, priceResult.currency, priceResult.suffix),
-                quantity: String(quantity),
-              },
-              currency: priceResult.currency,
-            },
-          };
-        }
-
-        return {
-          serviceCode,
-          productType,
-          quantity,
-          config,
-          pricing: null,
-          error: `Unable to calculate pricing for ${serviceCode} with current configuration`,
-        };
-      } catch (error) {
-        return {
-          serviceCode,
-          productType,
-          quantity,
-          config,
-          pricing: null,
-          error: error instanceof Error ? error.message : "Unknown error",
-        };
-      }
-    }),
-  );
-
-  return Response.json({
-    region: regionKey,
-    calculatedAt: new Date().toISOString(),
-    results,
-  });
+  const failed = results.filter(result => "error" in result).length;
+  return Response.json({ region: region ?? null, calculatedAt: new Date().toISOString(), releaseId: release.id, results },
+    { status: failed === 0 ? 200 : failed === results.length ? 422 : 207, headers: { "cache-control": "no-store" } });
 }

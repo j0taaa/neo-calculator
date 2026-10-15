@@ -143,26 +143,6 @@ export function ServiceSearch({
                               </p>
                             </div>
                           </div>
-                          <div className="hidden shrink-0 items-center gap-2 sm:flex">
-                            <p
-                              className={`rounded-full px-2 py-1 text-xs font-medium ${
-                                index === activeSuggestionIndex
-                                  ? "bg-white/10 text-zinc-200"
-                                  : "bg-zinc-100 text-zinc-500"
-                              }`}
-                            >
-                              {service.code}
-                            </p>
-                            <span
-                              className={`rounded-full px-2 py-1 text-xs font-medium ${
-                                index === activeSuggestionIndex
-                                  ? "bg-white/10 text-zinc-200"
-                                  : "bg-zinc-100 text-zinc-500"
-                              }`}
-                            >
-                              Enter
-                            </span>
-                          </div>
                         </button>
                       ))}
                     </div>

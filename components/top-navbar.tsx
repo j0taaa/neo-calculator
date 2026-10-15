@@ -3,10 +3,9 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useSyncExternalStore, useState, useRef, useEffect } from "react";
-import { Key, Search, RefreshCw, Copy, Check, Settings, Download, Loader2 } from "lucide-react";
+import { Key, RefreshCw, Copy, Check, Settings, Download, Loader2, LogOut } from "lucide-react";
 import { authClient } from "@/lib/auth-client";
 import { useSessionContext } from "@/components/session-provider";
-import { useNavbar } from "@/components/navbar-context";
 import { Button } from "@/components/ui/button";
 import { huaweiRegions, type HuaweiRegionKey } from "@/lib/huawei-regions";
 
@@ -24,9 +23,9 @@ interface ApiKeyData {
 }
 
 export function TopNavbar() {
+  useEffect(() => { try { window.localStorage.removeItem("neoCalculator.huaweiCookie"); } catch { /* Storage can be unavailable in private browsers. */ } }, []);
   const pathname = usePathname();
   const { session, isPending } = useSessionContext();
-  const { config } = useNavbar();
   const hasMounted = useSyncExternalStore(
     () => () => undefined,
     () => true,
@@ -38,11 +37,8 @@ export function TopNavbar() {
 
   // Settings dropdown state
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-  const [settingsTab, setSettingsTab] = useState<"cookie" | "apikey" | "export">("cookie");
+  const [settingsTab, setSettingsTab] = useState<"apikey" | "export">("apikey");
   const settingsRef = useRef<HTMLDivElement>(null);
-
-  // Cookie state
-  const [cookieDraft, setCookieDraft] = useState(() => config.cookieValue || "");
 
   // API key state
   const [apiKey, setApiKey] = useState<ApiKeyData | null>(null);
@@ -180,87 +176,21 @@ export function TopNavbar() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [isSettingsOpen]);
 
-  const isDashboard = pathname === "/";
-  const isProjects = pathname === "/projects";
-  const showSearch = isDashboard || isProjects;
-  const showDashboardExtras = isDashboard && config.showHuaweiCarts !== false;
-
   if (pathname === "/sync-lab") return null;
 
   return (
     <header className="sticky top-0 z-50 border-b border-zinc-200 bg-white/90 backdrop-blur">
-      <div className="mx-auto grid max-w-[1808px] grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-2 px-3 py-2.5 sm:px-4 xl:grid-cols-[auto_minmax(200px,1fr)_auto] xl:gap-4 lg:px-6">
-        {/* Left: Branding + Nav */}
-        <div className="col-span-2 flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1 sm:col-span-1 xl:gap-4">
-          <Link href="/" className="block shrink-0">
-            <p className="text-xs font-medium tracking-[0.22em] text-zinc-500 uppercase">NeoCalculator</p>
-          </Link>
-          <nav className="flex flex-wrap items-center gap-1">
-            <Link
-              href="/projects"
-              className={`rounded-full px-2.5 py-1.5 text-xs sm:py-2 sm:text-sm font-medium transition ${
-                isActive(pathname, "/projects")
-                  ? "bg-zinc-950 text-white"
-                  : "text-zinc-600 hover:bg-zinc-100 hover:text-zinc-950"
-              }`}
-            >
-              Projects
+      <div className="mx-auto grid max-w-[1808px] grid-cols-[minmax(0,1fr)_auto] items-center gap-x-4 gap-y-2 px-3 py-2.5 sm:grid-cols-[auto_minmax(0,1fr)_auto] sm:px-4 lg:px-6">
+        <Link href="/" className="min-w-0 text-[10px] font-medium tracking-[0.14em] text-zinc-500 uppercase min-[360px]:text-xs min-[360px]:tracking-[0.22em]">NeoCalculator</Link>
+        <nav aria-label="Main navigation" className="order-3 col-span-2 flex min-w-0 flex-wrap items-center gap-1 sm:order-none sm:col-span-1">
+          {[{ href: "/", label: "Calculator" }, { href: "/projects", label: "Projects" }, { href: "/huawei-carts", label: "Huawei Carts" }].map(({ href, label }) => (
+            <Link key={href} href={href} aria-current={isActive(pathname, href) || (href === "/" && pathname === "/cart") ? "page" : undefined}
+              className={`rounded-full px-2 py-1.5 text-[11px] font-medium transition min-[360px]:px-2.5 min-[360px]:text-xs sm:py-2 sm:text-sm ${isActive(pathname, href) || (href === "/" && pathname === "/cart") ? "bg-zinc-950 text-white" : "text-zinc-600 hover:bg-zinc-100 hover:text-zinc-950"}`}>
+              {label}
             </Link>
-            <Link
-              href="/"
-              className={`rounded-full px-2.5 py-1.5 text-xs sm:py-2 sm:text-sm font-medium transition ${
-                isActive(pathname, "/")
-                  ? "bg-zinc-950 text-white"
-                  : "text-zinc-600 hover:bg-zinc-100 hover:text-zinc-950"
-              }`}
-            >
-              Dashboard
-            </Link>
-
-          </nav>
-        </div>
-
-        {/* Center: Search */}
-        {showSearch ? (
-          <div className="order-3 col-span-2 flex min-w-0 justify-center xl:order-none xl:col-span-1">
-            {isDashboard && config.onSearchClick ? (
-              <button
-                type="button"
-                className="flex h-10 w-full max-w-md items-center justify-between rounded-full border border-zinc-200 bg-white px-4 text-left shadow-sm transition hover:border-zinc-300"
-                onClick={config.onSearchClick}
-                aria-label="Open service search"
-              >
-                <span className="flex min-w-0 items-center gap-3">
-                  <Search className="size-4 text-zinc-400" />
-                  <span className={`truncate text-sm ${config.searchQuery ? "text-zinc-900" : "text-zinc-500"}`}>
-                    {config.searchQuery || "Search service name"}
-                  </span>
-                </span>
-                <span className="ml-2 shrink-0 rounded-full border border-zinc-200 bg-zinc-50 px-2 py-0.5 text-xs font-medium text-zinc-500">
-                  Ctrl K
-                </span>
-              </button>
-            ) : (
-              <Link
-                href="/"
-                className="flex h-10 w-full max-w-md items-center justify-between rounded-full border border-zinc-200 bg-white px-4 text-left shadow-sm transition hover:border-zinc-300"
-              >
-                <span className="flex min-w-0 items-center gap-3">
-                  <Search className="size-4 text-zinc-400" />
-                  <span className="truncate text-sm text-zinc-500">Search service name</span>
-                </span>
-                <span className="ml-2 shrink-0 rounded-full border border-zinc-200 bg-zinc-50 px-2 py-0.5 text-xs font-medium text-zinc-500">
-                  Ctrl K
-                </span>
-              </Link>
-            )}
-          </div>
-        ) : (
-          <div className="hidden xl:block" />
-        )}
-
-        {/* Right: Docs + User Actions */}
-        <div className="col-span-2 flex flex-wrap items-center justify-end gap-1 sm:col-span-1 xl:gap-2">
+          ))}
+        </nav>
+        <div className="flex flex-wrap items-center justify-end gap-1 xl:gap-2">
           <Link
             href="/docs"
             className="rounded-full px-3 py-2 text-sm font-medium text-zinc-600 transition hover:bg-zinc-100 hover:text-zinc-950"
@@ -275,23 +205,7 @@ export function TopNavbar() {
               {/* User Info */}
               <div className="hidden max-w-40 truncate text-right 2xl:block">
                 <p className="truncate text-sm font-medium text-zinc-900">{session.user.name || session.user.email}</p>
-                <p className="truncate text-xs text-zinc-500">{session.user.email}</p>
               </div>
-
-              {/* Dashboard-specific buttons */}
-              {showDashboardExtras && (
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="icon"
-                  className="size-9"
-                  aria-label="Reload Huawei carts"
-                  onClick={() => config.loadHuaweiCarts?.()}
-                  disabled={config.huaweiCartsLoading || !config.cookieValueSaved}
-                >
-                  <RefreshCw className={`size-4 ${config.huaweiCartsLoading ? "animate-spin" : ""}`} />
-                </Button>
-              )}
 
               {/* Settings Dropdown */}
               <div ref={settingsRef} className="relative">
@@ -310,19 +224,7 @@ export function TopNavbar() {
                   <div className="fixed inset-x-3 top-20 z-50 mt-3 max-h-[calc(100dvh-7rem)] overflow-y-auto rounded-2xl border border-zinc-200 bg-white shadow-[0_28px_80px_-40px_rgba(15,23,42,0.45)] sm:absolute sm:inset-x-auto sm:top-full sm:right-0 sm:w-[min(92vw,420px)]">
                     {/* Tabs */}
                     <div className="flex border-b border-zinc-100">
-                      {showDashboardExtras && (
-                        <button
-                          type="button"
-                          onClick={() => setSettingsTab("cookie")}
-                          className={`flex-1 px-4 py-3 text-sm font-medium transition ${
-                            settingsTab === "cookie"
-                              ? "border-b-2 border-zinc-900 text-zinc-900"
-                              : "text-zinc-500 hover:text-zinc-700"
-                          }`}
-                        >
-                          Cookie
-                        </button>
-                      )}
+
                       <button
                         type="button"
                         onClick={() => setSettingsTab("apikey")}
@@ -349,50 +251,6 @@ export function TopNavbar() {
 
                     {/* Tab Content */}
                     <div className="p-4">
-                      {settingsTab === "cookie" && showDashboardExtras && (
-                        <div className="space-y-3">
-                          <div>
-                            <p className="text-sm font-semibold text-zinc-950">Huawei Cloud Cookie</p>
-                            <p className="text-sm text-zinc-500">
-                              Paste your website cookie string. It will be saved locally in this browser.
-                            </p>
-                          </div>
-                          <textarea
-                            value={cookieDraft}
-                            onChange={(event) => setCookieDraft(event.target.value)}
-                            className="min-h-32 w-full rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-900 outline-none transition focus:border-zinc-400 focus:ring-3 focus:ring-zinc-200"
-                            placeholder="cookie_name=value; other_cookie=value;"
-                          />
-                          <div className="flex items-center justify-between gap-3 text-xs text-zinc-500">
-                            <span>{config.cookieValueSaved ? "Cookie saved locally" : "No cookie saved yet"}</span>
-                            <span>{cookieDraft.length} chars</span>
-                          </div>
-                          <div className="flex justify-end gap-2">
-                            <Button
-                              type="button"
-                              variant="outline"
-                              size="sm"
-                              onClick={() => {
-                                setCookieDraft(config.cookieValue || "");
-                                setIsSettingsOpen(false);
-                              }}
-                            >
-                              Cancel
-                            </Button>
-                            <Button
-                              type="button"
-                              size="sm"
-                              onClick={() => {
-                                config.onCookieChange?.(cookieDraft);
-                                config.onSaveCookie?.();
-                                setIsSettingsOpen(false);
-                              }}
-                            >
-                              Save Cookie
-                            </Button>
-                          </div>
-                        </div>
-                      )}
 
                       {settingsTab === "apikey" && (
                         <div className="space-y-4">
@@ -547,8 +405,8 @@ export function TopNavbar() {
                 )}
               </div>
 
-              <Button type="button" variant="outline" size="sm" onClick={() => authClient.signOut()}>
-                Sign Out
+              <Button type="button" variant="ghost" size="sm" aria-label="Sign Out" onClick={() => authClient.signOut()}>
+                <LogOut className="size-4 min-[360px]:hidden" /><span className="hidden min-[360px]:inline">Sign Out</span>
               </Button>
             </>
           ) : (
@@ -558,12 +416,6 @@ export function TopNavbar() {
                 className="rounded-full px-3 py-2 text-sm font-medium text-zinc-600 transition hover:bg-zinc-100 hover:text-zinc-950"
               >
                 Sign In
-              </Link>
-              <Link
-                href="/sign-up"
-                className="rounded-full bg-zinc-950 px-3 py-2 text-sm font-medium text-white transition hover:bg-zinc-800"
-              >
-                Create Account
               </Link>
             </>
           )}

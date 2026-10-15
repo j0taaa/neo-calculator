@@ -15,7 +15,7 @@ export function NativeBatchPanel({ items, busy, message, submit, remove, canSave
       </li>;
     })}</ul> : <p className="text-sm text-zinc-500">No configurations queued yet.</p>}
     <Button onClick={submit} disabled={busy || !canSave || !items.length}>{busy ? "Checking and saving…" : "Save queued configurations"}</Button>
-    {!canSave && <p className="text-sm text-zinc-500">Sign in and select a cart to save.</p>}
+    {!canSave && <p className="text-sm text-zinc-500">Create or select a cart to save.</p>}
     {message && <p role="status" className="text-sm">{message}</p>}
   </section>;
 }

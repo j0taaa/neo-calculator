@@ -15,7 +15,7 @@ import type { DashboardModel } from "@/lib/dashboard/use-dashboard";
 export function CalculatorWorkspace(model: DashboardModel["calculator"]) {
   const { activeTab, setActiveTab, selectedServiceMeta, openServiceSearch, directory,
     directoryError, retryDirectory, nativeScope, setNativeScope, useNative, nativeEditingProduct,
-    saveNativeProduct, calculatorController, nativeBatch, editingProductId, isSignedIn, projectStore, locationState } = model;
+    saveNativeProduct, calculatorController, nativeBatch, editingProductId, canUseCart, projectStore, locationState } = model;
   return <Card className="@container/workspace min-w-0 overflow-visible shadow-sm">
     <Tabs value={activeTab} onValueChange={tab => {
       if (editingProductId && tab === "batch-add") calculatorController.handleCancelEdit();
@@ -29,7 +29,7 @@ export function CalculatorWorkspace(model: DashboardModel["calculator"]) {
               <CardTitle className="text-xl @min-[640px]/workspace:text-2xl"><h1>{selectedServiceMeta.name}</h1></CardTitle>
               <Button variant="ghost" size="sm" aria-label="Service" data-value={selectedServiceMeta.code}
                 className="mt-1 h-7 gap-2 px-0 text-xs text-zinc-500" onClick={openServiceSearch}>
-                {selectedServiceMeta.code}<Search className="size-3" /><span>Change service</span>
+                <Search className="size-3" /><span>Change service</span><kbd className="ml-1 hidden text-[10px] sm:inline">Ctrl K</kbd>
               </Button>
             </div>
           </div>
@@ -47,7 +47,7 @@ export function CalculatorWorkspace(model: DashboardModel["calculator"]) {
     <TabsContent value="calculator" keepMounted>
       {useNative ? <NativeCalculatorPanel directory={directory} scope={nativeScope} onScopeChange={setNativeScope}
         embedded autoOpen={activeTab === "calculator" && locationState.initialized} editingProduct={nativeEditingProduct} onSave={saveNativeProduct}
-        canSave={isSignedIn && !!projectStore.selectedListId} onQueue={nativeBatch.busy ? undefined : nativeBatch.enqueue}
+        canSave={canUseCart && !!projectStore.selectedListId} onQueue={nativeBatch.busy ? undefined : nativeBatch.enqueue}
         onCancelEdit={calculatorController.handleCancelEdit} /> :
         directory || editingProductId ? <>
           {editingProductId && <p className="px-4 pt-4 text-sm text-zinc-600">Editing a saved estimate. Its original configuration is preserved.</p>}
@@ -55,8 +55,8 @@ export function CalculatorWorkspace(model: DashboardModel["calculator"]) {
         </> : !directoryError && <p role="status" className="p-4 text-sm">Loading Huawei services…</p>}
     </TabsContent>
     <TabsContent value="batch-add" keepMounted>
-      <NativeBatchPanel {...nativeBatch} canSave={isSignedIn && !!projectStore.selectedListId} onConfigure={() => setActiveTab("calculator")} />
-      {calculatorController.batchPanelProps && legacyRegion(nativeScope.region) && <details className="m-4 rounded-lg border">
+      <NativeBatchPanel {...nativeBatch} canSave={canUseCart && !!projectStore.selectedListId} onConfigure={() => setActiveTab("calculator")} />
+      {!model.guestMode && calculatorController.batchPanelProps && legacyRegion(nativeScope.region) && <details className="m-4 rounded-lg border">
         <summary className="cursor-pointer p-4 text-sm font-medium">Import existing {selectedServiceMeta.code} text batches</summary>
         <ServiceBatchAddPanel {...calculatorController.batchPanelProps} />
       </details>}

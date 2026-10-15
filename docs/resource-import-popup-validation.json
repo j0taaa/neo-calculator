@@ -1,0 +1,29 @@
+{
+  "testedAt": "2026-10-14T18:49:55.567281Z",
+  "releaseId": "2533df6a32ff35d7c55f2647075d83b0a1104aec1f08304e2e515d51ab120bd6",
+  "unitTests": 479,
+  "browserTests": 30,
+  "checks": [
+    "Calculator and Projects page Import Cart/Project menus open the same accessible popup",
+    "Copy/download/preview match the current published schema",
+    "Opening or refreshing fetches a new schema with cache disabled",
+    "Schema errors offer retry and do not block existing-file imports",
+    "Cancelled file chooser keeps popup open",
+    "Clipboard denial offers a download without throwing",
+    "Popup closes safely with a pending schema request",
+    "Mobile popup fits inside 375x667 viewport",
+    "Actual generated project/cart file uploads preserve validated configurations and prices",
+    "Existing calculator/API/billing-mode/input regression checks",
+    "TypeScript, lint with three existing warnings and production build"
+  ],
+  "productionImage": "sha256:72d3b56af31bb8749f3f8f3e50c8c08196306b26d32c08182725215f44549ff9",
+  "externalAccess": "Private test app attached to an internal Docker network; Huawei DNS resolution fails. No upstream runtime dependency.",
+  "publicChecks": {
+    "checks": 4,
+    "https": true,
+    "publicSchemaCopyDownload": true,
+    "realFileChooser": true,
+    "noProductionWrites": true,
+    "sessionAndProjectsMocked": true
+  }
+}

@@ -1,0 +1,50 @@
+{
+  "testedAt": "2026-10-14T20:27:28.407400Z",
+  "releaseId": "2533df6a32ff35d7c55f2647075d83b0a1104aec1f08304e2e515d51ab120bd6",
+  "productionImage": "sha256:56af942caeecc7e6260d699945276386b1a24ecaa7964913585c7bae2a50ccb0",
+  "unitTests": 486,
+  "browserTests": 44,
+  "guestBrowserTests": 7,
+  "publishedDefaults": {
+    "scopes": 2168,
+    "quoted": 2145,
+    "unquotable": 23
+  },
+  "checks": [
+    "Anonymous standalone cart create/select/rename/duplicate/delete, including deleting the last cart and starting again",
+    "Browser save/edit/reload with no account API writes; saved money reconstructed locally",
+    "Guest prices and output proofs match the shared validator for ECS pay-per-use/period/RI, Flexus L, ELB, OBS and one-time billing",
+    "Cart and project JSON imports are atomic; project imports create independent carts",
+    "JSON downloads validate and import into an authenticated account project with the same price",
+    "Unicode compressed sharing, fresh recipient IDs, preserved existing carts and authenticated recipients",
+    "Recipient edits leave sender data unchanged; reload does not reimport the shared cart",
+    "Clipboard cut/paste and queued configurations without account writes",
+    "Invalid import/share data, corrupt storage recovery, quota failures and conflicting tabs preserve existing data",
+    "Existing calculator, API, schema popup and action menu regressions",
+    "All published default service/region/billing combinations validated",
+    "TypeScript, production build and lint with three pre-existing warnings",
+    "Private test application uses an internal Docker network; no upstream runtime dependency",
+    "Live HTTPS anonymous save/reload/JSON export validation, share-link copy, mobile recipient editing/reload and schema popup with no production account writes, external requests or iframes"
+  ],
+  "publicChecks": {
+    "anonymousSaveEditReload": true,
+    "JSONExportValidated": true,
+    "schemaPopup": true,
+    "sharedCopyRecipient": true,
+    "mobile": true,
+    "clipboardCopy": true,
+    "noProductionAccountWrites": true,
+    "noExternalRequests": true,
+    "noIframes": true,
+    "price": 3.59232
+  },
+  "workerImageUnchanged": "sha256:654dacc53e79ddb74bcd2c106e16a164fd434d5f952d61547a550819324ce63a",
+  "limits": {
+    "carts": 100,
+    "totalProducts": 1000,
+    "workspaceBytes": 2000000,
+    "shareCharacters": 64000,
+    "sharing": "Immutable copies, not live collaboration or revocable server records"
+  },
+  "scope": "Standalone carts and shared pricing output. This does not repair outstanding daily-worker audit failures or establish exhaustive current upstream comparisons of all conditional branches."
+}

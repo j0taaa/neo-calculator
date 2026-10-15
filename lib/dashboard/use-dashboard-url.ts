@@ -25,6 +25,7 @@ type Options = {
   applyServiceUrlState: (state: DashboardUrlState) => void;
   ready: boolean;
   projects: AppProject[];
+  standaloneLists?: AppList[];
   setSelectedListId: Dispatch<SetStateAction<string>>;
   handleEditProduct: (
     product: AppProduct,
@@ -61,6 +62,7 @@ export function useDashboardUrl({
   applyServiceUrlState,
   ready,
   projects,
+  standaloneLists,
   setSelectedListId,
   handleEditProduct,
   handleCancelEdit,
@@ -138,6 +140,7 @@ export function useDashboardUrl({
     isApplyingUrlStateRef.current = true;
 
     try {
+      const availableLists = [...projects.flatMap(project => project.lists), ...(standaloneLists ?? [])];
       if (pendingUrlState.serviceCode?.startsWith("HUAWEI:") && !directoryReady && !services.some(service => service.code === pendingUrlState.serviceCode)) return;
       if (pendingUrlState.serviceCode) {
         const serviceMeta = services.find(service => service.code === pendingUrlState.serviceCode) ?? getServiceMeta(pendingUrlState.serviceCode, pendingUrlState.serviceCode);
@@ -181,9 +184,7 @@ export function useDashboardUrl({
           ) ?? null)
         : null;
       const preferredList = pendingUrlState.listId
-        ? (projects
-            .flatMap((project) => project.lists)
-            .find((list) => list.id === pendingUrlState.listId) ?? null)
+        ? (availableLists.find((list) => list.id === pendingUrlState.listId) ?? null)
         : null;
       const resolvedListId =
         preferredList?.id ?? preferredProject?.lists[0]?.id ?? "";
@@ -196,11 +197,8 @@ export function useDashboardUrl({
         const targetListId =
           pendingUrlState.editProductListId ?? resolvedListId;
         const targetList = targetListId
-          ? (projects
-              .flatMap((project) => project.lists)
-              .find((list) => list.id === targetListId) ?? null)
-          : (projects.flatMap(project => project.lists)
-              .find(list => list.products.some(product => product.id === pendingUrlState.editProductId)) ?? null);
+          ? (availableLists.find((list) => list.id === targetListId) ?? null)
+          : (availableLists.find(list => list.products.some(product => product.id === pendingUrlState.editProductId)) ?? null);
         const targetProduct =
           targetList?.products.find(
             (product) => product.id === pendingUrlState.editProductId,
@@ -215,9 +213,11 @@ export function useDashboardUrl({
         handleCancelEdit();
       }
 
+      if (pendingUrlState.modalKind === "project-huawei" || pendingUrlState.modalKind === "list-link") {
+        window.location.replace("/huawei-carts"); return;
+      }
       if (pendingUrlState.modalKind) {
         if (
-          pendingUrlState.modalKind === "project-huawei" ||
           pendingUrlState.modalKind === "project-clone" ||
           pendingUrlState.modalKind === "project-share"
         ) {
@@ -260,6 +260,7 @@ export function useDashboardUrl({
     handleEditProduct,
     listsById,
     projects,
+    standaloneLists,
     projectsById,
     ready,
     setActiveModal,

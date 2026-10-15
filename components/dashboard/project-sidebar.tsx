@@ -3,7 +3,6 @@ import { type ActionMenuItem } from "@/components/home-page-shell-parts";
 import {
   Copy,
   Download,
-  RefreshCw,
   Share2,
   Trash2,
   Upload,
@@ -17,7 +16,8 @@ import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import type { DashboardModel } from "@/lib/dashboard/use-dashboard";
-import { formatDate, formatDateTime } from "@/lib/utils";
+import Link from "next/link";
+import { CreateResourceButton } from "./create-resource-button";
 import {
   Check,
   ChevronDown,
@@ -28,7 +28,6 @@ import {
 } from "lucide-react";
 
 export function ProjectSidebar({
-  huawei,
   projectStore,
   projectActions,
   transfer,
@@ -41,12 +40,7 @@ export function ProjectSidebar({
   openProjectMenuId,
   setOpenProjectMenuId,
 }: DashboardModel["projects"]) {
-  const {
-    huaweiCartsSyncedAt,
-    huaweiCartsError,
-    projectHuaweiMessages,
-    projectHuaweiMessageErrors,
-  } = huawei;
+
   const {
     projects,
     projectsError,
@@ -55,14 +49,9 @@ export function ProjectSidebar({
     toggleProject,
     selectedListId,
     setSelectedListId,
-    totalProjectLists,
-    totalProjectProducts,
   } = projectStore;
   const {
-    newProjectName,
-    setNewProjectName,
     handleCreateProject,
-    newProjectPending,
     editingProjectId,
     renamingProjectId,
     deletingProjectId,
@@ -107,39 +96,12 @@ export function ProjectSidebar({
           <div className="flex items-center justify-between">
             <div>
               <CardTitle>My Projects</CardTitle>
-              <p className="mt-1 text-sm text-zinc-500">
-                {isSignedIn
-                  ? "Projects and lists are scoped to your account."
-                  : "Browse anonymously. Sign in when you want to save carts and projects."}
-              </p>
-              {huaweiCartsSyncedAt ? (
-                <p className="mt-1 text-xs text-zinc-400">
-                  Huawei carts synced {formatDateTime(huaweiCartsSyncedAt)}
-                </p>
-              ) : null}
-              {huaweiCartsError ? (
-                <p className="mt-1 text-xs text-red-600">{huaweiCartsError}</p>
-              ) : null}
+              {isSignedIn && <Link href="/cart" className="mt-1 inline-block text-xs text-zinc-600 underline">Open local carts</Link>}
+
             </div>
-            <Badge variant="secondary">{projects.length}</Badge>
-          </div>
-          <div className="flex flex-col gap-2">
-            <div className="flex flex-wrap gap-2">
-              <Input
-                value={newProjectName}
-                onChange={(event) => setNewProjectName(event.target.value)}
-                className="min-w-0 basis-full"
-                placeholder="New project name"
-                disabled={!isSignedIn}
-              />
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleCreateProject}
-                disabled={newProjectPending || !isSignedIn}
-              >
-                {newProjectPending ? "Adding..." : "New Project"}
-              </Button>
+            <div className="flex items-center gap-1">
+              <Badge variant="secondary">{projects.length}</Badge>
+              <CreateResourceButton kind="project" onCreate={handleCreateProject} disabled={!isSignedIn} />
               <ActionMenu
                 open={isProjectCreateMenuOpen}
                 onOpenChange={setIsProjectCreateMenuOpen}
@@ -147,6 +109,8 @@ export function ProjectSidebar({
                 items={projectCreateMenuItems}
               />
             </div>
+          </div>
+          <div className="flex flex-col gap-2">
             {projectsError ? (
               <p className="text-sm text-red-600">{projectsError}</p>
             ) : null}
@@ -165,8 +129,7 @@ export function ProjectSidebar({
             <div className="space-y-3 py-3">
               {!isSignedIn ? (
                 <div className="rounded-lg border border-dashed bg-zinc-50 p-4 text-sm text-zinc-500">
-                  Sign in to save carts and projects. The calculator and Huawei
-                  cookie tools still work without an account.
+                  Sign in to save projects. Local Carts and Huawei Carts also work without a Neo account.
                 </div>
               ) : null}
               {projectsLoading ? (
@@ -183,10 +146,7 @@ export function ProjectSidebar({
                   projectCloneMessages[project.id] ?? "";
                 const projectCloneIsError =
                   projectCloneMessageErrors[project.id] ?? false;
-                const projectHuaweiMessage =
-                  projectHuaweiMessages[project.id] ?? "";
-                const projectHuaweiMessageIsError =
-                  projectHuaweiMessageErrors[project.id] ?? false;
+
                 const projectImportMessage =
                   projectImportMessages[project.id] ?? "";
                 const projectImportMessageIsError =
@@ -210,15 +170,7 @@ export function ProjectSidebar({
                     onSelect: () => openCartImportPicker(project.id),
                     disabled: importCartPendingProjectId === project.id,
                   },
-                  {
-                    label: "Create Huawei Carts",
-                    icon: <RefreshCw className="size-4" />,
-                    onSelect: () =>
-                      openActionModal({
-                        kind: "project-huawei",
-                        projectId: project.id,
-                      }),
-                  },
+
                   {
                     label: "Clone Project",
                     icon: <Copy className="size-4" />,
@@ -296,12 +248,12 @@ export function ProjectSidebar({
                           >
                             <p className="font-medium">{project.name}</p>
                             <p className="text-sm text-zinc-500">
-                              {project.lists.length} lists ·{" "}
+                              {project.lists.length} carts ·{" "}
                               {project.lists.reduce(
                                 (sum, list) => sum + list.productCount,
                                 0,
                               )}{" "}
-                              products · {formatDate(project.updatedAt)}
+                              resources
                             </p>
                           </button>
                         )}
@@ -399,24 +351,14 @@ export function ProjectSidebar({
                     {isExpanded ? (
                       <div className="border-t border-zinc-100 px-3 py-3">
                         <div className="space-y-2">
-                          {projectHuaweiMessage ||
+                          {
                           projectCloneMessage ||
                           projectImportMessage ||
                           projectExportMessage ||
                           projectShareMessage ? (
                             <div className="rounded-lg border bg-zinc-50 p-3">
                               <div className="space-y-1 text-xs">
-                                {projectHuaweiMessage ? (
-                                  <p
-                                    className={
-                                      projectHuaweiMessageIsError
-                                        ? "text-red-600"
-                                        : "text-zinc-600"
-                                    }
-                                  >
-                                    {projectHuaweiMessage}
-                                  </p>
-                                ) : null}
+
                                 {projectCloneMessage ? (
                                   <p
                                     className={
@@ -476,25 +418,11 @@ export function ProjectSidebar({
                                   <div>
                                     <div className="flex flex-wrap items-center gap-2">
                                       <p className="font-medium">{item.name}</p>
-                                      {item.huaweiCartKey ? (
-                                        <Badge variant="secondary">
-                                          Huawei linked
-                                        </Badge>
-                                      ) : null}
                                     </div>
                                     <p className="text-sm text-zinc-500">
-                                      {item.productCount} products · Created{" "}
-                                      {formatDate(item.createdAt)}
+                                      {item.productCount} resources
                                     </p>
-                                    {item.huaweiCartName ? (
-                                      <p className="text-xs text-zinc-400">
-                                        {item.huaweiCartName}
-                                      </p>
-                                    ) : null}
                                   </div>
-                                  <Badge variant="outline">
-                                    {item.productCount}
-                                  </Badge>
                                 </div>
                               </button>
                               <Button
@@ -513,7 +441,7 @@ export function ProjectSidebar({
                           ))}
                           {project.lists.length === 0 ? (
                             <div className="rounded-lg border border-dashed bg-zinc-50 p-4 text-sm text-zinc-500">
-                              This project does not have lists yet.
+                              No carts yet.
                             </div>
                           ) : null}
                         </div>
@@ -522,10 +450,6 @@ export function ProjectSidebar({
                   </div>
                 );
               })}
-              <div className="rounded-lg border border-dashed bg-zinc-50 p-4 text-sm text-zinc-500">
-                {projects.length} projects containing {totalProjectLists} lists
-                and {totalProjectProducts} products.
-              </div>
             </div>
           </ScrollArea>
         </CardContent>

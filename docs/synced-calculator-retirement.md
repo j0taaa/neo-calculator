@@ -1,5 +1,7 @@
 # Retired synchronized calculator
 
+> Historical documentation: the live browser renderer described below has been retired. Use [the independent daily calculator architecture](standalone-calculator.md) for current behavior and deployment.
+
 The Huawei live tab is the sole synchronized calculator. The original declarative calculators remain available. The QuickJS interpreter, verification/publication worker, standalone form, old form/quote APIs, captured audit API, and QuickJS dependency have been removed.
 
 ## Saved estimates and imports

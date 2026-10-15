@@ -14,6 +14,7 @@ import {
 } from "@/lib/resource-export";
 import type { Dispatch, SetStateAction } from "react";
 import { useRef, useState } from "react";
+import { guestCartDocument } from "../guest-carts/store";
 
 type Options = {
   session: { user: { id: string } } | null;
@@ -58,12 +59,12 @@ export function useResourceTransfer({
     Record<string, boolean>
   >({});
 
-  const [importCartTargetProjectId, setImportCartTargetProjectId] = useState<
+  const [importCartPendingProjectId, setImportCartPendingProjectId] = useState<
     string | null
   >(null);
 
-  const [importCartPendingProjectId, setImportCartPendingProjectId] = useState<
-    string | null
+  const [resourceImportDialog, setResourceImportDialog] = useState<
+    { kind: "project" } | { kind: "cart"; projectId: string } | null
   >(null);
 
   const projectImportInputRef = useRef<HTMLInputElement>(null);
@@ -78,10 +79,7 @@ export function useResourceTransfer({
 
     setImportProjectMessage("");
     setImportProjectMessageIsError(false);
-    if (projectImportInputRef.current) {
-      projectImportInputRef.current.value = "";
-      projectImportInputRef.current.click();
-    }
+    setResourceImportDialog({ kind: "project" });
   };
 
   const openCartImportPicker = (projectId: string) => {
@@ -90,15 +88,20 @@ export function useResourceTransfer({
       return;
     }
 
-    setImportCartTargetProjectId(projectId);
     setProjectImportMessages((current) => ({ ...current, [projectId]: "" }));
     setProjectImportMessageErrors((current) => ({
       ...current,
       [projectId]: false,
     }));
-    if (cartImportInputRef.current) {
-      cartImportInputRef.current.value = "";
-      cartImportInputRef.current.click();
+    setResourceImportDialog({ kind: "cart", projectId });
+  };
+
+  const chooseResourceImportFile = () => {
+    const input = resourceImportDialog?.kind === "project"
+      ? projectImportInputRef.current : cartImportInputRef.current;
+    if (input) {
+      input.value = "";
+      input.click();
     }
   };
 
@@ -201,7 +204,6 @@ export function useResourceTransfer({
       }));
     } finally {
       setImportCartPendingProjectId(null);
-      setImportCartTargetProjectId(null);
     }
   };
 
@@ -236,6 +238,12 @@ export function useResourceTransfer({
       buildListExportPayload(project, list),
       buildNamedExportFilename("cart", list.name, "json"),
     );
+  };
+
+  const handleOpenStandaloneCartExport = (cart: AppList) => {
+    openResourceExportModal("Export Cart JSON", "This export contains this standalone cart and all its products.",
+      guestCartDocument(cart),
+      buildNamedExportFilename("cart", cart.name, "json"));
   };
 
   const handleExportProjectExcel = async (project: AppProject) => {
@@ -323,6 +331,7 @@ export function useResourceTransfer({
     );
   };
   return {
+    handleOpenStandaloneCartExport,
     importProjectPending,
     importProjectMessage,
     importProjectMessageIsError,
@@ -333,10 +342,12 @@ export function useResourceTransfer({
     projectImportMessageErrors,
     projectExportMessages,
     projectExportMessageErrors,
-    importCartTargetProjectId,
     importCartPendingProjectId,
     projectImportInputRef,
     cartImportInputRef,
+    resourceImportDialog,
+    setResourceImportDialog,
+    chooseResourceImportFile,
     openProjectImportPicker,
     openCartImportPicker,
     handleImportProjectFile,

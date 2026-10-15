@@ -33,6 +33,7 @@ export type CalculatorControllerInput = {
   setActiveTab: (value: string) => void;
   session: { user: { id: string } } | null;
   isSignedIn: boolean;
+  canSave?: boolean;
   setProjects: Dispatch<SetStateAction<AppProject[]>>;
   setSelectedService: (value: string) => void;
   setQuery: (value: string) => void;

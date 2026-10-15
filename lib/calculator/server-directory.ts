@@ -1,11 +1,9 @@
 import { huaweiRegions, getCatalogRegionId, type HuaweiRegionKey } from "@/lib/huawei-regions";
 import { legacyRegion } from "./service-directory";
-import { nativeRequest } from "@/lib/huawei-native/native-client";
-import type { NativeDirectory } from "@/lib/huawei-native/native-types";
-// Public discovery remains usable for existing API clients if the optional sidecar is unavailable.
+import { SnapshotStore } from "@/lib/huawei-snapshot/store";
+// Read the published directory without loading individual catalogs or audit evidence.
 export async function calculatorDirectory() {
-  if (!process.env.HUAWEI_NATIVE_URL || !process.env.HUAWEI_NATIVE_TOKEN) return null;
-  return nativeRequest<NativeDirectory>(undefined, 15000).catch(() => null);
+  return new SnapshotStore().active().then(release=>release.directory).catch(()=>null);
 }
 
 export async function ecsCatalogScope(requested: string | null) {

@@ -280,7 +280,7 @@ test("retired service bookmarks preserve their identity and report unavailabilit
 test("new and removed services remain searchable through the shared header", async ({ page }) => {
   await mocked(page);
   await page.goto("/?region=cn-hong-kong");
-  await page.getByRole("button", { name: "Open service search" }).click();
+  await page.getByRole("button", { name: "Service", exact: true }).click();
   await page.getByRole("combobox", { name: "Search services" }).fill("Future Huawei");
   await page.getByRole("listbox").getByRole("option").filter({ hasText: "Future Huawei Service" }).click();
   await expect(page.getByLabel("Service", { exact: true })).toHaveAttribute("data-value", "HUAWEI:future-service");

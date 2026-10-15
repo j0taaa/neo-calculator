@@ -13,11 +13,8 @@ type Options = {
   setProjectsError: Dispatch<SetStateAction<string>>;
   setProjects: Dispatch<SetStateAction<AppProject[]>>;
   setExpandedProjects: Dispatch<SetStateAction<Record<string, boolean>>>;
-  cookieValue: string;
   setSelectedListId: Dispatch<SetStateAction<string>>;
   setActiveModal: Dispatch<SetStateAction<ActiveModal>>;
-  setHuaweiActionMessage: Dispatch<SetStateAction<string>>;
-  loadHuaweiCarts: () => Promise<void>;
   setProjectCloneNameDrafts: Dispatch<SetStateAction<Record<string, string>>>;
   setProjectCloneTargetRegions: Dispatch<
     SetStateAction<Record<string, "" | HuaweiRegionKey>>
@@ -38,11 +35,8 @@ export function useProjectActions({
   setProjectsError,
   setProjects,
   setExpandedProjects,
-  cookieValue,
   setSelectedListId,
   setActiveModal,
-  setHuaweiActionMessage,
-  loadHuaweiCarts,
   setProjectCloneNameDrafts,
   setProjectCloneTargetRegions,
   setProjectCloneTargetBillingModes,
@@ -51,10 +45,6 @@ export function useProjectActions({
   editingProductListId,
   handleCancelEdit,
 }: Options) {
-  const [newProjectName, setNewProjectName] = useState("");
-
-  const [newProjectPending, setNewProjectPending] = useState(false);
-
   const [editingProjectId, setEditingProjectId] = useState<string | null>(null);
 
   const [projectNameDrafts, setProjectNameDrafts] = useState<
@@ -71,9 +61,7 @@ export function useProjectActions({
 
   const [listDrafts, setListDrafts] = useState<Record<string, string>>({});
 
-  const [listBaseDrafts, setListBaseDrafts] = useState<Record<string, string>>(
-    {},
-  );
+  const [cartActionMessage, setCartActionMessage] = useState("");
 
   const [listPendingProjectId, setListPendingProjectId] = useState<
     string | null
@@ -81,47 +69,35 @@ export function useProjectActions({
 
   const [deletingListId, setDeletingListId] = useState<string | null>(null);
 
-  const handleCreateProject = async () => {
+  const handleCreateProject = async (projectName: string) => {
     if (!session) {
-      setProjectsError("Sign in to save carts and projects.");
-      return;
+      throw new Error("Sign in to create projects.");
     }
 
-    const name = newProjectName.trim();
-    if (!name) return;
+    const name = projectName.trim();
+    if (!name) throw new Error("Enter a project name.");
 
-    setNewProjectPending(true);
     setProjectsError("");
+    const response = await fetch("/api/projects", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name }),
+    });
 
-    try {
-      const response = await fetch("/api/projects", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name }),
-      });
-
-      if (!response.ok) {
-        const payload = (await response.json().catch(() => null)) as {
-          error?: string;
-        } | null;
-        throw new Error(getResponseError(payload, "Unable to create project"));
-      }
-
-      const project = (await response.json()) as Omit<AppProject, "lists">;
-      setProjects((current) => [{ ...project, lists: [] }, ...current]);
-      setExpandedProjects((current) => ({ ...current, [project.id]: true }));
-      setProjectNameDrafts((current) => ({
-        ...current,
-        [project.id]: project.name,
-      }));
-      setNewProjectName("");
-    } catch (error) {
-      setProjectsError(
-        error instanceof Error ? error.message : "Unable to create project",
-      );
-    } finally {
-      setNewProjectPending(false);
+    if (!response.ok) {
+      const payload = (await response.json().catch(() => null)) as {
+        error?: string;
+      } | null;
+      throw new Error(getResponseError(payload, "Unable to create project"));
     }
+
+    const project = (await response.json()) as Omit<AppProject, "lists">;
+    setProjects((current) => [{ ...project, lists: [] }, ...current]);
+    setExpandedProjects((current) => ({ ...current, [project.id]: true }));
+    setProjectNameDrafts((current) => ({
+      ...current,
+      [project.id]: project.name,
+    }));
   };
 
   const handleCreateList = async (projectId: string) => {
@@ -131,15 +107,7 @@ export function useProjectActions({
     }
 
     const name = listDrafts[projectId]?.trim();
-    const baseCartKey = listBaseDrafts[projectId] ?? "";
-    const usingHuaweiBase = Boolean(baseCartKey);
-    if (!name && !usingHuaweiBase) return;
-    if (usingHuaweiBase && !cookieValue.trim()) {
-      setProjectsError(
-        "Save a Huawei Cloud cookie before importing a Huawei cart.",
-      );
-      return;
-    }
+    if (!name) return;
 
     setListPendingProjectId(projectId);
     setProjectsError("");
@@ -150,8 +118,6 @@ export function useProjectActions({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           name,
-          huaweiCartKey: baseCartKey || null,
-          cookie: baseCartKey ? cookieValue : undefined,
         }),
       });
 
@@ -176,7 +142,6 @@ export function useProjectActions({
       );
       setSelectedListId((current) => current || list.id);
       setListDrafts((current) => ({ ...current, [projectId]: "" }));
-      setListBaseDrafts((current) => ({ ...current, [projectId]: "" }));
       setExpandedProjects((current) => ({ ...current, [projectId]: true }));
       setActiveModal((current) =>
         current?.kind === "project-add-cart" &&
@@ -185,14 +150,7 @@ export function useProjectActions({
           ? null
           : current,
       );
-      setHuaweiActionMessage(
-        baseCartKey
-          ? `Imported ${list.name} from Huawei Cloud Calculator.`
-          : "",
-      );
-      if (baseCartKey) {
-        await loadHuaweiCarts();
-      }
+      setCartActionMessage("");
     } catch (error) {
       setProjectsError(
         error instanceof Error ? error.message : "Unable to create list",
@@ -353,7 +311,6 @@ export function useProjectActions({
       setEditingProjectId((current) =>
         current === project.id ? null : current,
       );
-      await loadHuaweiCarts();
     } catch (error) {
       setProjectsError(
         error instanceof Error ? error.message : "Unable to delete project",
@@ -372,7 +329,7 @@ export function useProjectActions({
     }
 
     setDeletingListId(list.id);
-    setHuaweiActionMessage("");
+    setCartActionMessage("");
 
     try {
       const response = await fetch(`/api/lists/${list.id}`, {
@@ -409,10 +366,9 @@ export function useProjectActions({
       if (editingProductListId === payload.id) {
         handleCancelEdit();
       }
-      setHuaweiActionMessage(`Deleted ${list.name}.`);
-      await loadHuaweiCarts();
+      setCartActionMessage(`Deleted ${list.name}.`);
     } catch (error) {
-      setHuaweiActionMessage(
+      setCartActionMessage(
         error instanceof Error ? error.message : "Unable to delete cart",
       );
     } finally {
@@ -420,9 +376,6 @@ export function useProjectActions({
     }
   };
   return {
-    newProjectName,
-    setNewProjectName,
-    newProjectPending,
     editingProjectId,
     projectNameDrafts,
     setProjectNameDrafts,
@@ -430,8 +383,7 @@ export function useProjectActions({
     deletingProjectId,
     listDrafts,
     setListDrafts,
-    listBaseDrafts,
-    setListBaseDrafts,
+    cartActionMessage,
     listPendingProjectId,
     deletingListId,
     handleCreateProject,

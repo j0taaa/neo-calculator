@@ -89,6 +89,11 @@ export default function DocsPage() {
       </div>
 
       <div className="mx-auto max-w-4xl px-8 py-8">
+        <section className="mb-12 space-y-3 rounded-lg border border-zinc-200 p-4">
+          <h2 className="text-xl font-semibold text-zinc-900">Generate carts with an AI agent</h2>
+          <p className="text-sm text-zinc-600">Give your agent the resource JSON schema. It describes every published service, region and billing mode and explains how to discover conditional options and validate a complete quotation. Discovery and validation use the local catalog and require no sign-in. Importing requires your account or API key.</p>
+          <a className="text-sm font-medium text-blue-700 underline" href="/api/v1/cart/schema?download=1">Download the complete resource JSON schema</a>
+        </section>
         <section className="mb-12">
           <h2 className="mb-4 text-xl font-semibold text-zinc-900">Authentication</h2>
           <div className="rounded-lg border border-zinc-200 bg-zinc-50 p-4">

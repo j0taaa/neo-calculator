@@ -1,0 +1,76 @@
+{
+  "date": "2026-10-15",
+  "feature": "UI simplification",
+  "removed": [
+    "duplicate navbar service search and its shared React context",
+    "repeated service codes and Enter badges in search results",
+    "random per-field selection colors",
+    "repeated synchronization messages and flavor-card price captions",
+    "duplicate cart share button and empty-cart filters",
+    "internal product type codes in cart rows",
+    "obsolete Huawei link badges and linked cart names",
+    "duplicate project counts and sidebar summary panel",
+    "redundant account prompts and navbar registration button",
+    "Huawei account ID repetition and refresh timestamp"
+  ],
+  "retained": [
+    "service picker with Ctrl+K, keyboard selection and focus restoration",
+    "all pricing controls, billing modes and regions",
+    "ECS flavor browser and explicit RI reference-price meaning",
+    "price breakdown, rate date and official comparison link",
+    "local and project cart management, sharing and clipboard operations",
+    "JSON imports, exports and synchronized schema popup",
+    "batch configurations and legacy text batch import",
+    "Huawei account connection, import and reviewed export",
+    "API key management and catalog export settings",
+    "account registration through sign-in"
+  ],
+  "validation": {
+    "unitTestsPassed": 503,
+    "isolatedRouteTestsPassed": 14,
+    "fullBrowserRegressionTestsPassed": 79,
+    "finalImageFocusedBrowserTestsPassed": 31,
+    "finalImageRefinements": [
+      "Resource name accessible label matches its visible label",
+      "RI flavor cards are described as pay-per-use compute references"
+    ],
+    "viewports": [
+      280,
+      375,
+      1440
+    ],
+    "allServiceBrowserCoverage": 97,
+    "agentDefaultCombinationCoverage": {
+      "attempted": 2168,
+      "quoted": 2145,
+      "expectedUnavailableOrInformational": 23
+    },
+    "calculatorRequestsDuringDurationEdits": 0,
+    "typecheck": "passed",
+    "lint": "passed with three existing unrelated warnings",
+    "productionBuild": "passed",
+    "networkIsolation": "Internal Docker network; Huawei connection and transfer responses intercepted by browser tests."
+  },
+  "productionImage": "sha256:df5f66176aaddfc041dcfd61c71b3fcc704fe04dcd55cd648ed885b928dd9884",
+  "pricingEngineOrCatalogRulesChanged": false,
+  "livePublicHttps": {
+    "localCalculationWithoutRequests": true,
+    "localCartSave": true,
+    "cartTransfersAccessible": true,
+    "priceDetailsAccessible": true,
+    "serviceSearchAccessible": true,
+    "responsiveLayout": true,
+    "correctProjectSignInGuidance": true,
+    "huaweiConnectionAccessible": true,
+    "registrationAccessible": true,
+    "noExternalRequestsOrIframes": true,
+    "noPageErrors": true
+  },
+  "deployment": {
+    "url": "https://calculator.hwctools.site",
+    "runtimeSourceFilesMatched": 17,
+    "tlsVerification": "passed",
+    "httpRedirectsToHttps": true,
+    "existingWorkerImageUnchanged": true
+  }
+}

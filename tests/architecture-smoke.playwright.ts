@@ -40,7 +40,7 @@ async function createTestCart(page: Page, baseURL: string | undefined) {
 }
 
 async function selectService(page: Page, code: string) {
-  await page.getByRole("button", { name: "Open service search" }).click();
+  await page.getByRole("button", { name: "Service", exact: true }).click();
   const search = page.getByRole("combobox", { name: "Search services" });
   await search.fill(code);
   await page.getByRole("option").filter({ hasText: serviceCatalog.find((service) => service.code === code)!.name }).first().click();
@@ -286,8 +286,9 @@ test("projects page shares create, clone, export and delete workflows with the d
   const {project,list}=await createTestCart(page,baseURL);
   await page.goto('/projects');
   await expect(page.getByText(project.name,{exact:true}).first()).toBeVisible();
-  await page.getByPlaceholder('New project name').fill('Shared workflow project');
   await page.getByRole('button',{name:'New Project',exact:true}).click();
+  await page.getByRole('dialog',{name:'Create project',exact:true}).getByLabel('Project name',{exact:true}).fill('Shared workflow project');
+  await page.getByRole('button',{name:'Create project',exact:true}).click();
   await expect(page.getByText('Shared workflow project',{exact:true})).toBeVisible();
   await page.getByRole('button',{name:`Open actions for ${project.name}`,exact:true}).click();
   await page.getByRole('menuitem',{name:'Clone Project',exact:true}).click();

@@ -1,6 +1,6 @@
 import { copyText } from "@/lib/calculator-page-helpers";
 import type { AppList, AppProduct } from "@/lib/calculator-types";
-import { isEditableTarget } from "@/lib/page-utils";
+import { hasOpenDialog, isEditableTarget } from "@/lib/page-utils";
 import type { Dispatch, RefObject, SetStateAction } from "react";
 import { useEffect } from "react";
 
@@ -19,7 +19,7 @@ type Options = {
   handleCutSelectedCartItems: () => Promise<void>;
   selectedCartItemCount: number;
   clearCartItemSelection: () => void;
-  isSignedIn: boolean;
+  canUseCart: boolean;
   selectedListId: string;
   handlePasteCartItemsFromText: (clipboardText: string) => Promise<void>;
 };
@@ -39,7 +39,7 @@ export function useDashboardKeyboard({
   handleCutSelectedCartItems,
   selectedCartItemCount,
   clearCartItemSelection,
-  isSignedIn,
+  canUseCart,
   selectedListId,
   handlePasteCartItemsFromText,
 }: Options) {
@@ -68,6 +68,7 @@ export function useDashboardKeyboard({
     };
 
     const handleShortcut = (event: KeyboardEvent) => {
+      if (hasOpenDialog()) return;
       if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "k") {
         event.preventDefault();
         setIsSearchOpen(true);
@@ -147,7 +148,8 @@ export function useDashboardKeyboard({
     };
 
     const handlePaste = (event: ClipboardEvent) => {
-      if (isEditableTarget(event.target) || !isSignedIn || !selectedListId) {
+      if (hasOpenDialog()) return;
+      if (isEditableTarget(event.target) || !canUseCart || !selectedListId) {
         return;
       }
 
@@ -175,7 +177,7 @@ export function useDashboardKeyboard({
     filteredCartProducts,
     handleCutSelectedCartItems,
     handlePasteCartItemsFromText,
-    isSignedIn,
+    canUseCart,
     profileAreaRef,
     searchAreaRef,
     searchInputRef,

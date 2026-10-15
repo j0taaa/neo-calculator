@@ -1,0 +1,100 @@
+{
+  "feature": "Huawei account cart copies",
+  "date": "2026-10-15",
+  "url": "https://calculator.hwctools.site/huawei-carts",
+  "publishedRelease": "2533df6a32ff35d7c55f2647075d83b0a1104aec1f08304e2e515d51ab120bd6",
+  "automated": {
+    "unitTestsPassed": 503,
+    "isolatedRouteTestsPassed": 14,
+    "browserRegressionTestsPassed": 70,
+    "huaweiWorkspaceBrowserTestsPassed": 15,
+    "typecheck": "passed",
+    "lint": "passed with three existing unrelated warnings",
+    "productionBuild": "passed",
+    "browserApplicationNetwork": "private Docker network with external access blocked",
+    "browserHuaweiResponses": "intercepted fixtures, separate from live HTTP checks",
+    "viewports": [
+      280,
+      375,
+      1440
+    ]
+  },
+  "offlineTransferAudit": {
+    "attemptedDefaultServiceRegionModeCombinations": 2168,
+    "quoted": 2145,
+    "expectedUnavailableOrInformational": 23,
+    "editableNativeRoundTrips": 2145,
+    "editableOfficialShapeWithoutNeoMetadata": 2145,
+    "failures": 0,
+    "checks": [
+      "independent selected products",
+      "component amounts and quantities",
+      "billing modes and terms",
+      "installment schedules",
+      "preservation of unknown resources"
+    ],
+    "scope": "All published default service/region/billing combinations; this is not a fresh upstream audit of every conditional option."
+  },
+  "liveHuaweiHttp": {
+    "passwordLoginWithoutBrowser": "passed",
+    "savedCartAccess": "passed",
+    "temporaryCartCreated": true,
+    "resourceCount": 7,
+    "resources": [
+      "ECS pay-per-use",
+      "ECS subscription",
+      "ECS reserved instance",
+      "Flexus L subscription",
+      "ELB pay-per-use",
+      "OBS pay-per-use",
+      "CCM one-time"
+    ],
+    "identicalSavedPayload": true,
+    "roundTripPricesMatched": true,
+    "replacementOfTemporaryCart": "passed",
+    "temporaryCartDeletedAndAbsenceVerified": true,
+    "existingHuaweiCartsModified": false,
+    "credentialsOrPrivateResponsesInFixtures": false
+  },
+  "coverage": [
+    "anonymous local import and project import permissions",
+    "bulk import retry and previous-copy history",
+    "read-only signed preservation and JSON interoperability",
+    "new-copy and reviewed replacement exports",
+    "account/source/destination changes and expired confirmations",
+    "idempotent writes and ambiguous failure protection",
+    "cross-tab source changes",
+    "Huawei name and document size limits",
+    "connection expiry, disconnect, IAM and MFA UI",
+    "same-origin protection and credential attempt limits",
+    "encrypted portal session and separate stable deployment key",
+    "large curl request bodies and authenticated redirect protection",
+    "offline native calculator regressions and input latency"
+  ],
+  "providerLimitations": [
+    "Huawei replacement has no atomic compare-and-swap; a remote edit after the final revision check cannot be prevented.",
+    "Unknown or unreproducible resources retain saved estimates and original payloads instead of being represented as editable fresh quotes."
+  ],
+  "livePublicHttps": {
+    "login": true,
+    "protectedCookie": true,
+    "cartAccess": true,
+    "anonymousImport": true,
+    "resourceCountPreserved": true,
+    "pricesMatched": true,
+    "JSONValidated": true,
+    "noIframes": true,
+    "noExternalBrowserRequests": true,
+    "noHuaweiCookieInLocalStorage": true,
+    "disconnect": true
+  },
+  "deployment": {
+    "image": "sha256:6150bbc34de041f2cc661ddc741178003b1ac872aa0d22333660ed9a6a59ce84",
+    "runtimeSourceFilesMatched": 35,
+    "tlsVerification": "passed",
+    "httpRedirectsToHttps": true,
+    "formerPreviewRedirect": "passed",
+    "existingWorkerImageUnchanged": true,
+    "separateStrongHuaweiKeyConfigured": true
+  }
+}

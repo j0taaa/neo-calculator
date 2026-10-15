@@ -63,8 +63,8 @@ export function useCalculatorController({
   editingProductListId,
   setEditingProductListId,
   setActiveTab,
-  session,
   isSignedIn,
+  canSave = isSignedIn,
   setProjects,
   setSelectedService,
   setQuery,
@@ -222,7 +222,7 @@ export function useCalculatorController({
   };
 
   const handleAddToList = async () => {
-    if (!session) {
+    if (!canSave) {
       setAddToListMessage("Sign in to save carts and projects.");
       return;
     }
@@ -273,7 +273,7 @@ export function useCalculatorController({
   };
 
   const handleBatchAdd = async () => {
-    if (!session) {
+    if (!canSave) {
       setBatchAddMessage("Sign in to save carts and projects.");
       return;
     }
@@ -335,7 +335,7 @@ export function useCalculatorController({
     onBatchInputChange: setBatchInput,
     batchAddMessage,
     onSubmit: handleBatchAdd,
-    submitDisabled: batchAddPending || !selectedListId || !isSignedIn,
+    submitDisabled: batchAddPending || !selectedListId || !canSave,
     submitLabel: batchAddPending ? "Adding Batch..." : "Add Batch",
   };
   const batchPanelProps: CalculatorControllerResult["batchPanelProps"] =

@@ -1,0 +1,38 @@
+{
+  "testedAt": "2026-10-14T17:57:11.486951Z",
+  "publishedRelease": "2533df6a32ff35d7c55f2647075d83b0a1104aec1f08304e2e515d51ab120bd6",
+  "schemaVersion": 2,
+  "services": 97,
+  "regions": 28,
+  "serviceRegionScopes": 1369,
+  "defaultBillingScopeChecks": 2168,
+  "quotedDefaultConfigurations": 2145,
+  "unavailableDefaultConfigurations": 23,
+  "unitTests": 479,
+  "browserApiTests": 26,
+  "checks": [
+    "Self-contained draft 2020-12 schema compiled by Ajv and sample draft validated",
+    "All published service/region/billing-mode defaults discovered and priced or rejected as unavailable",
+    "Agent-only ECS/ELB/Flexus L/RI project generated, validated, imported and reopened",
+    "ECS additional disk action and dependent numeric choice",
+    "Actual JSON cart download/upload and v2 project file upload",
+    "Session and API-key import rejection leaves project/cart records unchanged",
+    "Saved export IDs stripped before creating fresh records",
+    "Copied prices replaced by current local calculation",
+    "Invalid choices, labels, quantities, structure and stale releases rejected with JSON Pointer errors",
+    "Valid configurations, quantities and prices survive import/export round trip",
+    "Existing calculator and API regression suite",
+    "TypeScript, lint (three pre-existing warnings) and production build"
+  ],
+  "externalAccess": "Private Docker application attached only to an internal network; Huawei DNS resolution fails. Browser external requests aborted and none observed.",
+  "priceComparison": "New format reconstructs selections with the existing independent engine and matches its API and UI prices. This task does not re-audit every conditional branch against Huawei or repair outstanding daily worker audit failures.",
+  "productionImage": "sha256:47490292210061df73ba94ee31c710670b712158c33065bcc3dbcbcd72332a69",
+  "publicChecks": {
+    "checks": 8,
+    "schemaServices": 97,
+    "schemaRegions": 28,
+    "releaseId": "2533df6a32ff35d7c55f2647075d83b0a1104aec1f08304e2e515d51ab120bd6",
+    "publicOrigin": "HTTPS verified",
+    "readOnly": true
+  }
+}

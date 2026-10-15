@@ -1,0 +1,292 @@
+{
+  "recordedAt": "2026-10-09T14:50:49.031615Z",
+  "status": "verified-and-deployed",
+  "runtimeRevision": "8f97678",
+  "appImage": "sha256:e771d24b9d0c3fbf84a2d4a7ec76c14ea38060efaf13bfe111252d25519c5938",
+  "release": "681cb612a0ad2d97d773deb2eab8b6a2953370bef17fd7f181c65305dd783f1c",
+  "bridgeHash": "ecfe1d67531131b2a84951c4d8bf0cf452b08e7025b7d62386b31aae8d1bd986",
+  "changes": [
+    "Preload the pinned framework graph and bridge in parallel; preserve original module execution order.",
+    "Open the initial calculator on the next turn after hydration; retain the 200 ms debounce for subsequent scope changes."
+  ],
+  "unchanged": [
+    "Official script/style/catalog content",
+    "Local rating, conditional rules and quote-settling checks",
+    "Snapshot release and generated bridge",
+    "Daily worker and main production"
+  ],
+  "checks": {
+    "unit": {
+      "passed": 441,
+      "failed": 0
+    },
+    "browser": {
+      "passed": 32,
+      "failed": 0,
+      "minutes": 7.9,
+      "applicationHasInternetAccess": false,
+      "additionalModuleReuseRegressionPassed": 1
+    },
+    "typescript": {
+      "passed": true
+    },
+    "eslint": {
+      "errors": 0,
+      "existingWarnings": 3
+    },
+    "productionBuild": {
+      "passed": true
+    },
+    "serviceSweep": {
+      "services": 97,
+      "apiUiPriceMatches": 95,
+      "editableQuantityChecks": 40,
+      "officialNonQuotableStatesPreserved": 2
+    },
+    "startupComparison": {
+      "scopes": [
+        "ECS ONDEMAND Hong Kong",
+        "ECS PERIOD Hong Kong",
+        "ECS RI Hong Kong",
+        "ELB ONDEMAND Hong Kong",
+        "Flexus L PERIOD Hong Kong",
+        "CCM ONETIME Hong Kong",
+        "APIG ONDEMAND cn-east-4"
+      ],
+      "conditionalFieldsAndNotesIdentical": true,
+      "amountCurrencyBreakdownAndPaymentIdentical": true,
+      "duplicateModuleFetches": 0
+    },
+    "delayedDirectoryHydration": {
+      "correctInitialScope": true,
+      "onlyOneFrameOpened": true,
+      "scopes": [
+        "CCM ONETIME",
+        "Flexus L PERIOD",
+        "ECS RI"
+      ]
+    },
+    "publicHttps": {
+      "status": 200,
+      "tlsVerificationResult": 0,
+      "httpRedirectStatus": 308
+    },
+    "publicSmoke": {
+      "at": "2026-10-09T14:44:23.845Z",
+      "url": "https://calculator-offline.hwctools.site",
+      "release": "681cb612a0ad2d97d773deb2eab8b6a2953370bef17fd7f181c65305dd783f1c",
+      "services": 97,
+      "regions": 28,
+      "publicServicesEntries": 98,
+      "ecsPrice": 0.14968,
+      "ecsQuantityDurationTwoPrice": 0.29936,
+      "initialMilliseconds": 3662,
+      "externalRequests": 0,
+      "nativePosts": 0,
+      "checks": [
+        "service directory advertises the offline API workflow",
+        "ECS alias schema requires local pricing data",
+        "old advertised catalog URL works with the published snapshot",
+        "invalid regions and service identities return client errors",
+        "calculation requires an API key",
+        "published API docs describe calculation",
+        "public ECS loads automatically, preserves flavor cards and edits entirely locally"
+      ],
+      "passed": true
+    },
+    "publicAssetLoading": {
+      "resources": 5,
+      "startTimesMilliseconds": [
+        129,
+        129,
+        129,
+        129,
+        129
+      ],
+      "duplicateFetches": 0,
+      "allStartedTogether": true
+    }
+  },
+  "benchmarks": {
+    "local": {
+      "before": {
+        "url": "http://127.0.0.1:3307",
+        "trials": [
+          {
+            "trial": 1,
+            "readyMs": 7376,
+            "loaderMs": 2397,
+            "editObservedMs": 113,
+            "loaderVisibleAfterEdit": 0
+          },
+          {
+            "trial": 2,
+            "readyMs": 2557,
+            "loaderMs": 1804,
+            "editObservedMs": 111,
+            "loaderVisibleAfterEdit": 0
+          },
+          {
+            "trial": 3,
+            "readyMs": 2458,
+            "loaderMs": 1736,
+            "editObservedMs": 74,
+            "loaderVisibleAfterEdit": 0
+          },
+          {
+            "trial": 4,
+            "readyMs": 2546,
+            "loaderMs": 1732,
+            "editObservedMs": 79,
+            "loaderVisibleAfterEdit": 0
+          },
+          {
+            "trial": 5,
+            "readyMs": 2443,
+            "loaderMs": 1737,
+            "editObservedMs": 72,
+            "loaderVisibleAfterEdit": 0
+          }
+        ],
+        "externalRequests": 0,
+        "nativePosts": 0,
+        "pageErrors": [],
+        "passed": true
+      },
+      "after": {
+        "url": "http://127.0.0.1:3307",
+        "trials": [
+          {
+            "trial": 1,
+            "readyMs": 2767,
+            "loaderMs": 2063,
+            "editObservedMs": 97,
+            "loaderVisibleAfterEdit": 0
+          },
+          {
+            "trial": 2,
+            "readyMs": 2015,
+            "loaderMs": 1470,
+            "editObservedMs": 68,
+            "loaderVisibleAfterEdit": 0
+          },
+          {
+            "trial": 3,
+            "readyMs": 2132,
+            "loaderMs": 1587,
+            "editObservedMs": 99,
+            "loaderVisibleAfterEdit": 0
+          },
+          {
+            "trial": 4,
+            "readyMs": 2103,
+            "loaderMs": 1550,
+            "editObservedMs": 79,
+            "loaderVisibleAfterEdit": 0
+          },
+          {
+            "trial": 5,
+            "readyMs": 1936,
+            "loaderMs": 1675,
+            "editObservedMs": 77,
+            "loaderVisibleAfterEdit": 0
+          }
+        ],
+        "externalRequests": 0,
+        "nativePosts": 0,
+        "pageErrors": [],
+        "passed": true
+      },
+      "excludedFirstNavigation": true,
+      "medianFirstPriceBeforeMs": 2502.0,
+      "medianFirstPriceAfterMs": 2059.0,
+      "improvementPercent": 17.70583533173461
+    },
+    "public": {
+      "before": {
+        "url": "https://calculator-offline.hwctools.site",
+        "trials": [
+          {
+            "trial": 1,
+            "readyMs": 3882,
+            "loaderMs": 2205,
+            "editObservedMs": 129,
+            "loaderVisibleAfterEdit": 0
+          },
+          {
+            "trial": 2,
+            "readyMs": 2381,
+            "loaderMs": 1632,
+            "editObservedMs": 111,
+            "loaderVisibleAfterEdit": 0
+          },
+          {
+            "trial": 3,
+            "readyMs": 2342,
+            "loaderMs": 1576,
+            "editObservedMs": 121,
+            "loaderVisibleAfterEdit": 0
+          }
+        ],
+        "externalRequests": 0,
+        "nativePosts": 0,
+        "pageErrors": [],
+        "passed": true
+      },
+      "after": {
+        "url": "https://calculator-offline.hwctools.site",
+        "trials": [
+          {
+            "trial": 1,
+            "readyMs": 3113,
+            "loaderMs": 1962,
+            "editObservedMs": 97,
+            "loaderVisibleAfterEdit": 0
+          },
+          {
+            "trial": 2,
+            "readyMs": 1771,
+            "loaderMs": 1433,
+            "editObservedMs": 77,
+            "loaderVisibleAfterEdit": 0
+          },
+          {
+            "trial": 3,
+            "readyMs": 1919,
+            "loaderMs": 1401,
+            "editObservedMs": 88,
+            "loaderVisibleAfterEdit": 0
+          },
+          {
+            "trial": 4,
+            "readyMs": 2050,
+            "loaderMs": 1503,
+            "editObservedMs": 76,
+            "loaderVisibleAfterEdit": 0
+          },
+          {
+            "trial": 5,
+            "readyMs": 1855,
+            "loaderMs": 1553,
+            "editObservedMs": 91,
+            "loaderVisibleAfterEdit": 0
+          }
+        ],
+        "externalRequests": 0,
+        "nativePosts": 0,
+        "pageErrors": [],
+        "passed": true
+      },
+      "excludedFirstNavigation": true,
+      "medianFirstPriceBeforeMs": 2361.5,
+      "medianFirstPriceAfterMs": 1887.0,
+      "improvementPercent": 20.09316112640271
+    },
+    "protocol": "ECS Hong Kong pay-per-use; same published snapshot before/after. First navigation is reported separately and excluded from repeated-load medians. Public baseline comes from the preceding loading-message check; local baseline and clean follow-up ran without concurrent browser suites.",
+    "limits": [
+      "Small samples from this VPS; timings depend on hardware, cache and network.",
+      "Cold startup still initializes the complete self-hosted official rule engine.",
+      "Checks cover tested configurations; they do not enumerate every possible input combination."
+    ]
+  }
+}

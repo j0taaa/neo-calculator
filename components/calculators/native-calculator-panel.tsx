@@ -64,7 +64,7 @@ export function NativeCalculatorPanel({ editingProduct, onSave, onCancelEdit, sc
     setSaving(true); setSaveMessage("");
     try {
       await onSave(nativeDraft(state, serviceName, title || serviceName));
-      if (JSON.stringify(currentScope.current) === savedScope) setSaveMessage(editingProduct ? "Product updated with a fresh Huawei price." : "Product added with a fresh Huawei price.");
+      if (JSON.stringify(currentScope.current) === savedScope) setSaveMessage(editingProduct ? "Changes saved." : "Added to cart.");
     } catch (error) {
       if (JSON.stringify(currentScope.current) === savedScope) { invalidate(); setSaveMessage(error instanceof Error ? error.message : "Unable to save product"); }
     } finally { saveLock.current = false; setSaving(false); }
@@ -73,7 +73,7 @@ export function NativeCalculatorPanel({ editingProduct, onSave, onCancelEdit, sc
     .slice()
     .sort((a, b) => Number(!!names[b.id]) - Number(!!names[a.id]) || a.name.localeCompare(b.name));
   const renderField = (field: NativeField) => (
-                  <div data-calculator-focus-group key={`${state?.revision}:${field.id}`}>
+                  <div data-calculator-focus-group key={`${field.component}:${field.id}:${field.type}:${field.label}`}>
                     {field.type === "action" ? (
                       <Button
                         variant="outline"
@@ -109,6 +109,7 @@ export function NativeCalculatorPanel({ editingProduct, onSave, onCancelEdit, sc
                         ) : (
                           <NativeNumericField
                             field={field}
+                            revision={state?.revision ?? 0}
                             invalidate={invalidate}
                             change={(value) => change(field, value)}
                           />
@@ -121,11 +122,7 @@ export function NativeCalculatorPanel({ editingProduct, onSave, onCancelEdit, sc
   return (
     <section data-calculator-shortcut-root className="@container/native mx-auto min-w-0 space-y-5 px-4 py-4 pb-6">
       {!embedded && <div>
-        <h1 className="text-xl font-semibold @min-[640px]/native:text-2xl">Huawei live calculator</h1>
-        <p className="mt-3 max-w-3xl text-sm text-zinc-600">
-          Configure services using Huawei’s current options and regional rules. Prices come directly from Huawei after
-          each change. Billing modes, purchase terms and payment options follow the selected service and region.
-        </p>
+        <h1 className="text-xl font-semibold @min-[640px]/native:text-2xl">Cloud calculator</h1>
       </div>}
       {legacy && editingProduct && (
         <Card>
@@ -143,8 +140,8 @@ export function NativeCalculatorPanel({ editingProduct, onSave, onCancelEdit, sc
       )}
       <div className="space-y-5">
         <fieldset disabled={saving} className="grid min-w-0 gap-4 @min-[480px]/native:grid-cols-2">
-          {onSave && <label className="space-y-2 text-sm font-medium">Description (Optional)
-            <Input aria-label="Description" value={title} onChange={event => setTitle(event.target.value)} placeholder={serviceName} disabled={saving} />
+          {onSave && <label className="space-y-2 text-sm font-medium">Resource name (optional)
+            <Input aria-label="Resource name" value={title} onChange={event => setTitle(event.target.value)} placeholder={serviceName} disabled={saving} />
           </label>}
           {!embedded && <label className="space-y-2 text-sm font-medium">Service
             <NativeChoiceField label="Huawei service" value={service} disabled={saving}
@@ -165,12 +162,13 @@ export function NativeCalculatorPanel({ editingProduct, onSave, onCancelEdit, sc
         </div>
         {directory && !modes.length && <p role="status" className="text-sm text-zinc-600">Huawei has no calculator billing modes for this service in the selected region.</p>}
       </div>
-      {busy && <p role="status" className="text-sm text-zinc-500">{state ? "Updating options and checking the Huawei price…" : "Loading the official calculator…"}</p>}
+      {busy && <p role="status" className="text-sm text-zinc-500">{saving ? "Saving quotation…" : "Loading calculator data…"}</p>}
       {error && <div role="alert" className="rounded-lg bg-red-50 p-4 text-sm text-red-700">
         <p>{error}</p>
         <Button variant="outline" className="mt-3" disabled={busy || !directory || !modes.length} onClick={() => void open()}>Retry calculator</Button>
       </div>}
-      {service === "ecs" && <NativeFlavorBrowser key={region} enabled={autoOpen} region={region} billingMode={billingMode}
+      {service === "ecs" && <NativeFlavorBrowser key={region} enabled={autoOpen && !!state} region={region} billingMode={billingMode}
+        releaseId={state?.local?.release} locationCode={state?.local?.pricing.selectedProduct.locationCode}
         disabled={busy || !state} selectedFlavor={state?.inquiries?.flatMap(inquiry => inquiry.productInfos).find(product => product.resourceType === "hws.resource.type.vm")?.resourceSpecCode}
         onSelect={chooseFlavor} />}
       {state && (
@@ -185,7 +183,7 @@ export function NativeCalculatorPanel({ editingProduct, onSave, onCancelEdit, sc
                 {state.fields.filter(field => service !== "ecs" || !["CPU Architecture", "Type", "Generation", "vCPUs", "Memory"].includes(field.label)).map(renderField)}
               </fieldset>
               {state.notes.length > 0 && (
-                <details className="mt-6 text-sm">
+                <details className="mt-6 text-sm" open={!!state.availability}>
                   <summary className="cursor-pointer">Huawei configuration notes</summary>
                   <div className="mt-3 space-y-3 text-zinc-600">
                     {state.notes.map((note, i) => (
@@ -206,17 +204,10 @@ export function NativeCalculatorPanel({ editingProduct, onSave, onCancelEdit, sc
                     {state.quote.currency}{" "}
                     {state.quote.amount.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 6 })}
                   </p>
-                  <p className="text-xs text-zinc-500">
-                    For the selected duration, usage and quantity. Checked{" "}
-                    {new Date(state.quote.quotedAt).toLocaleTimeString()}.
-                  </p>
-                  <p data-testid="scope-status" className="text-sm text-green-700">
-                    Price checked with Huawei
-                  </p>
                 </>
               ) : (
                 <p data-testid="scope-status" className="text-sm text-amber-800">
-                  {busy ? "Waiting for the updated configuration" : "Price unavailable"}
+                  {busy ? "Waiting for the updated configuration" : state.availability === "information" ? "Huawei provides billing information for this mode, without a quotation form." : state.availability === "unavailable" ? "Huawei has no purchasable options for this configuration." : "Price unavailable"}
                 </p>
               )}
                 </div>
@@ -228,13 +219,13 @@ export function NativeCalculatorPanel({ editingProduct, onSave, onCancelEdit, sc
                     I reviewed these selections against the original estimate.
                   </label>}
                   <Button data-calculator-add-button onClick={save} disabled={busy || !canSave || !state.quote || (legacy && !legacyReviewed)}>
-                    {editingProduct ? "Save Changes" : "Add to List"}
+                    {editingProduct ? "Save Changes" : "Add to cart"}
                   </Button>
                   {!editingProduct && onQueue && <Button variant="outline" disabled={busy || !state.quote} onClick={() => {
                     onQueue(nativeDraft(state, serviceName, title || serviceName, true));
                     setSaveMessage("Configuration queued for batch.");
                   }}>Queue for batch</Button>}
-                  {!canSave && <p className="text-sm text-zinc-500">Sign in and select a cart to save.</p>}
+                  {!canSave && <p className="text-sm text-zinc-500">Create or select a cart to save.</p>}
                   {editingProduct && (
                     <Button variant="outline" onClick={onCancelEdit} disabled={busy}>
                       Cancel
@@ -265,6 +256,7 @@ export function NativeCalculatorPanel({ editingProduct, onSave, onCancelEdit, sc
               {state.quote && (
                 <details className="text-sm">
                   <summary className="cursor-pointer">Price components</summary>
+                  <p className="mt-3 text-xs text-zinc-500">Rates updated {new Date(state.quote.quotedAt).toLocaleString()}.</p>
                   <ul className="mt-3 space-y-3">
                     {state.quote.breakdown.map((product) => (
                       <li key={product.id}>
@@ -275,8 +267,14 @@ export function NativeCalculatorPanel({ editingProduct, onSave, onCancelEdit, sc
                       </li>
                     ))}
                   </ul>
+                  <a className="mt-3 inline-block text-xs text-zinc-500 underline underline-offset-4"
+                    href={`https://www.huaweicloud.com/intl/en-us/pricing/calculator.html?region=${encodeURIComponent(region)}&inIframe=true#/${encodeURIComponent(service)}`}
+                    target="_blank" rel="noopener noreferrer">Compare with Huawei</a>
                 </details>
               )}
+              {!state.quote && <a className="text-xs text-zinc-500 underline underline-offset-4"
+                href={`https://www.huaweicloud.com/intl/en-us/pricing/calculator.html?region=${encodeURIComponent(region)}&inIframe=true#/${encodeURIComponent(service)}`}
+                target="_blank" rel="noopener noreferrer">Compare with Huawei</a>}
               {state.quote?.payment && (
                 <div className="space-y-1 text-sm" data-testid="native-payment">
                   <p>Upfront: USD {state.quote.payment.upfront.toLocaleString("en-US", {minimumFractionDigits:2,maximumFractionDigits:6})}</p>
@@ -284,9 +282,6 @@ export function NativeCalculatorPanel({ editingProduct, onSave, onCancelEdit, sc
                   {state.quote.payment.extras.map(extra => <p key={extra.mode}>{nativeBillingModes[extra.mode as NativeBillingMode]?.label ?? extra.mode} extras: USD {extra.recurring.toLocaleString("en-US", {minimumFractionDigits:2,maximumFractionDigits:6})} / {state.quote!.payment!.period} × {state.quote!.payment!.installments}</p>)}
                 </div>
               )}
-              <a className="text-xs text-zinc-500 underline underline-offset-4"
-                href={`https://www.huaweicloud.com/intl/en-us/pricing/calculator.html?region=${encodeURIComponent(region)}&inIframe=true#/${encodeURIComponent(service)}`}
-                target="_blank" rel="noopener noreferrer">Compare with Huawei</a>
             </div>
           </div>
         </div>

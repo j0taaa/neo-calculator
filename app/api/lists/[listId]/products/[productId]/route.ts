@@ -1,3 +1,4 @@
+import { productInputError, snapshotServiceCode } from "@/lib/product-input";
 import { isLegacyHuaweiProduct, LEGACY_RECONFIGURE_MESSAGE } from "@/lib/huawei-native/legacy-product";
 import { isNativeProduct, verifyNativeProduct } from "@/lib/huawei-native/native-product";
 import type { ProductMutationBody } from "@/lib/calculator-types";
@@ -19,9 +20,11 @@ export async function PATCH(request: Request, context: { params: Promise<{ listI
 
   const { listId, productId } = await context.params;
   let body = await readJsonBody<UpdateListProductBody>(request);
+  const inputError = productInputError(body);
+  if (inputError) return jsonError(inputError);
   const listAccess = getListAccessForUser(session.user.id, listId);
 
-  const serviceCode = body?.serviceCode?.trim();
+  let serviceCode = body?.serviceCode?.trim();
   const serviceName = body?.serviceName?.trim();
   let productType = body?.productType?.trim();
   const title = body?.title?.trim();
@@ -30,6 +33,7 @@ export async function PATCH(request: Request, context: { params: Promise<{ listI
   if (!serviceCode || !serviceName || !productType || !title) {
     return jsonError("serviceCode, serviceName, productType, and title are required");
   }
+  serviceCode = snapshotServiceCode(serviceCode, body?.config);
   if (!listAccess) {
     return jsonError("List not found", 404);
   }
@@ -50,6 +54,7 @@ export async function PATCH(request: Request, context: { params: Promise<{ listI
   if (!product) {
     return jsonError("Product not found", 404);
   }
+  body = { ...body, serviceCode, serviceName, productType, title };
 
   if (isLegacyHuaweiProduct({ serviceCode, productType })) return jsonError(LEGACY_RECONFIGURE_MESSAGE, 422);
 

@@ -8,7 +8,6 @@ import { nativeBillingModes } from "@/lib/huawei-native/native-billing";
 import { isHuaweiCalculatorProduct } from "@/lib/huawei-native/legacy-product";
 
 import { applyProductMutation, saveCalculatorProducts } from "@/lib/calculator-cart";
-import { useNavbar } from "@/components/navbar-context";
 import { useSessionContext } from "@/components/session-provider";
 import { getResponseError } from "@/lib/calculator-page-helpers";
 import type { AppProduct, ProductMutationBody } from "@/lib/calculator-types";
@@ -16,9 +15,9 @@ import { useCalculatorShortcuts } from "@/lib/dashboard/use-calculator-shortcuts
 import { useCartContents } from "@/lib/dashboard/use-cart-contents";
 import { useDashboardKeyboard } from "@/lib/dashboard/use-dashboard-keyboard";
 import { useDashboardUrl } from "@/lib/dashboard/use-dashboard-url";
-import { useHuaweiCarts } from "@/lib/dashboard/use-huawei-carts";
 import { useProjectActions } from "@/lib/dashboard/use-project-actions";
 import { useProjectStore } from "@/lib/dashboard/use-project-store";
+import { useGuestCarts } from "@/lib/dashboard/use-guest-carts";
 import { useResourceCloning } from "@/lib/dashboard/use-resource-cloning";
 import { useResourceSharing } from "@/lib/dashboard/use-resource-sharing";
 import { useResourceTransfer } from "@/lib/dashboard/use-resource-transfer";
@@ -32,10 +31,9 @@ const subscribeToHydration = () => () => {};
 const clientSnapshot = () => true;
 const serverSnapshot = () => false;
 
-export function useDashboard() {
+export function useDashboard({ standalone = false }: { standalone?: boolean } = {}) {
   const { session, isPending: isSessionPending } = useSessionContext();
 
-  const { setConfig } = useNavbar();
 
   const hasMounted = useSyncExternalStore(subscribeToHydration, clientSnapshot, serverSnapshot);
 
@@ -57,14 +55,15 @@ export function useDashboard() {
 
   const [usageHours, setUsageHours] = useState("744");
 
-  const projectStore = useProjectStore({ session });
-
-  const huawei = useHuaweiCarts({
-    session,
-    selectedList: projectStore.selectedList,
-    selectedListId: projectStore.selectedListId,
-    setProjects: projectStore.setProjects,
-  });
+  const guestMode = standalone || (showSessionState && !session);
+  const accountStore = useProjectStore({ session: standalone ? null : session });
+  const guest = useGuestCarts(guestMode);
+  const canUseCart = guestMode ? guest.ready : isSignedIn;
+  const projectStore = {
+    ...accountStore,
+    ...(guestMode ? { selectedList: guest.selectedList, selectedProject: null,
+      selectedListId: guest.selectedListId, setSelectedListId: guest.select } : {}),
+  };
 
   const transfer = useResourceTransfer({
     session,
@@ -145,6 +144,7 @@ export function useDashboard() {
 
   const activeDescendant = hasSuggestions ? `${listboxId}-${activeSuggestionIndex}` : undefined;
 
+  const mutateGuestProduct = guest.mutate;
   const mutateListProduct = useCallback(
     async (
       requestUrl: string,
@@ -152,6 +152,7 @@ export function useDashboard() {
       requestBody: ProductMutationBody,
       fallbackError: string,
     ) => {
+      if (guestMode) return mutateGuestProduct(requestUrl, requestMethod, requestBody);
       const response = await fetch(requestUrl, {
         method: requestMethod,
         headers: { "Content-Type": "application/json" },
@@ -169,7 +170,7 @@ export function useDashboard() {
 
       return payload;
     },
-    [],
+    [guestMode, mutateGuestProduct],
   );
 
   const legacyEditing = !!editingProductId && !nativeEditingProduct;
@@ -205,15 +206,22 @@ export function useDashboard() {
     setActiveTab,
     session,
     isSignedIn,
+    canSave: canUseCart,
     setProjects: projectStore.setProjects,
     setSelectedService,
     setQuery,
     mutateListProduct,
   });
 
+  const cancelLegacyEdit = legacyController.handleCancelEdit;
+  const cancelCalculatorEdit = useCallback(() => {
+    setNativeEditingProduct(null);
+    cancelLegacyEdit();
+  }, [cancelLegacyEdit]);
   const calculatorController = {
     ...legacyController,
     handleEditProduct: (product: AppProduct, listId = projectStore.selectedListId) => {
+      if (product.productType === "huawei-saved") return;
       if (!isHuaweiCalculatorProduct(product)) {
         setNativeEditingProduct(null);
         legacyController.handleEditProduct(product, listId);
@@ -235,13 +243,10 @@ export function useDashboard() {
       projectStore.setSelectedListId(listId);
       setActiveTab("calculator");
     },
-    handleCancelEdit: () => {
-      setNativeEditingProduct(null);
-      legacyController.handleCancelEdit();
-    },
+    handleCancelEdit: cancelCalculatorEdit,
   };
   const saveNativeProduct = async (product: ProductMutationBody, editing = true) => {
-    if (!isSignedIn) throw new Error("Sign in to save carts and projects.");
+    if (!canUseCart) throw new Error("Wait for your carts to finish loading.");
     if (!projectStore.selectedListId) throw new Error("Create or select a cart first.");
     await saveCalculatorProducts(
       { buildRequestBodies: () => product },
@@ -259,6 +264,10 @@ export function useDashboard() {
     );
   };
 
+  useEffect(() => {
+    if (editingProductListId && editingProductListId !== projectStore.selectedListId) cancelCalculatorEdit();
+  }, [editingProductListId, projectStore.selectedListId, cancelCalculatorEdit]);
+
   const nativeBatch = useNativeBatch(product => saveNativeProduct(product, false));
 
   useCalculatorShortcuts({ activeTab });
@@ -268,11 +277,10 @@ export function useDashboard() {
     setProjectsError: projectStore.setProjectsError,
     setProjects: projectStore.setProjects,
     setExpandedProjects: projectStore.setExpandedProjects,
-    cookieValue: huawei.cookieValue,
+
     setSelectedListId: projectStore.setSelectedListId,
     setActiveModal,
-    setHuaweiActionMessage: huawei.setHuaweiActionMessage,
-    loadHuaweiCarts: huawei.loadHuaweiCarts,
+
     setProjectCloneNameDrafts: cloning.setProjectCloneNameDrafts,
     setProjectCloneTargetRegions: cloning.setProjectCloneTargetRegions,
     setProjectCloneTargetBillingModes: cloning.setProjectCloneTargetBillingModes,
@@ -289,7 +297,9 @@ export function useDashboard() {
     setProjects: projectStore.setProjects,
     editingProductId,
     handleCancelEdit: calculatorController.handleCancelEdit,
-    isSignedIn,
+    canUseCart,
+    deleteLocalProducts: guestMode ? guest.deleteProducts : undefined,
+    validateProducts: guestMode ? guest.validateProducts : undefined,
     mutateListProduct,
   });
 
@@ -303,7 +313,8 @@ export function useDashboard() {
     setBillingMode,
     setActiveTab,
     applyServiceUrlState: calculatorController.applyServiceUrlState,
-    ready: !isSessionPending && projectStore.projectsReady,
+    ready: !isSessionPending && (guestMode ? guest.ready : projectStore.projectsReady),
+    standaloneLists: guestMode ? guest.lists : undefined,
     projects: projectStore.projects,
     setSelectedListId: projectStore.setSelectedListId,
     handleEditProduct: calculatorController.handleEditProduct,
@@ -336,25 +347,6 @@ export function useDashboard() {
 
     return () => window.clearTimeout(timeoutId);
   }, [isSearchOpen]);
-
-  useEffect(() => {
-    if (!openProjectMenuId && !isCartMenuOpen && !isProjectCreateMenuOpen) {
-      return;
-    }
-
-    const handlePointerDown = (event: MouseEvent) => {
-      if (event.target instanceof Element && event.target.closest("[data-action-menu-root]")) {
-        return;
-      }
-
-      setOpenProjectMenuId(null);
-      setIsProjectCreateMenuOpen(false);
-      setIsCartMenuOpen(false);
-    };
-
-    document.addEventListener("mousedown", handlePointerDown);
-    return () => document.removeEventListener("mousedown", handlePointerDown);
-  }, [isCartMenuOpen, isProjectCreateMenuOpen, openProjectMenuId]);
 
   useEffect(() => {
     if (!activeModal) {
@@ -397,28 +389,6 @@ export function useDashboard() {
     }
   };
 
-  useEffect(() => {
-    setConfig({
-      searchQuery: query,
-      onSearchClick: () => { setQuery(""); setActiveSuggestionIndex(0); setIsSearchOpen(true); },
-      cookieValue: huawei.cookieValue,
-      cookieValueSaved: huawei.cookieValue,
-      onCookieChange: huawei.setCookieDraft,
-      onSaveCookie: huawei.handleSaveCookie,
-      huaweiCartsLoading: huawei.huaweiCartsLoading,
-      loadHuaweiCarts: huawei.loadHuaweiCarts,
-      showHuaweiCarts: true,
-    });
-  }, [
-    query,
-    huawei.cookieValue,
-    huawei.huaweiCartsLoading,
-    huawei.loadHuaweiCarts,
-    setConfig,
-    huawei.handleSaveCookie,
-    huawei.setCookieDraft,
-  ]);
-
   const openActionModal = (modal: Exclude<ActiveModal, null>) => {
     setOpenProjectMenuId(null);
     setIsCartMenuOpen(false);
@@ -440,12 +410,13 @@ export function useDashboard() {
     handleCutSelectedCartItems: cart.handleCutSelectedCartItems,
     selectedCartItemCount: cart.selectedCartItemCount,
     clearCartItemSelection: cart.clearCartItemSelection,
-    isSignedIn,
+    canUseCart,
     selectedListId: projectStore.selectedListId,
     handlePasteCartItemsFromText: cart.handlePasteCartItemsFromText,
   });
 
   return {
+    guest, guestMode,
     cartCopyNotice: cart.cartCopyNotice,
     serviceSearch: {
       isSearchOpen,
@@ -464,7 +435,7 @@ export function useDashboard() {
       normalizedQuery,
     },
     projects: {
-      huawei,
+
       projectStore,
       projectActions,
       transfer,
@@ -482,6 +453,8 @@ export function useDashboard() {
       openServiceSearch: () => { setQuery(""); setActiveSuggestionIndex(0); setIsSearchOpen(true); },
       nativeEditingProduct,
       saveNativeProduct,
+      canUseCart,
+      guestMode,
       calculatorController,
       projectStore,
       locationState,
@@ -501,8 +474,9 @@ export function useDashboard() {
       setUsageHours,
     },
     cart: {
+      guest, guestMode,
       projectStore,
-      huawei,
+
       cloning,
       sharing,
       cart,
@@ -519,7 +493,7 @@ export function useDashboard() {
     exportDialog: { transfer },
     actionDialog: {
       projectActions,
-      huawei,
+
       cloning,
       sharing,
       projectStore,

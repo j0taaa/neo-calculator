@@ -1,8 +1,9 @@
 "use client";
+import { useId, useRef } from "react";
 
 import { isHuaweiCalculatorProduct } from "@/lib/huawei-native/legacy-product";
 import { type ActionMenuItem } from "@/components/home-page-shell-parts";
-import { Copy, Download, Link2, RefreshCw, Share2, Trash2 } from "lucide-react";
+import { Copy, Download, Upload, Share2, Trash2 } from "lucide-react";
 
 import { ActionMenu } from "@/components/home-page-shell-parts";
 import { Badge } from "@/components/ui/badge";
@@ -16,13 +17,11 @@ import { isRecord, splitProductPriceSummary } from "@/lib/calculator-page-helper
 import type { DashboardModel } from "@/lib/dashboard/use-dashboard";
 import { getServiceMeta, type CartSortOption } from "@/lib/page-utils";
 import { getProductConfigSummary } from "@/lib/product-config-summary";
-import { formatDateTime } from "@/lib/utils";
 import { Pencil, RotateCcw, Search, SlidersHorizontal } from "lucide-react";
 import Image from "next/image";
 
 export function CartSidebar({
   projectStore,
-  huawei,
   cloning,
   sharing,
   cart,
@@ -34,9 +33,13 @@ export function CartSidebar({
   setIsCartMenuOpen,
   editingProductId,
   isSignedIn,
+  guest,
+  guestMode,
 }: DashboardModel["cart"]) {
+  const filterId = useId();
+  const filterTrigger = useRef<HTMLButtonElement>(null);
   const { selectedList, selectedProject, selectedListId } = projectStore;
-  const { huaweiActionMessage, handleSyncSelectedList, syncingHuaweiListId } = huawei;
+
   const { cloneActionMessage, cloneActionIsError } = cloning;
   const { listShareMessages } = sharing;
   const {
@@ -64,23 +67,17 @@ export function CartSidebar({
   } = cart;
   const { handleCancelEdit, addToListPending, handleAddToList, handleEditProduct } = calculatorController;
   const { handleOpenListExport } = transfer;
-  const { handleDeleteList, deletingListId } = projectActions;
+  const { handleDeleteList, deletingListId, cartActionMessage } = projectActions;
   const selectedCartMenuItems: ActionMenuItem[] =
-    selectedList && selectedProject
+    selectedList && guestMode ? [
+      { label: "Export to Huawei Cloud", icon: <Upload className="size-4" />, onSelect: () => { window.location.href = `/huawei-carts?exportLocal=${encodeURIComponent(selectedList.id)}`; } },
+      { label: "Export Cart JSON", icon: <Download className="size-4" />, onSelect: () => transfer.handleOpenStandaloneCartExport(selectedList) },
+      { label: "Share Cart", icon: <Share2 className="size-4" />, onSelect: () => { void guest.openShare(selectedList.id); }, disabled: guest.busy },
+      { label: "Duplicate Cart", icon: <Copy className="size-4" />, onSelect: () => guest.clone(selectedList.id), disabled: guest.busy },
+      { label: "Delete Cart", icon: <Trash2 className="size-4" />, onSelect: () => { if (window.confirm(`Delete local cart ${selectedList.name}?`)) guest.remove(selectedList.id); }, disabled: guest.busy },
+    ] : selectedList && selectedProject
       ? [
-          {
-            label: selectedList.huaweiCartKey ? "Sync Huawei Cart" : "Create Huawei Cart",
-            icon: <RefreshCw className="size-4" />,
-            onSelect: () => {
-              void handleSyncSelectedList();
-            },
-            disabled: syncingHuaweiListId === selectedList.id,
-          },
-          {
-            label: "Link Huawei Cart",
-            icon: <Link2 className="size-4" />,
-            onSelect: () => openActionModal({ kind: "list-link", listId: selectedList.id }),
-          },
+          { label: "Export to Huawei Cloud", icon: <Upload className="size-4" />, onSelect: () => { window.location.href = `/huawei-carts?exportCart=${encodeURIComponent(selectedList.id)}`; } },
           {
             label: "Export Cart JSON",
             icon: <Download className="size-4" />,
@@ -119,29 +116,13 @@ export function CartSidebar({
       <Card className="min-w-0 overflow-hidden shadow-sm">
         <CardHeader className="pb-3">
           <div className="flex flex-wrap items-start justify-between gap-3">
-            <div className="min-w-0 basis-full">
-              <CardTitle>Cart Contents</CardTitle>
-              <p className="mt-1 truncate text-sm text-zinc-500">
-                {selectedList && selectedProject
-                  ? `${selectedProject.name} / ${selectedList.name}`
-                  : "Select a list to see its saved products."}
-              </p>
-              {selectedList?.huaweiCartKey ? (
-                <p className="mt-1 text-xs text-zinc-400">
-                  Linked to Huawei cart {selectedList.huaweiCartName || selectedList.huaweiCartKey}
-                </p>
-              ) : null}
-              {selectedList?.huaweiLastSyncedAt ? (
-                <p className="mt-1 text-xs text-zinc-400">
-                  Last Huawei sync: {formatDateTime(selectedList.huaweiLastSyncedAt)}
-                </p>
-              ) : null}
-              {selectedList?.huaweiLastError ? (
-                <p className="mt-1 text-xs text-red-600">{selectedList.huaweiLastError}</p>
-              ) : null}
-              {selectedList && (huaweiActionMessage || cloneActionMessage || listShareMessages[selectedList.id]) ? (
+            <div className="min-w-0 flex-1">
+              <CardTitle className="truncate" title={selectedList?.name}>{selectedList?.name ?? "Cart"}</CardTitle>
+              {selectedProject && <p className="mt-1 truncate text-sm text-zinc-500">{selectedProject.name}</p>}
+
+              {selectedList && (cartActionMessage || cloneActionMessage || listShareMessages[selectedList.id]) ? (
                 <div className="mt-2 space-y-1 text-xs">
-                  {huaweiActionMessage ? <p className="text-zinc-500">{huaweiActionMessage}</p> : null}
+                  {cartActionMessage ? <p className="text-zinc-500">{cartActionMessage}</p> : null}
                   {cloneActionMessage ? (
                     <p className={cloneActionIsError ? "text-red-600" : "text-zinc-500"}>{cloneActionMessage}</p>
                   ) : null}
@@ -152,28 +133,12 @@ export function CartSidebar({
               ) : null}
             </div>
             <div className="flex flex-wrap items-center gap-2">
-              <Badge variant="outline">
+              {selectedCartProducts.length > 0 && <Badge variant="outline">
                 {filteredCartProducts.length === selectedCartProducts.length
                   ? `${selectedCartProducts.length} items`
                   : `${filteredCartProducts.length} of ${selectedCartProducts.length} items`}
-              </Badge>
-              {selectedList?.huaweiCartKey ? <Badge variant="secondary">Huawei linked</Badge> : null}
-              {selectedList?.canShare ? (
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  onClick={() =>
-                    openActionModal({
-                      kind: "list-share",
-                      listId: selectedList.id,
-                    })
-                  }
-                  aria-label={`Share ${selectedList.name}`}
-                >
-                  <Share2 className="size-4" />
-                </Button>
-              ) : null}
+              </Badge>}
+
               {selectedList ? (
                 <ActionMenu
                   open={isCartMenuOpen}
@@ -184,8 +149,14 @@ export function CartSidebar({
               ) : null}
             </div>
           </div>
-          {selectedList ? (
-            <div className="mt-3 flex items-center gap-2">
+          {selectedList && (selectedCartProducts.length > 0 || hasActiveCartFilters) ? (
+            <div ref={cartFilterAreaRef} className="mt-3 flex flex-wrap items-center gap-2" onKeyDown={event => {
+              if (event.key === "Escape" && isCartFiltersOpen) {
+                event.preventDefault();
+                setIsCartFiltersOpen(false);
+                filterTrigger.current?.focus();
+              }
+            }}>
               <div className="relative min-w-0 flex-1">
                 <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-zinc-400" />
                 <Input
@@ -196,19 +167,20 @@ export function CartSidebar({
                   aria-label="Search cart items"
                 />
               </div>
-              <div ref={cartFilterAreaRef} className="relative">
                 <Button
+                  ref={filterTrigger}
                   type="button"
                   variant={isCartFiltersOpen || hasActiveCartFilters ? "default" : "outline"}
                   size="icon"
                   onClick={() => setIsCartFiltersOpen((current) => !current)}
                   aria-label="Open cart filters"
                   aria-expanded={isCartFiltersOpen}
+                  aria-controls={filterId}
                 >
                   <SlidersHorizontal className="size-4" />
                 </Button>
                 {isCartFiltersOpen ? (
-                  <div className="absolute top-full right-0 z-20 mt-2 w-72 rounded-xl border border-zinc-200 bg-white p-3 shadow-[0_18px_40px_-30px_rgba(15,23,42,0.35)]">
+                  <div id={filterId} role="region" aria-label="Cart filters" className="w-full basis-full space-y-3 rounded-xl border border-zinc-200 bg-zinc-50 p-3">
                     <div className="flex items-center justify-between gap-3">
                       <p className="text-sm font-medium text-zinc-950">Filter & Sort</p>
                       <Button
@@ -220,21 +192,23 @@ export function CartSidebar({
                           setCartSearchQuery("");
                           setCartServiceFilter("__all");
                           setCartSortOption("default");
+                          filterTrigger.current?.focus();
                         }}
                         disabled={!hasActiveCartFilters}
                       >
                         <RotateCcw className="size-4" />
-                        Default
+                        Reset
                       </Button>
                     </div>
                     <div className="mt-3 space-y-3">
                       <div className="space-y-1.5">
                         <p className="text-xs font-medium tracking-[0.16em] text-zinc-500 uppercase">Service</p>
                         <Select
+                          items={[{ value: "__all", label: "All services" }, ...cartServiceFilterOptions.map(option => ({ value: option.serviceCode, label: option.serviceName }))]}
                           value={cartServiceFilter}
                           onValueChange={(value) => setCartServiceFilter(value ?? "__all")}
                         >
-                          <SelectTrigger className="bg-white">
+                          <SelectTrigger aria-label="Filter by service" className="w-full bg-white">
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
@@ -250,10 +224,17 @@ export function CartSidebar({
                       <div className="space-y-1.5">
                         <p className="text-xs font-medium tracking-[0.16em] text-zinc-500 uppercase">Order</p>
                         <Select
+                          items={[
+                            { value: "default", label: "Saved order" },
+                            { value: "title-asc", label: "Title A-Z" },
+                            { value: "title-desc", label: "Title Z-A" },
+                            { value: "price-desc", label: "Price high to low" },
+                            { value: "price-asc", label: "Price low to high" },
+                          ]}
                           value={cartSortOption}
                           onValueChange={(value) => setCartSortOption(value as CartSortOption)}
                         >
-                          <SelectTrigger className="bg-white">
+                          <SelectTrigger aria-label="Sort cart items" className="w-full bg-white">
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
@@ -268,7 +249,6 @@ export function CartSidebar({
                     </div>
                   </div>
                 ) : null}
-              </div>
             </div>
           ) : null}
           {selectedList && selectedCartItemCount > 0 ? (
@@ -297,13 +277,13 @@ export function CartSidebar({
           <ScrollArea className="px-4 [&>[data-slot=scroll-area-viewport]]:max-h-72 xl:[&>[data-slot=scroll-area-viewport]]:max-h-[calc(100dvh-22rem)]">
             <div className="space-y-3 py-3">
               {!selectedList ? (
-                <div className="rounded-lg border border-dashed bg-zinc-50 p-4 text-sm text-zinc-500">
-                  Create a list and select it to use it as the active cart.
+                <div className="px-1 py-3 text-sm text-zinc-500">
+                  Create or select a cart to add resources.
                 </div>
               ) : null}
 
               {selectedList && selectedCartProducts.length === 0 ? (
-                <div className="rounded-lg border border-dashed bg-zinc-50 p-4 text-sm text-zinc-500">
+                <div className="px-1 py-3 text-sm text-zinc-500">
                   This cart is empty.
                 </div>
               ) : null}
@@ -363,11 +343,11 @@ export function CartSidebar({
                               {isSelectedProduct ? (
                                 <Badge className="bg-blue-600 text-white hover:bg-blue-600">Selected</Badge>
                               ) : null}
-                              {isEditingProduct ? <Badge>Editing</Badge> : null}
+                              {isEditingProduct ? <Badge>Editing</Badge> : null}{product.productType === "huawei-saved" && <Badge variant="secondary">Saved Huawei copy · read-only</Badge>}
                             </div>
                             <p className="mt-1 text-sm text-zinc-500">{getProductConfigSummary(product)}</p>
                             <p className="mt-1 text-xs text-zinc-400">
-                              {product.serviceCode} · {product.productType.toUpperCase()} · Qty {product.quantity}
+                              Qty {product.quantity}
                             </p>
                           </div>
                         </div>
@@ -402,7 +382,7 @@ export function CartSidebar({
                                   disabled={
                                     addToListPending ||
                                     !selectedListId ||
-                                    !isSignedIn ||
+                                    !(isSignedIn || guestMode) ||
                                     deletingProductId === product.id
                                   }
                                 >
@@ -419,7 +399,8 @@ export function CartSidebar({
                                 event.stopPropagation();
                                 handleEditProduct(product);
                               }}
-                              disabled={deletingProductId === product.id}
+                              disabled={deletingProductId === product.id || product.productType === "huawei-saved"}
+                              title={product.productType === "huawei-saved" ? "Preserved Huawei resource: original options and saved estimate are read-only." : undefined}
                               aria-label={`Edit ${product.title}`}
                             >
                               <Pencil className="size-4" />

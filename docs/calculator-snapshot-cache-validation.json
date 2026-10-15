@@ -1,0 +1,250 @@
+{
+  "recordedAt": "2026-10-09T16:11:12.370086Z",
+  "status": "verified-and-deployed",
+  "runtimeRevision": "c5c8cea",
+  "appImage": "sha256:e5e56beb02d921bc8fe3a8538213e9730fc4941c1574118d3d07f6356280b10a",
+  "release": "681cb612a0ad2d97d773deb2eab8b6a2953370bef17fd7f181c65305dd783f1c",
+  "bridgeHash": "ecfe1d67531131b2a84951c4d8bf0cf452b08e7025b7d62386b31aae8d1bd986",
+  "changes": [
+    "Serve session-independent scope/menu data as immutable scripts keyed by release and scope hash.",
+    "Keep session tokens, requested billing mode and location in an uncached lightweight frame.",
+    "Read verified scope metadata for the session shell; load and integrity-check catalogs when delivering data or calculating.",
+    "The daily oracle uses the same external-data bootstrap; inline delivery remains available for equivalence tests."
+  ],
+  "unchanged": [
+    "Published snapshot, executable vendor assets and bridge",
+    "Rating, conditional rules, quote-settling checks and API verification",
+    "Daily worker image and main production"
+  ],
+  "checks": {
+    "unit": {
+      "passed": 445,
+      "failed": 0,
+      "files": 99,
+      "expects": 2778
+    },
+    "browser": {
+      "passed": 33,
+      "failed": 0,
+      "minutes": 7.6,
+      "applicationHasInternetAccess": false
+    },
+    "typescript": {
+      "passed": true
+    },
+    "eslint": {
+      "errors": 0,
+      "existingWarnings": 3
+    },
+    "productionBuild": {
+      "passed": true
+    },
+    "serviceSweep": {
+      "services": 97,
+      "apiUiPriceMatches": 95,
+      "editableQuantityChecks": 40,
+      "officialNonQuotableStatesPreserved": 2
+    },
+    "deliveryComparison": {
+      "scopes": [
+        "ECS ONDEMAND Hong Kong",
+        "ECS PERIOD Hong Kong",
+        "ECS RI Hong Kong",
+        "ELB ONDEMAND Hong Kong",
+        "Flexus L PERIOD Hong Kong",
+        "CCM ONETIME Hong Kong",
+        "APIG ONDEMAND cn-east-4"
+      ],
+      "equal": [
+        "All fields, options, disabled states and input limits",
+        "Selected fields and conditional defaults",
+        "Notes, total, currency, component amounts and payment details"
+      ]
+    },
+    "cache": {
+      "browserCacheReuseVerified": true,
+      "sessionFrameCacheControl": "no-store",
+      "dataCacheControl": "public, max-age=31536000, immutable",
+      "tokensExcludedFromCachedData": true,
+      "unknownScopeIdsFailClosed": true,
+      "releaseAndScopeChangesUseDifferentUrls": true
+    },
+    "freshHuaweiOracle": {
+      "transport": "Existing sync-worker SOCKS connection; host alias resolved for the host-run test",
+      "scopes": [
+        {
+          "service": "ecs",
+          "region": "ap-southeast-1",
+          "modes": [
+            "PERIOD",
+            "ONDEMAND",
+            "RI"
+          ],
+          "componentChecks": 9
+        },
+        {
+          "service": "elb",
+          "region": "ap-southeast-1",
+          "modes": [
+            "PERIOD",
+            "ONDEMAND"
+          ],
+          "componentChecks": 3
+        },
+        {
+          "service": "hcss",
+          "region": "ap-southeast-1",
+          "modes": [
+            "PERIOD"
+          ],
+          "componentChecks": 3
+        }
+      ],
+      "componentChecks": 15,
+      "calibrationChanges": 0
+    },
+    "publicSmoke": {
+      "httpsStatus": 200,
+      "tlsVerification": 0,
+      "httpRedirectStatus": 301,
+      "nativeDirectory": 200,
+      "serviceDiscovery": 200,
+      "ecsSchema": 200,
+      "ecsCatalog": 200,
+      "externalCalculatorRequests": 0,
+      "nativePosts": 0
+    }
+  },
+  "payload": {
+    "oldInlineFrameBytes": 4874042,
+    "oldSizeEvidence": "Prior public frame profile recorded in /tmp/neo-startup-after.json",
+    "newSessionFrameBytes": 2646,
+    "cachedScopeDataBytes": 4871929
+  },
+  "performance": {
+    "method": "Same public ECS URL, five sequential navigations in a fresh Chromium context per revision; first navigation excluded from repeated medians. Small samples on a shared VPS.",
+    "publicBefore": {
+      "url": "https://calculator-offline.hwctools.site",
+      "trials": [
+        {
+          "trial": 1,
+          "readyMs": 4560,
+          "loaderMs": 2256,
+          "editObservedMs": 88,
+          "loaderVisibleAfterEdit": 0
+        },
+        {
+          "trial": 2,
+          "readyMs": 2084,
+          "loaderMs": 1541,
+          "editObservedMs": 97,
+          "loaderVisibleAfterEdit": 0
+        },
+        {
+          "trial": 3,
+          "readyMs": 2045,
+          "loaderMs": 1540,
+          "editObservedMs": 82,
+          "loaderVisibleAfterEdit": 0
+        },
+        {
+          "trial": 4,
+          "readyMs": 1959,
+          "loaderMs": 1434,
+          "editObservedMs": 94,
+          "loaderVisibleAfterEdit": 0
+        },
+        {
+          "trial": 5,
+          "readyMs": 1924,
+          "loaderMs": 1406,
+          "editObservedMs": 80,
+          "loaderVisibleAfterEdit": 0
+        }
+      ],
+      "externalRequests": 0,
+      "nativePosts": 0,
+      "pageErrors": [],
+      "passed": true
+    },
+    "publicAfter": {
+      "url": "https://calculator-offline.hwctools.site",
+      "trials": [
+        {
+          "trial": 1,
+          "readyMs": 2782,
+          "loaderMs": 1925,
+          "editObservedMs": 114,
+          "loaderVisibleAfterEdit": 0
+        },
+        {
+          "trial": 2,
+          "readyMs": 1786,
+          "loaderMs": 1232,
+          "editObservedMs": 87,
+          "loaderVisibleAfterEdit": 0
+        },
+        {
+          "trial": 3,
+          "readyMs": 1745,
+          "loaderMs": 1227,
+          "editObservedMs": 79,
+          "loaderVisibleAfterEdit": 0
+        },
+        {
+          "trial": 4,
+          "readyMs": 1937,
+          "loaderMs": 1301,
+          "editObservedMs": 85,
+          "loaderVisibleAfterEdit": 0
+        },
+        {
+          "trial": 5,
+          "readyMs": 1946,
+          "loaderMs": 1201,
+          "editObservedMs": 77,
+          "loaderVisibleAfterEdit": 0
+        }
+      ],
+      "externalRequests": 0,
+      "nativePosts": 0,
+      "pageErrors": [],
+      "passed": true
+    },
+    "publicRepeatedReadyMedianBeforeMs": 2002.0,
+    "publicRepeatedReadyMedianAfterMs": 1861.5,
+    "publicRepeatedLoaderMedianBeforeMs": 1487.0,
+    "publicRepeatedLoaderMedianAfterMs": 1229.5,
+    "freshBrowserAfterMs": 2782,
+    "warmCommittedDurationEditsMs": {
+      "ECS": [
+        62.9,
+        68.8,
+        56.6
+      ],
+      "ELB": [
+        61.6,
+        59.4,
+        49.9
+      ],
+      "NAT": [
+        38.3,
+        35.6,
+        35.6
+      ]
+    }
+  },
+  "rollout": {
+    "previewUrl": "https://calculator-offline.hwctools.site",
+    "productionChanged": false,
+    "workerChanged": false,
+    "rollbackOverride": "/tmp/neo-pre-cache-preview-images.yml"
+  },
+  "limits": [
+    "Initial opening still initializes the self-hosted official Vue/TinyVue engine; caching does not make startup instantaneous.",
+    "Performance samples are observations, not latency guarantees.",
+    "The service sweep samples one region per service; dedicated cases exercise mainland, partner, beta and HomeZone behavior. The complete published audit remains the region-coverage evidence.",
+    "Tests cover exercised input combinations, not every possible configuration.",
+    "The immutable data payload schema is a delivery contract; incompatible future encoding changes must use a new endpoint version."
+  ]
+}

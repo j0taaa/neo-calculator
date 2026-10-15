@@ -1,0 +1,70 @@
+{
+  "date": "2026-10-16",
+  "feature": "On-demand creation dialogs and cart filter usability",
+  "changes": [
+    "Plus-button project creation dialog on both the calculator and Projects page",
+    "Shared dialog for anonymous local-cart creation",
+    "Draft retention, actionable inline errors and duplicate-submission protection",
+    "Initial name focus, Tab containment, Enter submission, cancellation and trigger focus restoration",
+    "Calculator and clipboard shortcuts suspended behind visible dialogs",
+    "Cart filters expand inside the panel without clipping",
+    "Readable service/sort labels and keyboard focus restoration after Reset"
+  ],
+  "validation": {
+    "unitTestsPassed": 503,
+    "isolatedRouteTestsPassed": 14,
+    "fullBrowserRun": {
+      "total": 88,
+      "passed": 87,
+      "initialFocusAssertionFailure": 1,
+      "resolution": "The immediate assertion sampled Base UI's focus guard before its requestAnimationFrame focus handoff. It now waits for settled focus inside the dialog; no application source changed after the full run."
+    },
+    "focusedRerun": {
+      "uniqueCreationAndFilterScenarios": 9,
+      "repeatEach": 3,
+      "passed": 27,
+      "failed": 0
+    },
+    "uniqueBrowserScenariosVerifiedAcrossRuns": 88,
+    "viewports": [
+      280,
+      375,
+      1440
+    ],
+    "serviceFormsChecked": 97,
+    "agentDefaultCombinations": {
+      "attempted": 2168,
+      "quoted": 2145,
+      "expectedUnavailableOrInformational": 23
+    },
+    "typecheck": "passed",
+    "lint": "passed with three existing unrelated warnings",
+    "productionBuild": "passed",
+    "externalAccess": "blocked by the private Docker network"
+  },
+  "productionImage": "sha256:2b30b42552f889b79ae011b2d6cafa1dc7496e2996770f28067138ed082cfe0c",
+  "pricingEngineOrCatalogRulesChanged": false,
+  "livePublicHttps": {
+    "onDemandCreation": true,
+    "focusCancelAndKeyboardGuard": true,
+    "localCalculationWithoutRequests": true,
+    "localCartSave": true,
+    "readableInlineFilters": true,
+    "cartTransfersAccessible": true,
+    "priceDetailsAccessible": true,
+    "serviceSearchAccessible": true,
+    "responsiveLayout": true,
+    "correctProjectSignInGuidance": true,
+    "huaweiConnectionAccessible": true,
+    "registrationAccessible": true,
+    "noExternalRequestsOrIframes": true,
+    "noPageErrors": true
+  },
+  "deployment": {
+    "url": "https://calculator.hwctools.site",
+    "runtimeSourceFilesMatched": 12,
+    "tlsVerification": "passed",
+    "httpRedirectsToHttps": true,
+    "existingWorkerImageUnchanged": true
+  }
+}

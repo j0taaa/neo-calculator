@@ -19,11 +19,9 @@ import {
 } from "@/lib/calculator-page-helpers";
 import type { DashboardModel } from "@/lib/dashboard/use-dashboard";
 import { BILLING_OPTIONS } from "@/lib/page-utils";
-import { formatDateTime } from "@/lib/utils";
 
 export function ResourceActionDialog({
   projectActions,
-  huawei,
   cloning,
   sharing,
   projectStore,
@@ -33,24 +31,10 @@ export function ResourceActionDialog({
   const {
     listDrafts,
     setListDrafts,
-    listBaseDrafts,
-    setListBaseDrafts,
     listPendingProjectId,
     handleCreateList,
   } = projectActions;
-  const {
-    huaweiCarts,
-    cookieValue,
-    handleSyncProjectHuawei,
-    setSelectedHuaweiCartKey,
-    handleLinkSelectedList,
-    projectHuaweiMessages,
-    projectHuaweiMessageErrors,
-    selectedHuaweiCartKey,
-    huaweiActionMessage,
-    syncingHuaweiProjectId,
-    linkingHuaweiListId,
-  } = huawei;
+
   const {
     projectCloneNameDrafts,
     setProjectCloneNameDrafts,
@@ -115,31 +99,13 @@ export function ResourceActionDialog({
     ? (projectCloneMessageErrors[activeProject.id] ?? false)
     : false;
 
-  const activeProjectHuaweiMessage = activeProject
-    ? (projectHuaweiMessages[activeProject.id] ?? "")
-    : "";
-
-  const activeProjectHuaweiMessageIsError = activeProject
-    ? (projectHuaweiMessageErrors[activeProject.id] ?? false)
-    : false;
-
   const activeProjectShareMessage = activeProject
     ? (projectShareMessages[activeProject.id] ?? "")
     : "";
 
-  const activeSelectedHuaweiCartKey = activeList
-    ? selectedHuaweiCartKey || activeList.huaweiCartKey || ""
-    : "";
-
-  const activeSelectedHuaweiCart =
-    huaweiCarts.find((cart) => cart.key === activeSelectedHuaweiCartKey) ??
-    null;
-
   const activeListCloneMessage = activeList ? cloneActionMessage : "";
 
   const activeListCloneMessageIsError = activeList ? cloneActionIsError : false;
-
-  const activeListHuaweiMessage = activeList ? huaweiActionMessage : "";
 
   const activeListShareMessage = activeList
     ? (listShareMessages[activeList.id] ?? "")
@@ -147,14 +113,6 @@ export function ResourceActionDialog({
 
   const isActiveProjectCloning = activeProject
     ? cloningProjectId === activeProject.id
-    : false;
-
-  const isActiveProjectSyncing = activeProject
-    ? syncingHuaweiProjectId === activeProject.id
-    : false;
-
-  const isActiveListLinking = activeList
-    ? linkingHuaweiListId === activeList.id
     : false;
 
   const isActiveListCloning = activeList
@@ -167,30 +125,22 @@ export function ResourceActionDialog({
           title={
             activeModal.kind === "project-add-cart"
               ? "Add Cart"
-              : activeModal.kind === "project-huawei"
-                ? "Create Huawei Carts"
-                : activeModal.kind === "project-clone"
+              : activeModal.kind === "project-clone"
                   ? "Clone Project"
                   : activeModal.kind === "project-share"
                     ? "Share Project"
-                    : activeModal.kind === "list-link"
-                      ? "Link Huawei Cart"
-                      : activeModal.kind === "list-clone"
+                    : activeModal.kind === "list-clone"
                         ? "Clone Cart"
                         : "Share Cart"
           }
           description={
             activeModal.kind === "project-add-cart"
-              ? "Create a new cart in this project. Optionally start from one of the imported Huawei carts."
-              : activeModal.kind === "project-huawei"
-                ? "Create or update one Huawei cart for every NeoCalculator cart in this project."
-                : activeModal.kind === "project-clone"
+              ? "Create a new cart in this project."
+              : activeModal.kind === "project-clone"
                   ? "Clone every cart in this project into a new project, with optional region and billing conversion."
                   : activeModal.kind === "project-share"
                     ? "Choose whether recipients should import a detached copy or join a collaborative project."
-                    : activeModal.kind === "list-link"
-                      ? "Link this cart to an existing Huawei calculator cart using the saved Huawei Cloud cookie."
-                      : activeModal.kind === "list-clone"
+                    : activeModal.kind === "list-clone"
                         ? "Clone this cart with optional region and billing conversion."
                         : "Create a detached copy link or a collaborative cart link for this cart only."
           }
@@ -206,55 +156,10 @@ export function ResourceActionDialog({
                   [activeProject.id]: value,
                 }))
               }
-              baseCartKey={listBaseDrafts[activeProject.id] ?? ""}
-              onBaseCartKeyChange={(value) =>
-                setListBaseDrafts((current) => ({
-                  ...current,
-                  [activeProject.id]: value,
-                }))
-              }
-              huaweiCarts={huaweiCarts}
-              cookieValue={cookieValue}
+
               pending={listPendingProjectId === activeProject.id}
               onSubmit={() => void handleCreateList(activeProject.id)}
             />
-          ) : null}
-
-          {activeModal.kind === "project-huawei" ? (
-            <>
-              {activeProjectHuaweiMessage ? (
-                <p
-                  className={`text-sm ${activeProjectHuaweiMessageIsError ? "text-red-600" : "text-zinc-600"}`}
-                >
-                  {activeProjectHuaweiMessage}
-                </p>
-              ) : !cookieValue.trim() ? (
-                <p className="text-sm text-zinc-500">
-                  Save a Huawei Cloud cookie on the dashboard to enable project
-                  sync.
-                </p>
-              ) : (
-                <p className="text-sm text-zinc-500">
-                  Existing Huawei-linked carts are updated; unlinked carts will
-                  create new Huawei carts.
-                </p>
-              )}
-              <div className="flex justify-end">
-                <Button
-                  variant="outline"
-                  onClick={() => void handleSyncProjectHuawei(activeProject)}
-                  disabled={
-                    isActiveProjectSyncing ||
-                    activeProject.lists.length === 0 ||
-                    !cookieValue.trim()
-                  }
-                >
-                  {isActiveProjectSyncing
-                    ? "Creating Huawei Carts..."
-                    : "Create Huawei Carts"}
-                </Button>
-              </div>
-            </>
           ) : null}
 
           {activeModal.kind === "project-clone" ? (
@@ -397,91 +302,6 @@ export function ResourceActionDialog({
                   {activeProjectShareMessage}
                 </p>
               ) : null}
-            </>
-          ) : null}
-
-          {activeList && activeModal.kind === "list-link" ? (
-            <>
-              {activeList.huaweiCartKey ? (
-                <p className="text-sm text-zinc-600">
-                  Linked to{" "}
-                  {activeList.huaweiCartName || activeList.huaweiCartKey}
-                </p>
-              ) : null}
-              {activeList.huaweiLastSyncedAt ? (
-                <p className="text-sm text-zinc-500">
-                  Last Huawei sync:{" "}
-                  {formatDateTime(activeList.huaweiLastSyncedAt)}
-                </p>
-              ) : null}
-              {activeList.huaweiLastError ? (
-                <p className="text-sm text-red-600">
-                  {activeList.huaweiLastError}
-                </p>
-              ) : null}
-              {activeListHuaweiMessage ? (
-                <p className="text-sm text-zinc-600">
-                  {activeListHuaweiMessage}
-                </p>
-              ) : !cookieValue.trim() ? (
-                <p className="text-sm text-zinc-500">
-                  Save a Huawei Cloud cookie on the dashboard to load linkable
-                  carts here.
-                </p>
-              ) : null}
-              <Select
-                value={activeSelectedHuaweiCartKey || "__unlinked"}
-                onValueChange={(value) =>
-                  setSelectedHuaweiCartKey(
-                    value && value !== "__unlinked" ? value : "",
-                  )
-                }
-              >
-                <SelectTrigger className="bg-white">
-                  <SelectValue>
-                    {activeSelectedHuaweiCartKey
-                      ? `Huawei: ${activeSelectedHuaweiCart?.name ?? activeList.huaweiCartName ?? activeSelectedHuaweiCartKey}`
-                      : "Choose Huawei cart to link"}
-                  </SelectValue>
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="__unlinked">
-                    No Huawei link selected
-                  </SelectItem>
-                  {activeList.huaweiCartKey &&
-                  !huaweiCarts.some(
-                    (cart) => cart.key === activeList.huaweiCartKey,
-                  ) ? (
-                    <SelectItem value={activeList.huaweiCartKey}>
-                      {activeList.huaweiCartName ?? activeList.huaweiCartKey}
-                    </SelectItem>
-                  ) : null}
-                  {huaweiCarts.map((cart) => {
-                    const linkedElsewhere = Boolean(
-                      cart.associatedListId &&
-                      cart.associatedListId !== activeList.id,
-                    );
-                    return (
-                      <SelectItem
-                        key={cart.key}
-                        value={cart.key}
-                        disabled={linkedElsewhere}
-                      >
-                        {cart.name}
-                      </SelectItem>
-                    );
-                  })}
-                </SelectContent>
-              </Select>
-              <div className="flex justify-end">
-                <Button
-                  variant="outline"
-                  onClick={handleLinkSelectedList}
-                  disabled={!activeSelectedHuaweiCartKey || isActiveListLinking}
-                >
-                  {isActiveListLinking ? "Linking..." : "Link Huawei Cart"}
-                </Button>
-              </div>
             </>
           ) : null}
 

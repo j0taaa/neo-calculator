@@ -1,3 +1,4 @@
+import { productInputError, snapshotServiceCode } from "@/lib/product-input";
 import { isLegacyHuaweiProduct, LEGACY_RECONFIGURE_MESSAGE } from "@/lib/huawei-native/legacy-product";
 import { isNativeProduct, verifyNativeProduct } from "@/lib/huawei-native/native-product";
 import type { ProductMutationBody } from "@/lib/calculator-types";
@@ -52,8 +53,10 @@ export async function POST(request: Request, context: { params: Promise<{ listId
 
   const { listId } = await context.params;
   let body = await readJsonBody<CreateListProductBody>(request);
+  const inputError = productInputError(body);
+  if (inputError) return jsonError(inputError);
 
-  const serviceCode = body?.serviceCode?.trim();
+  let serviceCode = body?.serviceCode?.trim();
   const serviceName = body?.serviceName?.trim();
   let productType = body?.productType?.trim();
   const title = body?.title?.trim();
@@ -62,6 +65,7 @@ export async function POST(request: Request, context: { params: Promise<{ listId
   if (!serviceCode || !serviceName || !productType || !title) {
     return jsonError("serviceCode, serviceName, productType, and title are required");
   }
+  serviceCode = snapshotServiceCode(serviceCode, body?.config);
 
   const list = getListAccessForUser(session.user.id, listId);
 
@@ -71,6 +75,7 @@ export async function POST(request: Request, context: { params: Promise<{ listId
   if (!list.canEditProducts) {
     return jsonError("You do not have permission to edit this cart", 403);
   }
+  body = { ...body, serviceCode, serviceName, productType, title };
 
   if (isLegacyHuaweiProduct({ serviceCode, productType })) return jsonError(LEGACY_RECONFIGURE_MESSAGE, 422);
 

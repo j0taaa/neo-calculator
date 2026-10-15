@@ -1,4 +1,5 @@
-import { calculatorDirectory } from "@/lib/calculator/server-directory";
+import { SnapshotStore } from "@/lib/huawei-snapshot/store";
+import { calculatorApi } from "@/lib/calculator/api";
 import { calculatorServices } from "@/lib/calculator/service-directory";
 import { serviceCatalog } from "@/lib/service-config";
 
@@ -46,15 +47,18 @@ const categoryMap: Record<string, string> = {
 };
 
 export async function GET() {
-  const directory = await calculatorDirectory();
-  const services = calculatorServices(serviceCatalog, directory).map((s) => ({
+  const release = await new SnapshotStore().active().catch(() => null);
+  if (!release) return Response.json({ error: "The daily calculator snapshot is not available yet" }, { status: 503 });
+  const directory = release.directory;
+  const services = calculatorServices(serviceCatalog, directory).filter(s => s.huaweiId).map((s) => ({
     code: s.code,
     name: s.name,
     category: directory?.services.find(service => service.id === s.huaweiId)?.category ?? categoryMap[s.code.toLowerCase()] ?? "Other",
-    pricingUrl: s.code.startsWith("HUAWEI:") ? "/api/calculator/native" : `/api/v1/public/catalog/${s.code}/pricing`,
-    ...(s.huaweiId ? { calculator: { runtime: "huawei-native", serviceCode: `HUAWEI:${s.huaweiId}`,
-      serviceId: s.huaweiId, sessionUrl: "/api/calculator/native", billingModes: directory?.billingModes[s.huaweiId] ?? {} } } : {}),
+    pricingUrl: "/api/v1/calculate",
+    pricingMethod: "POST",
+    schemaUrl: `/api/v1/public/services/${encodeURIComponent(s.code)}/schema`,
+    calculator: calculatorApi(directory, s.huaweiId!),
   }));
 
-  return Response.json({ services, total: services.length });
+  return Response.json({ services, total: services.length, releaseId: release.id }, { headers: { "cache-control": "no-store" } });
 }

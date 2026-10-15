@@ -1,6 +1,9 @@
-import { getSessionFromHeaders, jsonError, readJsonBody } from "@/lib/api-route";
+import { getSessionFromHeaders, jsonError } from "@/lib/api-route";
 import { getProjectAccessForUser } from "@/lib/resource-access";
-import { importCartPayload, importProjectPayload, parseImportedResourcePayload } from "@/lib/resource-import";
+import { importCartPayload, importProjectPayload } from "@/lib/resource-import";
+import { prepareResourceImport, readResourceJson, resourceErrorResponse } from "@/lib/cart-json/http";
+import { isRecord } from "@/lib/product-input";
+import { ResourceDocumentError } from "@/lib/cart-json/types";
 
 export const runtime = "nodejs";
 
@@ -11,14 +14,11 @@ export async function POST(request: Request) {
     return jsonError("Unauthorized", 401);
   }
 
-  const body = await readJsonBody<{ payload?: unknown; targetProjectId?: string }>(request);
-
-  if (!body || body.payload === undefined) {
-    return jsonError("Import payload is required");
-  }
-
   try {
-    const payload = parseImportedResourcePayload(body.payload);
+    const body = await readResourceJson(request);
+    if (!isRecord(body) || body.payload === undefined) return jsonError("Import payload is required");
+    if (body.targetProjectId !== undefined && typeof body.targetProjectId !== "string") return jsonError("targetProjectId must be a string");
+    const payload = await prepareResourceImport(body.payload);
 
     if (payload.resourceType === "project") {
       const result = importProjectPayload(session.user.id, payload);
@@ -54,6 +54,7 @@ export async function POST(request: Request) {
       importedProductCount: result.importedProductCount,
     }, { status: 201 });
   } catch (error) {
+    if (error instanceof ResourceDocumentError) return resourceErrorResponse(error);
     return Response.json(
       { error: error instanceof Error ? error.message : "Unable to import file" },
       { status: 400 },

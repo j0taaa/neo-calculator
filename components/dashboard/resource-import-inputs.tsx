@@ -1,17 +1,21 @@
 "use client";
 
 import type { DashboardModel } from "@/lib/dashboard/use-dashboard";
+import { ResourceImportDialog } from "./resource-import-dialog";
 
 export function ResourceImportInputs({ transfer }: DashboardModel["imports"]) {
   const {
     projectImportInputRef,
     handleImportProjectFile,
     cartImportInputRef,
-    importCartTargetProjectId,
     handleImportCartFile,
+    resourceImportDialog,
+    setResourceImportDialog,
+    chooseResourceImportFile,
   } = transfer;
+  if (!resourceImportDialog) return null;
   return (
-    <>
+    <ResourceImportDialog kind={resourceImportDialog.kind} onClose={() => setResourceImportDialog(null)} onChooseFile={chooseResourceImportFile}>
       <input
         ref={projectImportInputRef}
         type="file"
@@ -20,6 +24,7 @@ export function ResourceImportInputs({ transfer }: DashboardModel["imports"]) {
         onChange={(event) => {
           const file = event.target.files?.[0];
           if (file) {
+            setResourceImportDialog(null);
             void handleImportProjectFile(file);
           }
         }}
@@ -31,12 +36,13 @@ export function ResourceImportInputs({ transfer }: DashboardModel["imports"]) {
         className="hidden"
         onChange={(event) => {
           const file = event.target.files?.[0];
-          const projectId = importCartTargetProjectId;
+          const projectId = resourceImportDialog.kind === "cart" ? resourceImportDialog.projectId : null;
           if (file && projectId) {
+            setResourceImportDialog(null);
             void handleImportCartFile(projectId, file);
           }
         }}
       />
-    </>
+    </ResourceImportDialog>
   );
 }

@@ -1,0 +1,289 @@
+"use strict";
+
+var dataConfig = {
+  dataInfos: [{
+    resourceType: 'hws.resource.type.supportplan',
+    keyConfigs: [{
+      outputKey: 'type',
+      inputs: ['resourceSpecCode'],
+      functions: [{
+        inputs: ['resourceSpecCode'],
+        funcType: 'rulesMap',
+        params: {
+          map: {
+            '^supportplan.developer$': 'dataInfo_3_',
+            '^supportplan.business$': 'dataInfo_2_',
+            '^supportplan.enterprise.On-Ramp$': 'dataInfo_11_',
+            '^supportplan.enterprise$': 'dataInfo_1_'
+          }
+        }
+      }]
+    }, {
+      outputKey: 'inquiryTag',
+      inputs: ['resourceSpecCode'],
+      functions: [{
+        inputs: ['resourceSpecCode'],
+        funcType: 'rulesMap',
+        params: {
+          map: {
+            '\\S': 'support'
+          }
+        }
+      }]
+    }]
+  }],
+  dataSources: [{
+    ids: ['calculator_support_radio', 'priceDetail_stricted_table'],
+    sources: [{
+      param: 'hws.resource.type.supportplan'
+    }]
+  }, {
+    ids: ['priceDetail_price_tip'],
+    sources: [{
+      param: 'detail_2_'
+    }]
+  }, {
+    ids: ['global_TIP_CALC'],
+    sources: [{
+      param: 'dataInfo_5_'
+    }, {
+      param: 'dataInfo_6_'
+    }, {
+      param: 'dataInfo_7_'
+    }]
+  }]
+};
+var viewConfig = {
+  calc_view: {
+    productInfoUrls: [{
+      lang: 'zh-cn',
+      url: 'https://www.huaweicloud.com/intl/zh-cn/service/supportplans.html'
+    }, {
+      lang: 'en-us',
+      url: 'https://www.huaweicloud.com/intl/en-us/service/supportplans.html'
+    }, {
+      lang: 'es-us',
+      url: 'https://www.huaweicloud.com/intl/es-us/service/supportplans.html'
+    }],
+    components: [{
+      id: 'calculator_support_radio',
+      type: 'CommonRadioGroup',
+      optionKeys: ['type'],
+      titles: {
+        0: 'calc_1_'
+      },
+      sortMethods: {
+        0: ['dataInfo_3_', 'dataInfo_2_', 'dataInfo_11_', 'dataInfo_1_']
+      },
+      steppers: [{
+        title: 'calc_7_',
+        target: 'Usage',
+        prefixs: [{
+          measureId: 15,
+          max: 1000000000000000000,
+          min: 0,
+          defaultValue: 0,
+          measureName: 'calc_9_',
+          measurePluralName: 'calc_9_'
+        }],
+        titleTip: 'calc_8_',
+        rules: [{
+          resourceSpecCode: 'supportplan.developer$'
+        }]
+      }, {
+        title: 'calc_7_',
+        target: 'Usage',
+        prefixs: [{
+          measureId: 15,
+          max: 1000000000000000000,
+          min: 1,
+          defaultValue: 1000,
+          measureName: 'calc_9_',
+          measurePluralName: 'calc_9_'
+        }],
+        titleTip: 'calc_8_',
+        rules: [{
+          resourceSpecCode: '^supportplan.(enterprise|enterprise\.On-Ramp|business)$'
+        }]
+      }]
+    }],
+    showConfigs: [{
+      ids: ['global_QUANTITY'],
+      defaultShow: false
+    }]
+  },
+  detail_view: {
+    priceInfoUrls: [{
+      lang: 'zh-cn',
+      url: 'https://support.huaweicloud.com/intl/zh-cn/price-supportplans/support-plans_02_0001.html'
+    }, {
+      lang: 'en-us',
+      url: 'https://support.huaweicloud.com/intl/en-us/price-supportplans/support-plans_02_0001.html'
+    }, {
+      lang: 'es-us',
+      url: 'https://support.huaweicloud.com/intl/en-us/price-supportplans/support-plans_02_0001.html'
+    }],
+    hasMap: false,
+    components: [{
+      id: 'priceDetail_price_tip',
+      type: 'CommonTip',
+      titlePosition: 'top'
+    }, {
+      id: 'priceDetail_stricted_table',
+      type: 'FuncTableStrict',
+      title: 'detail_1_',
+      dataSets: [{
+        settings: [{
+          language: 'zh-cn'
+        }],
+        titles: {
+          0: 'detail_3_',
+          1: 'detail_4_',
+          2: 'detail_5_',
+          3: 'detail_66_',
+          4: 'detail_6_'
+        },
+        permutations: [{
+          0: 'detail_7_',
+          1: 'detail_8_',
+          2: 'detail_9_',
+          3: 'detail_23_',
+          4: 'detail_10_'
+        }, {
+          1: '',
+          2: 'detail_11_',
+          3: 'detail_11_',
+          4: 'detail_11_'
+        }, {
+          1: 'detail_12_',
+          2: 'detail_13_',
+          3: 'detail_24_',
+          4: 'detail_14_'
+        }, {
+          1: '',
+          2: 'detail_15_',
+          3: 'detail_22_',
+          4: 'detail_15_'
+        }, {
+          2: 'detail_16_',
+          4: 'detail_17_'
+        }, {
+          2: 'detail_15_',
+          4: 'detail_15_'
+        }, {
+          2: 'detail_18_',
+          4: 'detail_19_'
+        }, {
+          2: 'detail_15_',
+          4: 'detail_15_'
+        }, {
+          2: 'detail_20_',
+          4: 'detail_21_'
+        }, {
+          2: 'detail_22_',
+          4: 'detail_22_'
+        }]
+      }]
+    }]
+  }
+};
+var funcConfig = {
+  calc: {
+    parseSelectProduct: [{
+      id: 'calculator_support_radio',
+      inputs: ['calculator_support_radio'],
+      function: function _function(source) {
+        if (source && source.length > 0) {
+          source.forEach(function (data) {
+            data.inputValue = data.usageValue;
+            var input = data.usageValue;
+            if (data.resourceSpecCode === 'supportplan.developer') {
+              input = 26;
+            } else if (data.resourceSpecCode === 'supportplan.business') {
+              var calcVaule = 0;
+              if (input > 225000) {
+                calcVaule = 9000 * 0.1 + 63000 * 0.07 + 153000 * 0.05 + (input - 225000) * 0.03;
+                input = calcVaule > 90 ? calcVaule : 90;
+              } else if (input > 72000 && input <= 225000) {
+                calcVaule = 9000 * 0.1 + 63000 * 0.07 + (input - 72000) * 0.05;
+                input = calcVaule > 90 ? calcVaule : 90;
+              } else if (input > 9000 && input <= 72000) {
+                calcVaule = 9000 * 0.1 + (input - 9000) * 0.07;
+                input = calcVaule > 90 ? calcVaule : 90;
+              } else {
+                calcVaule = input * 0.1;
+                input = calcVaule > 90 ? calcVaule : 90;
+              }
+            } else if (data.resourceSpecCode === 'supportplan.enterprise.On-Ramp') {
+              var calcVaule = 0;
+              calcVaule = input * 0.1;
+              input = calcVaule > 5000 ? calcVaule : 5000;
+            } else if (data.resourceSpecCode === 'supportplan.enterprise') {
+              var calcVaule = 0;
+              if (input > 900000) {
+                calcVaule = 135000 * 0.1 + 315000 * 0.07 + 450000 * 0.05 + (input - 900000) * 0.03;
+                input = calcVaule > 13500 ? calcVaule : 13500;
+              } else if (input > 450000 && input <= 900000) {
+                calcVaule = 135000 * 0.1 + 315000 * 0.07 + (input - 450000) * 0.05;
+                input = calcVaule > 13500 ? calcVaule : 13500;
+              } else if (input > 135000 && input <= 450000) {
+                calcVaule = 135000 * 0.1 + (input - 135000) * 0.07;
+                input = calcVaule > 13500 ? calcVaule : 13500;
+              } else {
+                calcVaule = input * 0.1;
+                input = calcVaule > 13500 ? calcVaule : 13500;
+              }
+            }
+            data.supportAmount = input;
+            data.inquiryTag = 'support';
+          });
+        }
+        return source;
+      }
+    }],
+    buyUrls: [{
+      baseUrl: 'https://console-intl.huaweicloud.com/ticket/{globalParams}#/changeSupportPlan'
+    }]
+  }
+};
+var lang = {
+  "dataInfo_1_": "Enterprise",
+  "dataInfo_11_": "Enterprise On-Ramp",
+  "dataInfo_2_": "Business",
+  "dataInfo_3_": "Developer",
+  "dataInfo_4_": "support",
+  "dataInfo_5_": "1. The price is an estimate and may differ from the final price.",
+  "dataInfo_6_": "2. When resource usage is calculated using the pay-per-use billing mode, decimal numerals are rounded off and accurate to two decimal places. For example, if the estimated price is less than $0.01 USD (after rounding off), $0.01 USD will be displayed.",
+  "dataInfo_7_": "3. HUAWEI CLOUD support plans are billed per HUAWEI CLOUD account on a monthly basis. Enter your monthly expenditures before discounts. The monthly expenditures consists of the spending on pay-per-use resources in the current month and the accumulated amount of monthly spending on yearly/monthly services in previous months.",
+  "calc_1_": "Type",
+  "calc_4_": "Support plans are provided and billed on a per account basis.",
+  "calc_7_": "Monthly Expenditure",
+  "calc_8_": "Enter your pre-discount expenditure of the last natural month. Support plans are billed per HUAWEI CLOUD account on a monthly basis.",
+  "calc_9_": "USD/month",
+  "detail_1_": "Specifications Price",
+  "detail_2_": "Support plans are billed every calendar month. Multiple support plans are available on the HUAWEI CLOUD International site, including the Basic plan, which is free of charge. The premium support plans are billed as follows.",
+  "detail_3_": "Basic",
+  "detail_4_": "Developer",
+  "detail_5_": "Business",
+  "detail_6_": "Enterprise",
+  "detail_66_": "Enterprise On-Ramp",
+  "detail_7_": "Included",
+  "detail_8_": "$26 USD/month",
+  "detail_9_": "Starting from $90 USD/month",
+  "detail_10_": "Starting from $13,500 USD/month",
+  "detail_11_": "Or",
+  "detail_12_": "",
+  "detail_13_": "10% of the monthly expenditure from $0 USD to $9,000 USD",
+  "detail_14_": "10% of the monthly expenditure from $0 USD to $135,000 USD",
+  "detail_15_": "+",
+  "detail_16_": "7% of the monthly expenditure from >$9,000 USD to $72,000 USD",
+  "detail_17_": "7% of the monthly expenditure from >135,000 USD to $450,000 USD",
+  "detail_18_": "5% of the monthly expenditure from >$72,000 USD to $225,000 USD",
+  "detail_19_": "5% of the monthly expenditure from >$450,000 USD to $900,000 USD",
+  "detail_20_": "3% of the monthly expenditure greater  than $225,000 USD",
+  "detail_21_": "3% of the monthly expenditure greater than $900,000 USD",
+  "detail_22_": "(Greater of the preceding two amounts; based on pre-discount monthly expenditures)",
+  "detail_23_": "Either $5,000 USD/month",
+  "detail_24_": "10% of monthly expenditures"
+};
+var urlPath = 'supportplans';

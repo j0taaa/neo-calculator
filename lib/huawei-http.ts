@@ -2,9 +2,6 @@ import { execFile } from "node:child_process";
 import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { promisify } from "node:util";
-
-const execFileAsync = promisify(execFile);
 
 type HttpRequestInput = {
   method: string;
@@ -83,53 +80,39 @@ function shouldProxyRequest(url: string): boolean {
   }
 
   try {
-    return new URL(url).hostname.endsWith("huaweicloud.com");
+    const hostname = new URL(url).hostname;
+    return hostname.endsWith("huaweicloud.com") || hostname.endsWith("hc-cdn.com");
   } catch {
     return false;
   }
 }
 
-async function sendCurlRequest(input: HttpRequestInput): Promise<HttpResponseSnapshot> {
+export async function sendCurlRequest(input: HttpRequestInput): Promise<HttpResponseSnapshot> {
   const tempDir = await mkdtemp(join(tmpdir(), "huawei-http-"));
   const headerPath = join(tempDir, "headers.txt");
   const bodyPath = join(tempDir, "body.txt");
   const proxy = getHuaweiProxy();
   const timeoutSeconds = Math.max(1, Math.ceil((input.timeoutMs ?? 30_000) / 1000));
 
-  const args = [
-    "--silent",
-    "--show-error",
-    "--location",
-    "--request",
-    input.method,
-    "--url",
-    input.url,
-    "--dump-header",
-    headerPath,
-    "--output",
-    bodyPath,
-    "--max-time",
-    String(timeoutSeconds),
-    "--connect-timeout",
-    String(Math.min(timeoutSeconds, 15)),
-  ];
-
-  if (proxy) {
-    args.push("--proxy", proxy);
-  }
-
-  for (const [key, value] of Object.entries(input.headers ?? {})) {
-    args.push("--header", `${key}: ${value}`);
-  }
-
-  if (input.body && input.method !== "GET") {
-    args.push("--data-raw", input.body);
-  }
+  const settings: Record<string, string> = {
+    request: input.method, url: input.url, "dump-header": headerPath, output: bodyPath,
+    "max-time": String(timeoutSeconds), "connect-timeout": String(Math.min(timeoutSeconds, 15)),
+  };
+  if (proxy) settings.proxy = proxy;
+  let config = Object.entries(settings).map(([key, value]) => `${key} = ${JSON.stringify(value)}`).join("\n") + "\n";
+  // Cart authentication must not be forwarded to a redirect destination.
+  if (!Object.keys(input.headers ?? {}).some(key => /^(cookie|authorization|x-auth-token)$/i.test(key))) config += "location\n";
+  for (const [key, value] of Object.entries(input.headers ?? {})) config += `header = ${JSON.stringify(`${key}: ${value}`)}\n`;
+  if (input.body && input.method !== "GET") config += `data-raw = ${JSON.stringify(input.body)}\n`;
 
   const startedAt = Date.now();
 
   try {
-    await execFileAsync("curl", args, { maxBuffer: 10 * 1024 * 1024 });
+    await new Promise<void>((resolve, reject) => {
+      const child = execFile("curl", ["--silent", "--config", "-"], { maxBuffer: 10 * 1024 * 1024, timeout: timeoutSeconds * 1000 + 5000 }, error => error ? reject(new Error("Huawei could not be reached. Please try again.")) : resolve());
+      child.stdin?.on("error", () => {});
+      child.stdin?.end(config);
+    });
     const [rawHeaders, bodyText] = await Promise.all([readFile(headerPath, "utf8"), readFile(bodyPath, "utf8")]);
     const parsedHeaders = parseHeaderBlocks(rawHeaders);
     const contentType = parsedHeaders.headers["content-type"] ?? "";
@@ -170,6 +153,13 @@ async function sendFetchRequest(input: HttpRequestInput): Promise<HttpResponseSn
 }
 
 export async function sendHttpRequest(input: HttpRequestInput): Promise<HttpResponseSnapshot> {
+  const sourceUrl=new URL(input.url);
+  const explicitCartRequest=sourceUrl.hostname==="portal-intl.huaweicloud.com"&&/^\/api\/calculator\/rest\/cbc\/portalcalculatornodeservice\/v4\/api\/share\/(?:list|add|detail|update)$/.test(sourceUrl.pathname);
+  if (process.env.HUAWEI_SOURCE_ACCESS !== "sync" &&
+    (sourceUrl.hostname.endsWith("huaweicloud.com") || sourceUrl.hostname.endsWith("hc-cdn.com")) && !explicitCartRequest) {
+    const { snapshotResponse } = await import("./huawei-snapshot/http");
+    return snapshotResponse(input.url, input.method, input.body);
+  }
   if (process.env.HWC_FORCE_FETCH === "1") {
     return sendFetchRequest(input);
   }

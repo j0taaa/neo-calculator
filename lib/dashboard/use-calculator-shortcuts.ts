@@ -1,4 +1,5 @@
 import {
+  hasOpenDialog,
   chooseOpenCalculatorSelectItem,
   getCalculatorActionButton,
   getCalculatorFocusTarget,
@@ -91,6 +92,7 @@ export function useCalculatorShortcuts({
 
   useEffect(() => {
     const handleAltDigitShortcut = (event: KeyboardEvent) => {
+      if (hasOpenDialog()) return;
       if (
         isAwaitingCalculatorSelectOptionShortcut &&
         !event.altKey &&
@@ -176,6 +178,7 @@ export function useCalculatorShortcuts({
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
+      if (hasOpenDialog()) return;
       if (event.key === "Alt" && !event.ctrlKey && !event.metaKey) {
         setIsAltShortcutGuideVisible(true);
       }
