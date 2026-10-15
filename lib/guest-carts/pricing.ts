@@ -1,4 +1,5 @@
 import type { ProductMutationBody } from "../calculator-types";
+import { isSavedHuaweiProduct, assertSavedHuaweiProduct } from "../huawei-carts/preserved";
 import { closeLocalSession, localRequest } from "../huawei-snapshot/client";
 import { independentProductBody } from "../huawei-snapshot/product-body";
 import { parseNativeSelection } from "../huawei-native/native-selection";
@@ -7,6 +8,7 @@ import { nativeBillingModes } from "../huawei-native/native-billing";
 
 /** Reconstruct prices locally; persisted or clipboard money is never authoritative. */
 export async function priceGuestProduct(product: ProductMutationBody) {
+  if (isSavedHuaweiProduct(product)) return assertSavedHuaweiProduct(product);
   if (!product.title.trim() || product.title.length > 300) throw new Error("Resource titles must contain 1–300 characters.");
   const selection = parseNativeSelection((product.config as { selection?: unknown } | null)?.selection);
   const config = product.config as { region?: unknown; billingMode?: unknown };

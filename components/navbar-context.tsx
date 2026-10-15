@@ -5,13 +5,7 @@ import { createContext, useContext, useState, ReactNode } from "react";
 export type NavbarConfig = {
   searchQuery?: string;
   onSearchClick?: () => void;
-  cookieValue?: string;
-  cookieValueSaved?: string;
-  onCookieChange?: (value: string) => void;
-  onSaveCookie?: () => void;
-  huaweiCartsLoading?: boolean;
-  loadHuaweiCarts?: () => void;
-  showHuaweiCarts?: boolean;
+
 };
 
 const NavbarContext = createContext<{

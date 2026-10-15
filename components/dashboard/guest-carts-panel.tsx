@@ -31,6 +31,7 @@ export function GuestCartsPanel({ guest, transfer }: { guest: DashboardModel["gu
           <Input aria-label="New local cart name" placeholder="New cart name" value={name} onChange={event => setName(event.target.value)} onKeyDown={event => { if (event.key === "Enter" && guest.ready && !guest.busy) create(); }} disabled={!guest.ready || guest.busy} />
           <Button onClick={create} disabled={!guest.ready || guest.busy}><Plus />New Cart</Button>
           <ActionMenu label="Open local cart actions" open={menuId === "import"} onOpenChange={open => setMenuId(open ? "import" : null)} items={[
+            { label: "Import from Huawei Cloud", icon: <Download />, onSelect: () => { window.location.href = "/huawei-carts"; } },
             { label: "Import Cart", icon: <Upload />, onSelect: () => setImportKind("cart"), disabled: !guest.ready || guest.busy },
             { label: "Import Project", icon: <Upload />, onSelect: () => setImportKind("project"), disabled: !guest.ready || guest.busy },
           ]} />
@@ -57,6 +58,7 @@ export function GuestCartsPanel({ guest, transfer }: { guest: DashboardModel["gu
                 </button>
                 <ActionMenu label={`Open local actions for ${cart.name}`} open={menuId === cart.id} onOpenChange={open => setMenuId(open ? cart.id : null)} items={[
                   { label: "Rename Cart", icon: <Pencil />, onSelect: () => { setRename(cart.name); setEditingId(cart.id); } },
+                  { label: "Export to Huawei Cloud", icon: <Upload />, onSelect: () => { window.location.href = `/huawei-carts?exportLocal=${encodeURIComponent(cart.id)}`; } },
                   { label: "Export Cart JSON", icon: <Download />, onSelect: () => transfer.handleOpenStandaloneCartExport(cart) },
                   { label: "Share Cart", icon: <Share2 />, onSelect: () => { setCopyMessage(""); void guest.openShare(cart.id); }, disabled: guest.busy },
                   { label: "Duplicate Cart", icon: <Copy />, onSelect: () => guest.clone(cart.id), disabled: guest.busy },

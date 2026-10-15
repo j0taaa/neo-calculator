@@ -2,7 +2,7 @@
 
 import { isHuaweiCalculatorProduct } from "@/lib/huawei-native/legacy-product";
 import { type ActionMenuItem } from "@/components/home-page-shell-parts";
-import { Copy, Download, Link2, RefreshCw, Share2, Trash2 } from "lucide-react";
+import { Copy, Download, Upload, Share2, Trash2 } from "lucide-react";
 
 import { ActionMenu } from "@/components/home-page-shell-parts";
 import { Badge } from "@/components/ui/badge";
@@ -16,13 +16,11 @@ import { isRecord, splitProductPriceSummary } from "@/lib/calculator-page-helper
 import type { DashboardModel } from "@/lib/dashboard/use-dashboard";
 import { getServiceMeta, type CartSortOption } from "@/lib/page-utils";
 import { getProductConfigSummary } from "@/lib/product-config-summary";
-import { formatDateTime } from "@/lib/utils";
 import { Pencil, RotateCcw, Search, SlidersHorizontal } from "lucide-react";
 import Image from "next/image";
 
 export function CartSidebar({
   projectStore,
-  huawei,
   cloning,
   sharing,
   cart,
@@ -38,7 +36,7 @@ export function CartSidebar({
   guestMode,
 }: DashboardModel["cart"]) {
   const { selectedList, selectedProject, selectedListId } = projectStore;
-  const { huaweiActionMessage, handleSyncSelectedList, syncingHuaweiListId } = huawei;
+
   const { cloneActionMessage, cloneActionIsError } = cloning;
   const { listShareMessages } = sharing;
   const {
@@ -66,28 +64,17 @@ export function CartSidebar({
   } = cart;
   const { handleCancelEdit, addToListPending, handleAddToList, handleEditProduct } = calculatorController;
   const { handleOpenListExport } = transfer;
-  const { handleDeleteList, deletingListId } = projectActions;
+  const { handleDeleteList, deletingListId, cartActionMessage } = projectActions;
   const selectedCartMenuItems: ActionMenuItem[] =
     selectedList && guestMode ? [
+      { label: "Export to Huawei Cloud", icon: <Upload className="size-4" />, onSelect: () => { window.location.href = `/huawei-carts?exportLocal=${encodeURIComponent(selectedList.id)}`; } },
       { label: "Export Cart JSON", icon: <Download className="size-4" />, onSelect: () => transfer.handleOpenStandaloneCartExport(selectedList) },
       { label: "Share Cart", icon: <Share2 className="size-4" />, onSelect: () => { void guest.openShare(selectedList.id); }, disabled: guest.busy },
       { label: "Duplicate Cart", icon: <Copy className="size-4" />, onSelect: () => guest.clone(selectedList.id), disabled: guest.busy },
       { label: "Delete Cart", icon: <Trash2 className="size-4" />, onSelect: () => { if (window.confirm(`Delete local cart ${selectedList.name}?`)) guest.remove(selectedList.id); }, disabled: guest.busy },
     ] : selectedList && selectedProject
       ? [
-          {
-            label: selectedList.huaweiCartKey ? "Sync Huawei Cart" : "Create Huawei Cart",
-            icon: <RefreshCw className="size-4" />,
-            onSelect: () => {
-              void handleSyncSelectedList();
-            },
-            disabled: syncingHuaweiListId === selectedList.id,
-          },
-          {
-            label: "Link Huawei Cart",
-            icon: <Link2 className="size-4" />,
-            onSelect: () => openActionModal({ kind: "list-link", listId: selectedList.id }),
-          },
+          { label: "Export to Huawei Cloud", icon: <Upload className="size-4" />, onSelect: () => { window.location.href = `/huawei-carts?exportCart=${encodeURIComponent(selectedList.id)}`; } },
           {
             label: "Export Cart JSON",
             icon: <Download className="size-4" />,
@@ -133,22 +120,10 @@ export function CartSidebar({
                   ? `${selectedProject.name} / ${selectedList.name}`
                   : selectedList ? selectedList.name : "Select a cart to see its products."}
               </p>
-              {selectedList?.huaweiCartKey ? (
-                <p className="mt-1 text-xs text-zinc-400">
-                  Linked to Huawei cart {selectedList.huaweiCartName || selectedList.huaweiCartKey}
-                </p>
-              ) : null}
-              {selectedList?.huaweiLastSyncedAt ? (
-                <p className="mt-1 text-xs text-zinc-400">
-                  Last Huawei sync: {formatDateTime(selectedList.huaweiLastSyncedAt)}
-                </p>
-              ) : null}
-              {selectedList?.huaweiLastError ? (
-                <p className="mt-1 text-xs text-red-600">{selectedList.huaweiLastError}</p>
-              ) : null}
-              {selectedList && (huaweiActionMessage || cloneActionMessage || listShareMessages[selectedList.id]) ? (
+
+              {selectedList && (cartActionMessage || cloneActionMessage || listShareMessages[selectedList.id]) ? (
                 <div className="mt-2 space-y-1 text-xs">
-                  {huaweiActionMessage ? <p className="text-zinc-500">{huaweiActionMessage}</p> : null}
+                  {cartActionMessage ? <p className="text-zinc-500">{cartActionMessage}</p> : null}
                   {cloneActionMessage ? (
                     <p className={cloneActionIsError ? "text-red-600" : "text-zinc-500"}>{cloneActionMessage}</p>
                   ) : null}
@@ -164,7 +139,7 @@ export function CartSidebar({
                   ? `${selectedCartProducts.length} items`
                   : `${filteredCartProducts.length} of ${selectedCartProducts.length} items`}
               </Badge>
-              {selectedList?.huaweiCartKey ? <Badge variant="secondary">Huawei linked</Badge> : null}
+
               {selectedList?.canShare ? (
                 <Button
                   type="button"
@@ -370,7 +345,7 @@ export function CartSidebar({
                               {isSelectedProduct ? (
                                 <Badge className="bg-blue-600 text-white hover:bg-blue-600">Selected</Badge>
                               ) : null}
-                              {isEditingProduct ? <Badge>Editing</Badge> : null}
+                              {isEditingProduct ? <Badge>Editing</Badge> : null}{product.productType === "huawei-saved" && <Badge variant="secondary">Saved Huawei copy · read-only</Badge>}
                             </div>
                             <p className="mt-1 text-sm text-zinc-500">{getProductConfigSummary(product)}</p>
                             <p className="mt-1 text-xs text-zinc-400">
@@ -426,7 +401,8 @@ export function CartSidebar({
                                 event.stopPropagation();
                                 handleEditProduct(product);
                               }}
-                              disabled={deletingProductId === product.id}
+                              disabled={deletingProductId === product.id || product.productType === "huawei-saved"}
+                              title={product.productType === "huawei-saved" ? "Preserved Huawei resource: original options and saved estimate are read-only." : undefined}
                               aria-label={`Edit ${product.title}`}
                             >
                               <Pencil className="size-4" />

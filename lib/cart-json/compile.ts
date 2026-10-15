@@ -1,4 +1,6 @@
 import { CalculatorEngine } from "../calculator-rules/engine";
+import { isSavedHuaweiProduct } from "../huawei-carts/preserved";
+import { verifySavedHuaweiProduct } from "../huawei-carts/preserved-server";
 import { apiService } from "../calculator/api";
 import type { ProductMutationBody } from "../calculator-types";
 import type { NativeField, NativeState } from "../huawei-native/native-types";
@@ -70,6 +72,10 @@ export class ResourceCompiler {
     return productFromIndependentState(nativeDraft(state, service.name, intent.title ?? service.name, true), state, scope, this.release);
   }
   async savedProduct(input: ProductMutationBody, path: string) {
+    if (isSavedHuaweiProduct(input)) {
+      try { return verifySavedHuaweiProduct(input); }
+      catch (error) { throw problem(path, error instanceof Error ? error.message : "Invalid preserved Huawei resource"); }
+    }
     const service = apiService(this.release.directory, input.serviceCode);
     if (!service) throw problem(`${path}/serviceCode`, "Unknown published service", "service.unknown");
     try {

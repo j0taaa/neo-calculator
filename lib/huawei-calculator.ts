@@ -352,7 +352,7 @@ function resolveHuaweiAuth(cookieInput: string) {
 
   return {
     cookie,
-    csrf: extractCookieValue(cookie, "csrf") || undefined,
+    csrf: extractCookieValue(cookie, "portal_csrf") || extractCookieValue(cookie, "csrf") || undefined,
   };
 }
 
@@ -494,6 +494,10 @@ async function huaweiJsonRequest(url: string, init: RequestInit, auth: { cookie:
 
   if (!response.ok) {
     throw new Error(`Huawei calculator request failed: ${response.status} ${response.statusText}: ${summarizeResponseBody(response.bodyText)}`);
+  }
+
+  if (isRecord(body) && typeof body.retCode === "string" && !["0", "200"].includes(body.retCode)) {
+    throw new Error(`Huawei cart operation failed (${body.retCode}). Please refresh and try again.`);
   }
 
   return body;
@@ -1802,6 +1806,7 @@ function buildImportedEcsProduct(remoteItem: RemoteCartItem): LocalProductInput 
 export async function listHuaweiCarts(cookieInput: string) {
   const auth = resolveHuaweiAuth(cookieInput);
   const body = await huaweiJsonRequest(HUAWEI_LIST_URL, { method: "GET" }, auth);
+  if (!isRecord(body) || !Array.isArray(body.lists)) throw new Error("Huawei returned an unexpected cart list. Please try again.");
   const lists = isRecord(body) && Array.isArray(body.lists) ? body.lists : [];
 
   return lists
@@ -1875,6 +1880,16 @@ export async function createHuaweiCart(name: string, cookieInput: string) {
     key,
     name: name.trim() || "NeoCalculator cart",
   };
+}
+
+/** Explicit copies: a new cart is created with its complete payload in one request. */
+export async function writeHuaweiCart(payload: Record<string, unknown>, cookieInput: string, key?: string) {
+  const auth = resolveHuaweiAuth(cookieInput);
+  const body = await huaweiJsonRequest(key ? buildUpdateUrl(key) : HUAWEI_ADD_URL, { method: "POST", body: JSON.stringify(payload) }, auth);
+  if (!isRecord(body) || !["0", "200"].includes(String(body.retCode))) throw new Error("Huawei did not confirm the export. Refresh Huawei Carts before retrying.");
+  const savedKey = key || (isRecord(body) && typeof body.data === "string" ? body.data.trim() : "");
+  if (!savedKey) throw new Error("Huawei did not confirm the new cart. Refresh Huawei Carts before retrying.");
+  return savedKey;
 }
 
 async function buildHuaweiPayloadFromLocalProduct(product: LocalProductInput) {

@@ -90,7 +90,7 @@ test("project and cart menus handle resizing, keyboard selection, dialog focus a
   }
 });
 
-test("signed-in users still see expired Huawei cookies and sign-out stops automatic checks", async ({ page }) => {
+test("signed-in users use Huawei Carts without automatic cookie checks", async ({ page }) => {
   await calculatorApiKey(page);
   await page.addInitScript(() => localStorage.setItem("neoCalculator.huaweiCookie", "expired-demo-cookie"));
   let cartChecks = 0;
@@ -100,9 +100,11 @@ test("signed-in users still see expired Huawei cookies and sign-out stops automa
   });
   for (const path of ["/", "/projects"]) {
     await page.goto(path);
-    await expect(page.getByText(expiredCookie, { exact: true })).toBeVisible();
+    await expect(page.getByText(expiredCookie, { exact: true })).toHaveCount(0);
+    await expect(page.getByRole("link", { name: "Huawei Carts", exact: true })).toBeVisible();
+    expect(await page.evaluate(() => localStorage.getItem("neoCalculator.huaweiCookie"))).toBeNull();
   }
-  expect(cartChecks).toBeGreaterThanOrEqual(2);
+  expect(cartChecks).toBe(0);
   const signOut = await page.request.post("/api/auth/sign-out", { data: {} });
   expect(signOut.ok()).toBe(true);
   const checksBeforeSignOut = cartChecks;

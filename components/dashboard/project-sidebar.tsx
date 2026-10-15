@@ -3,7 +3,6 @@ import { type ActionMenuItem } from "@/components/home-page-shell-parts";
 import {
   Copy,
   Download,
-  RefreshCw,
   Share2,
   Trash2,
   Upload,
@@ -17,7 +16,7 @@ import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import type { DashboardModel } from "@/lib/dashboard/use-dashboard";
-import { formatDate, formatDateTime } from "@/lib/utils";
+import { formatDate } from "@/lib/utils";
 import Link from "next/link";
 import {
   Check,
@@ -29,7 +28,6 @@ import {
 } from "lucide-react";
 
 export function ProjectSidebar({
-  huawei,
   projectStore,
   projectActions,
   transfer,
@@ -42,12 +40,7 @@ export function ProjectSidebar({
   openProjectMenuId,
   setOpenProjectMenuId,
 }: DashboardModel["projects"]) {
-  const {
-    huaweiCartsSyncedAt,
-    huaweiCartsError,
-    projectHuaweiMessages,
-    projectHuaweiMessageErrors,
-  } = huawei;
+
   const {
     projects,
     projectsError,
@@ -114,14 +107,7 @@ export function ProjectSidebar({
                   ? "Projects and lists are scoped to your account."
                   : "Browse anonymously. Sign in when you want to save carts and projects."}
               </p>
-              {isSignedIn && huaweiCartsSyncedAt ? (
-                <p className="mt-1 text-xs text-zinc-400">
-                  Huawei carts synced {formatDateTime(huaweiCartsSyncedAt)}
-                </p>
-              ) : null}
-              {isSignedIn && huaweiCartsError ? (
-                <p className="mt-1 text-xs text-red-600">{huaweiCartsError}</p>
-              ) : null}
+
             </div>
             <Badge variant="secondary">{projects.length}</Badge>
           </div>
@@ -167,8 +153,7 @@ export function ProjectSidebar({
             <div className="space-y-3 py-3">
               {!isSignedIn ? (
                 <div className="rounded-lg border border-dashed bg-zinc-50 p-4 text-sm text-zinc-500">
-                  Sign in to save carts and projects. The calculator and Huawei
-                  cookie tools still work without an account.
+                  Sign in to save projects. Local Carts and Huawei Carts also work without a Neo account.
                 </div>
               ) : null}
               {projectsLoading ? (
@@ -185,10 +170,7 @@ export function ProjectSidebar({
                   projectCloneMessages[project.id] ?? "";
                 const projectCloneIsError =
                   projectCloneMessageErrors[project.id] ?? false;
-                const projectHuaweiMessage =
-                  projectHuaweiMessages[project.id] ?? "";
-                const projectHuaweiMessageIsError =
-                  projectHuaweiMessageErrors[project.id] ?? false;
+
                 const projectImportMessage =
                   projectImportMessages[project.id] ?? "";
                 const projectImportMessageIsError =
@@ -212,15 +194,7 @@ export function ProjectSidebar({
                     onSelect: () => openCartImportPicker(project.id),
                     disabled: importCartPendingProjectId === project.id,
                   },
-                  {
-                    label: "Create Huawei Carts",
-                    icon: <RefreshCw className="size-4" />,
-                    onSelect: () =>
-                      openActionModal({
-                        kind: "project-huawei",
-                        projectId: project.id,
-                      }),
-                  },
+
                   {
                     label: "Clone Project",
                     icon: <Copy className="size-4" />,
@@ -401,24 +375,14 @@ export function ProjectSidebar({
                     {isExpanded ? (
                       <div className="border-t border-zinc-100 px-3 py-3">
                         <div className="space-y-2">
-                          {projectHuaweiMessage ||
+                          {
                           projectCloneMessage ||
                           projectImportMessage ||
                           projectExportMessage ||
                           projectShareMessage ? (
                             <div className="rounded-lg border bg-zinc-50 p-3">
                               <div className="space-y-1 text-xs">
-                                {projectHuaweiMessage ? (
-                                  <p
-                                    className={
-                                      projectHuaweiMessageIsError
-                                        ? "text-red-600"
-                                        : "text-zinc-600"
-                                    }
-                                  >
-                                    {projectHuaweiMessage}
-                                  </p>
-                                ) : null}
+
                                 {projectCloneMessage ? (
                                   <p
                                     className={

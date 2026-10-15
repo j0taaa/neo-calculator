@@ -182,6 +182,8 @@ export function getProductConfigSummary(product: AppProduct): string {
     return parts.join(" · ") || product.serviceName;
   }
 
+  if (product.productType === "huawei-saved") return `${product.serviceName} · ${typeof product.config.region === "string" ? product.config.region : "Huawei Cloud"} · Original options preserved`;
+
   if (product.productType === "huawei-raw") {
     const parts = [
       typeof product.config.region === "string" ? product.config.region : null,

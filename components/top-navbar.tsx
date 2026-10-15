@@ -24,6 +24,7 @@ interface ApiKeyData {
 }
 
 export function TopNavbar() {
+  useEffect(() => { try { window.localStorage.removeItem("neoCalculator.huaweiCookie"); } catch { /* Storage can be unavailable in private browsers. */ } }, []);
   const pathname = usePathname();
   const { session, isPending } = useSessionContext();
   const { config } = useNavbar();
@@ -38,11 +39,10 @@ export function TopNavbar() {
 
   // Settings dropdown state
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-  const [settingsTab, setSettingsTab] = useState<"cookie" | "apikey" | "export">("cookie");
+  const [settingsTab, setSettingsTab] = useState<"apikey" | "export">("apikey");
   const settingsRef = useRef<HTMLDivElement>(null);
 
   // Cookie state
-  const [cookieDraft, setCookieDraft] = useState(() => config.cookieValue || "");
 
   // API key state
   const [apiKey, setApiKey] = useState<ApiKeyData | null>(null);
@@ -183,7 +183,6 @@ export function TopNavbar() {
   const isDashboard = pathname === "/";
   const isProjects = pathname === "/projects";
   const showSearch = isDashboard || isProjects;
-  const showDashboardExtras = isDashboard && config.showHuaweiCarts !== false;
 
   if (pathname === "/sync-lab") return null;
 
@@ -217,6 +216,7 @@ export function TopNavbar() {
               Dashboard
             </Link>
 
+            <Link href="/huawei-carts" className={`rounded-full px-2.5 py-1.5 text-xs sm:py-2 sm:text-sm font-medium transition ${isActive(pathname, "/huawei-carts") ? "bg-zinc-950 text-white" : "text-zinc-600 hover:bg-zinc-100 hover:text-zinc-950"}`}>Huawei Carts</Link>
           </nav>
         </div>
 
@@ -279,19 +279,6 @@ export function TopNavbar() {
               </div>
 
               {/* Dashboard-specific buttons */}
-              {showDashboardExtras && (
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="icon"
-                  className="size-9"
-                  aria-label="Reload Huawei carts"
-                  onClick={() => config.loadHuaweiCarts?.()}
-                  disabled={config.huaweiCartsLoading || !config.cookieValueSaved}
-                >
-                  <RefreshCw className={`size-4 ${config.huaweiCartsLoading ? "animate-spin" : ""}`} />
-                </Button>
-              )}
 
               {/* Settings Dropdown */}
               <div ref={settingsRef} className="relative">
@@ -310,19 +297,7 @@ export function TopNavbar() {
                   <div className="fixed inset-x-3 top-20 z-50 mt-3 max-h-[calc(100dvh-7rem)] overflow-y-auto rounded-2xl border border-zinc-200 bg-white shadow-[0_28px_80px_-40px_rgba(15,23,42,0.45)] sm:absolute sm:inset-x-auto sm:top-full sm:right-0 sm:w-[min(92vw,420px)]">
                     {/* Tabs */}
                     <div className="flex border-b border-zinc-100">
-                      {showDashboardExtras && (
-                        <button
-                          type="button"
-                          onClick={() => setSettingsTab("cookie")}
-                          className={`flex-1 px-4 py-3 text-sm font-medium transition ${
-                            settingsTab === "cookie"
-                              ? "border-b-2 border-zinc-900 text-zinc-900"
-                              : "text-zinc-500 hover:text-zinc-700"
-                          }`}
-                        >
-                          Cookie
-                        </button>
-                      )}
+
                       <button
                         type="button"
                         onClick={() => setSettingsTab("apikey")}
@@ -349,50 +324,6 @@ export function TopNavbar() {
 
                     {/* Tab Content */}
                     <div className="p-4">
-                      {settingsTab === "cookie" && showDashboardExtras && (
-                        <div className="space-y-3">
-                          <div>
-                            <p className="text-sm font-semibold text-zinc-950">Huawei Cloud Cookie</p>
-                            <p className="text-sm text-zinc-500">
-                              Paste your website cookie string. It will be saved locally in this browser.
-                            </p>
-                          </div>
-                          <textarea
-                            value={cookieDraft}
-                            onChange={(event) => setCookieDraft(event.target.value)}
-                            className="min-h-32 w-full rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-900 outline-none transition focus:border-zinc-400 focus:ring-3 focus:ring-zinc-200"
-                            placeholder="cookie_name=value; other_cookie=value;"
-                          />
-                          <div className="flex items-center justify-between gap-3 text-xs text-zinc-500">
-                            <span>{config.cookieValueSaved ? "Cookie saved locally" : "No cookie saved yet"}</span>
-                            <span>{cookieDraft.length} chars</span>
-                          </div>
-                          <div className="flex justify-end gap-2">
-                            <Button
-                              type="button"
-                              variant="outline"
-                              size="sm"
-                              onClick={() => {
-                                setCookieDraft(config.cookieValue || "");
-                                setIsSettingsOpen(false);
-                              }}
-                            >
-                              Cancel
-                            </Button>
-                            <Button
-                              type="button"
-                              size="sm"
-                              onClick={() => {
-                                config.onCookieChange?.(cookieDraft);
-                                config.onSaveCookie?.();
-                                setIsSettingsOpen(false);
-                              }}
-                            >
-                              Save Cookie
-                            </Button>
-                          </div>
-                        </div>
-                      )}
 
                       {settingsTab === "apikey" && (
                         <div className="space-y-4">

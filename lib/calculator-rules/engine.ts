@@ -13,6 +13,7 @@ import { periodChoices } from "./periods";
 import { priceSelection } from "./selection-pricing";
 import { bundleControls } from "./bundles";
 import { clusterControls, mediaControls, tableControls } from "./specialized";
+import { cartControlValue, sameCartValues } from "./cart-controls";
 
 /** Neo's own state machine. It can run identically in a browser or on the server. */
 export class CalculatorEngine {
@@ -308,6 +309,42 @@ export class CalculatorEngine {
     }
   }
   get state() { return this.current ?? this.evaluate(); }
+  /** Serializable control values for Huawei cart transfer; never executes its UI. */
+  cartValues(): Record<string, unknown> {
+    if (!this.current) this.evaluate();
+    const values = structuredClone(this.values), template: Record<string, unknown> = {};
+    for (const config of this.rules.components as any[]) {
+      if (config.id.startsWith("global_") || !(config.id in values)) continue;
+      let value = values[config.id];
+      if (config.type === "CommonAddible" && Array.isArray(value)) value = Object.fromEntries(value.map((part, index) => [`${config.id}_${index === 0 ? "main" : `|addible0|_${index - 1}`}`, part]));
+      template[config.id] = value;
+    }
+    return { ...Object.fromEntries(Object.entries(values).filter(([key]) => key.startsWith("global_"))), template_RENDER: template };
+  }
+  restoreCartValues(rewrite: Record<string, unknown>) {
+    const template = rewrite.template_RENDER as Record<string, unknown> | undefined;
+    for (const config of this.rules.components as any[]) {
+      const value = template?.[config.id];
+      if (config.type === "CommonAddible" && value && typeof value === "object") this.chosen.set(`${config.id}:count`, Math.min(Number(config.max ?? 10), Object.keys(value).filter(key => key.startsWith(`${config.id}_|addible0|_`)).length));
+    }
+    this.evaluate();
+    for (let pass = 0; pass < 15; pass++) {
+      let changed = false;
+      for (const id of this.state.fields.map(field => field.id)) {
+        const field = this.state.fields.find(field => field.id === id), binding = this.bindings.get(id);
+        if (!field || !binding || field.disabled || field.type === "action") continue;
+        const semantic = cartControlValue(binding.key, field.component, rewrite);
+        if (semantic === undefined) continue;
+        const current = field.type === "select" ? binding.options?.[Number(field.value)] : field.value;
+        if (sameCartValues(current, semantic)) continue;
+        const index = field.type === "select" ? binding.options?.findIndex(option => sameCartValues(option, semantic)) ?? -1 : -1;
+        if (field.type === "select" && index < 0) continue;
+        this.change(field.id, field.type === "select" ? String(index) : semantic as string | number | boolean); changed = true;
+      }
+      if (!changed) return this.state;
+    }
+    throw new Error("The saved cart controls could not be restored exactly.");
+  }
   /** Merge ordering evidence from different visible branches into the published rule model. */
   learnDependencyOrder(reference: NativeState) {
     if (!reference.ruleOrder) return;

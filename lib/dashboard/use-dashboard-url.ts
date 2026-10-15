@@ -213,9 +213,11 @@ export function useDashboardUrl({
         handleCancelEdit();
       }
 
+      if (pendingUrlState.modalKind === "project-huawei" || pendingUrlState.modalKind === "list-link") {
+        window.location.replace("/huawei-carts"); return;
+      }
       if (pendingUrlState.modalKind) {
         if (
-          pendingUrlState.modalKind === "project-huawei" ||
           pendingUrlState.modalKind === "project-clone" ||
           pendingUrlState.modalKind === "project-share"
         ) {

@@ -16,7 +16,6 @@ import { useCalculatorShortcuts } from "@/lib/dashboard/use-calculator-shortcuts
 import { useCartContents } from "@/lib/dashboard/use-cart-contents";
 import { useDashboardKeyboard } from "@/lib/dashboard/use-dashboard-keyboard";
 import { useDashboardUrl } from "@/lib/dashboard/use-dashboard-url";
-import { useHuaweiCarts } from "@/lib/dashboard/use-huawei-carts";
 import { useProjectActions } from "@/lib/dashboard/use-project-actions";
 import { useProjectStore } from "@/lib/dashboard/use-project-store";
 import { useGuestCarts } from "@/lib/dashboard/use-guest-carts";
@@ -67,13 +66,6 @@ export function useDashboard({ standalone = false }: { standalone?: boolean } = 
     ...(guestMode ? { selectedList: guest.selectedList, selectedProject: null,
       selectedListId: guest.selectedListId, setSelectedListId: guest.select } : {}),
   };
-
-  const huawei = useHuaweiCarts({
-    session: guestMode ? null : session,
-    selectedList: projectStore.selectedList,
-    selectedListId: projectStore.selectedListId,
-    setProjects: projectStore.setProjects,
-  });
 
   const transfer = useResourceTransfer({
     session,
@@ -231,6 +223,7 @@ export function useDashboard({ standalone = false }: { standalone?: boolean } = 
   const calculatorController = {
     ...legacyController,
     handleEditProduct: (product: AppProduct, listId = projectStore.selectedListId) => {
+      if (product.productType === "huawei-saved") return;
       if (!isHuaweiCalculatorProduct(product)) {
         setNativeEditingProduct(null);
         legacyController.handleEditProduct(product, listId);
@@ -286,11 +279,10 @@ export function useDashboard({ standalone = false }: { standalone?: boolean } = 
     setProjectsError: projectStore.setProjectsError,
     setProjects: projectStore.setProjects,
     setExpandedProjects: projectStore.setExpandedProjects,
-    cookieValue: huawei.cookieValue,
+
     setSelectedListId: projectStore.setSelectedListId,
     setActiveModal,
-    setHuaweiActionMessage: huawei.setHuaweiActionMessage,
-    loadHuaweiCarts: huawei.loadHuaweiCarts,
+
     setProjectCloneNameDrafts: cloning.setProjectCloneNameDrafts,
     setProjectCloneTargetRegions: cloning.setProjectCloneTargetRegions,
     setProjectCloneTargetBillingModes: cloning.setProjectCloneTargetBillingModes,
@@ -403,23 +395,14 @@ export function useDashboard({ standalone = false }: { standalone?: boolean } = 
     setConfig({
       searchQuery: query,
       onSearchClick: () => { setQuery(""); setActiveSuggestionIndex(0); setIsSearchOpen(true); },
-      cookieValue: huawei.cookieValue,
-      cookieValueSaved: huawei.cookieValue,
-      onCookieChange: huawei.setCookieDraft,
-      onSaveCookie: huawei.handleSaveCookie,
-      huaweiCartsLoading: huawei.huaweiCartsLoading,
-      loadHuaweiCarts: huawei.loadHuaweiCarts,
-      showHuaweiCarts: !guestMode,
+
     });
   }, [
     query,
     guestMode,
-    huawei.cookieValue,
-    huawei.huaweiCartsLoading,
-    huawei.loadHuaweiCarts,
+
     setConfig,
-    huawei.handleSaveCookie,
-    huawei.setCookieDraft,
+
   ]);
 
   const openActionModal = (modal: Exclude<ActiveModal, null>) => {
@@ -468,7 +451,7 @@ export function useDashboard({ standalone = false }: { standalone?: boolean } = 
       normalizedQuery,
     },
     projects: {
-      huawei,
+
       projectStore,
       projectActions,
       transfer,
@@ -509,7 +492,7 @@ export function useDashboard({ standalone = false }: { standalone?: boolean } = 
     cart: {
       guest, guestMode,
       projectStore,
-      huawei,
+
       cloning,
       sharing,
       cart,
@@ -526,7 +509,7 @@ export function useDashboard({ standalone = false }: { standalone?: boolean } = 
     exportDialog: { transfer },
     actionDialog: {
       projectActions,
-      huawei,
+
       cloning,
       sharing,
       projectStore,
