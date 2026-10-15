@@ -43,7 +43,7 @@ for (const width of [280, 375, 1440]) {
     await expect(menu).toHaveCount(0);
     await expect(page.getByText(expiredCookie, { exact: true })).toHaveCount(0);
     await page.goto("/projects");
-    await expect(page.getByText("Sign In To Save And Share", { exact: true })).toBeVisible();
+    await expect(page.getByText("Sign in to use projects", { exact: true })).toBeVisible();
     await expect(page.getByText(expiredCookie, { exact: true })).toHaveCount(0);
     expect(cartChecks).toBe(0);
   });

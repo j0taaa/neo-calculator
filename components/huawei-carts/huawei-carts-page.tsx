@@ -65,8 +65,7 @@ export function HuaweiCartsPage() {
     [carts, setCarts] = useState<HuaweiCart[]>([]),
     [scope, setScope] = useState("");
   const [loading, setLoading] = useState(false),
-    [error, setError] = useState(""),
-    [refreshed, setRefreshed] = useState("");
+    [error, setError] = useState("");
   const [query, setQuery] = useState(""),
     [sort, setSort] = useState("updated"),
     [page, setPage] = useState(0),
@@ -92,7 +91,6 @@ export function HuaweiCartsPage() {
     setDocuments({});
     setResults([]);
     setScope("");
-    setRefreshed("");
   };
   const loadCarts = useCallback(async () => {
     setLoading(true);
@@ -105,7 +103,6 @@ export function HuaweiCartsPage() {
       }>("transfers");
       setCarts(result.carts);
       setScope(result.accountScope);
-      setRefreshed(result.refreshedAt);
       setSelected(new Set());
     } catch (error) {
       setError(
@@ -362,8 +359,7 @@ export function HuaweiCartsPage() {
             Huawei Carts
           </h1>
           <p className="mt-2 max-w-2xl text-sm text-zinc-500">
-            Bring saved Huawei carts into NeoCalculator, or export a Neo cart to
-            Huawei Cloud. Transfers create separate copies.
+            Import and export independent copies of your carts.
           </p>
         </div>
         <Button variant="outline" onClick={() => setPickExport(true)}>
@@ -408,12 +404,7 @@ export function HuaweiCartsPage() {
                 <span className="mr-2 inline-block size-2 rounded-full bg-emerald-500" />
                 Connected as {connection.username}
               </p>
-              <p className="mt-1 text-xs text-zinc-500">
-                {connection.account}
-                {refreshed
-                  ? ` · Refreshed ${new Date(refreshed).toLocaleTimeString()}`
-                  : ""}
-              </p>
+              {connection.account !== connection.username && <p className="mt-1 text-xs text-zinc-500">{connection.account}</p>}
             </div>
             <div className="flex flex-wrap gap-1">
               <Button

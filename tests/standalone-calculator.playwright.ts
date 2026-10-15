@@ -289,8 +289,8 @@ test("OBS Cairo prorates its yearly-only catalog and saves the complete local pr
   await expect.poll(() => price(page)).toBe(493.68);
   await chooseControl(page, period, { label: "1 year" });
   await expect.poll(() => price(page)).toBe(740.52);
-  await page.getByRole("button", { name: "Add to List", exact: true }).click();
-  await expect(page.getByText("Product added using synchronized rates.")).toBeVisible();
+  await page.getByRole("button", { name: "Add to cart", exact: true }).click();
+  await expect(page.getByText("Added to cart.")).toBeVisible();
   const projects = await (await page.request.get("/api/projects")).json();
   const products = projects.find((p: { id: number }) => p.id === project.id).lists
     .find((l: { id: number }) => l.id === list.id).products;
@@ -356,9 +356,9 @@ test("Support Plans tier arithmetic and subscription duration save from local ru
     { label: "1 year" },
   );
   await expect.poll(() => price(page)).toBe(10800);
-  await page.getByRole("button", { name: "Add to List", exact: true }).click();
+  await page.getByRole("button", { name: "Add to cart", exact: true }).click();
   await expect(
-    page.getByText("Product added using synchronized rates."),
+    page.getByText("Added to cart."),
   ).toBeVisible();
   const projects = await (await page.request.get("/api/projects")).json();
   const products = projects.find((p: { id: number }) => p.id === project.id).lists.find((l: { id: number }) => l.id === list.id).products;
@@ -396,9 +396,9 @@ test("saving and reopening a cart recomputes money locally with Huawei unreachab
     `/?service=NAT&region=cn-hong-kong&project=${project.id}&list=${list.id}`,
   );
   const original = await price(page);
-  await page.getByRole("button", { name: "Add to List", exact: true }).click();
+  await page.getByRole("button", { name: "Add to cart", exact: true }).click();
   await expect(
-    page.getByText("Product added using synchronized rates."),
+    page.getByText("Added to cart."),
   ).toBeVisible();
   const projects = await (await page.request.get("/api/projects")).json();
   const products = projects
@@ -424,7 +424,7 @@ test("saving and reopening a cart recomputes money locally with Huawei unreachab
   expect(await price(page)).toBe(original);
   await page.getByRole("button", { name: "Save Changes", exact: true }).click();
   await expect(
-    page.getByText("Product updated using synchronized rates."),
+    page.getByText("Changes saved."),
   ).toBeVisible();
   await page
     .getByRole("tabpanel", { name: "Calculator", exact: true })

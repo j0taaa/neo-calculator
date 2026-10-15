@@ -56,9 +56,7 @@ export function HuaweiConnectionForm({
       }}
     >
       <p className="text-sm text-zinc-500">
-        Connect to browse and transfer your saved Huawei calculator carts. No
-        NeoCalculator account is required. Your password is used to sign in and
-        is not saved.
+        Your password is used to sign in and is not saved.
       </p>
       <label className="block space-y-1.5 text-sm font-medium">
         {iam ? "Huawei account name" : "Huawei account ID"}

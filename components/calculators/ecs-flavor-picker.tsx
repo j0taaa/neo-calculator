@@ -106,7 +106,7 @@ export function EcsFlavorPicker({
       <section className="space-y-3">
         <div className="space-y-3">
           <div>
-            <p className="text-sm font-medium">Flavor</p>
+            <p className="text-sm font-medium" title={catalogFlavorsLastCompletedAt ? `Rates updated ${formatDateTime(catalogFlavorsLastCompletedAt)}` : undefined}>Flavor</p>
           </div>
           <div className="grid grid-cols-1 gap-2 @min-[480px]/workspace:grid-cols-2 @min-[780px]/workspace:grid-cols-[auto_minmax(0,1fr)_auto_auto]">
             {showFlexusLToggleVisible ? (
@@ -180,9 +180,6 @@ export function EcsFlavorPicker({
 
         <div className="rounded-xl border bg-zinc-50 p-3" data-calculator-focus-group>
           {catalogFlavorsError ? <p className="mb-3 text-sm text-red-600">{catalogFlavorsError}</p> : null}
-          {catalogFlavorsLastCompletedAt ? (
-            <p className="mb-3 text-xs text-zinc-500">Last synced: {formatDateTime(catalogFlavorsLastCompletedAt)}</p>
-          ) : null}
           <div className="space-y-2">
             {catalogFlavorsLoading ? (
               <div className="rounded-lg border border-dashed bg-white px-3 py-6 text-center text-sm text-zinc-500">
@@ -209,10 +206,9 @@ export function EcsFlavorPicker({
                   <div className="min-w-0 flex-1">
                     <p className="break-all font-medium text-zinc-950">{flavor.name}</p>
                     <p className="text-sm text-zinc-500">{flavor.family}</p>
-                    <p className="text-xs text-zinc-400">{flavor.priceModeLabel}</p>
                   </div>
                   <div className="shrink-0 text-sm @min-[480px]/workspace:text-right">
-                    <p className="font-medium text-zinc-950">{flavor.price}</p>
+                    <p className="font-medium text-zinc-950" title={flavor.priceModeLabel}>{flavor.price}</p>
                     <p className="text-zinc-500">
                       {flavor.vcpu} vCPUs · {flavor.ram} GiB RAM
                     </p>

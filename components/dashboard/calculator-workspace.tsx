@@ -29,7 +29,7 @@ export function CalculatorWorkspace(model: DashboardModel["calculator"]) {
               <CardTitle className="text-xl @min-[640px]/workspace:text-2xl"><h1>{selectedServiceMeta.name}</h1></CardTitle>
               <Button variant="ghost" size="sm" aria-label="Service" data-value={selectedServiceMeta.code}
                 className="mt-1 h-7 gap-2 px-0 text-xs text-zinc-500" onClick={openServiceSearch}>
-                {selectedServiceMeta.code}<Search className="size-3" /><span>Change service</span>
+                <Search className="size-3" /><span>Change service</span><kbd className="ml-1 hidden text-[10px] sm:inline">Ctrl K</kbd>
               </Button>
             </div>
           </div>

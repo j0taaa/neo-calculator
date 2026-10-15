@@ -74,7 +74,7 @@ export function NativeFlavorBrowser({ region, billingMode, disabled, selectedFla
       currentFlavorPage={currentPage} totalFlavorPages={pages} onPreviousFlavorPage={() => setPage(currentPage - 1)} onNextFlavorPage={() => setPage(currentPage + 1)}
       showFlexusLToggleVisible={false} showFlexusLChecked={false} onShowFlexusLChange={() => {}} />
     {selectedFlavor && <p className="text-sm">Selected flavor: <strong>{selectedFlavor}</strong></p>}
-    <p className="text-xs text-zinc-500"><span>{flavors.length} matching flavors</span>. Reference prices cover compute only; your complete estimate uses synchronized Huawei rates.</p>
+    <p className="text-xs text-zinc-500"><span>{flavors.length} matching flavors</span> · {billingMode === "RI" ? "Pay-per-use compute references." : "Prices cover compute only."}</p>
     {error && <Button variant="outline" size="sm" onClick={() => { setFailure({ key: scopeKey, message: "" }); setAttempt(value => value + 1); }}>Retry flavors</Button>}
   </section>;
 }

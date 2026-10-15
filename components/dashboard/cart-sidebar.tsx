@@ -113,13 +113,9 @@ export function CartSidebar({
       <Card className="min-w-0 overflow-hidden shadow-sm">
         <CardHeader className="pb-3">
           <div className="flex flex-wrap items-start justify-between gap-3">
-            <div className="min-w-0 basis-full">
-              <CardTitle>Cart Contents</CardTitle>
-              <p className="mt-1 truncate text-sm text-zinc-500">
-                {selectedList && selectedProject
-                  ? `${selectedProject.name} / ${selectedList.name}`
-                  : selectedList ? selectedList.name : "Select a cart to see its products."}
-              </p>
+            <div className="min-w-0 flex-1">
+              <CardTitle className="truncate" title={selectedList?.name}>{selectedList?.name ?? "Cart"}</CardTitle>
+              {selectedProject && <p className="mt-1 truncate text-sm text-zinc-500">{selectedProject.name}</p>}
 
               {selectedList && (cartActionMessage || cloneActionMessage || listShareMessages[selectedList.id]) ? (
                 <div className="mt-2 space-y-1 text-xs">
@@ -134,28 +130,12 @@ export function CartSidebar({
               ) : null}
             </div>
             <div className="flex flex-wrap items-center gap-2">
-              <Badge variant="outline">
+              {selectedCartProducts.length > 0 && <Badge variant="outline">
                 {filteredCartProducts.length === selectedCartProducts.length
                   ? `${selectedCartProducts.length} items`
                   : `${filteredCartProducts.length} of ${selectedCartProducts.length} items`}
-              </Badge>
+              </Badge>}
 
-              {selectedList?.canShare ? (
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  onClick={() =>
-                    openActionModal({
-                      kind: "list-share",
-                      listId: selectedList.id,
-                    })
-                  }
-                  aria-label={`Share ${selectedList.name}`}
-                >
-                  <Share2 className="size-4" />
-                </Button>
-              ) : null}
               {selectedList ? (
                 <ActionMenu
                   open={isCartMenuOpen}
@@ -166,7 +146,7 @@ export function CartSidebar({
               ) : null}
             </div>
           </div>
-          {selectedList ? (
+          {selectedList && (selectedCartProducts.length > 0 || hasActiveCartFilters) ? (
             <div className="mt-3 flex items-center gap-2">
               <div className="relative min-w-0 flex-1">
                 <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-zinc-400" />
@@ -279,13 +259,13 @@ export function CartSidebar({
           <ScrollArea className="px-4 [&>[data-slot=scroll-area-viewport]]:max-h-72 xl:[&>[data-slot=scroll-area-viewport]]:max-h-[calc(100dvh-22rem)]">
             <div className="space-y-3 py-3">
               {!selectedList ? (
-                <div className="rounded-lg border border-dashed bg-zinc-50 p-4 text-sm text-zinc-500">
-                  Create a list and select it to use it as the active cart.
+                <div className="px-1 py-3 text-sm text-zinc-500">
+                  Create or select a cart to add resources.
                 </div>
               ) : null}
 
               {selectedList && selectedCartProducts.length === 0 ? (
-                <div className="rounded-lg border border-dashed bg-zinc-50 p-4 text-sm text-zinc-500">
+                <div className="px-1 py-3 text-sm text-zinc-500">
                   This cart is empty.
                 </div>
               ) : null}
@@ -349,7 +329,7 @@ export function CartSidebar({
                             </div>
                             <p className="mt-1 text-sm text-zinc-500">{getProductConfigSummary(product)}</p>
                             <p className="mt-1 text-xs text-zinc-400">
-                              {product.serviceCode} · {product.productType.toUpperCase()} · Qty {product.quantity}
+                              Qty {product.quantity}
                             </p>
                           </div>
                         </div>

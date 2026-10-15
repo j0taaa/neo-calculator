@@ -8,7 +8,6 @@ import { nativeBillingModes } from "@/lib/huawei-native/native-billing";
 import { isHuaweiCalculatorProduct } from "@/lib/huawei-native/legacy-product";
 
 import { applyProductMutation, saveCalculatorProducts } from "@/lib/calculator-cart";
-import { useNavbar } from "@/components/navbar-context";
 import { useSessionContext } from "@/components/session-provider";
 import { getResponseError } from "@/lib/calculator-page-helpers";
 import type { AppProduct, ProductMutationBody } from "@/lib/calculator-types";
@@ -35,7 +34,6 @@ const serverSnapshot = () => false;
 export function useDashboard({ standalone = false }: { standalone?: boolean } = {}) {
   const { session, isPending: isSessionPending } = useSessionContext();
 
-  const { setConfig } = useNavbar();
 
   const hasMounted = useSyncExternalStore(subscribeToHydration, clientSnapshot, serverSnapshot);
 
@@ -390,20 +388,6 @@ export function useDashboard({ standalone = false }: { standalone?: boolean } = 
       calculatorController.resetForServiceCode(serviceMeta.code);
     }
   };
-
-  useEffect(() => {
-    setConfig({
-      searchQuery: query,
-      onSearchClick: () => { setQuery(""); setActiveSuggestionIndex(0); setIsSearchOpen(true); },
-
-    });
-  }, [
-    query,
-    guestMode,
-
-    setConfig,
-
-  ]);
 
   const openActionModal = (modal: Exclude<ActiveModal, null>) => {
     setOpenProjectMenuId(null);

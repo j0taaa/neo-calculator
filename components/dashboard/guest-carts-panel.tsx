@@ -26,7 +26,7 @@ export function GuestCartsPanel({ guest, transfer }: { guest: DashboardModel["gu
     <Card className="min-w-0 overflow-hidden shadow-sm">
       <CardHeader>
         <CardTitle>Local Carts</CardTitle>
-        <p className="text-sm text-zinc-500">Saved in this browser, without a project or account. Export or share to keep a copy.</p>
+        <p className="text-xs text-zinc-500">Saved in this browser</p>
         <div className="flex flex-wrap gap-2">
           <Input aria-label="New local cart name" placeholder="New cart name" value={name} onChange={event => setName(event.target.value)} onKeyDown={event => { if (event.key === "Enter" && guest.ready && !guest.busy) create(); }} disabled={!guest.ready || guest.busy} />
           <Button onClick={create} disabled={!guest.ready || guest.busy}><Plus />New Cart</Button>

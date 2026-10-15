@@ -32,7 +32,7 @@ test("anonymous ECS saves and edits locally, survives reload, and exports accoun
   await expect(page.getByRole("button", { name: "New Cart", exact: true })).toBeEnabled();
   const quote = page.getByTestId("lab-price");
   await expect(quote).toBeVisible();
-  await page.getByLabel("Description", { exact: true }).fill("Anonymous server");
+  await page.getByLabel("Resource name", { exact: true }).fill("Anonymous server");
   await page.locator('[data-field-id="global_ONDEMANDTIME:0"]').fill("12");
   const amount = Number((await quote.innerText()).replace(/[^\d.]/g, ""));
   await page.locator("[data-calculator-add-button]").click();
@@ -163,7 +163,7 @@ test("queued configurations, clipboard cut/paste and local cart management work 
   page.on("request", request => { if (request.method() !== "GET" && !request.url().includes("/api/v1/cart/validate")) privateWrites.push(request.url()); });
   await page.goto("/?service=ECS&region=cn-hong-kong"); await expect(page.getByTestId("lab-price")).toBeVisible();
   for (const title of ["Queued one", "Queued two"]) {
-    await page.getByLabel("Description", { exact: true }).fill(title);
+    await page.getByLabel("Resource name", { exact: true }).fill(title);
     await page.getByRole("button", { name: "Queue for batch", exact: true }).click();
   }
   await page.getByRole("tab", { name: /^Batch add/ }).click();

@@ -13,7 +13,6 @@ import Image from "next/image";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from "react";
 
-import { useNavbar } from "@/components/navbar-context";
 import { ProjectAddCartModalContent } from "@/components/project-add-cart-modal-content";
 import { ResourceImportInputs } from "@/components/dashboard/resource-import-inputs";
 import { useSessionContext } from "@/components/session-provider";
@@ -52,7 +51,6 @@ function getServiceMeta(serviceCode: string, serviceName: string) {
 
 export default function ProjectsPage() {
   const { session, isPending: isSessionPending } = useSessionContext();
-  const { setConfig } = useNavbar();
   const hasMounted = useSyncExternalStore(
     () => () => undefined,
     () => true,
@@ -166,10 +164,6 @@ export default function ProjectsPage() {
     void loadProjects();
   }, [loadProjects]);
 
-  // Sync navbar config (projects page only shows search, no dashboard extras)
-  useEffect(() => {
-    setConfig({});
-  }, [setConfig]);
 
   useEffect(() => {
     if (!activeModal) {
@@ -566,6 +560,7 @@ export default function ProjectsPage() {
   return (
     <main className="min-h-screen bg-zinc-100 bg-grid-pattern px-4 py-8 sm:px-6 lg:px-8">
       <div className="mx-auto max-w-[1600px] space-y-6">
+        <h1 className="text-3xl font-semibold tracking-tight text-zinc-950">Projects</h1>
         {!showSessionState ? (
           <Card>
             <CardContent className="py-12 text-center text-zinc-500">Checking session...</CardContent>
@@ -574,27 +569,19 @@ export default function ProjectsPage() {
         {showSessionState && !session ? (
           <Card className="mx-auto max-w-xl shadow-sm">
             <CardHeader>
-              <CardTitle>Sign In To Save And Share</CardTitle>
+              <CardTitle>Sign in to use projects</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4 text-sm text-zinc-500">
               <p>
-                The calculator is available without an account, but saved carts, saved projects, and share links require
-                sign-in.
+                Sign in to organize carts into projects. Local carts can be saved, exported and shared without an account.
               </p>
-              <Link href="/" className={buttonVariants({ className: "bg-zinc-950 hover:bg-zinc-800" })}>
-                Open Calculator
-              </Link>
+              <div className="flex flex-wrap gap-2">
+                <Link href="/sign-in" className={buttonVariants()}>Sign In</Link>
+                <Link href="/cart" className={buttonVariants({ variant: "outline" })}>Open local carts</Link>
+              </div>
             </CardContent>
           </Card>
         ) : null}
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <p className="text-xs font-medium tracking-[0.22em] text-zinc-500 uppercase">Projects</p>
-            <h1 className="mt-2 text-3xl font-semibold tracking-tight text-zinc-950">Project Manager</h1>
-
-          </div>
-        </div>
-
         <ResourceImportInputs transfer={transfer} />
 
         {showSessionState && session ? (
@@ -602,14 +589,12 @@ export default function ProjectsPage() {
             <CardHeader className="pb-3">
               <div className="flex items-center justify-between gap-3">
                 <div>
-                  <CardTitle>My Projects</CardTitle>
                   <p className="mt-1 text-sm text-zinc-500">
                     {projects.length} project{projects.length !== 1 ? "s" : ""}, {totals.listCount} cart
                     {totals.listCount !== 1 ? "s" : ""}, {totals.productCount} product
                     {totals.productCount !== 1 ? "s" : ""}.
                   </p>
                 </div>
-                <Badge variant="secondary">{projects.length}</Badge>
               </div>
               <div className="flex flex-col gap-2 sm:flex-row">
                 <Input

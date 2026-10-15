@@ -61,7 +61,7 @@ export function ResourceImportDialog({ kind, onClose, onChooseFile, children }: 
         </div>
         <section className="my-5 space-y-3 rounded-xl border border-zinc-200 bg-zinc-50 p-4" aria-label="Current JSON schema">
           <h3 className="text-sm font-medium">Generate JSON with an AI agent</h3>
-          <p className="text-sm text-zinc-600">Give your agent this schema and your requirements. It explains how to discover available options and validate the generated resources. The schema follows the current published catalog.</p>
+          <p className="text-sm text-zinc-600">Give your agent this schema to generate and validate a cart using the current catalog.</p>
           {!schema && !error && <p role="status" className="text-sm text-zinc-500">Loading the current JSON schema…</p>}
           {error && <p role="alert" className="text-sm text-red-700">{error}</p>}
           {schema && <p className="text-xs text-zinc-500">{schema.services} services · {schema.regions} regions{date && !Number.isNaN(date.getTime()) ? ` · Published ${date.toLocaleDateString()}` : ""}</p>}

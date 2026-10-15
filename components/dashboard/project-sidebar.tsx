@@ -16,7 +16,6 @@ import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import type { DashboardModel } from "@/lib/dashboard/use-dashboard";
-import { formatDate } from "@/lib/utils";
 import Link from "next/link";
 import {
   Check,
@@ -49,8 +48,6 @@ export function ProjectSidebar({
     toggleProject,
     selectedListId,
     setSelectedListId,
-    totalProjectLists,
-    totalProjectProducts,
   } = projectStore;
   const {
     newProjectName,
@@ -102,11 +99,6 @@ export function ProjectSidebar({
             <div>
               <CardTitle>My Projects</CardTitle>
               {isSignedIn && <Link href="/cart" className="mt-1 inline-block text-xs text-zinc-600 underline">Open local carts</Link>}
-              <p className="mt-1 text-sm text-zinc-500">
-                {isSignedIn
-                  ? "Projects and lists are scoped to your account."
-                  : "Browse anonymously. Sign in when you want to save carts and projects."}
-              </p>
 
             </div>
             <Badge variant="secondary">{projects.length}</Badge>
@@ -272,12 +264,12 @@ export function ProjectSidebar({
                           >
                             <p className="font-medium">{project.name}</p>
                             <p className="text-sm text-zinc-500">
-                              {project.lists.length} lists ·{" "}
+                              {project.lists.length} carts ·{" "}
                               {project.lists.reduce(
                                 (sum, list) => sum + list.productCount,
                                 0,
                               )}{" "}
-                              products · {formatDate(project.updatedAt)}
+                              resources
                             </p>
                           </button>
                         )}
@@ -442,25 +434,11 @@ export function ProjectSidebar({
                                   <div>
                                     <div className="flex flex-wrap items-center gap-2">
                                       <p className="font-medium">{item.name}</p>
-                                      {item.huaweiCartKey ? (
-                                        <Badge variant="secondary">
-                                          Huawei linked
-                                        </Badge>
-                                      ) : null}
                                     </div>
                                     <p className="text-sm text-zinc-500">
-                                      {item.productCount} products · Created{" "}
-                                      {formatDate(item.createdAt)}
+                                      {item.productCount} resources
                                     </p>
-                                    {item.huaweiCartName ? (
-                                      <p className="text-xs text-zinc-400">
-                                        {item.huaweiCartName}
-                                      </p>
-                                    ) : null}
                                   </div>
-                                  <Badge variant="outline">
-                                    {item.productCount}
-                                  </Badge>
                                 </div>
                               </button>
                               <Button
@@ -479,7 +457,7 @@ export function ProjectSidebar({
                           ))}
                           {project.lists.length === 0 ? (
                             <div className="rounded-lg border border-dashed bg-zinc-50 p-4 text-sm text-zinc-500">
-                              This project does not have lists yet.
+                              No carts yet.
                             </div>
                           ) : null}
                         </div>
@@ -488,10 +466,6 @@ export function ProjectSidebar({
                   </div>
                 );
               })}
-              <div className="rounded-lg border border-dashed bg-zinc-50 p-4 text-sm text-zinc-500">
-                {projects.length} projects containing {totalProjectLists} lists
-                and {totalProjectProducts} products.
-              </div>
             </div>
           </ScrollArea>
         </CardContent>

@@ -81,7 +81,7 @@ for (const [width, height] of viewports) {
     await expect(page.getByText("c7.large.4", { exact: true })).toBeVisible();
     await expectControlsToFit(page);
 
-    await page.getByRole("button", { name: "Open service search" }).click();
+    await page.getByRole("button", { name: "Service", exact: true }).click();
     await page.getByRole("combobox", { name: "Search services" }).fill("DCS");
     await page.getByRole("listbox").getByRole("option").filter({ hasText: "Distributed Cache Service" }).click();
     await expect(page.getByText("Loading DCS pricing...", { exact: true })).toBeHidden();

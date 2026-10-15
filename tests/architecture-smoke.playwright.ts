@@ -40,7 +40,7 @@ async function createTestCart(page: Page, baseURL: string | undefined) {
 }
 
 async function selectService(page: Page, code: string) {
-  await page.getByRole("button", { name: "Open service search" }).click();
+  await page.getByRole("button", { name: "Service", exact: true }).click();
   const search = page.getByRole("combobox", { name: "Search services" });
   await search.fill(code);
   await page.getByRole("option").filter({ hasText: serviceCatalog.find((service) => service.code === code)!.name }).first().click();
